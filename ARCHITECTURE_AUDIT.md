@@ -67,7 +67,7 @@ below is evaluated against it.
 
 ## 1. Findings
 
-### F1 — A second, undocumented composition root exists (`server/bootstrap/*`, 128 files)
+### F1 — A second, undocumented composition root exists (`server/bootstrap/*`, 128 files) — **[RESOLVED]**
 
 **Files:** `server/bootstrap/composition-root.ts`, `application-bootstrap.ts`, `application-provider.ts`,
 `api-bootstrap.ts`, `infrastructure-bootstrap.ts`, `tokens.ts`, `lifecycle-manager.ts`, `startup-validator.ts`,
@@ -235,9 +235,33 @@ and wired (`addresses`, `admin`, `checkout`, `courier`, `orders`, `seller`, `war
 архитектурного решения. Настоящий раздел фиксирует доказательства и рекомендацию; само удаление в рамках
 этой задачи **не выполняется** — оно требует отдельного решения и утверждения.
 
+#### Resolution
+
+**Root cause:** as established above — `server/bootstrap/*` was a second, complete composition root
+implementing an "AI platform" scaffold unrelated to this marketplace's documented roadmap, connected to the
+real application only through a single dead bridge (`server/functions/purchase.executor.ts` →
+`server/bootstrap/application-provider.ts`). Recommendation A (removal) was accepted.
+
+**Directories removed:**
+- `server/functions/purchase.executor.ts`, `server/functions/purchase.functions.ts` — the two dead bridge
+  files themselves (Этап 1, commit `794ac3a`).
+- `server/bootstrap/` — 128 files, the composition root proper (Этап 2, commit `b631384`).
+
+**Verification performed (per stage, before merging into the branch):**
+- Pre-deletion: repo-wide `grep` confirming zero importers of `@server/bootstrap` (and, for Этап 1, of
+  `purchase.functions`/`purchase.executor`) outside the reachable graph.
+- Post-deletion: `npx tsc --noEmit` — error count and exact error set unchanged both times (Этап 1: 11 → 11
+  identical; Этап 2: 11 → 11 identical), confirming zero reachable-graph impact.
+- Post-deletion: `npm run build` — exit 0 both times, `.output/server/` rebuilt successfully.
+- `git status` inspected after each stage — only the expected files listed as deleted.
+
+**Final result:** `server/bootstrap/` and its sole bridge no longer exist in the repository (branch
+`architecture-cleanup`, commits `794ac3a` and `b631384`). Zero regressions in the reachable graph at either
+step.
+
 ---
 
-### F2 — A ~4,600-file "enterprise platform" tree is wired only through F1's dead bridge
+### F2 — A ~4,600-file "enterprise platform" tree is wired only through F1's dead bridge — **[RESOLVED]**
 
 **Scope:**
 
@@ -393,9 +417,40 @@ $ grep -rln "@server/domain/seller/" server src shared --include="*.ts" | grep -
 приложением. Решение по F2 (A/B/C) не требует отдельного рассмотрения — оно тождественно решению по F1 и
 должно приниматься одновременно с ним.
 
+#### Resolution
+
+**Root cause:** as established above — F2 is entirely F1's payload, registered exclusively through the
+now-removed `composition-root.ts`, with no independent path into the reachable graph.
+
+**Directories removed** (Этапы 3–7, each verified independently before merging):
+
+| Этап | Каталог(и) | Файлов | Коммит |
+|---|---|---|---|
+| 3 | `server/transports/`, `server/jobs/`, `server/observability/`, `server/security/` | 142 | `2c29d5d` |
+| 4 | `server/api/` | 430 | `9fee5c1` |
+| 5 | `server/platform/` | 865 | `852a7d9` |
+| 6 | `server/infrastructure/` (includes F3, see below) | 908 | `c2d8b8a` |
+| 7 | `server/application/` | 2,158 | `50b4cd4` |
+| **Итого** | | **4,503** | |
+
+**Verification performed (at every one of the five stages above):**
+- Pre-deletion: repo-wide `grep` for `@server/<dir>` confirming zero importers in `src`, `shared`,
+  `server/functions`, `server/di`, `server/domain`, `server/adapters`, `server/ports`, `server/config`,
+  `server/auth` — reconfirmed independently at each stage rather than assumed from earlier findings.
+- Post-deletion: `npx tsc --noEmit` at each stage — error count never increased in the reachable graph; it
+  only ever decreased as malformed orphan files were removed (11 → 11 → 11 → 1 → 1, then a one-time
+  investigation after Этап 7 — see `## 5. Final Verification` below — explained a subsequent rise to 37 as
+  latent, pre-existing, independent findings unrelated to F1/F2, not a regression).
+- Post-deletion: `npm run build` — exit 0 at every stage.
+- `git status` inspected after each stage — only the expected directory's files listed as deleted, no
+  unrelated changes.
+
+**Final result:** all eight F2 directories no longer exist in the repository. Reachable graph verified intact
+at every one of the five removal stages.
+
 ---
 
-### F3 — Duplicate Supabase adapter (`server/infrastructure/supabase/`, 25 files) shadows the real one (`server/adapters/supabase/`, 8 files)
+### F3 — Duplicate Supabase adapter (`server/infrastructure/supabase/`, 25 files) shadows the real one (`server/adapters/supabase/`, 8 files) — **[RESOLVED]**
 
 **Files (duplicate/dead):**
 ```
@@ -432,6 +487,23 @@ server/platform/runtime/runtime/health/health.service.ts
 No importer outside the already-unreachable F1/F2 tree.
 
 **Classification: Medium** — real duplication and confusion risk, but currently fully inert.
+
+#### Resolution
+
+**Root cause:** F3's files are not an independent directory — they are a physical subset of
+`server/infrastructure/` (908 files, F2), included in that count. See `## 4.5` above for the full argument
+that F3 has no independent resolution path from F2.
+
+**Directories removed:** none separately. Folded automatically into Этап 6's removal of `server/infrastructure/`
+(commit `c2d8b8a`) — no distinct action was taken or required, exactly as predicted in §4.5.
+
+**Verification performed:** post-Этап 6, an empirical check specifically for class names unique to F3's
+duplicate implementation (`SupabaseSnapshotRepositoryBase`, `SupabaseTransactionManager`,
+`SupabaseEventPublisher` — none shared with the real `server/adapters/supabase/*`) confirmed absent from the
+repository and from `.output/server/` after the deletion.
+
+**Final result:** F3 resolved as a direct, mechanical consequence of F2's removal, confirming the §4.5
+prediction exactly — no separate fix, decision, or verification cycle was needed.
 
 ---
 
@@ -584,7 +656,7 @@ step-by-step detail in `ARCHITECTURE_AUDIT_RESOLUTION.md`.
 
 ---
 
-### F6 — A second, well-built DDD domain model exists for order/catalog/product but nothing consumes it
+### F6 — A second, well-built DDD domain model exists for order/catalog/product but nothing consumes it — **[RESOLVED]**
 
 **Files:**
 ```
@@ -631,6 +703,35 @@ they share a parent directory with code that is.
 **Classification: High** as an architectural/maintainability hazard — the false sense of "this is live code
 because it's in `server/domain/`" is a real trap. **Not a runtime issue** — confirmed unreachable and its type
 errors have no effect on the shipped build.
+
+#### Resolution
+
+**Root cause:** as established above — a second, unused DDD domain model whose only consumers
+(`server/api/controllers`, `server/application/*`, `server/infrastructure/*`) were themselves part of F1/F2.
+Once F1/F2 were removed (Этапы 2–7), F6 had zero consumers of any kind, live or dead.
+
+**Directories removed** (Этап 8, commit `36140fb`):
+
+| Directory | Files |
+|---|---|
+| `server/domain/order/` | 37 |
+| `server/domain/catalog/` | 33 |
+| `server/domain/product/` | 26 |
+| `server/domain/seller/` (discovered during the F2 boundary analysis, not in the original F6 finding above) | 28 |
+| **Итого** | **124** |
+
+**Verification performed:**
+- Pre-deletion: repo-wide `grep` for `@server/domain/{order,catalog,product,seller}/` re-run fresh at the time
+  of deletion (not relying on the earlier F2-era finding) — zero importers anywhere, including within the by
+  then already-removed F1/F2 tree.
+- Post-deletion: `npx tsc --noEmit` — error count dropped by exactly 19 (37 → 18), matching 1:1 the count of
+  errors previously located inside these four directories, with zero new errors introduced.
+- Post-deletion: `npm run build` — exit 0, `.output/server/` rebuilt successfully.
+- `git status` — 124 deletions, all under the four expected directories.
+
+**Final result:** `server/domain/{order,catalog,product,seller}/` no longer exist. All 19 errors that lived
+inside them are gone. The remaining 18 TypeScript diagnostics are independently confirmed unrelated to F6 (or
+to any other finding in this document) — see `## 5. Final Verification` below.
 
 ---
 
@@ -709,12 +810,12 @@ fixing it would make recurrence of this pattern detectable going forward.
 
 | # | Location(s) | Severity | Reachable from real entry point? |
 |---|---|---|---|
-| F1 | `server/bootstrap/*` (128 files) | High | No — proven unreachable + absent from `.output` |
-| F2 | `server/application`, `server/infrastructure`, `server/platform`, `server/api`, `server/observability`, `server/security`, `server/jobs`, `server/transports` (4,503 files) | High | No — same proof as F1 |
-| F3 | `server/infrastructure/supabase/*` (25 files) | Medium | No — only referenced from F1/F2 |
+| F1 | `server/bootstrap/*` (128 files) | High — **RESOLVED** | No — proven unreachable + absent from `.output` |
+| F2 | `server/application`, `server/infrastructure`, `server/platform`, `server/api`, `server/observability`, `server/security`, `server/jobs`, `server/transports` (4,503 files) | High — **RESOLVED** | No — same proof as F1 |
+| F3 | `server/infrastructure/supabase/*` (25 files) | Medium — **RESOLVED** | No — only referenced from F1/F2 |
 | F4 | `server/domain/checkout.service.ts:20` | Medium — **RESOLVED** | **Yes** |
 | F5 | `server/adapters/supabase/*.repository.ts`, `server/domain/{checkout.service,marketplace-events,notification-center}.ts`, `server/domain/product-publication/rules/seller-publish.rule.ts`, `server/ports/order.repository.ts` | **Critical — RESOLVED** | **Yes** |
-| F6 | `server/domain/{order,catalog,product}/**` (62 files) | High | No — only referenced from F1/F2 |
+| F6 | `server/domain/{order,catalog,product,seller}/**` (124 files) | High — **RESOLVED** | No — only referenced from F1/F2 |
 | F7 | `server/infrastructure/analytics/wiring/event-publishing-{product,seller}.service.ts` | Low | No |
 | F8 | `server/routes/webhooks/finik.ts` | Not an issue | Indeterminate (irrelevant — file is an intentional no-op) |
 | F9 | `eslint.config.js`, `tsconfig.json` | Medium | N/A (config gap, not a code path) |
@@ -841,3 +942,87 @@ fixing it would make recurrence of this pattern detectable going forward.
    не требует отдельного действия; F8 подтверждён как не являющийся проблемой; F9 (усиление
    `no-restricted-imports` внутри `server/**` и добавление unused-exports проверки) стоит внедрить отдельно,
    как профилактическую меру против повторного накопления такого же паттерна в будущем.
+
+---
+
+## 5. Final Verification
+
+Раздел фиксирует итог выполнения рекомендации A по всем шести затронутым находкам (F1, F2, F3, F4, F5, F6) —
+все выполнено в ветке `architecture-cleanup` (базовый коммит `0198d62`, «Baseline before architecture
+cleanup»), пошагово, с проверкой после каждого этапа. Подробный пошаговый план — `IMPLEMENTATION_PLAN_A.md`.
+
+### 5.1. Выполненные этапы
+
+| Этап | Содержание | Файлов удалено | Коммит |
+|---|---|---|---|
+| 1 | Мостовые файлы (`server/functions/purchase.{executor,functions}.ts`) | 2 | `794ac3a` |
+| 2 | `server/bootstrap/` (F1) | 128 | `b631384` |
+| 3 | `server/transports/`, `server/jobs/`, `server/observability/`, `server/security/` | 142 | `2c29d5d` |
+| 4 | `server/api/` | 430 | `9fee5c1` |
+| 5 | `server/platform/` | 865 | `852a7d9` |
+| 6 | `server/infrastructure/` (включая F3) | 908 | `c2d8b8a` |
+| 7 | `server/application/` | 2,158 | `50b4cd4` |
+| 8 | `server/domain/{order,catalog,product,seller}/` (F6) | 124 | `36140fb` |
+| **Итого** | | **4,757** | |
+
+(Этапы 4/5 F5-фикса выполнены ранее, до начала удаления orphan-дерева, и в этот подсчёт не входят —
+см. отдельные подразделы `#### Resolution` у F4/F5.)
+
+### 5.2. Итоговые метрики
+
+- **Итоговый размер `server/`: 133 файла** (было 4,890 до Этапа 1) — практически точное совпадение с
+  прогнозом `IMPLEMENTATION_PLAN_A.md` §2 («≈130–135 файлов»).
+- Оставшиеся каталоги `server/`: `adapters` (15), `auth` (1), `config` (1), `di` (1), `domain` (76), `functions`
+  (12), `ports` (27), `routes` (1) — ровно reachable-граф, задокументированный в `## 0. Methodology`, плюс F8
+  (`server/routes/webhooks/finik.ts`, подтверждён как не являющийся проблемой, не трогался).
+- `src/`: 106 файлов, без изменений.
+- **`npm run build` — успешно** (exit 0) после каждого из восьми этапов, включая финальный; `.output/server/`
+  и `.output/public/` пересобираются без ошибок.
+
+### 5.3. TypeScript: 18 оставшихся диагностик — не относятся к orphan-архитектуре
+
+После Этапа 8 `npx tsc --noEmit` показывает **18 диагностик** (было 0 ошибок в reachable-графе сразу после
+закрытия F5; рост до 37, затем спад до 18 произошёл между Этапами 7 и 8 и расследован отдельно, до
+подтверждения Этапа 8 пользователем). Ключевой вывод расследования: пока в проекте оставался хотя бы один
+файл с сырой синтаксической ошибкой парсера (последний — `server/application/seller-product/use-cases/
+seller-product.use-cases.ts`, устранён на Этапе 7), TypeScript-чекер не доводил фазу семантической проверки
+(`Check`) до конца для всей программы — что было подтверждено эмпирически через `tsc --extendedDiagnostics`
+(в состоянии «до»: `Types: 89`, `Instantiations: 0`, строка `Check time` отсутствует; в состоянии «после»:
+`Types: 94947`, `Instantiations: 699140`, `Check time: 3.36–3.46s`). Поэтому все 18 диагностик — это **не
+новые ошибки и не регрессия от удаления orphan-дерева**, а ранее не вычислявшиеся диагностики для кода,
+который не менялся на всём протяжении Этапов 1–8. Ни одна из них не содержит ссылки на что-либо, удалённое
+в рамках F1/F2/F3/F6 (подтверждено `grep`).
+
+**Группа D — нестабильная диагностика (1 диагностика).**
+`server/domain/notification-center.service.ts:22` — `Type 'NotificationEvent' is not assignable to type
+'never'`. Уже задокументировано в `#### Resolution` F5 как диагностика, однажды исчезавшая как «побочный
+эффект» исправления других ошибок; вернулась после Этапа 7 — подтверждает контекстно-зависимое поведение
+чекера, а не логическую ошибку в коде.
+
+**Группа E — реальный, независимый, ранее не исправленный баг (1 диагностика).**
+`server/adapters/supabase/seller-product.repository.ts:119` — `patch: Record<string, unknown>` не проходит
+строгую типизацию `.update()` Supabase. Тот же класс проблемы, что был исправлен в `address.repository.ts`
+при закрытии F5 (`TablesUpdate<"...">` вместо `Record<string, unknown>`), но в `seller-product.repository.ts`
+эта правка никогда не выполнялась. Не входит в область F1–F9; требует отдельного исправления вне рамок этого
+плана.
+
+**Группа F — ложное срабатывание TypeScript (5 диагностик).**
+`src/api/{addresses,admin,courier,seller,warehouse}.functions.ts` — «Function lacks ending return statement
+and return type does not include 'undefined'». Проверены сигнатуры всех пяти вспомогательных функций
+(`mapAddressError`, `mapAdminError`, `mapCourierError`, `mapSellerError`, `mapWarehouseError`) — все корректно
+объявлены как `(error: unknown): never`. Анализ недостижимости кода после вызова `never`-функции, полученной
+через `await import(...)`, в данной комбинации не сработал — код корректен, это особенность диагностики
+компилятора, а не дефект.
+
+**Группа G — реальный, независимый, ранее не исправленный баг (11 диагностик).**
+`src/routes/{admin,courier,orders,profile,seller,warehouse}/**` (11 файлов) — `supabase.auth
+.onAuthStateChange()` возвращает `{ data: { subscription: Subscription } }`; во всех 11 файлах код
+деструктурирует `const { data: subscription } = ...`, получая объект `{ subscription: Subscription }`
+целиком вместо самого `Subscription`, и вызывает `subscription.unsubscribe()` на один уровень не там же.
+Баг идентичен и скопирован по одному и тому же шаблону во всех 11 файлах. Не входит в область F1–F9;
+требует отдельного исправления вне рамок этого плана.
+
+**Итог:** 1 (D) + 1 (E) + 5 (F) + 11 (G) = **18**, что совпадает с фактическим результатом `tsc --noEmit`
+после Этапа 8. Ни одна из групп не пересекается ни с одной находкой F1–F9 этого документа и не была вызвана
+удалением orphan-архитектуры — все они существовали в коде до начала работ по этому плану и были просто
+не видны из-за прерывания фазы `Check` компилятора.
