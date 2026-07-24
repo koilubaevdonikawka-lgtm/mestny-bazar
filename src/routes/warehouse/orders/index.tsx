@@ -28,13 +28,21 @@ function WarehouseOrdersPage() {
     supabase.auth.getSession().then(({ data }) => {
       setIsAuthenticated(!!data.session?.user);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(!!session?.user);
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  const { data: orders = [], isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: orders = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["warehouse", "orders", "list"],
     queryFn: listWarehouseOrders,
     enabled: isAuthenticated === true,
@@ -99,13 +107,19 @@ function WarehouseOrdersPage() {
             <>
               <ShieldAlert className="h-10 w-10 text-primary mx-auto mb-4" />
               <h1 className="font-serif text-3xl tracking-tight">Доступ запрещён</h1>
-              <p className="mt-3 text-muted-foreground">Эта страница доступна только сотрудникам склада.</p>
+              <p className="mt-3 text-muted-foreground">
+                Эта страница доступна только сотрудникам склада.
+              </p>
             </>
           ) : (
             <>
               <p className="text-muted-foreground">{message}</p>
               {isAuthError ? (
-                <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
+                <Button
+                  size="lg"
+                  className="mt-6 h-12 rounded-full"
+                  onClick={() => void handleSignIn()}
+                >
                   Войти снова
                 </Button>
               ) : (
@@ -165,8 +179,7 @@ function WarehouseOrdersPage() {
                     {formatMoney(order.total, order.currency)}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {order.items.length}{" "}
-                    {order.items.length === 1 ? "товар" : "товаров"}
+                    {order.items.length} {order.items.length === 1 ? "товар" : "товаров"}
                   </p>
                 </Link>
               </li>

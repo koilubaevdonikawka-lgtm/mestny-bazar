@@ -7,7 +7,11 @@ import type {
 /** Logs notifications until Telegram/WhatsApp adapters are fully wired. */
 export class StubNotificationAdapter implements INotificationProvider {
   async sendOrderUpdate(order: OrderDTO, message: string): Promise<void> {
-    console.info("[notification:stub]", { orderId: order.id, orderNumber: order.orderNumber, message });
+    console.info("[notification:stub]", {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      message,
+    });
   }
 
   async subscribe(request: NotificationSubscribeRequest): Promise<void> {

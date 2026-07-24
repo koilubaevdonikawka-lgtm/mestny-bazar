@@ -29,13 +29,20 @@ function OrderDetailPage() {
     supabase.auth.getSession().then(({ data }) => {
       setIsAuthenticated(!!data.session?.user);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(!!session?.user);
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  const { data: order, isLoading, isError, error } = useQuery({
+  const {
+    data: order,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ["orders", id],
     queryFn: () => getOrder(id),
     enabled: isAuthenticated === true,

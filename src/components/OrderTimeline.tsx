@@ -46,7 +46,8 @@ export function OrderTimeline({ order }: OrderTimelineProps) {
                 className={cn(
                   "relative z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 transition-colors",
                   state === "completed" && "border-primary bg-primary text-primary-foreground",
-                  state === "current" && "border-primary bg-primary/10 text-primary ring-4 ring-primary/20",
+                  state === "current" &&
+                    "border-primary bg-primary/10 text-primary ring-4 ring-primary/20",
                   state === "upcoming" && "border-border bg-background text-muted-foreground",
                   state === "cancelled" && "border-border/60 bg-muted text-muted-foreground",
                 )}

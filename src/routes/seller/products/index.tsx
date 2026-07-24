@@ -61,13 +61,21 @@ function SellerProductsPage() {
     supabase.auth.getSession().then(({ data }) => {
       setIsAuthenticated(!!data.session?.user);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(!!session?.user);
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  const { data: products = [], isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: products = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["seller", "products", "list"],
     queryFn: listSellerProducts,
     enabled: isAuthenticated === true,
@@ -269,7 +277,11 @@ function SellerProductsPage() {
             </div>
             <div className="flex gap-3 pt-2">
               <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Создать"}
+                {createMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Создать"
+                )}
               </Button>
               <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
                 Отмена

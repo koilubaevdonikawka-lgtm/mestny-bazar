@@ -75,7 +75,9 @@ export class AIMediaWorker extends AIWorker {
 
       seen.add(item.productImageUrl);
       photos.push({
-        id: item.productId ?? createHash("sha256").update(item.productImageUrl).digest("hex").slice(0, 16),
+        id:
+          item.productId ??
+          createHash("sha256").update(item.productImageUrl).digest("hex").slice(0, 16),
         url: item.productImageUrl,
       });
     }

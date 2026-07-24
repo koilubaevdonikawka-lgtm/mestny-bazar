@@ -1,5 +1,8 @@
 import type { IProductPublicationPolicy } from "@server/ports/product-publication.port";
-import type { ProductPublicationContext, ProductPublicationResult } from "@server/ports/product-publication.port";
+import type {
+  ProductPublicationContext,
+  ProductPublicationResult,
+} from "@server/ports/product-publication.port";
 import {
   PUBLICATION_STANDARDS_DOMAIN,
   type IPublicationStandards,

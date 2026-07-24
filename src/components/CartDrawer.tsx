@@ -22,9 +22,18 @@ export const CartDrawer = () => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { items, isLoading, isSyncing, updateQuantity, removeItem, getCheckoutUrl, syncCart, clearCart } =
-    useCartStore();
-  const { address, paymentMethod, customerPhone, customerName, setCustomerName } = useCheckoutStore();
+  const {
+    items,
+    isLoading,
+    isSyncing,
+    updateQuantity,
+    removeItem,
+    getCheckoutUrl,
+    syncCart,
+    clearCart,
+  } = useCartStore();
+  const { address, paymentMethod, customerPhone, customerName, setCustomerName } =
+    useCheckoutStore();
   const totalItems = items.reduce((s, i) => s + i.quantity, 0);
   const totalPrice = items.reduce((s, i) => s + parseFloat(i.price.amount) * i.quantity, 0);
 

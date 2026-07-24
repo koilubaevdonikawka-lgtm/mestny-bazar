@@ -95,8 +95,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: BRAND.description },
       { property: "og:description", content: BRAND.description },
       { name: "twitter:description", content: BRAND.description },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/550246c3-760c-41f0-a09f-db146918873d/id-preview-a1c31f54--0a21419b-1947-47e1-bf8f-3237bea0c498.lovable.app-1783283285172.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/550246c3-760c-41f0-a09f-db146918873d/id-preview-a1c31f54--0a21419b-1947-47e1-bf8f-3237bea0c498.lovable.app-1783283285172.png" },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/550246c3-760c-41f0-a09f-db146918873d/id-preview-a1c31f54--0a21419b-1947-47e1-bf8f-3237bea0c498.lovable.app-1783283285172.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/550246c3-760c-41f0-a09f-db146918873d/id-preview-a1c31f54--0a21419b-1947-47e1-bf8f-3237bea0c498.lovable.app-1783283285172.png",
+      },
     ],
     links: [
       {

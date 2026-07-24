@@ -11,10 +11,7 @@ export class BootstrapCreatedRule implements OrderLifecycleRule {
   readonly order = OrderLifecycleOrder.FINAL;
 
   applies(context: OrderLifecycleContext): boolean {
-    return (
-      context.reason === "checkout_create" &&
-      context.targetStatus === OrderStatus.CREATED
-    );
+    return context.reason === "checkout_create" && context.targetStatus === OrderStatus.CREATED;
   }
 
   evaluate(_context: OrderLifecycleContext): OrderLifecycleResult {

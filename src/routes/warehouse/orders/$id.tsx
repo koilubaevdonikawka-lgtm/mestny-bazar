@@ -35,13 +35,20 @@ function WarehouseOrderDetailPage() {
     supabase.auth.getSession().then(({ data }) => {
       setIsAuthenticated(!!data.session?.user);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(!!session?.user);
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  const { data: order, isLoading, isError, error } = useQuery({
+  const {
+    data: order,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ["warehouse", "orders", id],
     queryFn: () => getWarehouseOrder(id),
     enabled: isAuthenticated === true,
@@ -128,7 +135,9 @@ function WarehouseOrderDetailPage() {
             <>
               <ShieldAlert className="h-10 w-10 text-primary mx-auto mb-4" />
               <h1 className="font-serif text-3xl tracking-tight">Доступ запрещён</h1>
-              <p className="mt-3 text-muted-foreground">Эта страница доступна только сотрудникам склада.</p>
+              <p className="mt-3 text-muted-foreground">
+                Эта страница доступна только сотрудникам склада.
+              </p>
             </>
           ) : (
             <p className="text-muted-foreground">{message}</p>
@@ -183,11 +192,7 @@ function WarehouseOrderDetailPage() {
               </Button>
             )}
             {canCompleteAssembly && (
-              <Button
-                variant="outline"
-                disabled={isBusy}
-                onClick={() => completeMutation.mutate()}
-              >
+              <Button variant="outline" disabled={isBusy} onClick={() => completeMutation.mutate()}>
                 {completeMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (

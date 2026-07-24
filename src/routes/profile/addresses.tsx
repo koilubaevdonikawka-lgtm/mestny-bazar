@@ -54,13 +54,21 @@ function ProfileAddressesPage() {
     supabase.auth.getSession().then(({ data }) => {
       setIsAuthenticated(!!data.session?.user);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(!!session?.user);
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  const { data: addresses = [], isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: addresses = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["addresses", "list"],
     queryFn: listAddresses,
     enabled: isAuthenticated === true,
@@ -209,7 +217,11 @@ function ProfileAddressesPage() {
         <div className="max-w-md mx-auto text-center py-24">
           <p className="text-muted-foreground">{message}</p>
           {isAuthError ? (
-            <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
+            <Button
+              size="lg"
+              className="mt-6 h-12 rounded-full"
+              onClick={() => void handleSignIn()}
+            >
               Войти снова
             </Button>
           ) : (
@@ -321,7 +333,9 @@ function ProfileAddressesPage() {
               <MapPin className="h-6 w-6 text-primary" />
             </div>
             <h2 className="font-serif text-2xl">Адресов пока нет</h2>
-            <p className="mt-2 text-muted-foreground">Добавьте адрес для быстрого оформления заказа.</p>
+            <p className="mt-2 text-muted-foreground">
+              Добавьте адрес для быстрого оформления заказа.
+            </p>
             {!showForm && (
               <Button className="mt-6 h-12 rounded-full" onClick={openCreate}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -332,17 +346,12 @@ function ProfileAddressesPage() {
         ) : (
           <ul className="mt-8 space-y-4">
             {addresses.map((address) => (
-              <li
-                key={address.id}
-                className="rounded-2xl border border-border/60 bg-card p-6"
-              >
+              <li key={address.id} className="rounded-2xl border border-border/60 bg-card p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-serif text-xl">{address.label || "Адрес"}</p>
-                      {address.isDefault && (
-                        <Badge variant="secondary">По умолчанию</Badge>
-                      )}
+                      {address.isDefault && <Badge variant="secondary">По умолчанию</Badge>}
                     </div>
                     <p className="mt-2 text-muted-foreground">{address.fullAddress}</p>
                     {(address.city || address.district) && (

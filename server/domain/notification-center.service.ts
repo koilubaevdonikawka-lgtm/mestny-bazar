@@ -1,5 +1,11 @@
-import type { INotificationCenter, NotificationEvent } from "@server/ports/notification-center.port";
-import type { INotificationProvider, NotificationSubscribeRequest } from "@server/ports/notification.provider";
+import type {
+  INotificationCenter,
+  NotificationEvent,
+} from "@server/ports/notification-center.port";
+import type {
+  INotificationProvider,
+  NotificationSubscribeRequest,
+} from "@server/ports/notification.provider";
 import type { IOrderEventNotifier } from "@server/ports/order-events.port";
 import type { OrderDTO } from "@shared/contracts/order";
 

@@ -31,13 +31,20 @@ function AdminOrderDetailPage() {
     supabase.auth.getSession().then(({ data }) => {
       setIsAuthenticated(!!data.session?.user);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(!!session?.user);
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  const { data: order, isLoading, isError, error } = useQuery({
+  const {
+    data: order,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ["admin", "orders", id],
     queryFn: () => getAdminOrder(id),
     enabled: isAuthenticated === true,
@@ -124,7 +131,9 @@ function AdminOrderDetailPage() {
             <>
               <ShieldAlert className="h-10 w-10 text-primary mx-auto mb-4" />
               <h1 className="font-serif text-3xl tracking-tight">Доступ запрещён</h1>
-              <p className="mt-3 text-muted-foreground">Эта страница доступна только администраторам.</p>
+              <p className="mt-3 text-muted-foreground">
+                Эта страница доступна только администраторам.
+              </p>
             </>
           ) : (
             <p className="text-muted-foreground">{message}</p>
@@ -170,10 +179,7 @@ function AdminOrderDetailPage() {
         {(canConfirm || canCancel) && (
           <div className="mt-6 flex flex-wrap gap-3">
             {canConfirm && (
-              <Button
-                disabled={isBusy}
-                onClick={() => confirmMutation.mutate()}
-              >
+              <Button disabled={isBusy} onClick={() => confirmMutation.mutate()}>
                 {confirmMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -182,11 +188,7 @@ function AdminOrderDetailPage() {
               </Button>
             )}
             {canCancel && (
-              <Button
-                variant="outline"
-                disabled={isBusy}
-                onClick={() => cancelMutation.mutate()}
-              >
+              <Button variant="outline" disabled={isBusy} onClick={() => cancelMutation.mutate()}>
                 {cancelMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (

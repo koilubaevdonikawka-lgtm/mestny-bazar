@@ -34,6 +34,7 @@ export const startWarehouseAssemblyFn = createServerFn({ method: "POST" })
 export const completeWarehouseAssemblyFn = createServerFn({ method: "POST" })
   .validator((data: { id: string }) => data)
   .handler(async ({ data }): Promise<OrderDTO> => {
-    const { executeCompleteWarehouseAssembly } = await import("@server/functions/warehouse.executor");
+    const { executeCompleteWarehouseAssembly } =
+      await import("@server/functions/warehouse.executor");
     return runWarehouse(() => executeCompleteWarehouseAssembly(data.id));
   });

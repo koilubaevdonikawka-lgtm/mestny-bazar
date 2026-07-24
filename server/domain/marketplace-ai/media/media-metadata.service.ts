@@ -54,7 +54,12 @@ export class MediaMetadataService implements IMediaMetadataService {
 
   private toResolvedAsset(
     input: MediaAssetInput,
-    fetched: { hash: string; width: number | null; height: number | null; fileSizeBytes: number | null },
+    fetched: {
+      hash: string;
+      width: number | null;
+      height: number | null;
+      fileSizeBytes: number | null;
+    },
   ): ResolvedMediaAsset {
     return {
       id: input.id,
@@ -74,9 +79,12 @@ export class MediaMetadataService implements IMediaMetadataService {
     return Number((width / height).toFixed(4));
   }
 
-  private async fetchImageMetadata(
-    url: string,
-  ): Promise<{ hash: string; width: number | null; height: number | null; fileSizeBytes: number | null }> {
+  private async fetchImageMetadata(url: string): Promise<{
+    hash: string;
+    width: number | null;
+    height: number | null;
+    fileSizeBytes: number | null;
+  }> {
     const response = await fetch(url, { redirect: "follow" });
     if (!response.ok) {
       throw new Error(`Failed to fetch media: ${response.status}`);
@@ -111,7 +119,11 @@ function parseImageDimensions(buffer: Buffer): { width: number; height: number }
     return { width: buffer.readUInt16LE(6), height: buffer.readUInt16LE(8) };
   }
 
-  if (buffer.length >= 30 && buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP") {
+  if (
+    buffer.length >= 30 &&
+    buffer.toString("ascii", 0, 4) === "RIFF" &&
+    buffer.toString("ascii", 8, 12) === "WEBP"
+  ) {
     return parseWebpDimensions(buffer);
   }
 

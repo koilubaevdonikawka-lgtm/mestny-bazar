@@ -28,13 +28,21 @@ function AdminOrdersPage() {
     supabase.auth.getSession().then(({ data }) => {
       setIsAuthenticated(!!data.session?.user);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(!!session?.user);
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  const { data: orders = [], isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: orders = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["admin", "orders", "list"],
     queryFn: listAdminOrders,
     enabled: isAuthenticated === true,
@@ -99,13 +107,19 @@ function AdminOrdersPage() {
             <>
               <ShieldAlert className="h-10 w-10 text-primary mx-auto mb-4" />
               <h1 className="font-serif text-3xl tracking-tight">Доступ запрещён</h1>
-              <p className="mt-3 text-muted-foreground">Эта страница доступна только администраторам.</p>
+              <p className="mt-3 text-muted-foreground">
+                Эта страница доступна только администраторам.
+              </p>
             </>
           ) : (
             <>
               <p className="text-muted-foreground">{message}</p>
               {isAuthError ? (
-                <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
+                <Button
+                  size="lg"
+                  className="mt-6 h-12 rounded-full"
+                  onClick={() => void handleSignIn()}
+                >
                   Войти снова
                 </Button>
               ) : (
@@ -126,9 +140,7 @@ function AdminOrdersPage() {
     <PageShell>
       <div className="mx-auto max-w-3xl px-6 py-12">
         <h1 className="font-serif text-4xl tracking-tight">Заказы (админ)</h1>
-        <p className="mt-2 text-muted-foreground">
-          Управление заказами. Новых: {newOrders.length}
-        </p>
+        <p className="mt-2 text-muted-foreground">Управление заказами. Новых: {newOrders.length}</p>
 
         {orders.length === 0 ? (
           <div className="mt-12 rounded-3xl border border-dashed border-border py-16 text-center">

@@ -20,7 +20,15 @@ import { toast } from "sonner";
 import { useCartSync } from "@/hooks/useCartSync";
 import { useSearchStore } from "@/stores/searchStore";
 import { useCheckoutStore } from "@/stores/checkoutStore";
-import { Truck, Sparkles, Loader2, ShoppingBasket, MessageCircle, CreditCard, Send } from "lucide-react";
+import {
+  Truck,
+  Sparkles,
+  Loader2,
+  ShoppingBasket,
+  MessageCircle,
+  CreditCard,
+  Send,
+} from "lucide-react";
 import {
   STOREFRONT_PRODUCTS_QUERY,
   storefrontApiRequest,
@@ -36,7 +44,6 @@ import catPickles from "@/assets/cat-pickles.png";
 import catDairy from "@/assets/cat-dairy.png";
 import catEggs from "@/assets/cat-eggs.png";
 import catMeat from "@/assets/cat-meat.png";
-
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -54,7 +61,6 @@ const CATEGORIES = [
   { kg: "Жумуртка", ru: "Яйца", image: catEggs },
   { kg: "Эт азык", ru: "Мясное", image: catMeat },
 ];
-
 
 async function fetchProducts(): Promise<ShopifyProduct[]> {
   const data = await storefrontApiRequest(STOREFRONT_PRODUCTS_QUERY, { first: 24, query: null });
@@ -75,18 +81,11 @@ function Home() {
   const [phone, setPhone] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [addressOpen, setAddressOpen] = useState(false);
-  const {
-    address,
-    setAddress,
-    setPaymentMethod,
-    setCustomerPhone,
-  } = useCheckoutStore();
+  const { address, setAddress, setPaymentMethod, setCustomerPhone } = useCheckoutStore();
   const search = useSearchStore((s) => s.search);
 
   const filteredProducts = search.trim()
-    ? products.filter((p) =>
-        p.node.title.toLowerCase().includes(search.trim().toLowerCase()),
-      )
+    ? products.filter((p) => p.node.title.toLowerCase().includes(search.trim().toLowerCase()))
     : products;
 
   const handleSaveAddress = () => {
@@ -134,8 +133,6 @@ function Home() {
             </h1>
           </div>
 
-
-
           <div className="mt-8 flex flex-wrap gap-3 justify-center">
             <Button asChild size="lg" className="h-12 px-6 text-base rounded-full">
               <a href="#categories">Категории</a>
@@ -146,7 +143,6 @@ function Home() {
           </div>
         </div>
       </section>
-
 
       {/* Categories */}
       <section id="categories" className="mx-auto max-w-7xl px-6 py-16 w-full">
@@ -169,11 +165,8 @@ function Home() {
               </div>
               <div className="mt-3 font-serif text-lg text-primary">{c.kg}</div>
               <div className="font-serif text-lg text-accent mt-0.5">{c.ru}</div>
-
-
             </a>
           ))}
-
         </div>
       </section>
 
@@ -234,9 +227,7 @@ function Home() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="font-serif text-2xl">Адрес доставки</DialogTitle>
-              <DialogDescription>
-                Укажите адрес, куда курьер привезёт ваш заказ.
-              </DialogDescription>
+              <DialogDescription>Укажите адрес, куда курьер привезёт ваш заказ.</DialogDescription>
             </DialogHeader>
             <form
               onSubmit={(e) => {
@@ -328,13 +319,11 @@ function Home() {
             <DialogHeader>
               <DialogTitle className="font-serif text-2xl">Получение уведомлений</DialogTitle>
               <DialogDescription>
-                Укажите номер телефона и выберите удобный способ получения уведомлений о статусе заказа.
+                Укажите номер телефона и выберите удобный способ получения уведомлений о статусе
+                заказа.
               </DialogDescription>
             </DialogHeader>
-            <form
-              onSubmit={(e) => e.preventDefault()}
-              className="grid gap-4 mt-2"
-            >
+            <form onSubmit={(e) => e.preventDefault()} className="grid gap-4 mt-2">
               <div className="grid gap-2">
                 <Label htmlFor="subscribe-phone">Номер телефона</Label>
                 <Input
@@ -377,9 +366,6 @@ function Home() {
           </DialogContent>
         </Dialog>
       </section>
-
-
-
 
       <SiteFooter />
     </div>

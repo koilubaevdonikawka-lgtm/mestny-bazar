@@ -60,12 +60,7 @@ export class CourierOrderService {
   }
 
   async completeDelivery(orderId: string, actor: CourierActor): Promise<OrderDTO> {
-    return this.transitionOrder(
-      orderId,
-      OrderStatus.DELIVERED,
-      "courier_complete_delivery",
-      actor,
-    );
+    return this.transitionOrder(orderId, OrderStatus.DELIVERED, "courier_complete_delivery", actor);
   }
 
   private async transitionOrder(

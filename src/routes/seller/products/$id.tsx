@@ -44,13 +44,20 @@ function SellerProductDetailPage() {
     supabase.auth.getSession().then(({ data }) => {
       setIsAuthenticated(!!data.session?.user);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(!!session?.user);
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  const { data: product, isLoading, isError, error } = useQuery({
+  const {
+    data: product,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ["seller", "products", id],
     queryFn: () => getSellerProduct(id),
     enabled: isAuthenticated === true,

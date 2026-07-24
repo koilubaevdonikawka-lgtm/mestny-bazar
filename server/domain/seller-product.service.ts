@@ -39,7 +39,10 @@ export class SellerProductService {
     return product;
   }
 
-  async createProduct(sellerId: string, data: CreateSellerProductRequest): Promise<SellerProductDTO> {
+  async createProduct(
+    sellerId: string,
+    data: CreateSellerProductRequest,
+  ): Promise<SellerProductDTO> {
     this.validateName(data.name);
     this.validatePrice(data.price);
     if (data.stock !== undefined) this.validateStock(data.stock);

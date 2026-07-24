@@ -5,10 +5,7 @@ import type {
 } from "@shared/contracts/delivery";
 import { requireUserIdFromRequest } from "@server/auth/resolve-user";
 import { getServices } from "@server/di/container";
-import {
-  AddressNotFoundError,
-  AddressValidationError,
-} from "@server/domain/address.errors";
+import { AddressNotFoundError, AddressValidationError } from "@server/domain/address.errors";
 import { UnauthorizedError } from "@server/domain/orders.errors";
 
 export async function executeListAddresses(): Promise<AddressDTO[]> {

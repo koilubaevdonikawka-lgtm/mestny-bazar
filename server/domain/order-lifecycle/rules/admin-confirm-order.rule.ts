@@ -18,9 +18,7 @@ export class AdminConfirmOrderRule implements OrderLifecycleRule {
   readonly order = OrderLifecycleOrder.ROLE_PERMISSION;
 
   applies(context: OrderLifecycleContext): boolean {
-    return (
-      context.reason === "admin_confirm" && context.targetStatus === OrderStatus.CONFIRMED
-    );
+    return context.reason === "admin_confirm" && context.targetStatus === OrderStatus.CONFIRMED;
   }
 
   evaluate(context: OrderLifecycleContext): OrderLifecycleResult {

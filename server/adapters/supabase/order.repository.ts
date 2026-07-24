@@ -14,7 +14,10 @@ function decodePaymentMethodNote(notes: string | null): OrderDTO["paymentMethod"
   return match?.[1] === "ONLINE" ? "ONLINE" : "CASH";
 }
 
-function mergeNotes(userNotes: string | undefined, paymentMethod: OrderDTO["paymentMethod"]): string | null {
+function mergeNotes(
+  userNotes: string | undefined,
+  paymentMethod: OrderDTO["paymentMethod"],
+): string | null {
   const methodTag = encodePaymentMethodNote(paymentMethod);
   if (!userNotes?.trim()) return methodTag;
   return `${userNotes.trim()}\n${methodTag}`;
@@ -63,9 +66,7 @@ export class SupabaseOrderRepository implements IOrderRepository {
     const { data: insertedItems, error: itemsError } = await supabaseAdmin
       .from("order_items")
       .insert(itemRows)
-      .select(
-        "id, product_id, product_name, product_image_url, quantity, unit_price, line_total",
-      );
+      .select("id, product_id, product_name, product_image_url, quantity, unit_price, line_total");
 
     if (itemsError || !insertedItems) {
       await supabaseAdmin.from("orders").delete().eq("id", orderRow.id);
@@ -93,18 +94,12 @@ export class SupabaseOrderRepository implements IOrderRepository {
 
     const { data: items, error: itemsError } = await supabaseAdmin
       .from("order_items")
-      .select(
-        "id, product_id, product_name, product_image_url, quantity, unit_price, line_total",
-      )
+      .select("id, product_id, product_name, product_image_url, quantity, unit_price, line_total")
       .eq("order_id", id);
 
     if (itemsError) throw new Error(`Failed to fetch order items: ${itemsError.message}`);
 
-    return mapOrderRowToDto(
-      orderRow,
-      items ?? [],
-      decodePaymentMethodNote(orderRow.notes),
-    );
+    return mapOrderRowToDto(orderRow, items ?? [], decodePaymentMethodNote(orderRow.notes));
   }
 
   async listByUser(userId: string): Promise<OrderDTO[]> {

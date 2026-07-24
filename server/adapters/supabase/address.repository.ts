@@ -31,10 +31,7 @@ function mapRow(row: {
 
 export class SupabaseAddressRepository implements IAddressRepository {
   private async clearOtherDefaults(userId: string, exceptId?: string): Promise<void> {
-    let query = supabaseAdmin
-      .from("addresses")
-      .update({ is_default: false })
-      .eq("user_id", userId);
+    let query = supabaseAdmin.from("addresses").update({ is_default: false }).eq("user_id", userId);
 
     if (exceptId) {
       query = query.neq("id", exceptId);
@@ -119,7 +116,11 @@ export class SupabaseAddressRepository implements IAddressRepository {
   }
 
   async delete(id: string, userId: string): Promise<void> {
-    const { error } = await supabaseAdmin.from("addresses").delete().eq("id", id).eq("user_id", userId);
+    const { error } = await supabaseAdmin
+      .from("addresses")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId);
     if (error) throw new Error(`Failed to delete address: ${error.message}`);
   }
 }

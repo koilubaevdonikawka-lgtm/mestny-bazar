@@ -27,13 +27,21 @@ function OrdersPage() {
     supabase.auth.getSession().then(({ data }) => {
       setIsAuthenticated(!!data.session?.user);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(!!session?.user);
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  const { data: orders = [], isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: orders = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["orders", "list"],
     queryFn: listOrders,
     enabled: isAuthenticated === true,
@@ -64,9 +72,7 @@ function OrdersPage() {
             <LogIn className="h-6 w-6 text-primary" />
           </div>
           <h1 className="font-serif text-3xl tracking-tight">Мои заказы</h1>
-          <p className="mt-3 text-muted-foreground">
-            Войдите, чтобы видеть историю ваших заказов.
-          </p>
+          <p className="mt-3 text-muted-foreground">Войдите, чтобы видеть историю ваших заказов.</p>
           <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
             Войти
           </Button>
@@ -87,13 +93,18 @@ function OrdersPage() {
 
   if (isError) {
     const message = error instanceof Error ? error.message : "Не удалось загрузить заказы";
-    const isAuthError = message.toLowerCase().includes("authentication") || message.includes("Unauthorized");
+    const isAuthError =
+      message.toLowerCase().includes("authentication") || message.includes("Unauthorized");
     return (
       <PageShell>
         <div className="max-w-md mx-auto text-center py-24">
           <p className="text-muted-foreground">{message}</p>
           {isAuthError ? (
-            <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
+            <Button
+              size="lg"
+              className="mt-6 h-12 rounded-full"
+              onClick={() => void handleSignIn()}
+            >
               Войти снова
             </Button>
           ) : (
@@ -148,8 +159,7 @@ function OrdersPage() {
                     {formatMoney(order.total, order.currency)}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {order.items.length}{" "}
-                    {order.items.length === 1 ? "товар" : "товаров"}
+                    {order.items.length} {order.items.length === 1 ? "товар" : "товаров"}
                   </p>
                 </Link>
               </li>

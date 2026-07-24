@@ -23,8 +23,7 @@ export class CourierAcceptOrderRule implements OrderLifecycleRule {
 
   applies(context: OrderLifecycleContext): boolean {
     return (
-      context.reason === "courier_accept" &&
-      context.targetStatus === OrderStatus.READY_FOR_DELIVERY
+      context.reason === "courier_accept" && context.targetStatus === OrderStatus.READY_FOR_DELIVERY
     );
   }
 

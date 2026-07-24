@@ -4,7 +4,10 @@ import type {
   CatalogAnalysisResult,
   CatalogProductInput,
 } from "@server/ports/marketplace-ai/catalog-analysis.port";
-import type { MediaAnalysisResult, MediaAssetInput } from "@server/ports/marketplace-ai/media-analysis.port";
+import type {
+  MediaAnalysisResult,
+  MediaAssetInput,
+} from "@server/ports/marketplace-ai/media-analysis.port";
 
 /** Unified marketplace events routed through Marketplace Events. */
 export type MarketplaceEvent =
@@ -12,8 +15,18 @@ export type MarketplaceEvent =
   | { type: "product.media.analysis.requested"; productId: string; photos: MediaAssetInput[] }
   | { type: "product.catalog.analysis.requested"; productId: string; product: CatalogProductInput }
   | { type: "ai.job.completed"; job: AIJob; result: AggregatedAIJobResult }
-  | { type: "photo.analysis.completed"; jobId: string; productId: string | null; result: MediaAnalysisResult }
-  | { type: "catalog.analysis.completed"; jobId: string; productId: string | null; result: CatalogAnalysisResult };
+  | {
+      type: "photo.analysis.completed";
+      jobId: string;
+      productId: string | null;
+      result: MediaAnalysisResult;
+    }
+  | {
+      type: "catalog.analysis.completed";
+      jobId: string;
+      productId: string | null;
+      result: CatalogAnalysisResult;
+    };
 
 export type MarketplaceEventType = MarketplaceEvent["type"];
 

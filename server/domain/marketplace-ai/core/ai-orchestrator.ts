@@ -1,8 +1,4 @@
-import type {
-  AggregatedAIJobResult,
-  AIJob,
-  AIJobResult,
-} from "@server/ports/marketplace-ai.port";
+import type { AggregatedAIJobResult, AIJob, AIJobResult } from "@server/ports/marketplace-ai.port";
 import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
 import type { AIWorkerRegistry } from "@server/domain/marketplace-ai/ai-worker-registry";
 import type { AIExecutionPlanner } from "@server/domain/marketplace-ai/core/ai-execution-planner";

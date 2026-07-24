@@ -28,13 +28,21 @@ function CourierOrdersPage() {
     supabase.auth.getSession().then(({ data }) => {
       setIsAuthenticated(!!data.session?.user);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(!!session?.user);
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  const { data: orders = [], isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: orders = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["courier", "orders", "list"],
     queryFn: listCourierOrders,
     enabled: isAuthenticated === true,
@@ -105,7 +113,11 @@ function CourierOrdersPage() {
             <>
               <p className="text-muted-foreground">{message}</p>
               {isAuthError ? (
-                <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
+                <Button
+                  size="lg"
+                  className="mt-6 h-12 rounded-full"
+                  onClick={() => void handleSignIn()}
+                >
                   Войти снова
                 </Button>
               ) : (

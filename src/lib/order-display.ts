@@ -1,4 +1,8 @@
-import { OrderStatus, type OrderStatus as OrderStatusType, type PaymentStatus } from "@shared/contracts/order";
+import {
+  OrderStatus,
+  type OrderStatus as OrderStatusType,
+  type PaymentStatus,
+} from "@shared/contracts/order";
 
 /** Canonical happy-path sequence for order timeline UI (uses domain OrderStatus only). */
 export const ORDER_TIMELINE_SEQUENCE: readonly OrderStatusType[] = [

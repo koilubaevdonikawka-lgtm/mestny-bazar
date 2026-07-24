@@ -14,7 +14,10 @@ export interface OrderLineItemInput {
   lineTotal: number;
 }
 
-export interface CreateOrderData extends Omit<CreateOrderRequest, "items" | "addressId" | "zoneId"> {
+export interface CreateOrderData extends Omit<
+  CreateOrderRequest,
+  "items" | "addressId" | "zoneId"
+> {
   userId: string | null;
   items: OrderLineItemInput[];
   addressId: string | null;

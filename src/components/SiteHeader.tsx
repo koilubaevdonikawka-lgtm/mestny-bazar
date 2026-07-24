@@ -22,9 +22,15 @@ export function SiteHeader() {
           />
         </div>
         <nav className="hidden lg:flex items-center gap-6 text-sm">
-          <a href="#categories" className="hover:text-primary transition-colors">Категории</a>
-          <a href="#products" className="hover:text-primary transition-colors">Товары</a>
-          <a href="#delivery" className="hover:text-primary transition-colors">Доставка</a>
+          <a href="#categories" className="hover:text-primary transition-colors">
+            Категории
+          </a>
+          <a href="#products" className="hover:text-primary transition-colors">
+            Товары
+          </a>
+          <a href="#delivery" className="hover:text-primary transition-colors">
+            Доставка
+          </a>
         </nav>
         <CartDrawer />
       </div>

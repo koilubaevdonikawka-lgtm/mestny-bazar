@@ -44,7 +44,8 @@ export async function storefrontApiRequest(query: string, variables: Record<stri
 
   if (response.status === 402) {
     toast.error("Shopify: требуется оплата", {
-      description: "Магазин требует активный платный план Shopify. Откройте admin.shopify.com для обновления.",
+      description:
+        "Магазин требует активный платный план Shopify. Откройте admin.shopify.com для обновления.",
     });
     return;
   }
@@ -52,7 +53,10 @@ export async function storefrontApiRequest(query: string, variables: Record<stri
   if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
   const data = await response.json();
-  if (data.errors) throw new Error(`Shopify error: ${data.errors.map((e: { message: string }) => e.message).join(", ")}`);
+  if (data.errors)
+    throw new Error(
+      `Shopify error: ${data.errors.map((e: { message: string }) => e.message).join(", ")}`,
+    );
   return data;
 }
 
@@ -181,7 +185,8 @@ export async function addLineToShopifyCart(cartId: string, variantId: string, qu
   if (userErrors.length > 0) return { success: false };
   const lines = data?.data?.cartLinesAdd?.cart?.lines?.edges || [];
   const newLine = lines.find(
-    (l: { node: { id: string; merchandise: { id: string } } }) => l.node.merchandise.id === variantId,
+    (l: { node: { id: string; merchandise: { id: string } } }) =>
+      l.node.merchandise.id === variantId,
   );
   return { success: true, lineId: newLine?.node?.id };
 }

@@ -29,9 +29,7 @@ function OrderSuccessPage() {
             Спасибо!
           </h1>
           <p className="mt-4 text-lg text-muted-foreground">
-            {orderNumber
-              ? `Ваш заказ №${orderNumber} принят.`
-              : "Ваш заказ принят."}
+            {orderNumber ? `Ваш заказ №${orderNumber} принят.` : "Ваш заказ принят."}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
             Мы свяжемся с вами для подтверждения доставки.
