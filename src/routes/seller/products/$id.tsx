@@ -16,7 +16,7 @@ import {
 } from "@/api/seller";
 import { ProductPublicationStatus } from "@shared/contracts/seller-product";
 import { lovable } from "@/integrations/lovable";
-import { supabase } from "@/integrations/supabase/client";
+import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { ArrowLeft, EyeOff, Loader2, LogIn, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
@@ -38,19 +38,7 @@ function formatPublicationStatus(status: ProductPublicationStatus): string {
 function SellerProductDetailPage() {
   const { id } = Route.useParams();
   const queryClient = useQueryClient();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setIsAuthenticated(!!data.session?.user);
-    });
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session?.user);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
+  const { isAuthenticated } = useSupabaseSession();
 
   const {
     data: product,

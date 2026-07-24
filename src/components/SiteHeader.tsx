@@ -1,4 +1,5 @@
 import { CartDrawer } from "./CartDrawer";
+import { AccountMenu } from "./AccountMenu";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useSearchStore } from "@/stores/searchStore";
@@ -32,6 +33,7 @@ export function SiteHeader() {
             Доставка
           </a>
         </nav>
+        <AccountMenu />
         <CartDrawer />
       </div>
     </header>
