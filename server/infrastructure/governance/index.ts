@@ -1,1 +1,0 @@
-export { activateGovernancePolicies } from "./bootstrap";

@@ -1,1 +1,0 @@
-export { activateFeaturePlatform } from "./bootstrap";

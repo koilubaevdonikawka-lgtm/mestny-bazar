@@ -1,1 +1,0 @@
-export { activateReleasePlatform } from "./bootstrap";

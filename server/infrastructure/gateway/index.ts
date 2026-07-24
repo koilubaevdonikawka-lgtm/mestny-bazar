@@ -1,1 +1,0 @@
-export { activateGatewayPlatform } from "./bootstrap";

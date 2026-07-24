@@ -1,1 +1,0 @@
-export { activateObservabilityPlatform } from "./bootstrap";
