@@ -6,33 +6,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/stores/cartStore";
-import { STOREFRONT_PRODUCT_BY_HANDLE_QUERY, storefrontApiRequest } from "@/lib/shopify";
-
-interface ProductNode {
-  id: string;
-  title: string;
-  description: string;
-  handle: string;
-  priceRange: { minVariantPrice: { amount: string; currencyCode: string } };
-  images: { edges: Array<{ node: { url: string; altText: string | null } }> };
-  variants: {
-    edges: Array<{
-      node: {
-        id: string;
-        title: string;
-        price: { amount: string; currencyCode: string };
-        availableForSale: boolean;
-        selectedOptions: Array<{ name: string; value: string }>;
-      };
-    }>;
-  };
-  options: Array<{ name: string; values: string[] }>;
-}
-
-async function fetchProduct(handle: string): Promise<ProductNode | null> {
-  const data = await storefrontApiRequest(STOREFRONT_PRODUCT_BY_HANDLE_QUERY, { handle });
-  return data?.data?.product ?? null;
-}
+import { fetchCatalogProduct } from "@/lib/catalog";
 
 export const Route = createFileRoute("/product/$handle")({
   component: ProductPage,
@@ -73,7 +47,7 @@ function ProductPage() {
   const { data: product, isLoading: loading } = useQuery({
     queryKey: ["product", handle],
     queryFn: async () => {
-      const p = await fetchProduct(handle);
+      const p = await fetchCatalogProduct(handle);
       if (!p) throw notFound();
       return p;
     },

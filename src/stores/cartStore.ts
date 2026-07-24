@@ -8,6 +8,7 @@ import {
   updateShopifyCartLine,
   type ShopifyProduct,
 } from "@/lib/shopify";
+import { isPlatformVariantId } from "@/lib/product-adapter";
 
 export interface CartItem {
   lineId: string | null;
@@ -43,6 +44,21 @@ export const useCartStore = create<CartStore>()(
       isSyncing: false,
 
       addItem: async (item) => {
+        if (isPlatformVariantId(item.variantId)) {
+          const { items } = get();
+          const existingItem = items.find((i) => i.variantId === item.variantId);
+          if (existingItem) {
+            set({
+              items: items.map((i) =>
+                i.variantId === item.variantId ? { ...i, quantity: i.quantity + item.quantity } : i,
+              ),
+            });
+          } else {
+            set({ items: [...items, { ...item, lineId: null }] });
+          }
+          return;
+        }
+
         const { items, cartId, clearCart } = get();
         const existingItem = items.find((i) => i.variantId === item.variantId);
         set({ isLoading: true });
@@ -82,9 +98,19 @@ export const useCartStore = create<CartStore>()(
 
       updateQuantity: async (variantId, quantity) => {
         if (quantity <= 0) return get().removeItem(variantId);
-        const { items, cartId, clearCart } = get();
+        const { items } = get();
         const item = items.find((i) => i.variantId === variantId);
-        if (!item?.lineId || !cartId) return;
+        if (!item) return;
+
+        if (isPlatformVariantId(variantId)) {
+          set({
+            items: get().items.map((i) => (i.variantId === variantId ? { ...i, quantity } : i)),
+          });
+          return;
+        }
+
+        const { cartId, clearCart } = get();
+        if (!item.lineId || !cartId) return;
         set({ isLoading: true });
         try {
           const result = await updateShopifyCartLine(cartId, item.lineId, quantity);
@@ -99,9 +125,22 @@ export const useCartStore = create<CartStore>()(
       },
 
       removeItem: async (variantId) => {
-        const { items, cartId, clearCart } = get();
+        const { items } = get();
         const item = items.find((i) => i.variantId === variantId);
-        if (!item?.lineId || !cartId) return;
+        if (!item) return;
+
+        if (isPlatformVariantId(variantId)) {
+          const newItems = items.filter((i) => i.variantId !== variantId);
+          if (newItems.length === 0) {
+            get().clearCart();
+          } else {
+            set({ items: newItems });
+          }
+          return;
+        }
+
+        const { cartId, clearCart } = get();
+        if (!item.lineId || !cartId) return;
         set({ isLoading: true });
         try {
           const result = await removeLineFromShopifyCart(cartId, item.lineId);

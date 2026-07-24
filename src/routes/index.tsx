@@ -29,11 +29,7 @@ import {
   CreditCard,
   Send,
 } from "lucide-react";
-import {
-  STOREFRONT_PRODUCTS_QUERY,
-  storefrontApiRequest,
-  type ShopifyProduct,
-} from "@/lib/shopify";
+import { fetchCatalogProducts } from "@/lib/catalog";
 import catFlour from "@/assets/cat-flour.png";
 import catDriedfruit from "@/assets/cat-driedfruit.png";
 import catProduce from "@/assets/cat-produce.png";
@@ -62,16 +58,11 @@ const CATEGORIES = [
   { kg: "Эт азык", ru: "Мясное", image: catMeat },
 ];
 
-async function fetchProducts(): Promise<ShopifyProduct[]> {
-  const data = await storefrontApiRequest(STOREFRONT_PRODUCTS_QUERY, { first: 24, query: null });
-  return data?.data?.products?.edges ?? [];
-}
-
 function Home() {
   useCartSync();
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products"],
-    queryFn: fetchProducts,
+    queryFn: fetchCatalogProducts,
   });
 
   // Номер магазина в международном формате без +, 0 и пробелов (например: 996555123456)
