@@ -35,6 +35,7 @@ import { BootstrapCreatedRule } from "@server/domain/order-lifecycle/rules/boots
 import { TerminalStateGuardRule } from "@server/domain/order-lifecycle/rules/terminal-state-guard.rule";
 import { AdminConfirmOrderRule } from "@server/domain/order-lifecycle/rules/admin-confirm-order.rule";
 import { AdminCancelOrderRule } from "@server/domain/order-lifecycle/rules/admin-cancel-order.rule";
+import { CustomerCancelOrderRule } from "@server/domain/order-lifecycle/rules/customer-cancel-order.rule";
 import { WarehouseStartAssemblyRule } from "@server/domain/order-lifecycle/rules/warehouse-start-assembly.rule";
 import { WarehouseCompleteAssemblyRule } from "@server/domain/order-lifecycle/rules/warehouse-complete-assembly.rule";
 import { CourierAcceptOrderRule } from "@server/domain/order-lifecycle/rules/courier-accept-order.rule";
@@ -148,6 +149,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     new TerminalStateGuardRule(),
     new AdminConfirmOrderRule(),
     new AdminCancelOrderRule(),
+    new CustomerCancelOrderRule(),
     new WarehouseStartAssemblyRule(),
     new WarehouseCompleteAssemblyRule(),
     new CourierAcceptOrderRule(),
@@ -174,7 +176,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     business: new BusinessStandardsService(),
   });
 
-  const orderService = new OrderService(orders);
+  const orderService = new OrderService(orders, orderLifecycle);
   const adminOrderService = new AdminOrderService(orders, orderLifecycle);
   const warehouseOrderService = new WarehouseOrderService(orders, orderLifecycle);
   const courierOrderService = new CourierOrderService(orders, orderLifecycle);

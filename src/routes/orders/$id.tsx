@@ -1,11 +1,11 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { OrderTimeline } from "@/components/OrderTimeline";
-import { getOrder } from "@/api/orders";
+import { cancelOrder, getOrder } from "@/api/orders";
 import { lovable } from "@/integrations/lovable";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import {
@@ -14,7 +14,15 @@ import {
   formatOrderStatus,
   formatPaymentStatus,
 } from "@/lib/order-display";
+import { OrderStatus } from "@shared/contracts/order";
 import { ArrowLeft, Loader2, LogIn } from "lucide-react";
+import { toast } from "sonner";
+
+const CUSTOMER_CANCELLABLE_STATUSES: OrderStatus[] = [
+  OrderStatus.CREATED,
+  OrderStatus.PAID,
+  OrderStatus.CONFIRMED,
+];
 
 export const Route = createFileRoute("/orders/$id")({
   component: OrderDetailPage,
@@ -22,6 +30,7 @@ export const Route = createFileRoute("/orders/$id")({
 
 function OrderDetailPage() {
   const { id } = Route.useParams();
+  const queryClient = useQueryClient();
   const { isAuthenticated } = useSupabaseSession();
 
   const {
@@ -34,6 +43,16 @@ function OrderDetailPage() {
     queryFn: () => getOrder(id),
     enabled: isAuthenticated === true,
     retry: false,
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: () => cancelOrder(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders", id] });
+      queryClient.invalidateQueries({ queryKey: ["orders", "list"] });
+      toast.success("Заказ отменён");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось отменить заказ"),
   });
 
   const handleSignIn = async () => {
@@ -118,6 +137,22 @@ function OrderDetailPage() {
             <Badge variant="outline">{formatPaymentStatus(order.paymentStatus)}</Badge>
           </div>
         </div>
+
+        {CUSTOMER_CANCELLABLE_STATUSES.includes(order.status) && (
+          <div className="mt-6">
+            <Button
+              variant="outline"
+              disabled={cancelMutation.isPending}
+              onClick={() => cancelMutation.mutate()}
+            >
+              {cancelMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Отменить заказ"
+              )}
+            </Button>
+          </div>
+        )}
 
         <OrderTimeline order={order} />
 

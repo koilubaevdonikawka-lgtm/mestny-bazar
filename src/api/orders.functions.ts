@@ -21,3 +21,10 @@ export const getOrderFn = createServerFn({ method: "GET" })
     const { executeGetOrder } = await import("@server/functions/orders.executor");
     return executeGetOrder(data.id);
   });
+
+export const cancelOrderFn = createServerFn({ method: "POST" })
+  .validator((data: { id: string }) => data)
+  .handler(async ({ data }): Promise<OrderDTO> => {
+    const { executeCancelOrder } = await import("@server/functions/orders.executor");
+    return executeCancelOrder(data.id);
+  });
