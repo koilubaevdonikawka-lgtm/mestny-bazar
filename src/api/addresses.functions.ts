@@ -10,7 +10,7 @@ async function runAddress<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (e) {
-    mapAddressError(e);
+    return mapAddressError(e);
   }
 }
 

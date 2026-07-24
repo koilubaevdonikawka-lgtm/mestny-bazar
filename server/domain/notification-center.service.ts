@@ -19,7 +19,7 @@ export class NotificationCenter implements INotificationCenter {
         await this.dispatchOrderCreated(event.order);
         return;
       default: {
-        const unknown: never = event;
+        const unknown: never = event as never;
         throw new Error(`Unknown notification event: ${(unknown as NotificationEvent).type}`);
       }
     }

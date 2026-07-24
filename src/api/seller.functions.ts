@@ -10,7 +10,7 @@ async function runSeller<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (e) {
-    mapSellerError(e);
+    return mapSellerError(e);
   }
 }
 

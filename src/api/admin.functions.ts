@@ -6,7 +6,7 @@ async function runAdmin<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (e) {
-    mapAdminError(e);
+    return mapAdminError(e);
   }
 }
 

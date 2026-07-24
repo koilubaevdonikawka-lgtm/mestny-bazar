@@ -6,7 +6,7 @@ async function runWarehouse<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (e) {
-    mapWarehouseError(e);
+    return mapWarehouseError(e);
   }
 }
 

@@ -6,7 +6,7 @@ async function runCourier<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (e) {
-    mapCourierError(e);
+    return mapCourierError(e);
   }
 }
 
