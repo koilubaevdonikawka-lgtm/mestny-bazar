@@ -7,6 +7,7 @@ import type {
 import { ProductPublicationStatus as Status } from "@shared/contracts/seller-product";
 import type { ISellerProductRepository } from "@server/ports/seller-product.repository";
 import { supabaseAdmin } from "@server/adapters/supabase/client";
+import type { TablesUpdate } from "@/integrations/supabase/types";
 
 const PRODUCT_SELECT =
   "id, name, slug, description, price, currency, unit, image_url, stock, publication_status, category_id, seller_id";
@@ -103,7 +104,7 @@ export class SupabaseSellerProductRepository implements ISellerProductRepository
   }
 
   async update(sellerId: string, data: UpdateSellerProductRequest): Promise<SellerProductDTO> {
-    const patch: Record<string, unknown> = {};
+    const patch: TablesUpdate<"products"> = {};
     if (data.name !== undefined) patch.name = data.name;
     if (data.slug !== undefined) patch.slug = data.slug;
     if (data.description !== undefined) patch.description = data.description;
