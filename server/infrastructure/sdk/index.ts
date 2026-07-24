@@ -1,0 +1,1 @@
+export { activateSDKPlatform } from "./bootstrap";

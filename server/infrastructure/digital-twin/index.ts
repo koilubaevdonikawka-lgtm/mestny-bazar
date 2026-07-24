@@ -1,0 +1,1 @@
+export { activateDigitalTwinPlatform } from "./bootstrap";

@@ -1,0 +1,1 @@
+export { activateArchitectureIntelligencePlatform } from "./bootstrap";

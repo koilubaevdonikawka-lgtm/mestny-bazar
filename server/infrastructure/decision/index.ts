@@ -1,0 +1,1 @@
+export { activateDecisionPlatform } from "./bootstrap";

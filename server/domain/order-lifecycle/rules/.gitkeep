@@ -1,0 +1,4 @@
+/**
+ * Order lifecycle rules are registered in server/di/container.ts.
+ * Add rule implementations here as business requirements are defined.
+ */

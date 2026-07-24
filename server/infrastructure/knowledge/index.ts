@@ -1,0 +1,1 @@
+export { activateKnowledgePlatform } from "./bootstrap";

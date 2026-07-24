@@ -1,0 +1,49 @@
+import type {
+  OrderLifecycleActor,
+  OrderLifecycleContext,
+  OrderLifecycleResult,
+} from "@server/ports/order-lifecycle.port";
+import type { OrderLifecycleRule } from "@server/domain/order-lifecycle/order-lifecycle.rule";
+import { OrderLifecycleOrder } from "@server/domain/order-lifecycle/order-lifecycle-order";
+import { OrderStatus } from "@shared/contracts/order";
+
+function isCourier(actor: OrderLifecycleActor): boolean {
+  return actor.roles?.includes("courier") ?? false;
+}
+
+const START_DELIVERY_STATUSES = new Set<OrderStatus>([
+  OrderStatus.READY_FOR_DELIVERY,
+  OrderStatus.ASSEMBLING,
+]);
+
+/** Courier starts delivery: READY_FOR_DELIVERY → OUT_FOR_DELIVERY. */
+export class CourierStartDeliveryRule implements OrderLifecycleRule {
+  readonly order = OrderLifecycleOrder.ROLE_PERMISSION;
+
+  applies(context: OrderLifecycleContext): boolean {
+    return (
+      context.reason === "courier_start_delivery" &&
+      context.targetStatus === OrderStatus.OUT_FOR_DELIVERY
+    );
+  }
+
+  evaluate(context: OrderLifecycleContext): OrderLifecycleResult {
+    if (!isCourier(context.actor)) {
+      return {
+        allowed: false,
+        denialCode: "COURIER_ROLE_REQUIRED",
+        message: "Courier role is required to start delivery",
+      };
+    }
+
+    if (!START_DELIVERY_STATUSES.has(context.currentStatus)) {
+      return {
+        allowed: false,
+        denialCode: "INVALID_START_DELIVERY_TRANSITION",
+        message: "Only orders ready for delivery can be started",
+      };
+    }
+
+    return { allowed: true };
+  }
+}

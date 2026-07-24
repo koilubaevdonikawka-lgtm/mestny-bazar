@@ -1,0 +1,1 @@
+export { activateDeveloperPlatform } from "./bootstrap";

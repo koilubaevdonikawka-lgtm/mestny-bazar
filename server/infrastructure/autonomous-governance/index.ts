@@ -1,0 +1,1 @@
+export { activateAutonomousGovernancePlatform } from "./bootstrap";

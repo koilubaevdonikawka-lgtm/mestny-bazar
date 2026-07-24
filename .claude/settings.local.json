@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(xargs grep -l \"IIdGenerator\")",
+      "Bash(npx tsc *)",
+      "Bash(echo \"EXIT_CODE=$?\")",
+      "Bash(echo \"TSC_EXIT_CODE=$?\")",
+      "Bash(echo \"BUILD_EXIT_CODE=$?\")",
+      "Bash(sort -t' ' -k2 -n -u)",
+      "Bash(awk 'NR==1{print \"oldest:\",$0} END{print \"newest:\",$0}')",
+      "Bash(git *)"
+    ]
+  }
+}

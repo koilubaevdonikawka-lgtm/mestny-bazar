@@ -1,0 +1,401 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { SiteHeader } from "@/components/SiteHeader";
+import { SiteFooter } from "@/components/SiteFooter";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  createAddress,
+  deleteAddress,
+  listAddresses,
+  setDefaultAddress,
+  updateAddress,
+} from "@/api/addresses";
+import type { AddressDTO } from "@shared/contracts/delivery";
+import { lovable } from "@/integrations/lovable";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2, LogIn, MapPin, Pencil, Plus, Star, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+
+export const Route = createFileRoute("/profile/addresses")({
+  component: ProfileAddressesPage,
+});
+
+type AddressFormState = {
+  label: string;
+  fullAddress: string;
+  city: string;
+  district: string;
+  notes: string;
+  isDefault: boolean;
+};
+
+const emptyForm = (): AddressFormState => ({
+  label: "",
+  fullAddress: "",
+  city: "",
+  district: "",
+  notes: "",
+  isDefault: false,
+});
+
+function ProfileAddressesPage() {
+  const queryClient = useQueryClient();
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState<AddressFormState>(emptyForm);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setIsAuthenticated(!!data.session?.user);
+    });
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session?.user);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const { data: addresses = [], isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["addresses", "list"],
+    queryFn: listAddresses,
+    enabled: isAuthenticated === true,
+    retry: false,
+  });
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["addresses", "list"] });
+
+  const createMutation = useMutation({
+    mutationFn: createAddress,
+    onSuccess: () => {
+      invalidate();
+      resetForm();
+      toast.success("Адрес добавлен");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось добавить адрес"),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: updateAddress,
+    onSuccess: () => {
+      invalidate();
+      resetForm();
+      toast.success("Адрес обновлён");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось обновить адрес"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteAddress,
+    onSuccess: () => {
+      invalidate();
+      toast.success("Адрес удалён");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось удалить адрес"),
+  });
+
+  const defaultMutation = useMutation({
+    mutationFn: setDefaultAddress,
+    onSuccess: () => {
+      invalidate();
+      toast.success("Адрес по умолчанию обновлён");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось выбрать адрес"),
+  });
+
+  const resetForm = () => {
+    setEditingId(null);
+    setShowForm(false);
+    setForm(emptyForm());
+  };
+
+  const openCreate = () => {
+    setEditingId(null);
+    setForm({ ...emptyForm(), isDefault: addresses.length === 0 });
+    setShowForm(true);
+  };
+
+  const openEdit = (address: AddressDTO) => {
+    setEditingId(address.id);
+    setForm({
+      label: address.label ?? "",
+      fullAddress: address.fullAddress,
+      city: address.city ?? "",
+      district: address.district ?? "",
+      notes: address.notes ?? "",
+      isDefault: address.isDefault,
+    });
+    setShowForm(true);
+  };
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    const payload = {
+      label: form.label.trim() || undefined,
+      fullAddress: form.fullAddress.trim(),
+      city: form.city.trim() || undefined,
+      district: form.district.trim() || undefined,
+      notes: form.notes.trim() || undefined,
+      isDefault: form.isDefault,
+    };
+
+    if (payload.fullAddress.length < 5) {
+      toast.error("Адрес должен содержать не менее 5 символов");
+      return;
+    }
+
+    if (editingId) {
+      updateMutation.mutate({ id: editingId, ...payload });
+      return;
+    }
+    createMutation.mutate(payload);
+  };
+
+  const handleSignIn = async () => {
+    await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin + "/profile/addresses",
+    });
+  };
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
+  if (isAuthenticated === null) {
+    return (
+      <PageShell>
+        <div className="flex justify-center py-24">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </PageShell>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <PageShell>
+        <div className="max-w-md mx-auto text-center py-24">
+          <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
+            <LogIn className="h-6 w-6 text-primary" />
+          </div>
+          <h1 className="font-serif text-3xl tracking-tight">Адреса доставки</h1>
+          <p className="mt-3 text-muted-foreground">Войдите, чтобы управлять адресами доставки.</p>
+          <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
+            Войти
+          </Button>
+        </div>
+      </PageShell>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <PageShell>
+        <div className="flex justify-center py-24">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </PageShell>
+    );
+  }
+
+  if (isError) {
+    const message = error instanceof Error ? error.message : "Не удалось загрузить адреса";
+    const isAuthError =
+      message.toLowerCase().includes("authentication") || message.includes("Unauthorized");
+    return (
+      <PageShell>
+        <div className="max-w-md mx-auto text-center py-24">
+          <p className="text-muted-foreground">{message}</p>
+          {isAuthError ? (
+            <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
+              Войти снова
+            </Button>
+          ) : (
+            <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void refetch()}>
+              Повторить
+            </Button>
+          )}
+        </div>
+      </PageShell>
+    );
+  }
+
+  return (
+    <PageShell>
+      <div className="mx-auto max-w-3xl px-6 py-12">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="font-serif text-4xl tracking-tight">Адреса доставки</h1>
+            <p className="mt-2 text-muted-foreground">
+              Управляйте адресами. Адрес по умолчанию используется при оформлении заказа.
+            </p>
+          </div>
+          {!showForm && (
+            <Button className="rounded-full" onClick={openCreate}>
+              <Plus className="h-4 w-4 mr-2" />
+              Добавить адрес
+            </Button>
+          )}
+        </div>
+
+        {showForm && (
+          <form
+            onSubmit={handleSubmit}
+            className="mt-8 rounded-2xl border border-border/60 bg-card p-6 space-y-4"
+          >
+            <h2 className="font-serif text-2xl">
+              {editingId ? "Редактировать адрес" : "Новый адрес"}
+            </h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="label">Название</Label>
+                <Input
+                  id="label"
+                  placeholder="Дом, офис…"
+                  value={form.label}
+                  onChange={(e) => setForm((prev) => ({ ...prev, label: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="city">Город</Label>
+                <Input
+                  id="city"
+                  value={form.city}
+                  onChange={(e) => setForm((prev) => ({ ...prev, city: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fullAddress">Адрес *</Label>
+              <Textarea
+                id="fullAddress"
+                required
+                rows={3}
+                value={form.fullAddress}
+                onChange={(e) => setForm((prev) => ({ ...prev, fullAddress: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="district">Район</Label>
+                <Input
+                  id="district"
+                  value={form.district}
+                  onChange={(e) => setForm((prev) => ({ ...prev, district: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="notes">Комментарий</Label>
+                <Input
+                  id="notes"
+                  placeholder="Подъезд, этаж…"
+                  value={form.notes}
+                  onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+                />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.isDefault}
+                onChange={(e) => setForm((prev) => ({ ...prev, isDefault: e.target.checked }))}
+              />
+              Использовать как адрес по умолчанию
+            </label>
+            <div className="flex gap-3 pt-2">
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Сохранить"}
+              </Button>
+              <Button type="button" variant="outline" onClick={resetForm}>
+                Отмена
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {addresses.length === 0 ? (
+          <div className="mt-12 rounded-3xl border border-dashed border-border py-16 text-center">
+            <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
+              <MapPin className="h-6 w-6 text-primary" />
+            </div>
+            <h2 className="font-serif text-2xl">Адресов пока нет</h2>
+            <p className="mt-2 text-muted-foreground">Добавьте адрес для быстрого оформления заказа.</p>
+            {!showForm && (
+              <Button className="mt-6 h-12 rounded-full" onClick={openCreate}>
+                <Plus className="h-4 w-4 mr-2" />
+                Добавить адрес
+              </Button>
+            )}
+          </div>
+        ) : (
+          <ul className="mt-8 space-y-4">
+            {addresses.map((address) => (
+              <li
+                key={address.id}
+                className="rounded-2xl border border-border/60 bg-card p-6"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-serif text-xl">{address.label || "Адрес"}</p>
+                      {address.isDefault && (
+                        <Badge variant="secondary">По умолчанию</Badge>
+                      )}
+                    </div>
+                    <p className="mt-2 text-muted-foreground">{address.fullAddress}</p>
+                    {(address.city || address.district) && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {[address.city, address.district].filter(Boolean).join(", ")}
+                      </p>
+                    )}
+                    {address.notes && (
+                      <p className="text-sm text-muted-foreground mt-1">{address.notes}</p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {!address.isDefault && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={defaultMutation.isPending}
+                        onClick={() => defaultMutation.mutate(address.id)}
+                      >
+                        <Star className="h-3.5 w-3.5 mr-1" />
+                        По умолчанию
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => openEdit(address)}>
+                      <Pencil className="h-3.5 w-3.5 mr-1" />
+                      Изменить
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={deleteMutation.isPending}
+                      onClick={() => deleteMutation.mutate(address.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                      Удалить
+                    </Button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </PageShell>
+  );
+}
+
+function PageShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <SiteHeader />
+      <main className="flex-1">{children}</main>
+      <SiteFooter />
+    </div>
+  );
+}

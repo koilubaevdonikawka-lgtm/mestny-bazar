@@ -1,0 +1,10 @@
+export type { IEventBus } from "./event-bus.port";
+export type { IUnitOfWork } from "./unit-of-work.port";
+export type { IClock } from "./clock.port";
+export type { IIdGenerator } from "./id-generator.port";
+export type { ITransactionManager } from "./transaction-manager.port";
+export type { IProductRepository } from "./product.repository.port";
+export type { ISellerRepository } from "./seller.repository.port";
+export type { ICatalogRepository } from "./catalog.repository.port";
+export type { ICategoryRepository } from "./category.repository.port";
+export type { IOrderRepository } from "./order.repository.port";

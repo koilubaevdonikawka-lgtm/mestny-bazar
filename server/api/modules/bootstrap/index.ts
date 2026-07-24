@@ -1,0 +1,15 @@
+export {
+  registerMarketplaceModules,
+  resolveMarketplaceModulesRoutes,
+  CartController,
+  createCartRoutes,
+  CheckoutController,
+  createCheckoutRoutes,
+  FavoritesController,
+  createFavoritesRoutes,
+  ReviewController,
+  createReviewRoutes,
+  SearchController,
+  createSearchRoutes,
+  createMarketplaceModulesRoutes,
+} from "./marketplace-modules.bootstrap";

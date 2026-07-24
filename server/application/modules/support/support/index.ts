@@ -1,0 +1,57 @@
+export { SupportModule } from "./api";
+export type { ISupportStore } from "./contracts";
+export type {
+  CreateTicketDto,
+  ReplyTicketDto,
+  CloseTicketDto,
+  GetTicketStatusDto,
+  CreateComplaintDto,
+  CreateSuggestionDto,
+  CreateDisputeDto,
+} from "./dto";
+export {
+  type TicketCreatedEvent,
+  type TicketRepliedEvent,
+  type TicketClosedEvent,
+  type ComplaintCreatedEvent,
+  type SuggestionCreatedEvent,
+  type DisputeCreatedEvent,
+  createTicketCreatedEvent,
+  createTicketRepliedEvent,
+  createTicketClosedEvent,
+  createComplaintCreatedEvent,
+  createSuggestionCreatedEvent,
+  createDisputeCreatedEvent,
+} from "./events";
+export {
+  SupportStatus,
+  SUPPORT_STATUS_VALUES,
+  isSupportStatus,
+  isOpenSupportStatus,
+  isClosedSupportStatus,
+  type SupportStatusValue,
+  SupportPriority,
+  SUPPORT_PRIORITY_VALUES,
+  isSupportPriority,
+  type SupportPriorityValue,
+  SupportTicketKind,
+  SUPPORT_TICKET_KIND_VALUES,
+  isSupportTicketKind,
+  type SupportTicketKindValue,
+  type SupportMessage,
+  createSupportMessage,
+  type SupportTicket,
+  createSupportTicket,
+  withSupportTicketMessage,
+  withSupportTicketStatus,
+  canReplyToSupportTicket,
+  canCloseSupportTicket,
+  type Complaint,
+  createComplaint,
+  type Suggestion,
+  createSuggestion,
+  type Dispute,
+  createDispute,
+} from "./models";
+export { SupportRoutingPolicy, SupportPriorityPolicy } from "./policies";
+export { SupportService } from "./services";

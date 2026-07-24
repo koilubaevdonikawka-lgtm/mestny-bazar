@@ -1,0 +1,1 @@
+export { activateOperationsPlatform } from "./bootstrap";
