@@ -8,6 +8,7 @@ import type {
 } from "@server/ports/notification.provider";
 import type { IOrderEventNotifier } from "@server/ports/order-events.port";
 import type { OrderDTO } from "@shared/contracts/order";
+import { logger } from "@shared/observability/logger";
 
 /**
  * Single entry point for all system notifications.
@@ -51,10 +52,11 @@ export class NotificationCenter implements INotificationCenter {
     const recipients = ["admin", "warehouse", "courier"] as const;
     results.forEach((result, index) => {
       if (result.status === "rejected") {
-        console.error(
-          `[NotificationCenter] Failed to notify ${recipients[index]} for order ${order.id}:`,
-          result.reason,
-        );
+        logger.error("Failed to notify recipient for order", {
+          recipient: recipients[index],
+          orderId: order.id,
+          error: result.reason,
+        });
       }
     });
   }

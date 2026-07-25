@@ -3,6 +3,7 @@ import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port
 import type { AIWorkerRegistry } from "@server/domain/marketplace-ai/ai-worker-registry";
 import type { AIExecutionPlanner } from "@server/domain/marketplace-ai/core/ai-execution-planner";
 import type { AIResultAggregator } from "@server/domain/marketplace-ai/core/ai-result-aggregator";
+import { logger } from "@shared/observability/logger";
 
 /** Coordinates AI job planning, worker execution, aggregation, and completion events. */
 export class AIOrchestrator {
@@ -52,10 +53,7 @@ export class AIOrchestrator {
         return;
       }
       const workerId = workerIds[index]!;
-      console.error(
-        `[AIOrchestrator] Worker "${workerId}" failed for job ${job.id}:`,
-        outcome.reason,
-      );
+      logger.error("AI worker failed", { workerId, jobId: job.id, error: outcome.reason });
       results.push({
         jobId: job.id,
         workerId,

@@ -4,6 +4,7 @@ import type {
   MarketplaceEventHandler,
   MarketplaceEventType,
 } from "@server/ports/marketplace-events.port";
+import { logger } from "@shared/observability/logger";
 
 /** In-memory marketplace event bus — single process, no external broker. */
 export class MarketplaceEventsService implements IMarketplaceEventBus {
@@ -34,7 +35,7 @@ export class MarketplaceEventsService implements IMarketplaceEventBus {
     const results = await Promise.allSettled([...handlers].map((handler) => handler(event)));
     for (const result of results) {
       if (result.status === "rejected") {
-        console.error(`[MarketplaceEvents] Handler for "${event.type}" failed:`, result.reason);
+        logger.error("Event handler failed", { eventType: event.type, error: result.reason });
       }
     }
   }

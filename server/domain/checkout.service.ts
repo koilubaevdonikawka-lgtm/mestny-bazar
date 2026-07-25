@@ -18,6 +18,7 @@ import { OrderService } from "@server/domain/order.service";
 import { PricingService } from "@server/domain/pricing.service";
 import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
 import { isUuid } from "@server/domain/shared/uuid";
+import { logger } from "@shared/observability/logger";
 
 export class CheckoutService {
   constructor(
@@ -108,9 +109,10 @@ export class CheckoutService {
       order = await this.orderService.createOrder(orderData);
     } catch (error) {
       await this.inventory.releaseStock(stockItems).catch(() => {
-        console.error(
-          `[Checkout] Failed to release reserved stock after a failed checkout for idempotencyKey=${request.idempotencyKey}. Manual reconciliation may be required.`,
-        );
+        logger.error("Failed to release reserved stock after a failed checkout", {
+          idempotencyKey: request.idempotencyKey,
+          note: "Manual reconciliation may be required.",
+        });
       });
       throw error;
     }
@@ -305,13 +307,13 @@ export class CheckoutService {
       const product = useId ? idMap.get(identifier) : slugMap.get(identifier);
 
       if (!product) {
-        console.error(
-          useId
-            ? `[Checkout] ProductNotSynchronized: product id "${identifier}" is not in Supabase. ` +
-                "Sync catalog to platform DB before checkout — Checkout must not create products."
-            : `[Checkout] ProductNotSynchronized: slug "${identifier}" is not in Supabase. ` +
-                "Map Shopify handle → products.slug and sync catalog before checkout — Checkout must not create products.",
-        );
+        logger.error("ProductNotSynchronized", {
+          identifier,
+          identifierType: useId ? "id" : "slug",
+          note: useId
+            ? "Sync catalog to platform DB before checkout — Checkout must not create products."
+            : "Map Shopify handle → products.slug and sync catalog before checkout — Checkout must not create products.",
+        });
         throw new ProductNotSynchronized(identifier);
       }
       if (!product.inStock) {
