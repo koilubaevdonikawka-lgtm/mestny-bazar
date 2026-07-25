@@ -9,6 +9,12 @@ function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
 }
 
+// resolveUserIdFromRequest() runs on every admin/warehouse/courier/seller
+// request via requireXFromRequest() — an unreachable or hanging Supabase auth
+// endpoint (e.g. the JWKS fetch inside getClaims()) must not be able to hang
+// every authenticated request indefinitely.
+const AUTH_FETCH_TIMEOUT_MS = 5000;
+
 function createSupabaseFetch(supabaseKey: string): typeof fetch {
   return (input, init) => {
     const headers = new Headers(
@@ -24,7 +30,11 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
       headers.delete("Authorization");
     }
     headers.set("apikey", supabaseKey);
-    return fetch(input, { ...init, headers });
+    return fetch(input, {
+      ...init,
+      headers,
+      signal: init?.signal ?? AbortSignal.timeout(AUTH_FETCH_TIMEOUT_MS),
+    });
   };
 }
 
