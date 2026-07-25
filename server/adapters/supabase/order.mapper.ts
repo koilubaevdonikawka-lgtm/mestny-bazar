@@ -1,15 +1,28 @@
 import type { OrderDTO } from "@shared/contracts/order";
 
-type DbOrderStatus = "pending" | "paid" | "preparing" | "delivering" | "delivered" | "cancelled";
+type DbOrderStatus =
+  | "pending"
+  | "paid"
+  | "confirmed"
+  | "preparing"
+  | "ready_for_delivery"
+  | "delivering"
+  | "arrived"
+  | "delivered"
+  | "cancelled";
 
+// One DB value per domain status — see the 20260725020000 migration. Previously
+// CONFIRMED/READY_FOR_DELIVERY/ARRIVED collapsed onto PAID/ASSEMBLING/OUT_FOR_DELIVERY
+// respectively (the enum only had 6 values), so those three states silently reverted
+// to their predecessor on every re-read from the database.
 const DOMAIN_TO_DB_STATUS: Record<OrderDTO["status"], DbOrderStatus> = {
   CREATED: "pending",
   PAID: "paid",
-  CONFIRMED: "paid",
+  CONFIRMED: "confirmed",
   ASSEMBLING: "preparing",
-  READY_FOR_DELIVERY: "preparing",
+  READY_FOR_DELIVERY: "ready_for_delivery",
   OUT_FOR_DELIVERY: "delivering",
-  ARRIVED: "delivering",
+  ARRIVED: "arrived",
   DELIVERED: "delivered",
   CANCELLED: "cancelled",
 };
@@ -17,8 +30,11 @@ const DOMAIN_TO_DB_STATUS: Record<OrderDTO["status"], DbOrderStatus> = {
 const DB_TO_DOMAIN_STATUS: Record<DbOrderStatus, OrderDTO["status"]> = {
   pending: "CREATED",
   paid: "PAID",
+  confirmed: "CONFIRMED",
   preparing: "ASSEMBLING",
+  ready_for_delivery: "READY_FOR_DELIVERY",
   delivering: "OUT_FOR_DELIVERY",
+  arrived: "ARRIVED",
   delivered: "DELIVERED",
   cancelled: "CANCELLED",
 };

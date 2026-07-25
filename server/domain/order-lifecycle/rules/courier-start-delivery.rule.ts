@@ -11,11 +11,6 @@ function isCourier(actor: OrderLifecycleActor): boolean {
   return actor.roles?.includes("courier") ?? false;
 }
 
-const START_DELIVERY_STATUSES = new Set<OrderStatus>([
-  OrderStatus.READY_FOR_DELIVERY,
-  OrderStatus.ASSEMBLING,
-]);
-
 /** Courier starts delivery: READY_FOR_DELIVERY → OUT_FOR_DELIVERY. */
 export class CourierStartDeliveryRule implements OrderLifecycleRule {
   readonly order = OrderLifecycleOrder.ROLE_PERMISSION;
@@ -36,7 +31,7 @@ export class CourierStartDeliveryRule implements OrderLifecycleRule {
       };
     }
 
-    if (!START_DELIVERY_STATUSES.has(context.currentStatus)) {
+    if (context.currentStatus !== OrderStatus.READY_FOR_DELIVERY) {
       return {
         allowed: false,
         denialCode: "INVALID_START_DELIVERY_TRANSITION",

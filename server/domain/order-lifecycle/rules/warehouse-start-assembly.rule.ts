@@ -11,9 +11,6 @@ function isWarehouse(actor: OrderLifecycleActor): boolean {
   return actor.roles?.includes("warehouse") ?? false;
 }
 
-/** PAID is the DB round-trip form of CONFIRMED after admin confirmation. */
-const START_ASSEMBLY_STATUSES = new Set<OrderStatus>([OrderStatus.CONFIRMED, OrderStatus.PAID]);
-
 /** Warehouse starts assembly: CONFIRMED → ASSEMBLING. */
 export class WarehouseStartAssemblyRule implements OrderLifecycleRule {
   readonly order = OrderLifecycleOrder.ROLE_PERMISSION;
@@ -34,7 +31,7 @@ export class WarehouseStartAssemblyRule implements OrderLifecycleRule {
       };
     }
 
-    if (!START_ASSEMBLY_STATUSES.has(context.currentStatus)) {
+    if (context.currentStatus !== OrderStatus.CONFIRMED) {
       return {
         allowed: false,
         denialCode: "INVALID_START_ASSEMBLY_TRANSITION",

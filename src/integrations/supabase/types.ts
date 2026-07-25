@@ -378,7 +378,16 @@ export type Database = {
     };
     Enums: {
       app_role: "admin" | "customer" | "seller" | "warehouse" | "courier";
-      order_status: "pending" | "paid" | "preparing" | "delivering" | "delivered" | "cancelled";
+      order_status:
+        | "pending"
+        | "paid"
+        | "confirmed"
+        | "preparing"
+        | "ready_for_delivery"
+        | "delivering"
+        | "arrived"
+        | "delivered"
+        | "cancelled";
       payment_status: "unpaid" | "awaiting" | "paid" | "failed" | "refunded";
       product_publication_status: "DRAFT" | "PUBLISHED" | "HIDDEN";
     };
@@ -503,7 +512,17 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "customer", "seller", "warehouse", "courier"],
-      order_status: ["pending", "paid", "preparing", "delivering", "delivered", "cancelled"],
+      order_status: [
+        "pending",
+        "paid",
+        "confirmed",
+        "preparing",
+        "ready_for_delivery",
+        "delivering",
+        "arrived",
+        "delivered",
+        "cancelled",
+      ],
       payment_status: ["unpaid", "awaiting", "paid", "failed", "refunded"],
       product_publication_status: ["DRAFT", "PUBLISHED", "HIDDEN"],
     },

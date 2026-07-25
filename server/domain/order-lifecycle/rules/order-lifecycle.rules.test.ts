@@ -182,25 +182,21 @@ describe("WarehouseStartAssemblyRule", () => {
     expect(result).toMatchObject({ allowed: false, denialCode: "WAREHOUSE_ROLE_REQUIRED" });
   });
 
-  it("allows from CONFIRMED or PAID", () => {
+  it("allows from CONFIRMED", () => {
     expect(
       rule.evaluate(ctx({ ...applyCtx, actor: warehouse, currentStatus: OrderStatus.CONFIRMED }))
         .allowed,
     ).toBe(true);
-    expect(
-      rule.evaluate(ctx({ ...applyCtx, actor: warehouse, currentStatus: OrderStatus.PAID }))
-        .allowed,
-    ).toBe(true);
   });
 
-  it("denies from CREATED", () => {
-    const result = rule.evaluate(
-      ctx({ ...applyCtx, actor: warehouse, currentStatus: OrderStatus.CREATED }),
-    );
-    expect(result).toMatchObject({
-      allowed: false,
-      denialCode: "INVALID_START_ASSEMBLY_TRANSITION",
-    });
+  it("denies from CREATED or PAID (must be admin-confirmed first)", () => {
+    for (const status of [OrderStatus.CREATED, OrderStatus.PAID]) {
+      const result = rule.evaluate(ctx({ ...applyCtx, actor: warehouse, currentStatus: status }));
+      expect(result).toMatchObject({
+        allowed: false,
+        denialCode: "INVALID_START_ASSEMBLY_TRANSITION",
+      });
+    }
   });
 });
 
@@ -244,23 +240,19 @@ describe("CourierAcceptOrderRule", () => {
     expect(result).toMatchObject({ allowed: false, denialCode: "COURIER_ROLE_REQUIRED" });
   });
 
-  it("allows from READY_FOR_DELIVERY or ASSEMBLING", () => {
+  it("allows from READY_FOR_DELIVERY", () => {
     expect(
       rule.evaluate(
         ctx({ ...applyCtx, actor: courier, currentStatus: OrderStatus.READY_FOR_DELIVERY }),
       ).allowed,
     ).toBe(true);
-    expect(
-      rule.evaluate(ctx({ ...applyCtx, actor: courier, currentStatus: OrderStatus.ASSEMBLING }))
-        .allowed,
-    ).toBe(true);
   });
 
-  it("denies from CREATED", () => {
-    const result = rule.evaluate(
-      ctx({ ...applyCtx, actor: courier, currentStatus: OrderStatus.CREATED }),
-    );
-    expect(result).toMatchObject({ allowed: false, denialCode: "INVALID_ACCEPT_TRANSITION" });
+  it("denies from CREATED or ASSEMBLING (warehouse must finish first)", () => {
+    for (const status of [OrderStatus.CREATED, OrderStatus.ASSEMBLING]) {
+      const result = rule.evaluate(ctx({ ...applyCtx, actor: courier, currentStatus: status }));
+      expect(result).toMatchObject({ allowed: false, denialCode: "INVALID_ACCEPT_TRANSITION" });
+    }
   });
 });
 
@@ -274,26 +266,22 @@ describe("CourierStartDeliveryRule", () => {
     expect(result).toMatchObject({ allowed: false, denialCode: "COURIER_ROLE_REQUIRED" });
   });
 
-  it("allows from READY_FOR_DELIVERY or ASSEMBLING", () => {
+  it("allows from READY_FOR_DELIVERY", () => {
     expect(
       rule.evaluate(
         ctx({ ...applyCtx, actor: courier, currentStatus: OrderStatus.READY_FOR_DELIVERY }),
       ).allowed,
     ).toBe(true);
-    expect(
-      rule.evaluate(ctx({ ...applyCtx, actor: courier, currentStatus: OrderStatus.ASSEMBLING }))
-        .allowed,
-    ).toBe(true);
   });
 
-  it("denies from ARRIVED", () => {
-    const result = rule.evaluate(
-      ctx({ ...applyCtx, actor: courier, currentStatus: OrderStatus.ARRIVED }),
-    );
-    expect(result).toMatchObject({
-      allowed: false,
-      denialCode: "INVALID_START_DELIVERY_TRANSITION",
-    });
+  it("denies from ASSEMBLING or ARRIVED", () => {
+    for (const status of [OrderStatus.ASSEMBLING, OrderStatus.ARRIVED]) {
+      const result = rule.evaluate(ctx({ ...applyCtx, actor: courier, currentStatus: status }));
+      expect(result).toMatchObject({
+        allowed: false,
+        denialCode: "INVALID_START_DELIVERY_TRANSITION",
+      });
+    }
   });
 });
 
