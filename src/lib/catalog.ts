@@ -14,12 +14,17 @@ import { toShopifyProductShim } from "@/lib/product-adapter";
  * FEATURE_CATALOG_SOURCE / isPlatformCatalog(). Both branches resolve to the ShopifyProduct
  * shape so product rendering and cart/checkout code stay source-agnostic.
  */
-export async function fetchCatalogProducts(): Promise<ShopifyProduct[]> {
+export async function fetchCatalogProducts(search?: string): Promise<ShopifyProduct[]> {
+  const trimmed = search?.trim() || null;
+
   if (isPlatformCatalog()) {
-    const result = await listProducts();
+    const result = await listProducts(trimmed ? { search: trimmed } : {});
     return result.items.map(toShopifyProductShim);
   }
-  const data = await storefrontApiRequest(STOREFRONT_PRODUCTS_QUERY, { first: 24, query: null });
+  const data = await storefrontApiRequest(STOREFRONT_PRODUCTS_QUERY, {
+    first: 24,
+    query: trimmed,
+  });
   return data?.data?.products?.edges ?? [];
 }
 

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useCartSync } from "@/hooks/useCartSync";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useSearchStore } from "@/stores/searchStore";
 import { useCheckoutStore } from "@/stores/checkoutStore";
 import { Truck, Loader2, ShoppingBasket, MessageCircle, CreditCard, Send } from "lucide-react";
@@ -50,9 +51,14 @@ const CATEGORIES = [
 
 function Home() {
   useCartSync();
+  const search = useSearchStore((s) => s.search);
+  // Search runs server-side (the full catalog, not just the loaded page) —
+  // debounce so typing doesn't fire a request per keystroke.
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
+
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["products"],
-    queryFn: fetchCatalogProducts,
+    queryKey: ["products", debouncedSearch],
+    queryFn: () => fetchCatalogProducts(debouncedSearch),
   });
 
   // Номер магазина в международном формате без +, 0 и пробелов (например: 996555123456)
@@ -63,11 +69,6 @@ function Home() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [addressOpen, setAddressOpen] = useState(false);
   const { address, setAddress, setPaymentMethod, setCustomerPhone } = useCheckoutStore();
-  const search = useSearchStore((s) => s.search);
-
-  const filteredProducts = search.trim()
-    ? products.filter((p) => p.node.title.toLowerCase().includes(search.trim().toLowerCase()))
-    : products;
 
   const handleSaveAddress = () => {
     if (address.trim().length < 5) {
@@ -167,24 +168,25 @@ function Home() {
             <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
               <ShoppingBasket className="h-6 w-6 text-primary" />
             </div>
-            <h3 className="font-serif text-2xl">Каталог скоро наполнится</h3>
-            <p className="mt-2 text-muted-foreground max-w-md mx-auto">
-              Под каждую категорию добавим товары с ценами и фотографиями.
-            </p>
-          </div>
-        ) : filteredProducts.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-border py-24 text-center">
-            <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
-              <ShoppingBasket className="h-6 w-6 text-primary" />
-            </div>
-            <h3 className="font-serif text-2xl">Ничего не найдено</h3>
-            <p className="mt-2 text-muted-foreground max-w-md mx-auto">
-              Попробуйте изменить запрос «{search}».
-            </p>
+            {debouncedSearch ? (
+              <>
+                <h3 className="font-serif text-2xl">Ничего не найдено</h3>
+                <p className="mt-2 text-muted-foreground max-w-md mx-auto">
+                  Попробуйте изменить запрос «{debouncedSearch}».
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="font-serif text-2xl">Каталог скоро наполнится</h3>
+                <p className="mt-2 text-muted-foreground max-w-md mx-auto">
+                  Под каждую категорию добавим товары с ценами и фотографиями.
+                </p>
+              </>
+            )}
           </div>
         ) : (
           <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredProducts.map((p) => (
+            {products.map((p) => (
               <ProductCard key={p.node.id} product={p} />
             ))}
           </div>
