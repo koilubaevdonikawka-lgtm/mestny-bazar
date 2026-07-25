@@ -4,11 +4,7 @@ import { OrderService } from "@server/domain/order.service";
 import { PricingService } from "@server/domain/pricing.service";
 import { InventoryService } from "@server/domain/inventory.service";
 import { InsufficientStockError } from "@server/domain/checkout.errors";
-import type {
-  CreateOrderData,
-  IOrderRepository,
-  OrderLineItemInput,
-} from "@server/ports/order.repository";
+import type { CreateOrderData, IOrderRepository } from "@server/ports/order.repository";
 import type { IProductRepository, StockReservationItem } from "@server/ports/product.repository";
 import type { IAddressRepository } from "@server/ports/address.repository";
 import type { IDeliveryZoneRepository } from "@server/ports/delivery-zone.repository";

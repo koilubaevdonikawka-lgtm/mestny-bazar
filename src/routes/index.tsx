@@ -4,7 +4,6 @@ import { useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ProductCard } from "@/components/ProductCard";
-import { HalalBadge } from "@/components/HalalBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,18 +19,9 @@ import { toast } from "sonner";
 import { useCartSync } from "@/hooks/useCartSync";
 import { useSearchStore } from "@/stores/searchStore";
 import { useCheckoutStore } from "@/stores/checkoutStore";
-import {
-  Truck,
-  Sparkles,
-  Loader2,
-  ShoppingBasket,
-  MessageCircle,
-  CreditCard,
-  Send,
-} from "lucide-react";
+import { Truck, Loader2, ShoppingBasket, MessageCircle, CreditCard, Send } from "lucide-react";
 import { fetchCatalogProducts } from "@/lib/catalog";
 import catFlour from "@/assets/cat-flour.png";
-import catDriedfruit from "@/assets/cat-driedfruit.png";
 import catProduce from "@/assets/cat-produce.png";
 import catOils from "@/assets/cat-oils.png";
 import catDrinks from "@/assets/cat-drinks.png";
