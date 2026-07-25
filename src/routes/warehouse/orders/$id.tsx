@@ -141,8 +141,7 @@ function WarehouseOrderDetailPage() {
     throw notFound();
   }
 
-  const canStartAssembly =
-    order.status === OrderStatus.CONFIRMED || order.status === OrderStatus.PAID;
+  const canStartAssembly = order.status === OrderStatus.CONFIRMED;
   const canCompleteAssembly = order.status === OrderStatus.ASSEMBLING;
   const isBusy = startMutation.isPending || completeMutation.isPending;
 

@@ -163,8 +163,7 @@ function CourierOrderDetailPage() {
     throw notFound();
   }
 
-  const isReadyForDelivery =
-    order.status === OrderStatus.READY_FOR_DELIVERY || order.status === OrderStatus.ASSEMBLING;
+  const isReadyForDelivery = order.status === OrderStatus.READY_FOR_DELIVERY;
   const canAccept = isReadyForDelivery && !accepted;
   const canStartDelivery = isReadyForDelivery && accepted;
   const canMarkArrival = order.status === OrderStatus.OUT_FOR_DELIVERY && !arrived;
