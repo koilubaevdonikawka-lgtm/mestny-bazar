@@ -412,6 +412,10 @@ export type Database = {
         Args: { order_data: Json; items: Json };
         Returns: string;
       };
+      set_default_address: {
+        Args: { p_user_id: string; p_address_id: string };
+        Returns: undefined;
+      };
     };
     Enums: {
       app_role: "admin" | "customer" | "seller" | "warehouse" | "courier";

@@ -30,15 +30,18 @@ function mapRow(row: {
 }
 
 export class SupabaseAddressRepository implements IAddressRepository {
-  private async clearOtherDefaults(userId: string, exceptId?: string): Promise<void> {
-    let query = supabaseAdmin.from("addresses").update({ is_default: false }).eq("user_id", userId);
-
-    if (exceptId) {
-      query = query.neq("id", exceptId);
-    }
-
-    const { error } = await query;
-    if (error) throw new Error(`Failed to clear default addresses: ${error.message}`);
+  /**
+   * Atomically clears every other default for the user and marks addressId as
+   * the default, in one DB transaction — see the migration this RPC came from
+   * for why a plain "clear others, then UPDATE this row" from application code
+   * is a real race between two concurrent "set as default" requests.
+   */
+  private async setDefaultAddress(userId: string, addressId: string): Promise<void> {
+    const { error } = await supabaseAdmin.rpc("set_default_address", {
+      p_user_id: userId,
+      p_address_id: addressId,
+    });
+    if (error) throw new Error(`Failed to set default address: ${error.message}`);
   }
 
   async listByUser(userId: string): Promise<AddressDTO[]> {
@@ -66,10 +69,10 @@ export class SupabaseAddressRepository implements IAddressRepository {
 
   async create(userId: string, data: CreateAddressRequest): Promise<AddressDTO> {
     const isDefault = data.isDefault ?? false;
-    if (isDefault) {
-      await this.clearOtherDefaults(userId);
-    }
 
+    // Always insert as non-default, then promote atomically below if
+    // requested — keeps the default-clearing logic in one place (the RPC)
+    // instead of duplicating it as a pre-insert clear.
     const { data: row, error } = await supabaseAdmin
       .from("addresses")
       .insert({
@@ -80,18 +83,21 @@ export class SupabaseAddressRepository implements IAddressRepository {
         district: data.district ?? null,
         notes: data.notes ?? null,
         zone_id: data.zoneId ?? null,
-        is_default: isDefault,
+        is_default: false,
       })
       .select("id, label, full_address, city, district, notes, zone_id, is_default")
       .single();
 
     if (error || !row) throw new Error(`Failed to create address: ${error?.message ?? "unknown"}`);
-    return mapRow(row);
+    if (!isDefault) return mapRow(row);
+
+    await this.setDefaultAddress(userId, row.id);
+    return { ...mapRow(row), isDefault: true };
   }
 
   async update(userId: string, data: UpdateAddressRequest): Promise<AddressDTO> {
     if (data.isDefault === true) {
-      await this.clearOtherDefaults(userId, data.id);
+      await this.setDefaultAddress(userId, data.id);
     }
 
     const patch: TablesUpdate<"addresses"> = {};
@@ -101,7 +107,15 @@ export class SupabaseAddressRepository implements IAddressRepository {
     if (data.district !== undefined) patch.district = data.district;
     if (data.notes !== undefined) patch.notes = data.notes;
     if (data.zoneId !== undefined) patch.zone_id = data.zoneId;
-    if (data.isDefault !== undefined) patch.is_default = data.isDefault;
+    // isDefault:true was already applied atomically above; only a plain
+    // is_default:false needs to go through the regular field patch.
+    if (data.isDefault === false) patch.is_default = false;
+
+    if (Object.keys(patch).length === 0) {
+      const row = await this.getById(data.id, userId);
+      if (!row) throw new Error(`Address ${data.id} not found after update`);
+      return row;
+    }
 
     const { data: row, error } = await supabaseAdmin
       .from("addresses")
