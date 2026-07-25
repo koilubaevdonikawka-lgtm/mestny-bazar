@@ -146,6 +146,21 @@ export class ShopifyCatalogAdapter implements IProductRepository {
     return data.product ? this.toProductDTO(data.product) : null;
   }
 
+  /**
+   * No batch-by-handle/id query exists in the Storefront API without alias
+   * tricks; this adapter is never used for checkout in practice (see
+   * server/di/container.ts), so a parallel fan-out is an acceptable fallback.
+   */
+  async getManyByIds(ids: string[]): Promise<ProductDTO[]> {
+    const results = await Promise.all(ids.map((id) => this.getById(id)));
+    return results.filter((product): product is ProductDTO => product !== null);
+  }
+
+  async getManyBySlugs(slugs: string[]): Promise<ProductDTO[]> {
+    const results = await Promise.all(slugs.map((slug) => this.getBySlug(slug)));
+    return results.filter((product): product is ProductDTO => product !== null);
+  }
+
   async checkStock(productId: string, quantity: number): Promise<boolean> {
     const product = await this.getById(productId);
     if (!product) return false;

@@ -45,7 +45,7 @@ export class CheckoutService {
 
     const { snapshot: addressSnapshot, addressId } = await this.resolveAddress(userId, request);
     const zoneId = await this.resolveZoneId(userId, request, addressId);
-    const lineItems = await this.resolveLineItems(request.items);
+    const { lineItems, currency } = await this.resolveLineItems(request.items);
     const stockItems = lineItems.map((item) => ({
       productId: item.productId,
       quantity: item.quantity,
@@ -67,7 +67,6 @@ export class CheckoutService {
         ? (await this.pricing.calculateDeliveryFee(zoneId, subtotal)).fee
         : 0;
       const total = this.pricing.calculateTotal(subtotal, deliveryFee);
-      const currency = lineItems[0] ? await this.resolveCurrency(lineItems[0].productId) : "KGS";
 
       this.paymentPolicy.assertCanUsePaymentMethod(
         this.buildPaymentPolicyContext(userId, request, { orderTotal: total, zoneId }),
@@ -248,63 +247,73 @@ export class CheckoutService {
     return null;
   }
 
-  private async resolveLineItems(items: CreateOrderItemRequest[]): Promise<OrderLineItemInput[]> {
-    const resolved: OrderLineItemInput[] = [];
+  /**
+   * Batches product lookups into at most two queries (by id, by slug) instead of
+   * one round trip per cart line — resolveProduct() used to call getById/getBySlug
+   * inside a per-item loop, an N+1 on checkout's hottest path.
+   */
+  private async resolveLineItems(
+    items: CreateOrderItemRequest[],
+  ): Promise<{ lineItems: OrderLineItemInput[]; currency: string }> {
+    const ids: string[] = [];
+    const slugs: string[] = [];
 
     for (const item of items) {
-      const product = await this.resolveProduct(item);
+      if (item.productId?.trim() && isUuid(item.productId)) {
+        ids.push(item.productId.trim());
+      } else {
+        const slug = item.productSlug?.trim();
+        if (!slug) {
+          throw new CheckoutValidationError({ items: ["Product slug is required"] });
+        }
+        slugs.push(slug);
+      }
+    }
+
+    const [byId, bySlug] = await Promise.all([
+      ids.length ? this.products.getManyByIds(ids) : Promise.resolve([]),
+      slugs.length ? this.products.getManyBySlugs(slugs) : Promise.resolve([]),
+    ]);
+
+    const idMap = new Map(byId.map((product) => [product.id, product]));
+    const slugMap = new Map(bySlug.map((product) => [product.slug, product]));
+
+    const resolved: OrderLineItemInput[] = [];
+    let currency: string | undefined;
+
+    for (const item of items) {
+      const useId = !!(item.productId?.trim() && isUuid(item.productId));
+      const identifier = useId ? item.productId!.trim() : item.productSlug!.trim();
+      const product = useId ? idMap.get(identifier) : slugMap.get(identifier);
+
+      if (!product) {
+        console.error(
+          useId
+            ? `[Checkout] ProductNotSynchronized: product id "${identifier}" is not in Supabase. ` +
+                "Sync catalog to platform DB before checkout — Checkout must not create products."
+            : `[Checkout] ProductNotSynchronized: slug "${identifier}" is not in Supabase. ` +
+                "Map Shopify handle → products.slug and sync catalog before checkout — Checkout must not create products.",
+        );
+        throw new ProductNotSynchronized(identifier);
+      }
       if (!product.inStock) {
         throw new CheckoutValidationError({
           items: [`Product out of stock: ${product.name}`],
         });
       }
 
-      const unitPrice = product.price;
+      currency ??= product.currency;
       resolved.push({
         productId: product.id,
         productName: product.name,
         productImageUrl: product.imageUrl,
         quantity: item.quantity,
-        unitPrice,
-        lineTotal: unitPrice * item.quantity,
+        unitPrice: product.price,
+        lineTotal: product.price * item.quantity,
       });
     }
 
-    return resolved;
-  }
-
-  private async resolveProduct(item: CreateOrderItemRequest) {
-    if (item.productId?.trim() && isUuid(item.productId)) {
-      const product = await this.products.getById(item.productId);
-      if (!product) {
-        console.error(
-          `[Checkout] ProductNotSynchronized: product id "${item.productId}" is not in Supabase. ` +
-            "Sync catalog to platform DB before checkout — Checkout must not create products.",
-        );
-        throw new ProductNotSynchronized(item.productId);
-      }
-      return product;
-    }
-
-    const slug = item.productSlug?.trim();
-    if (!slug) {
-      throw new CheckoutValidationError({ items: ["Product slug is required"] });
-    }
-
-    const product = await this.products.getBySlug(slug);
-    if (!product) {
-      console.error(
-        `[Checkout] ProductNotSynchronized: slug "${slug}" is not in Supabase. ` +
-          "Map Shopify handle → products.slug and sync catalog before checkout — Checkout must not create products.",
-      );
-      throw new ProductNotSynchronized(slug);
-    }
-    return product;
-  }
-
-  private async resolveCurrency(productId: string): Promise<string> {
-    const product = await this.products.getById(productId);
-    return product?.currency ?? "KGS";
+    return { lineItems: resolved, currency: currency ?? "KGS" };
   }
 
   private normalizePhone(raw: string): string {

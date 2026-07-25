@@ -103,6 +103,32 @@ export class SupabaseProductRepository implements IProductRepository {
     return data ? mapProduct(data) : null;
   }
 
+  async getManyByIds(ids: string[]): Promise<ProductDTO[]> {
+    if (ids.length === 0) return [];
+
+    const { data, error } = await supabaseAdmin
+      .from("products")
+      .select(PRODUCT_SELECT)
+      .in("id", ids)
+      .eq("publication_status", ProductPublicationStatus.PUBLISHED);
+
+    if (error) throw new Error(`Failed to fetch products by id: ${error.message}`);
+    return (data ?? []).map(mapProduct);
+  }
+
+  async getManyBySlugs(slugs: string[]): Promise<ProductDTO[]> {
+    if (slugs.length === 0) return [];
+
+    const { data, error } = await supabaseAdmin
+      .from("products")
+      .select(PRODUCT_SELECT)
+      .in("slug", slugs)
+      .eq("publication_status", ProductPublicationStatus.PUBLISHED);
+
+    if (error) throw new Error(`Failed to fetch products by slug: ${error.message}`);
+    return (data ?? []).map(mapProduct);
+  }
+
   async checkStock(productId: string, quantity: number): Promise<boolean> {
     const product = await this.getById(productId);
     if (!product) return false;
