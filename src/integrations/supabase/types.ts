@@ -367,7 +367,14 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      reserve_product_stock: {
+        Args: { items: Json };
+        Returns: undefined;
+      };
+      release_product_stock: {
+        Args: { items: Json };
+        Returns: undefined;
+      };
     };
     Enums: {
       app_role: "admin" | "customer" | "seller" | "warehouse" | "courier";

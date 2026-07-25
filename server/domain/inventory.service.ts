@@ -1,14 +1,15 @@
-import type { IProductRepository } from "@server/ports/product.repository";
+import type { IProductRepository, StockReservationItem } from "@server/ports/product.repository";
 
 export class InventoryService {
   constructor(private readonly products: IProductRepository) {}
 
-  async validateStock(items: Array<{ productId: string; quantity: number }>): Promise<void> {
-    for (const item of items) {
-      const available = await this.products.checkStock(item.productId, item.quantity);
-      if (!available) {
-        throw new Error(`Insufficient stock for product ${item.productId}`);
-      }
-    }
+  /** Atomically checks and decrements stock for every item, or reserves none at all. */
+  async reserveStock(items: StockReservationItem[]): Promise<void> {
+    await this.products.reserveStock(items);
+  }
+
+  /** Compensates a reservation that must be undone (e.g. order creation failed after it). */
+  async releaseStock(items: StockReservationItem[]): Promise<void> {
+    await this.products.releaseStock(items);
   }
 }

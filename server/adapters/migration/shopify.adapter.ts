@@ -1,6 +1,7 @@
 import type { ProductDTO, ProductListParams, ProductListResult } from "@shared/contracts/catalog";
-import type { IProductRepository } from "@server/ports/product.repository";
+import type { IProductRepository, StockReservationItem } from "@server/ports/product.repository";
 import { getServerEnv } from "@server/config/env";
+import { InsufficientStockError } from "@server/domain/checkout.errors";
 
 interface ShopifyGraphQLResponse<T> {
   data?: T;
@@ -149,6 +150,23 @@ export class ShopifyCatalogAdapter implements IProductRepository {
     const product = await this.getById(productId);
     if (!product) return false;
     return product.inStock && product.stock >= quantity;
+  }
+
+  /**
+   * Shopify inventory is not owned by this platform — there is no real reservation
+   * to make here. Best-effort availability re-check only; not atomic against
+   * concurrent orders (this adapter is never used for checkout in practice, see
+   * server/di/container.ts — checkout always uses SupabaseProductRepository).
+   */
+  async reserveStock(items: StockReservationItem[]): Promise<void> {
+    for (const item of items) {
+      const available = await this.checkStock(item.productId, item.quantity);
+      if (!available) throw new InsufficientStockError(item.productId);
+    }
+  }
+
+  async releaseStock(): Promise<void> {
+    // No-op: nothing was actually reserved in Shopify's inventory.
   }
 
   private toProductDTO(node: ShopifyProductNode): ProductDTO {

@@ -36,69 +36,92 @@ export class CheckoutService {
   async checkout(userId: string | null, request: CreateOrderRequest): Promise<CreateOrderResponse> {
     this.validateRequest(request, userId);
 
+    // A retried request with the same idempotencyKey must not reserve stock a second
+    // time for an order that already exists — short-circuit before touching inventory.
+    const existingOrder = await this.orderService.getOrderByIdempotencyKey(request.idempotencyKey);
+    if (existingOrder) {
+      return { order: existingOrder, paymentUrl: existingOrder.paymentUrl };
+    }
+
     const { snapshot: addressSnapshot, addressId } = await this.resolveAddress(userId, request);
     const zoneId = await this.resolveZoneId(userId, request, addressId);
     const lineItems = await this.resolveLineItems(request.items);
+    const stockItems = lineItems.map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity,
+    }));
 
-    await this.inventory.validateStock(
-      lineItems.map((item) => ({ productId: item.productId, quantity: item.quantity })),
-    );
+    // Note: the idempotency short-circuit above and this reservation are not one
+    // atomic transaction, so two requests with the same key racing past it
+    // simultaneously could both reserve stock before either creates the order —
+    // an accepted, narrow-window residual (the request-level idempotency check
+    // above closes the far more common sequential-retry case entirely).
+    await this.inventory.reserveStock(stockItems);
 
-    const subtotal = this.pricing.calculateSubtotal(
-      lineItems.map((item) => ({ price: item.unitPrice, quantity: item.quantity })),
-    );
+    try {
+      const subtotal = this.pricing.calculateSubtotal(
+        lineItems.map((item) => ({ price: item.unitPrice, quantity: item.quantity })),
+      );
 
-    const deliveryFee = zoneId
-      ? (await this.pricing.calculateDeliveryFee(zoneId, subtotal)).fee
-      : 0;
-    const total = this.pricing.calculateTotal(subtotal, deliveryFee);
-    const currency = lineItems[0] ? await this.resolveCurrency(lineItems[0].productId) : "KGS";
+      const deliveryFee = zoneId
+        ? (await this.pricing.calculateDeliveryFee(zoneId, subtotal)).fee
+        : 0;
+      const total = this.pricing.calculateTotal(subtotal, deliveryFee);
+      const currency = lineItems[0] ? await this.resolveCurrency(lineItems[0].productId) : "KGS";
 
-    this.paymentPolicy.assertCanUsePaymentMethod(
-      this.buildPaymentPolicyContext(userId, request, { orderTotal: total, zoneId }),
-    );
+      this.paymentPolicy.assertCanUsePaymentMethod(
+        this.buildPaymentPolicyContext(userId, request, { orderTotal: total, zoneId }),
+      );
 
-    const initialStatus = this.resolveInitialStatus(userId, request.idempotencyKey);
+      const initialStatus = this.resolveInitialStatus(userId, request.idempotencyKey);
 
-    const orderData: CreateOrderData = {
-      userId,
-      items: lineItems,
-      addressId: addressId ?? request.addressId ?? null,
-      addressSnapshot,
-      zoneId,
-      customerName: request.customerName.trim(),
-      customerPhone: this.normalizePhone(request.customerPhone),
-      paymentMethod: request.paymentMethod,
-      notes: request.notes,
-      idempotencyKey: request.idempotencyKey,
-      status: initialStatus,
-      paymentStatus: this.paymentPolicy.getInitialPaymentStatus(request.paymentMethod),
-      subtotal,
-      deliveryFee,
-      total,
-      currency,
-    };
+      const orderData: CreateOrderData = {
+        userId,
+        items: lineItems,
+        addressId: addressId ?? request.addressId ?? null,
+        addressSnapshot,
+        zoneId,
+        customerName: request.customerName.trim(),
+        customerPhone: this.normalizePhone(request.customerPhone),
+        paymentMethod: request.paymentMethod,
+        notes: request.notes,
+        idempotencyKey: request.idempotencyKey,
+        status: initialStatus,
+        paymentStatus: this.paymentPolicy.getInitialPaymentStatus(request.paymentMethod),
+        subtotal,
+        deliveryFee,
+        total,
+        currency,
+      };
 
-    const order = await this.orderService.createOrder(orderData);
+      const order = await this.orderService.createOrder(orderData);
 
-    const payment = await this.checkoutPayment.preparePayment(
-      request.paymentMethod,
-      order,
-      request.idempotencyKey,
-    );
+      const payment = await this.checkoutPayment.preparePayment(
+        request.paymentMethod,
+        order,
+        request.idempotencyKey,
+      );
 
-    const finalOrder: typeof order = {
-      ...order,
-      paymentStatus: payment.paymentStatus,
-      paymentUrl: payment.paymentUrl,
-    };
+      const finalOrder: typeof order = {
+        ...order,
+        paymentStatus: payment.paymentStatus,
+        paymentUrl: payment.paymentUrl,
+      };
 
-    await this.events.publish({ type: "order.created", order: finalOrder });
+      await this.events.publish({ type: "order.created", order: finalOrder });
 
-    return {
-      order: finalOrder,
-      paymentUrl: payment.paymentUrl,
-    };
+      return {
+        order: finalOrder,
+        paymentUrl: payment.paymentUrl,
+      };
+    } catch (error) {
+      await this.inventory.releaseStock(stockItems).catch(() => {
+        console.error(
+          `[Checkout] Failed to release reserved stock after a failed checkout for idempotencyKey=${request.idempotencyKey}. Manual reconciliation may be required.`,
+        );
+      });
+      throw error;
+    }
   }
 
   private resolveInitialStatus(userId: string | null, idempotencyKey: string): OrderStatus {

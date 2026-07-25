@@ -34,6 +34,7 @@ export interface CreateOrderData extends Omit<
 export interface IOrderRepository {
   create(data: CreateOrderData): Promise<OrderDTO>;
   getById(id: string, userId?: string): Promise<OrderDTO | null>;
+  getByIdempotencyKey(idempotencyKey: string): Promise<OrderDTO | null>;
   listByUser(userId: string): Promise<OrderDTO[]>;
   listAll(): Promise<OrderDTO[]>;
   updateStatus(id: string, status: OrderStatus): Promise<OrderDTO>;

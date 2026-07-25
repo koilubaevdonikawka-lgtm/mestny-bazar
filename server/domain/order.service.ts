@@ -14,6 +14,10 @@ export class OrderService {
     return this.orders.create(data);
   }
 
+  async getOrderByIdempotencyKey(idempotencyKey: string): Promise<OrderDTO | null> {
+    return this.orders.getByIdempotencyKey(idempotencyKey);
+  }
+
   async getOrder(id: string, userId?: string): Promise<OrderDTO | null> {
     return this.orders.getById(id, userId);
   }

@@ -31,7 +31,10 @@ const UNIQUE_VIOLATION = "23505";
 
 export class SupabaseOrderRepository implements IOrderRepository {
   async create(data: CreateOrderData): Promise<OrderDTO> {
-    const existing = await this.findByIdempotencyKey(data.idempotencyKey);
+    // CheckoutService already checks getOrderByIdempotencyKey up front; this second
+    // check is the defense-in-depth layer for two requests racing concurrently past
+    // that first check (see the unique_violation recovery below for the other half).
+    const existing = await this.getByIdempotencyKey(data.idempotencyKey);
     if (existing) return existing;
 
     const paymentMethod = data.paymentMethod;
@@ -60,7 +63,7 @@ export class SupabaseOrderRepository implements IOrderRepository {
     if (orderError || !orderRow) {
       if (orderError?.code === UNIQUE_VIOLATION) {
         // Lost the race to a concurrent request with the same idempotency key.
-        const raceWinner = await this.findByIdempotencyKey(data.idempotencyKey);
+        const raceWinner = await this.getByIdempotencyKey(data.idempotencyKey);
         if (raceWinner) return raceWinner;
       }
       throw new Error(`Failed to create order: ${orderError?.message ?? "unknown error"}`);
@@ -90,7 +93,7 @@ export class SupabaseOrderRepository implements IOrderRepository {
   }
 
   /** Idempotent checkout: a repeat submission with the same key returns the original order. */
-  private async findByIdempotencyKey(idempotencyKey: string): Promise<OrderDTO | null> {
+  async getByIdempotencyKey(idempotencyKey: string): Promise<OrderDTO | null> {
     const { data: orderRow, error } = await supabaseAdmin
       .from("orders")
       .select(ORDER_COLUMNS)

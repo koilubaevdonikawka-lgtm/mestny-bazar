@@ -15,3 +15,11 @@ export class ProductNotSynchronized extends Error {
     this.name = "ProductNotSynchronized";
   }
 }
+
+/** Stock reservation failed atomically — another order already took the remaining units. */
+export class InsufficientStockError extends Error {
+  constructor(public readonly productId: string) {
+    super(`Insufficient stock for product ${productId}`);
+    this.name = "InsufficientStockError";
+  }
+}

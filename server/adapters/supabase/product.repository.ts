@@ -1,7 +1,14 @@
 import type { ProductDTO, ProductListParams, ProductListResult } from "@shared/contracts/catalog";
-import type { IProductRepository } from "@server/ports/product.repository";
+import type { IProductRepository, StockReservationItem } from "@server/ports/product.repository";
 import { ProductPublicationStatus } from "@shared/contracts/seller-product";
 import { supabaseAdmin } from "@server/adapters/supabase/client";
+import { InsufficientStockError } from "@server/domain/checkout.errors";
+
+const INSUFFICIENT_STOCK_PREFIX = "INSUFFICIENT_STOCK:";
+
+function toRpcItems(items: StockReservationItem[]) {
+  return items.map((item) => ({ productId: item.productId, quantity: item.quantity }));
+}
 
 function mapProduct(row: {
   id: string;
@@ -100,5 +107,31 @@ export class SupabaseProductRepository implements IProductRepository {
     const product = await this.getById(productId);
     if (!product) return false;
     return product.stock >= quantity;
+  }
+
+  async reserveStock(items: StockReservationItem[]): Promise<void> {
+    if (items.length === 0) return;
+
+    const { error } = await supabaseAdmin.rpc("reserve_product_stock", {
+      items: toRpcItems(items),
+    });
+
+    if (error) {
+      if (error.message.includes(INSUFFICIENT_STOCK_PREFIX)) {
+        const productId = error.message.split(INSUFFICIENT_STOCK_PREFIX)[1]?.trim();
+        throw new InsufficientStockError(productId || items[0].productId);
+      }
+      throw new Error(`Failed to reserve stock: ${error.message}`);
+    }
+  }
+
+  async releaseStock(items: StockReservationItem[]): Promise<void> {
+    if (items.length === 0) return;
+
+    const { error } = await supabaseAdmin.rpc("release_product_stock", {
+      items: toRpcItems(items),
+    });
+
+    if (error) throw new Error(`Failed to release stock: ${error.message}`);
   }
 }
