@@ -69,7 +69,8 @@ import {
   subscribeNotificationCenter,
 } from "@server/domain/marketplace-events";
 import type { IAuditLog } from "@server/ports/audit-log.port";
-import { AuditLogService, subscribeAuditLog } from "@server/domain/audit-log";
+import { subscribeAuditLog } from "@server/domain/audit-log";
+import { SupabaseAuditLog } from "@server/adapters/supabase/audit-log.repository";
 import {
   AIMediaWorker,
   AICatalogWorker,
@@ -185,7 +186,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const pricing = new PricingService(zones);
   const inventory = new InventoryService(orderProducts);
   const marketplaceEvents: IMarketplaceEventBus = new MarketplaceEventsService();
-  const auditLog: IAuditLog = new AuditLogService();
+  const auditLog: IAuditLog = new SupabaseAuditLog();
   const notificationCenter = new NotificationCenter(orderEvents, notifications);
   subscribeNotificationCenter(marketplaceEvents, notificationCenter);
   subscribeAuditLog(marketplaceEvents, auditLog);

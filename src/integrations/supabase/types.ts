@@ -58,6 +58,39 @@ export type Database = {
           },
         ];
       };
+      audit_log: {
+        Row: {
+          action: string;
+          actor_id: string | null;
+          created_at: string;
+          entity_id: string;
+          entity_type: string;
+          id: string;
+          occurred_at: string;
+          payload: Json;
+        };
+        Insert: {
+          action: string;
+          actor_id?: string | null;
+          created_at?: string;
+          entity_id: string;
+          entity_type: string;
+          id?: string;
+          occurred_at: string;
+          payload?: Json;
+        };
+        Update: {
+          action?: string;
+          actor_id?: string | null;
+          created_at?: string;
+          entity_id?: string;
+          entity_type?: string;
+          id?: string;
+          occurred_at?: string;
+          payload?: Json;
+        };
+        Relationships: [];
+      };
       categories: {
         Row: {
           created_at: string;
