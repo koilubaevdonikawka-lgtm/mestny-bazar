@@ -408,6 +408,10 @@ export type Database = {
         Args: { items: Json };
         Returns: undefined;
       };
+      create_order_with_items: {
+        Args: { order_data: Json; items: Json };
+        Returns: string;
+      };
     };
     Enums: {
       app_role: "admin" | "customer" | "seller" | "warehouse" | "courier";

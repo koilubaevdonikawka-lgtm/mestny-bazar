@@ -46,9 +46,12 @@ export class SupabaseOrderRepository implements IOrderRepository {
     const paymentMethod = data.paymentMethod;
     const notes = mergeNotes(data.notes, paymentMethod);
 
-    const { data: orderRow, error: orderError } = await supabaseAdmin
-      .from("orders")
-      .insert({
+    // Single RPC = single transaction: the order header and its line items are
+    // created atomically, with no manual compensating DELETE if the second half
+    // fails (the old two-INSERT version could leave an orphaned header-only
+    // order if that compensating DELETE itself failed).
+    const { data: newOrderId, error } = await supabaseAdmin.rpc("create_order_with_items", {
+      order_data: {
         user_id: data.userId,
         idempotency_key: data.idempotencyKey,
         status: toDbOrderStatus(data.status),
@@ -62,40 +65,29 @@ export class SupabaseOrderRepository implements IOrderRepository {
         address_snapshot: data.addressSnapshot,
         zone_id: data.zoneId,
         notes,
-      })
-      .select(ORDER_COLUMNS)
-      .single();
+      },
+      items: data.items.map((item) => ({
+        product_id: isUuid(item.productId) ? item.productId : null,
+        product_name: item.productName,
+        product_image_url: item.productImageUrl,
+        unit_price: item.unitPrice,
+        quantity: item.quantity,
+        line_total: item.lineTotal,
+      })),
+    });
 
-    if (orderError || !orderRow) {
-      if (orderError?.code === UNIQUE_VIOLATION) {
+    if (error || !newOrderId) {
+      if (error?.code === UNIQUE_VIOLATION) {
         // Lost the race to a concurrent request with the same idempotency key.
         const raceWinner = await this.getByIdempotencyKey(data.idempotencyKey);
         if (raceWinner) return raceWinner;
       }
-      throw new Error(`Failed to create order: ${orderError?.message ?? "unknown error"}`);
+      throw new Error(`Failed to create order: ${error?.message ?? "unknown error"}`);
     }
 
-    const itemRows = data.items.map((item) => ({
-      order_id: orderRow.id,
-      product_id: isUuid(item.productId) ? item.productId : null,
-      product_name: item.productName,
-      product_image_url: item.productImageUrl,
-      unit_price: item.unitPrice,
-      quantity: item.quantity,
-      line_total: item.lineTotal,
-    }));
-
-    const { data: insertedItems, error: itemsError } = await supabaseAdmin
-      .from("order_items")
-      .insert(itemRows)
-      .select("id, product_id, product_name, product_image_url, quantity, unit_price, line_total");
-
-    if (itemsError || !insertedItems) {
-      await supabaseAdmin.from("orders").delete().eq("id", orderRow.id);
-      throw new Error(`Failed to create order items: ${itemsError?.message ?? "unknown error"}`);
-    }
-
-    return mapOrderRowToDto(orderRow, insertedItems, paymentMethod);
+    const order = await this.getById(newOrderId);
+    if (!order) throw new Error(`Order ${newOrderId} not found immediately after creation`);
+    return order;
   }
 
   /** Idempotent checkout: a repeat submission with the same key returns the original order. */
