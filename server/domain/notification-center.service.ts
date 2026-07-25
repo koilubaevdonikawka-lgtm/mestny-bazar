@@ -35,11 +35,27 @@ export class NotificationCenter implements INotificationCenter {
     await this.provider.subscribe(request);
   }
 
+  /**
+   * Each recipient is an independent side effect — one channel failing (e.g. a
+   * notification provider outage) must not obscure whether the other two
+   * succeeded, and must not read as "notifyOrderCreated failed" with no
+   * indication of which recipient actually didn't get notified.
+   */
   private async dispatchOrderCreated(order: OrderDTO): Promise<void> {
-    await Promise.all([
+    const results = await Promise.allSettled([
       this.orderEvents.notifyAdmin(order),
       this.orderEvents.notifyWarehouse(order),
       this.orderEvents.notifyCourier(order),
     ]);
+
+    const recipients = ["admin", "warehouse", "courier"] as const;
+    results.forEach((result, index) => {
+      if (result.status === "rejected") {
+        console.error(
+          `[NotificationCenter] Failed to notify ${recipients[index]} for order ${order.id}:`,
+          result.reason,
+        );
+      }
+    });
   }
 }
