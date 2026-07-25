@@ -8,6 +8,11 @@ function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
 }
 
+// Same timeout treatment as the other Supabase fetch wrappers in this app
+// (client.ts, client.server.ts, server/auth/resolve-user.ts) — an unreachable
+// or hung Supabase endpoint must not be able to hang the request indefinitely.
+const SUPABASE_FETCH_TIMEOUT_MS = 8000;
+
 function createSupabaseFetch(supabaseKey: string): typeof fetch {
   return (input, init) => {
     const headers = new Headers(
@@ -27,7 +32,11 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     }
 
     headers.set("apikey", supabaseKey);
-    return fetch(input, { ...init, headers });
+    return fetch(input, {
+      ...init,
+      headers,
+      signal: init?.signal ?? AbortSignal.timeout(SUPABASE_FETCH_TIMEOUT_MS),
+    });
   };
 }
 
