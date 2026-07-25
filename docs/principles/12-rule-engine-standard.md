@@ -65,6 +65,7 @@ export const PaymentPolicyOrder = {
 |--------|--------|------|
 | Payment | `PaymentPolicyService` | `IPaymentPolicy` |
 | Order Lifecycle | `OrderLifecycleService` | `IOrderLifecyclePolicy` |
+| Product Publication | `ProductPublicationService` | `IProductPublicationPolicy` |
 
 ## Запрещено
 
