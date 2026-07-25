@@ -5,12 +5,6 @@ import type {
 } from "@shared/contracts/seller-product";
 import { requireSellerFromRequest } from "@server/auth/resolve-user";
 import { getServices } from "@server/di/container";
-import {
-  SellerProductNotFoundError,
-  SellerProductValidationError,
-} from "@server/domain/seller-product.errors";
-import { ProductPublicationDeniedError } from "@server/domain/product-publication/product-publication.errors";
-import { ForbiddenError, UnauthorizedError } from "@server/domain/orders.errors";
 
 export async function executeListSellerProducts(): Promise<SellerProductDTO[]> {
   const { userId } = await requireSellerFromRequest();
@@ -44,13 +38,4 @@ export async function executePublishSellerProduct(productId: string): Promise<Se
 export async function executeHideSellerProduct(productId: string): Promise<SellerProductDTO> {
   const { userId } = await requireSellerFromRequest();
   return getServices().sellerProductService.hideProduct(userId, productId);
-}
-
-export function mapSellerError(error: unknown): never {
-  if (error instanceof UnauthorizedError) throw error;
-  if (error instanceof ForbiddenError) throw error;
-  if (error instanceof SellerProductNotFoundError) throw error;
-  if (error instanceof SellerProductValidationError) throw error;
-  if (error instanceof ProductPublicationDeniedError) throw error;
-  throw error;
 }

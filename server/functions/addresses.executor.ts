@@ -5,8 +5,6 @@ import type {
 } from "@shared/contracts/delivery";
 import { requireUserIdFromRequest } from "@server/auth/resolve-user";
 import { getServices } from "@server/di/container";
-import { AddressNotFoundError, AddressValidationError } from "@server/domain/address.errors";
-import { UnauthorizedError } from "@server/domain/orders.errors";
 
 export async function executeListAddresses(): Promise<AddressDTO[]> {
   const userId = await requireUserIdFromRequest();
@@ -36,11 +34,4 @@ export async function executeDeleteAddress(id: string): Promise<void> {
 export async function executeSetDefaultAddress(id: string): Promise<AddressDTO> {
   const userId = await requireUserIdFromRequest();
   return getServices().addressService.setDefault(id, userId);
-}
-
-export function mapAddressError(error: unknown): never {
-  if (error instanceof UnauthorizedError) throw error;
-  if (error instanceof AddressNotFoundError) throw error;
-  if (error instanceof AddressValidationError) throw error;
-  throw error;
 }
