@@ -189,6 +189,7 @@ export type Database = {
           finik_payment_id: string | null;
           finik_payment_url: string | null;
           id: string;
+          idempotency_key: string | null;
           notes: string | null;
           order_number: number;
           paid_at: string | null;
@@ -210,6 +211,7 @@ export type Database = {
           finik_payment_id?: string | null;
           finik_payment_url?: string | null;
           id?: string;
+          idempotency_key?: string | null;
           notes?: string | null;
           order_number?: number;
           paid_at?: string | null;
@@ -231,6 +233,7 @@ export type Database = {
           finik_payment_id?: string | null;
           finik_payment_url?: string | null;
           id?: string;
+          idempotency_key?: string | null;
           notes?: string | null;
           order_number?: number;
           paid_at?: string | null;

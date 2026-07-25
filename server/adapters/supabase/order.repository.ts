@@ -23,8 +23,17 @@ function mergeNotes(
   return `${userNotes.trim()}\n${methodTag}`;
 }
 
+const ORDER_COLUMNS =
+  "id, order_number, status, payment_status, subtotal, delivery_fee, total, currency, customer_name, customer_phone, address_snapshot, notes, finik_payment_url, paid_at, created_at";
+
+/** Postgres unique_violation — see https://www.postgresql.org/docs/current/errcodes-appendix.html */
+const UNIQUE_VIOLATION = "23505";
+
 export class SupabaseOrderRepository implements IOrderRepository {
   async create(data: CreateOrderData): Promise<OrderDTO> {
+    const existing = await this.findByIdempotencyKey(data.idempotencyKey);
+    if (existing) return existing;
+
     const paymentMethod = data.paymentMethod;
     const notes = mergeNotes(data.notes, paymentMethod);
 
@@ -32,6 +41,7 @@ export class SupabaseOrderRepository implements IOrderRepository {
       .from("orders")
       .insert({
         user_id: data.userId,
+        idempotency_key: data.idempotencyKey,
         status: toDbOrderStatus(data.status),
         payment_status: data.paymentStatus,
         subtotal: data.subtotal,
@@ -44,12 +54,15 @@ export class SupabaseOrderRepository implements IOrderRepository {
         zone_id: data.zoneId,
         notes,
       })
-      .select(
-        "id, order_number, status, payment_status, subtotal, delivery_fee, total, currency, customer_name, customer_phone, address_snapshot, notes, finik_payment_url, paid_at, created_at",
-      )
+      .select(ORDER_COLUMNS)
       .single();
 
     if (orderError || !orderRow) {
+      if (orderError?.code === UNIQUE_VIOLATION) {
+        // Lost the race to a concurrent request with the same idempotency key.
+        const raceWinner = await this.findByIdempotencyKey(data.idempotencyKey);
+        if (raceWinner) return raceWinner;
+      }
       throw new Error(`Failed to create order: ${orderError?.message ?? "unknown error"}`);
     }
 
@@ -76,13 +89,29 @@ export class SupabaseOrderRepository implements IOrderRepository {
     return mapOrderRowToDto(orderRow, insertedItems, paymentMethod);
   }
 
-  async getById(id: string, userId?: string): Promise<OrderDTO | null> {
-    let query = supabaseAdmin
+  /** Idempotent checkout: a repeat submission with the same key returns the original order. */
+  private async findByIdempotencyKey(idempotencyKey: string): Promise<OrderDTO | null> {
+    const { data: orderRow, error } = await supabaseAdmin
       .from("orders")
-      .select(
-        "id, order_number, status, payment_status, subtotal, delivery_fee, total, currency, customer_name, customer_phone, address_snapshot, notes, finik_payment_url, paid_at, created_at",
-      )
-      .eq("id", id);
+      .select(ORDER_COLUMNS)
+      .eq("idempotency_key", idempotencyKey)
+      .maybeSingle();
+
+    if (error) throw new Error(`Failed to look up order by idempotency key: ${error.message}`);
+    if (!orderRow) return null;
+
+    const { data: items, error: itemsError } = await supabaseAdmin
+      .from("order_items")
+      .select("id, product_id, product_name, product_image_url, quantity, unit_price, line_total")
+      .eq("order_id", orderRow.id);
+
+    if (itemsError) throw new Error(`Failed to fetch order items: ${itemsError.message}`);
+
+    return mapOrderRowToDto(orderRow, items ?? [], decodePaymentMethodNote(orderRow.notes));
+  }
+
+  async getById(id: string, userId?: string): Promise<OrderDTO | null> {
+    let query = supabaseAdmin.from("orders").select(ORDER_COLUMNS).eq("id", id);
 
     if (userId) {
       query = query.eq("user_id", userId);
@@ -105,9 +134,7 @@ export class SupabaseOrderRepository implements IOrderRepository {
   async listByUser(userId: string): Promise<OrderDTO[]> {
     const { data: orders, error } = await supabaseAdmin
       .from("orders")
-      .select(
-        "id, order_number, status, payment_status, subtotal, delivery_fee, total, currency, customer_name, customer_phone, address_snapshot, notes, finik_payment_url, paid_at, created_at",
-      )
+      .select(ORDER_COLUMNS)
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -118,9 +145,7 @@ export class SupabaseOrderRepository implements IOrderRepository {
   async listAll(): Promise<OrderDTO[]> {
     const { data: orders, error } = await supabaseAdmin
       .from("orders")
-      .select(
-        "id, order_number, status, payment_status, subtotal, delivery_fee, total, currency, customer_name, customer_phone, address_snapshot, notes, finik_payment_url, paid_at, created_at",
-      )
+      .select(ORDER_COLUMNS)
       .order("created_at", { ascending: false });
 
     if (error) throw new Error(`Failed to list orders: ${error.message}`);
