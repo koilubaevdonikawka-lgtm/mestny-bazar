@@ -43,8 +43,12 @@ export class CheckoutService {
       return { order: existingOrder, paymentUrl: existingOrder.paymentUrl };
     }
 
-    const { snapshot: addressSnapshot, addressId } = await this.resolveAddress(userId, request);
-    const zoneId = await this.resolveZoneId(userId, request, addressId);
+    const {
+      snapshot: addressSnapshot,
+      addressId,
+      zoneId: addressZoneId,
+    } = await this.resolveAddress(userId, request);
+    const zoneId = await this.resolveZoneId(request, addressZoneId);
     const { lineItems, currency } = await this.resolveLineItems(request.items);
     const stockItems = lineItems.map((item) => ({
       productId: item.productId,
@@ -207,7 +211,7 @@ export class CheckoutService {
   private async resolveAddress(
     userId: string | null,
     request: CreateOrderRequest,
-  ): Promise<{ snapshot: string; addressId: string | null }> {
+  ): Promise<{ snapshot: string; addressId: string | null; zoneId: string | null }> {
     if (request.addressId) {
       if (!userId) {
         throw new CheckoutValidationError({ addressId: ["Address id requires authentication"] });
@@ -216,18 +220,22 @@ export class CheckoutService {
       if (!address) {
         throw new CheckoutValidationError({ addressId: ["Address not found"] });
       }
-      return { snapshot: address.fullAddress, addressId: address.id };
+      return { snapshot: address.fullAddress, addressId: address.id, zoneId: address.zoneId };
     }
 
     if (request.addressSnapshot?.trim()) {
-      return { snapshot: request.addressSnapshot.trim(), addressId: null };
+      return { snapshot: request.addressSnapshot.trim(), addressId: null, zoneId: null };
     }
 
     if (userId) {
       const addresses = await this.addresses.listByUser(userId);
       const defaultAddress = addresses.find((entry) => entry.isDefault);
       if (defaultAddress) {
-        return { snapshot: defaultAddress.fullAddress, addressId: defaultAddress.id };
+        return {
+          snapshot: defaultAddress.fullAddress,
+          addressId: defaultAddress.id,
+          zoneId: defaultAddress.zoneId,
+        };
       }
       throw new CheckoutValidationError({
         address: ["No default delivery address — add one in your profile"],
@@ -237,10 +245,14 @@ export class CheckoutService {
     throw new CheckoutValidationError({ address: ["Delivery address is required"] });
   }
 
+  /**
+   * addressZoneId comes from the address record resolveAddress() already fetched —
+   * this used to re-fetch the same address by id a second time just to read its
+   * zoneId, a redundant round trip on every checkout with a saved address.
+   */
   private async resolveZoneId(
-    userId: string | null,
     request: CreateOrderRequest,
-    resolvedAddressId: string | null,
+    addressZoneId: string | null,
   ): Promise<string | null> {
     if (request.zoneId) {
       const zone = await this.zones.getById(request.zoneId);
@@ -250,13 +262,7 @@ export class CheckoutService {
       return zone.id;
     }
 
-    const effectiveAddressId = resolvedAddressId ?? request.addressId ?? null;
-    if (effectiveAddressId && userId) {
-      const address = await this.addresses.getById(effectiveAddressId, userId);
-      return address?.zoneId ?? null;
-    }
-
-    return null;
+    return addressZoneId;
   }
 
   /**

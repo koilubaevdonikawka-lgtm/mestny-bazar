@@ -290,6 +290,26 @@ describe("CheckoutService.checkout", () => {
     expect(productRepo.releaseStock).not.toHaveBeenCalled();
   });
 
+  it("fetches a request-supplied address only once and derives its zone from that same fetch", async () => {
+    const address = {
+      id: "address-1",
+      label: null,
+      fullAddress: "г. Бишкек, ул. Абая 10",
+      city: null,
+      district: null,
+      notes: null,
+      zoneId: "zone-9",
+      isDefault: false,
+    };
+    const addressRepo = fakeAddressRepository({ getById: vi.fn(async () => address) });
+    const { checkout } = buildCheckoutService({ addressRepo });
+
+    await checkout.checkout("user-1", makeRequest({ addressId: "address-1" }));
+
+    expect(addressRepo.getById).toHaveBeenCalledTimes(1);
+    expect(addressRepo.getById).toHaveBeenCalledWith("address-1", "user-1");
+  });
+
   it("rejects an incomplete request before touching any dependency", async () => {
     const { checkout, orderRepo, productRepo } = buildCheckoutService({});
 
