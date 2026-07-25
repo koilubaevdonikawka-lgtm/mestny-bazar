@@ -26,6 +26,16 @@ export class MarketplaceEventsService implements IMarketplaceEventBus {
     if (!handlers || handlers.size === 0) {
       return;
     }
-    await Promise.all([...handlers].map((handler) => handler(event)));
+    // Subscribers (notifications, AI workers, audit log) are side effects of the
+    // event, not part of the publisher's own transaction — one throwing must never
+    // fail the publish call itself, or every future subscriber to an event type
+    // becomes a hidden way to break whatever business operation publishes it (e.g.
+    // a stub notification adapter throwing would otherwise fail checkout()).
+    const results = await Promise.allSettled([...handlers].map((handler) => handler(event)));
+    for (const result of results) {
+      if (result.status === "rejected") {
+        console.error(`[MarketplaceEvents] Handler for "${event.type}" failed:`, result.reason);
+      }
+    }
   }
 }
