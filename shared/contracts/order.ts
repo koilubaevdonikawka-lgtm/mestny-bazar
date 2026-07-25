@@ -78,3 +78,16 @@ export interface CreateOrderResponse {
   order: OrderDTO;
   paymentUrl: string | null;
 }
+
+export interface OrderListParams {
+  page?: number;
+  pageSize?: number;
+}
+
+export interface OrderListResult {
+  items: OrderDTO[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+}

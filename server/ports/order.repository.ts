@@ -1,6 +1,8 @@
 import type {
   CreateOrderRequest,
   OrderDTO,
+  OrderListParams,
+  OrderListResult,
   OrderStatus,
   PaymentStatus,
 } from "@shared/contracts/order";
@@ -36,7 +38,7 @@ export interface IOrderRepository {
   getById(id: string, userId?: string): Promise<OrderDTO | null>;
   getByIdempotencyKey(idempotencyKey: string): Promise<OrderDTO | null>;
   listByUser(userId: string): Promise<OrderDTO[]>;
-  listAll(): Promise<OrderDTO[]>;
+  listAll(params?: OrderListParams): Promise<OrderListResult>;
   /** Filters at the query level — for role-specific work queues (warehouse, courier). */
   listByStatuses(statuses: OrderStatus[]): Promise<OrderDTO[]>;
   updateStatus(id: string, status: OrderStatus): Promise<OrderDTO>;

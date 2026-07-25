@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,9 @@ import {
   formatPaymentStatus,
 } from "@/lib/order-display";
 import { OrderStatus } from "@shared/contracts/order";
-import { Loader2, LogIn, Package, ShieldAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, LogIn, Package, ShieldAlert } from "lucide-react";
+
+const PAGE_SIZE = 20;
 
 export const Route = createFileRoute("/admin/orders/")({
   component: AdminOrdersPage,
@@ -22,19 +25,15 @@ export const Route = createFileRoute("/admin/orders/")({
 
 function AdminOrdersPage() {
   const { isAuthenticated } = useSupabaseSession();
+  const [page, setPage] = useState(1);
 
-  const {
-    data: orders = [],
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useQuery({
-    queryKey: ["admin", "orders", "list"],
-    queryFn: listAdminOrders,
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["admin", "orders", "list", page],
+    queryFn: () => listAdminOrders({ page, pageSize: PAGE_SIZE }),
     enabled: isAuthenticated === true,
     retry: false,
   });
+  const orders = data?.items ?? [];
 
   const handleSignIn = async () => {
     await lovable.auth.signInWithOAuth("google", {
@@ -121,13 +120,16 @@ function AdminOrdersPage() {
     );
   }
 
-  const newOrders = orders.filter((order) => order.status === OrderStatus.CREATED);
+  const newOnPage = orders.filter((order) => order.status === OrderStatus.CREATED);
+  const total = data?.total ?? 0;
 
   return (
     <PageShell>
       <div className="mx-auto max-w-3xl px-6 py-12">
         <h1 className="font-serif text-4xl tracking-tight">Заказы (админ)</h1>
-        <p className="mt-2 text-muted-foreground">Управление заказами. Новых: {newOrders.length}</p>
+        <p className="mt-2 text-muted-foreground">
+          Управление заказами. Всего: {total} · Новых на странице: {newOnPage.length}
+        </p>
 
         {orders.length === 0 ? (
           <div className="mt-12 rounded-3xl border border-dashed border-border py-16 text-center">
@@ -164,6 +166,30 @@ function AdminOrdersPage() {
               </li>
             ))}
           </ul>
+        )}
+
+        {(page > 1 || data?.hasMore) && (
+          <div className="mt-8 flex items-center justify-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Назад
+            </Button>
+            <span className="text-sm text-muted-foreground">Страница {page}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!data?.hasMore}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Далее
+              <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
         )}
       </div>
     </PageShell>

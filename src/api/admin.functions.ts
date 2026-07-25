@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { OrderDTO } from "@shared/contracts/order";
+import type { OrderDTO, OrderListParams, OrderListResult } from "@shared/contracts/order";
 
 async function runAdmin<T>(fn: () => Promise<T>): Promise<T> {
   const { mapAdminError } = await import("@server/functions/admin.executor");
@@ -10,12 +10,12 @@ async function runAdmin<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-export const listAdminOrdersFn = createServerFn({ method: "GET" }).handler(
-  async (): Promise<OrderDTO[]> => {
+export const listAdminOrdersFn = createServerFn({ method: "GET" })
+  .validator((data: OrderListParams | undefined) => data)
+  .handler(async ({ data }): Promise<OrderListResult> => {
     const { executeListAdminOrders } = await import("@server/functions/admin.executor");
-    return runAdmin(() => executeListAdminOrders());
-  },
-);
+    return runAdmin(() => executeListAdminOrders(data));
+  });
 
 export const getAdminOrderFn = createServerFn({ method: "GET" })
   .validator((data: { id: string }) => data)

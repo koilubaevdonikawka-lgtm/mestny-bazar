@@ -1,6 +1,6 @@
 import type { IOrderRepository } from "@server/ports/order.repository";
 import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
-import type { OrderDTO } from "@shared/contracts/order";
+import type { OrderDTO, OrderListParams, OrderListResult } from "@shared/contracts/order";
 import { OrderStatus } from "@shared/contracts/order";
 import type { UserRole } from "@shared/contracts/user";
 import { OrderNotFoundError } from "@server/domain/orders.errors";
@@ -16,8 +16,8 @@ export class AdminOrderService {
     private readonly orderLifecycle: IOrderLifecyclePolicy,
   ) {}
 
-  async listOrders(): Promise<OrderDTO[]> {
-    return this.orders.listAll();
+  async listOrders(params?: OrderListParams): Promise<OrderListResult> {
+    return this.orders.listAll(params);
   }
 
   async getOrder(id: string): Promise<OrderDTO> {

@@ -1,4 +1,10 @@
-import type { OrderDTO, OrderStatus, PaymentStatus } from "@shared/contracts/order";
+import type {
+  OrderDTO,
+  OrderListParams,
+  OrderListResult,
+  OrderStatus,
+  PaymentStatus,
+} from "@shared/contracts/order";
 import type { CreateOrderData, IOrderRepository } from "@server/ports/order.repository";
 import { supabaseAdmin } from "@server/adapters/supabase/client";
 import { mapOrderRowToDto, toDbOrderStatus } from "@server/adapters/supabase/order.mapper";
@@ -145,14 +151,34 @@ export class SupabaseOrderRepository implements IOrderRepository {
     return this.mapOrdersWithItems(orders ?? []);
   }
 
-  async listAll(): Promise<OrderDTO[]> {
-    const { data: orders, error } = await supabaseAdmin
+  async listAll(params: OrderListParams = {}): Promise<OrderListResult> {
+    const page = params.page ?? 1;
+    const pageSize = params.pageSize ?? 50;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    const {
+      data: orders,
+      error,
+      count,
+    } = await supabaseAdmin
       .from("orders")
-      .select(ORDER_COLUMNS)
-      .order("created_at", { ascending: false });
+      .select(ORDER_COLUMNS, { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
     if (error) throw new Error(`Failed to list orders: ${error.message}`);
-    return this.mapOrdersWithItems(orders ?? []);
+
+    const items = await this.mapOrdersWithItems(orders ?? []);
+    const total = count ?? items.length;
+
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      hasMore: from + items.length < total,
+    };
   }
 
   async listByStatuses(statuses: OrderStatus[]): Promise<OrderDTO[]> {

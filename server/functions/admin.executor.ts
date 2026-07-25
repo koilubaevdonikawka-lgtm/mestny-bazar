@@ -1,4 +1,4 @@
-import type { OrderDTO } from "@shared/contracts/order";
+import type { OrderDTO, OrderListParams, OrderListResult } from "@shared/contracts/order";
 import { requireAdminFromRequest } from "@server/auth/resolve-user";
 import { getServices } from "@server/di/container";
 import { OrderLifecycleDeniedError } from "@server/domain/order-lifecycle/order-lifecycle.errors";
@@ -8,9 +8,9 @@ import {
   UnauthorizedError,
 } from "@server/domain/orders.errors";
 
-export async function executeListAdminOrders(): Promise<OrderDTO[]> {
+export async function executeListAdminOrders(params?: OrderListParams): Promise<OrderListResult> {
   await requireAdminFromRequest();
-  return getServices().adminOrderService.listOrders();
+  return getServices().adminOrderService.listOrders(params);
 }
 
 export async function executeGetAdminOrder(orderId: string): Promise<OrderDTO> {
