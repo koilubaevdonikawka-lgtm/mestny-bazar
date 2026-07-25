@@ -8,6 +8,11 @@ interface ShopifyGraphQLResponse<T> {
   errors?: Array<{ message: string }>;
 }
 
+// Backs every buyer-facing catalog read when FEATURE_CATALOG_SOURCE=shopify —
+// an unreachable or hanging Shopify Storefront API must not be able to hang
+// storefront page loads indefinitely.
+const SHOPIFY_FETCH_TIMEOUT_MS = 8000;
+
 interface ShopifyProductNode {
   id: string;
   title: string;
@@ -55,6 +60,7 @@ export class ShopifyCatalogAdapter implements IProductRepository {
         "X-Shopify-Storefront-Access-Token": token,
       },
       body: JSON.stringify({ query, variables }),
+      signal: AbortSignal.timeout(SHOPIFY_FETCH_TIMEOUT_MS),
     });
     if (!response.ok) {
       throw new Error(`Shopify API error: ${response.status}`);
