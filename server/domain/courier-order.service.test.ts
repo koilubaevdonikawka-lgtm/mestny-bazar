@@ -98,7 +98,11 @@ describe("CourierOrderService", () => {
     const service = new CourierOrderService(repo, fakeLifecycle());
 
     await service.startDelivery("order-1", courier);
-    expect(repo.updateStatus).toHaveBeenCalledWith("order-1", OrderStatus.OUT_FOR_DELIVERY);
+    expect(repo.updateStatus).toHaveBeenCalledWith(
+      "order-1",
+      OrderStatus.READY_FOR_DELIVERY,
+      OrderStatus.OUT_FOR_DELIVERY,
+    );
   });
 
   it("markArrival does not update status when the lifecycle policy denies it", async () => {
@@ -119,6 +123,10 @@ describe("CourierOrderService", () => {
     const service = new CourierOrderService(repo, fakeLifecycle());
 
     await service.completeDelivery("order-1", courier);
-    expect(repo.updateStatus).toHaveBeenCalledWith("order-1", OrderStatus.DELIVERED);
+    expect(repo.updateStatus).toHaveBeenCalledWith(
+      "order-1",
+      OrderStatus.READY_FOR_DELIVERY,
+      OrderStatus.DELIVERED,
+    );
   });
 });

@@ -9,6 +9,7 @@ import type { CreateOrderData, IOrderRepository } from "@server/ports/order.repo
 import { supabaseAdmin } from "@server/adapters/supabase/client";
 import { mapOrderRowToDto, toDbOrderStatus } from "@server/adapters/supabase/order.mapper";
 import { isUuid } from "@server/domain/shared/uuid";
+import { OrderConcurrentModificationError, OrderNotFoundError } from "@server/domain/orders.errors";
 
 function encodePaymentMethodNote(method: OrderDTO["paymentMethod"]): string {
   return `payment_method:${method}`;
@@ -233,14 +234,30 @@ export class SupabaseOrderRepository implements IOrderRepository {
     );
   }
 
-  async updateStatus(id: string, status: OrderStatus): Promise<OrderDTO> {
-    const { error } = await supabaseAdmin
+  async updateStatus(
+    id: string,
+    fromStatus: OrderStatus,
+    toStatus: OrderStatus,
+  ): Promise<OrderDTO> {
+    const { data, error } = await supabaseAdmin
       .from("orders")
-      .update({ status: toDbOrderStatus(status) })
-      .eq("id", id);
+      .update({ status: toDbOrderStatus(toStatus) })
+      .eq("id", id)
+      .eq("status", toDbOrderStatus(fromStatus))
+      .select("id");
 
     if (error) {
       throw new Error(`Failed to update order status: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      // Either the order doesn't exist, or its status no longer matches
+      // fromStatus — another action already transitioned it since it was read.
+      const current = await this.getById(id);
+      if (!current) throw new OrderNotFoundError();
+      throw new OrderConcurrentModificationError(
+        `Order ${id} is now "${current.status}", expected "${fromStatus}" — another action already changed it`,
+      );
     }
 
     const order = await this.getById(id);

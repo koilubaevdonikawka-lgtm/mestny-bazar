@@ -76,7 +76,11 @@ describe("AdminOrderService", () => {
         actor: { id: admin.id, roles: admin.roles },
       }),
     );
-    expect(repo.updateStatus).toHaveBeenCalledWith("order-1", OrderStatus.CONFIRMED);
+    expect(repo.updateStatus).toHaveBeenCalledWith(
+      "order-1",
+      OrderStatus.PAID,
+      OrderStatus.CONFIRMED,
+    );
   });
 
   it("cancelOrder does not update status when the lifecycle policy denies it", async () => {

@@ -41,6 +41,14 @@ export interface IOrderRepository {
   listAll(params?: OrderListParams): Promise<OrderListResult>;
   /** Filters at the query level — for role-specific work queues (warehouse, courier). */
   listByStatuses(statuses: OrderStatus[]): Promise<OrderDTO[]>;
-  updateStatus(id: string, status: OrderStatus): Promise<OrderDTO>;
+  /**
+   * Optimistic concurrency: only applies the transition if the row's current
+   * status still matches `fromStatus` at write time. Throws
+   * OrderConcurrentModificationError if another action already changed it —
+   * callers read a status, decide a transition is allowed based on that read,
+   * then write; two concurrent actions racing that check-then-act window must
+   * not both succeed (e.g. two couriers accepting the same order).
+   */
+  updateStatus(id: string, fromStatus: OrderStatus, toStatus: OrderStatus): Promise<OrderDTO>;
   updatePaymentStatus(id: string, paymentStatus: PaymentStatus): Promise<OrderDTO>;
 }

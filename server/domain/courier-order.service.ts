@@ -78,6 +78,6 @@ export class CourierOrderService {
       reason,
     });
 
-    return this.orders.updateStatus(orderId, targetStatus);
+    return this.orders.updateStatus(orderId, order.status, targetStatus);
   }
 }

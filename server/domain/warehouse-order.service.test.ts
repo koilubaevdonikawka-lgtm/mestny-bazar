@@ -87,7 +87,11 @@ describe("WarehouseOrderService", () => {
         actor: { id: warehouse.id, roles: warehouse.roles },
       }),
     );
-    expect(repo.updateStatus).toHaveBeenCalledWith("order-1", OrderStatus.ASSEMBLING);
+    expect(repo.updateStatus).toHaveBeenCalledWith(
+      "order-1",
+      OrderStatus.CONFIRMED,
+      OrderStatus.ASSEMBLING,
+    );
   });
 
   it("completeAssembly does not update status when the lifecycle policy denies it", async () => {
@@ -108,6 +112,10 @@ describe("WarehouseOrderService", () => {
     const service = new WarehouseOrderService(repo, fakeLifecycle());
 
     await service.completeAssembly("order-1", warehouse);
-    expect(repo.updateStatus).toHaveBeenCalledWith("order-1", OrderStatus.READY_FOR_DELIVERY);
+    expect(repo.updateStatus).toHaveBeenCalledWith(
+      "order-1",
+      OrderStatus.CONFIRMED,
+      OrderStatus.READY_FOR_DELIVERY,
+    );
   });
 });

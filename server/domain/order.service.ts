@@ -38,6 +38,6 @@ export class OrderService {
       reason: "customer_cancel",
     });
 
-    return this.orders.updateStatus(orderId, OrderStatus.CANCELLED);
+    return this.orders.updateStatus(orderId, order.status, OrderStatus.CANCELLED);
   }
 }

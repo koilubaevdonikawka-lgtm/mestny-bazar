@@ -18,3 +18,11 @@ export class ForbiddenError extends Error {
     this.name = "ForbiddenError";
   }
 }
+
+/** Optimistic-concurrency conflict: the order's status changed between read and write. */
+export class OrderConcurrentModificationError extends Error {
+  constructor(message = "Order was modified by another action — please retry") {
+    super(message);
+    this.name = "OrderConcurrentModificationError";
+  }
+}
