@@ -28,34 +28,51 @@ export class AIOrchestrator {
   }
 
   /**
-   * Runs workers in the plan's declared order (ExecutionPlan.mode is always
-   * "sequential" — an explicit design choice, not something to parallelize
-   * here). A worker throwing must not stop the plan: subsequent workers still
-   * run, and the job still completes (with a "failed" entry for that worker) —
+   * Runs every worker in the plan concurrently — each worker only reads from
+   * the triggering event (see IAIWorker.process), so there is no ordering or
+   * data dependency between them, and this event is on the checkout request's
+   * critical path (CheckoutService awaits events.publish("order.created"),
+   * which this orchestrator is subscribed to). Running workers one at a time
+   * only added latency to that request with no correctness benefit.
+   *
+   * A worker throwing must not stop the plan: every other worker still runs,
+   * and the job still completes (with a "failed" entry for that worker) —
    * IAIWorker.process() has no obligation to catch its own errors, and
    * AIJobStatus already has a "failed" value the aggregator understands.
    */
   private async executePlan(job: AIJob, workerIds: string[]): Promise<AIJobResult[]> {
+    const settled = await Promise.allSettled(
+      workerIds.map((workerId) => this.runWorker(job, workerId)),
+    );
+
     const results: AIJobResult[] = [];
-
-    for (const workerId of workerIds) {
-      const worker = this.registry.getWorker(workerId);
-      if (!worker) continue;
-
-      try {
-        results.push(await worker.process(job));
-      } catch (error) {
-        console.error(`[AIOrchestrator] Worker "${workerId}" failed for job ${job.id}:`, error);
-        results.push({
-          jobId: job.id,
-          workerId,
-          status: "failed",
-          output: { error: error instanceof Error ? error.message : String(error) },
-          processedAt: new Date().toISOString(),
-        });
+    settled.forEach((outcome, index) => {
+      if (outcome.status === "fulfilled") {
+        if (outcome.value) results.push(outcome.value);
+        return;
       }
-    }
+      const workerId = workerIds[index]!;
+      console.error(
+        `[AIOrchestrator] Worker "${workerId}" failed for job ${job.id}:`,
+        outcome.reason,
+      );
+      results.push({
+        jobId: job.id,
+        workerId,
+        status: "failed",
+        output: {
+          error: outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason),
+        },
+        processedAt: new Date().toISOString(),
+      });
+    });
 
     return results;
+  }
+
+  private async runWorker(job: AIJob, workerId: string): Promise<AIJobResult | undefined> {
+    const worker = this.registry.getWorker(workerId);
+    if (!worker) return undefined;
+    return worker.process(job);
   }
 }

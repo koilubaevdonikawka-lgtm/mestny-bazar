@@ -25,11 +25,12 @@ export interface AggregatedAIJobResult {
   completedAt: string;
 }
 
-/** Sequential execution plan for a single AI job. */
+/** Execution plan for a single AI job. Workers run concurrently — each only reads
+ * from the triggering event and has no dependency on another worker's output. */
 export interface ExecutionPlan {
   jobId: string;
   workerIds: string[];
-  mode: "sequential";
+  mode: "parallel";
 }
 
 export interface IAIWorker {

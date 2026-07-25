@@ -71,19 +71,20 @@ describe("AIOrchestrator.run", () => {
     );
   });
 
-  it("runs workers in declared plan order", async () => {
+  it("runs workers concurrently instead of waiting for each one to finish", async () => {
     const registry = new AIWorkerRegistry();
-    const order: string[] = [];
+    const started: string[] = [];
     registry.register(
-      makeWorker("a", async () => {
-        order.push("a");
-        return okResult("job-1", "a");
+      makeWorker("slow", async () => {
+        started.push("slow");
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        return okResult("job-1", "slow");
       }),
     );
     registry.register(
-      makeWorker("b", async () => {
-        order.push("b");
-        return okResult("job-1", "b");
+      makeWorker("fast", async () => {
+        started.push("fast");
+        return okResult("job-1", "fast");
       }),
     );
 
@@ -95,6 +96,30 @@ describe("AIOrchestrator.run", () => {
     );
 
     await orchestrator.run(makeJob());
-    expect(order).toEqual(["a", "b"]);
+
+    // Both workers must have started before the slow one's delay elapsed —
+    // proving "fast" wasn't queued behind "slow" finishing first.
+    expect(started).toEqual(["slow", "fast"]);
+  });
+
+  it("preserves declared plan order in the results even when a later worker finishes first", async () => {
+    const registry = new AIWorkerRegistry();
+    registry.register(
+      makeWorker("a", async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        return okResult("job-1", "a");
+      }),
+    );
+    registry.register(makeWorker("b", async () => okResult("job-1", "b")));
+
+    const orchestrator = new AIOrchestrator(
+      new AIExecutionPlanner(registry),
+      registry,
+      new AIResultAggregator(),
+      fakeEventBus(),
+    );
+
+    const result = await orchestrator.run(makeJob());
+    expect(result.workerResults.map((r) => r.workerId)).toEqual(["a", "b"]);
   });
 });

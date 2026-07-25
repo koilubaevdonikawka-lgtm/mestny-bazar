@@ -1,7 +1,7 @@
 import type { AIJob, ExecutionPlan } from "@server/ports/marketplace-ai.port";
 import type { AIWorkerRegistry } from "@server/domain/marketplace-ai/ai-worker-registry";
 
-/** Builds a sequential execution plan from registered workers. */
+/** Builds an execution plan from registered workers able to handle the job's event. */
 export class AIExecutionPlanner {
   constructor(private readonly registry: AIWorkerRegistry) {}
 
@@ -14,7 +14,7 @@ export class AIExecutionPlanner {
     return {
       jobId: job.id,
       workerIds,
-      mode: "sequential",
+      mode: "parallel",
     };
   }
 }
