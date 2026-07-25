@@ -58,6 +58,14 @@ export class CheckoutService {
     // above closes the far more common sequential-retry case entirely).
     await this.inventory.reserveStock(stockItems);
 
+    // Everything up to and including createOrder() may still fail for reasons
+    // that mean no order was ever persisted (pricing/policy checks, a DB error
+    // from create()) — those failures must release the reservation. Once
+    // createOrder() returns, a real order + order_items row exists and the
+    // reservation is spent against it: releasing stock after that point would
+    // desync products.stock from what's actually been sold, for an order that
+    // still exists. Only the pre-creation phase is wrapped for release-on-error.
+    let order: Awaited<ReturnType<OrderService["createOrder"]>>;
     try {
       const subtotal = this.pricing.calculateSubtotal(
         lineItems.map((item) => ({ price: item.unitPrice, quantity: item.quantity })),
@@ -93,26 +101,7 @@ export class CheckoutService {
         currency,
       };
 
-      const order = await this.orderService.createOrder(orderData);
-
-      const payment = await this.checkoutPayment.preparePayment(
-        request.paymentMethod,
-        order,
-        request.idempotencyKey,
-      );
-
-      const finalOrder: typeof order = {
-        ...order,
-        paymentStatus: payment.paymentStatus,
-        paymentUrl: payment.paymentUrl,
-      };
-
-      await this.events.publish({ type: "order.created", order: finalOrder });
-
-      return {
-        order: finalOrder,
-        paymentUrl: payment.paymentUrl,
-      };
+      order = await this.orderService.createOrder(orderData);
     } catch (error) {
       await this.inventory.releaseStock(stockItems).catch(() => {
         console.error(
@@ -121,6 +110,29 @@ export class CheckoutService {
       });
       throw error;
     }
+
+    // preparePayment/publish failures from here on must NOT release stock — the
+    // order already exists. They surface as-is to the caller; recovering a
+    // created-but-payment-not-prepared order is a distinct concern (retry,
+    // ops/admin intervention) from inventory reservation.
+    const payment = await this.checkoutPayment.preparePayment(
+      request.paymentMethod,
+      order,
+      request.idempotencyKey,
+    );
+
+    const finalOrder: typeof order = {
+      ...order,
+      paymentStatus: payment.paymentStatus,
+      paymentUrl: payment.paymentUrl,
+    };
+
+    await this.events.publish({ type: "order.created", order: finalOrder });
+
+    return {
+      order: finalOrder,
+      paymentUrl: payment.paymentUrl,
+    };
   }
 
   private resolveInitialStatus(userId: string | null, idempotencyKey: string): OrderStatus {

@@ -273,6 +273,23 @@ describe("CheckoutService.checkout", () => {
     expect(orderRepo.create).not.toHaveBeenCalled();
   });
 
+  it("does not release stock when a failure happens after the order was already created", async () => {
+    const paymentError = new Error("payment provider unreachable");
+    const paymentHandler = fakePaymentHandler({
+      preparePayment: vi.fn(async () => {
+        throw paymentError;
+      }),
+    });
+    const { checkout, orderRepo, productRepo } = buildCheckoutService({ paymentHandler });
+
+    await expect(checkout.checkout(null, makeRequest())).rejects.toBe(paymentError);
+
+    expect(orderRepo.create).toHaveBeenCalledTimes(1);
+    // The order was already persisted — releasing stock here would desync
+    // products.stock from an order that still exists.
+    expect(productRepo.releaseStock).not.toHaveBeenCalled();
+  });
+
   it("rejects an incomplete request before touching any dependency", async () => {
     const { checkout, orderRepo, productRepo } = buildCheckoutService({});
 
