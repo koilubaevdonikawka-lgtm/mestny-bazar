@@ -61,8 +61,8 @@ export async function storefrontApiRequest(query: string, variables: Record<stri
 }
 
 export const STOREFRONT_PRODUCTS_QUERY = `
-  query GetProducts($first: Int!, $query: String) {
-    products(first: $first, query: $query) {
+  query GetProducts($first: Int!, $query: String, $after: String) {
+    products(first: $first, query: $query, after: $after) {
       edges {
         node {
           id title description handle
@@ -81,6 +81,7 @@ export const STOREFRONT_PRODUCTS_QUERY = `
           options { name values }
         }
       }
+      pageInfo { hasNextPage endCursor }
     }
   }
 `;

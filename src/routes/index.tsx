@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ProductCard } from "@/components/ProductCard";
@@ -22,6 +22,7 @@ import { useSearchStore } from "@/stores/searchStore";
 import { useCheckoutStore } from "@/stores/checkoutStore";
 import { Truck, Loader2, ShoppingBasket, MessageCircle, CreditCard, Send } from "lucide-react";
 import { fetchCatalogProducts } from "@/lib/catalog";
+import type { ShopifyProduct } from "@/lib/shopify";
 import catFlour from "@/assets/cat-flour.png";
 import catProduce from "@/assets/cat-produce.png";
 import catOils from "@/assets/cat-oils.png";
@@ -56,10 +57,29 @@ function Home() {
   // debounce so typing doesn't fire a request per keystroke.
   const debouncedSearch = useDebouncedValue(search.trim(), 300);
 
-  const { data: products = [], isLoading } = useQuery({
+  // useInfiniteQuery keys on debouncedSearch, so a new search term starts a
+  // fresh query (back to page one) instead of appending to the old results;
+  // already-fetched pages stay cached in data.pages and are never refetched
+  // just to render — fetchNextPage() only ever asks for the next cursor.
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ["products", debouncedSearch],
-    queryFn: () => fetchCatalogProducts(debouncedSearch),
+    queryFn: ({ pageParam }) => fetchCatalogProducts(debouncedSearch, pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
+
+  const products = useMemo(() => {
+    const seen = new Set<string>();
+    const merged: ShopifyProduct[] = [];
+    for (const page of data?.pages ?? []) {
+      for (const product of page.items) {
+        if (seen.has(product.node.id)) continue;
+        seen.add(product.node.id);
+        merged.push(product);
+      }
+    }
+    return merged;
+  }, [data]);
 
   // Номер магазина в международном формате без +, 0 и пробелов (например: 996555123456)
   const SHOP_WHATSAPP = "996700000000";
@@ -185,11 +205,30 @@ function Home() {
             )}
           </div>
         ) : (
-          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {products.map((p) => (
-              <ProductCard key={p.node.id} product={p} />
-            ))}
-          </div>
+          <>
+            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {products.map((p) => (
+                <ProductCard key={p.node.id} product={p} />
+              ))}
+            </div>
+            {hasNextPage && (
+              <div className="mt-10 flex justify-center">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="h-12 px-8 rounded-full"
+                  onClick={() => void fetchNextPage()}
+                  disabled={isFetchingNextPage}
+                >
+                  {isFetchingNextPage ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Показать ещё"
+                  )}
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </section>
 
