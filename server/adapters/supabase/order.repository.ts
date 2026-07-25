@@ -155,6 +155,19 @@ export class SupabaseOrderRepository implements IOrderRepository {
     return this.mapOrdersWithItems(orders ?? []);
   }
 
+  async listByStatuses(statuses: OrderStatus[]): Promise<OrderDTO[]> {
+    if (statuses.length === 0) return [];
+
+    const { data: orders, error } = await supabaseAdmin
+      .from("orders")
+      .select(ORDER_COLUMNS)
+      .in("status", statuses.map(toDbOrderStatus))
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error(`Failed to list orders: ${error.message}`);
+    return this.mapOrdersWithItems(orders ?? []);
+  }
+
   private async mapOrdersWithItems(
     orders: Array<{
       id: string;

@@ -10,12 +10,12 @@ export interface CourierActor {
   roles: UserRole[];
 }
 
-const DELIVERY_QUEUE_STATUSES = new Set<OrderDTO["status"]>([
+const DELIVERY_QUEUE_STATUSES: OrderStatus[] = [
   OrderStatus.READY_FOR_DELIVERY,
   OrderStatus.ASSEMBLING,
   OrderStatus.OUT_FOR_DELIVERY,
   OrderStatus.ARRIVED,
-]);
+];
 
 export class CourierOrderService {
   constructor(
@@ -24,8 +24,7 @@ export class CourierOrderService {
   ) {}
 
   async listDeliveryOrders(): Promise<OrderDTO[]> {
-    const all = await this.orders.listAll();
-    return all.filter((order) => DELIVERY_QUEUE_STATUSES.has(order.status));
+    return this.orders.listByStatuses(DELIVERY_QUEUE_STATUSES);
   }
 
   async getOrder(id: string): Promise<OrderDTO> {

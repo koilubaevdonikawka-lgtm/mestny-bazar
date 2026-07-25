@@ -37,6 +37,8 @@ export interface IOrderRepository {
   getByIdempotencyKey(idempotencyKey: string): Promise<OrderDTO | null>;
   listByUser(userId: string): Promise<OrderDTO[]>;
   listAll(): Promise<OrderDTO[]>;
+  /** Filters at the query level — for role-specific work queues (warehouse, courier). */
+  listByStatuses(statuses: OrderStatus[]): Promise<OrderDTO[]>;
   updateStatus(id: string, status: OrderStatus): Promise<OrderDTO>;
   updatePaymentStatus(id: string, paymentStatus: PaymentStatus): Promise<OrderDTO>;
 }

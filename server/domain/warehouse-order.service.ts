@@ -10,11 +10,11 @@ export interface WarehouseActor {
   roles: UserRole[];
 }
 
-const ASSEMBLY_QUEUE_STATUSES = new Set<OrderDTO["status"]>([
-  OrderStatus.CONFIRMED,
-  OrderStatus.PAID,
-  OrderStatus.ASSEMBLING,
-]);
+// PAID was included here only to compensate for CONFIRMED silently reverting to PAID
+// on re-read (see the order_status enum fix) — a merely-PAID order was never actually
+// startable (WarehouseStartAssemblyRule requires CONFIRMED), so keeping it in this
+// queue post-fix would just show staff orders they can't act on yet.
+const ASSEMBLY_QUEUE_STATUSES: OrderStatus[] = [OrderStatus.CONFIRMED, OrderStatus.ASSEMBLING];
 
 export class WarehouseOrderService {
   constructor(
@@ -23,8 +23,7 @@ export class WarehouseOrderService {
   ) {}
 
   async listAssemblyOrders(): Promise<OrderDTO[]> {
-    const all = await this.orders.listAll();
-    return all.filter((order) => ASSEMBLY_QUEUE_STATUSES.has(order.status));
+    return this.orders.listByStatuses(ASSEMBLY_QUEUE_STATUSES);
   }
 
   async getOrder(id: string): Promise<OrderDTO> {
