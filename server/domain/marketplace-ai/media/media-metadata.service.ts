@@ -98,19 +98,63 @@ export class MediaMetadataService implements IMediaMetadataService {
       throw new Error(`Failed to fetch media: ${response.status}`);
     }
 
+    // Reject on the declared size before reading a single byte of the body —
+    // but a server can omit or lie about Content-Length, so this alone isn't
+    // a real guarantee; readBodyWithLimit enforces the cap during the read
+    // itself regardless of what this header claims.
     const contentLength = response.headers.get("content-length");
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.byteLength > MAX_FETCH_BYTES) {
+    const declaredSize = contentLength ? Number(contentLength) : null;
+    if (declaredSize !== null && Number.isFinite(declaredSize) && declaredSize > MAX_FETCH_BYTES) {
       throw new Error("Media file exceeds fetch limit");
     }
+
+    const buffer = await this.readBodyWithLimit(response, MAX_FETCH_BYTES);
 
     const dimensions = parseImageDimensions(buffer);
     return {
       hash: createHash("sha256").update(buffer).digest("hex"),
       width: dimensions?.width ?? null,
       height: dimensions?.height ?? null,
-      fileSizeBytes: contentLength ? Number(contentLength) : buffer.byteLength,
+      fileSizeBytes: declaredSize ?? buffer.byteLength,
     };
+  }
+
+  /**
+   * Streams the response body, counting bytes as they arrive and bailing out
+   * the moment the running total exceeds maxBytes — the previous
+   * implementation called response.arrayBuffer(), which reads the ENTIRE
+   * body into memory before any size check ran. A slow-but-huge response
+   * (or one lying about Content-Length) could exhaust the Worker isolate's
+   * memory before the old check ever fired.
+   */
+  private async readBodyWithLimit(response: Response, maxBytes: number): Promise<Buffer> {
+    const body = response.body;
+    if (!body) {
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.byteLength > maxBytes) {
+        throw new Error("Media file exceeds fetch limit");
+      }
+      return buffer;
+    }
+
+    const reader = body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel("Media file exceeds fetch limit").catch(() => {});
+        throw new Error("Media file exceeds fetch limit");
+      }
+      chunks.push(value);
+    }
+
+    return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
   }
 }
 
