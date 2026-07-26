@@ -10,7 +10,14 @@ export const serverEnvSchema = z.object({
   APP_URL: z.string().url().optional(),
 
   SUPABASE_URL: z.string().url(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  // Required in every deployment configuration, not just when the platform
+  // catalog feature flag is on: server/di/container.ts unconditionally
+  // constructs SupabaseOrderRepository, SupabaseAddressRepository,
+  // SupabaseSellerProductRepository, SupabaseDeliveryZoneRepository, and
+  // SupabaseAuditLog regardless of FEATURE_CATALOG_SOURCE — checkout, orders,
+  // addresses, and seller management all need it no matter which catalog
+  // source is active.
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
 
   FEATURE_CATALOG_SOURCE: catalogSourceSchema,
   FEATURE_CHECKOUT_SOURCE: checkoutSourceSchema,
@@ -35,10 +42,24 @@ export type CheckoutSource = z.infer<typeof checkoutSourceSchema>;
 
 let cachedEnv: ServerEnv | undefined;
 
-/** Validated server-only environment. Throws on missing required vars. */
+/**
+ * Validated server-only environment. Throws a clear configuration error on
+ * missing/invalid required vars — this is the first thing almost every
+ * server function does (via getServices() in server/di/container.ts, or
+ * directly in server/auth/resolve-user.ts), so a bad deployment fails loudly
+ * on the first real request instead of surfacing as an unrelated crash deep
+ * inside whichever repository happens to touch Supabase first.
+ */
 export function getServerEnv(): ServerEnv {
   if (!cachedEnv) {
-    cachedEnv = serverEnvSchema.parse(process.env);
+    const result = serverEnvSchema.safeParse(process.env);
+    if (!result.success) {
+      const missing = result.error.issues.map((issue) => issue.path.join(".")).join(", ");
+      throw new Error(
+        `Invalid server configuration — missing or invalid environment variable(s): ${missing}. Check your deployment secrets.`,
+      );
+    }
+    cachedEnv = result.data;
   }
   return cachedEnv;
 }
