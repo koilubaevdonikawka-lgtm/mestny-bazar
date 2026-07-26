@@ -16,6 +16,12 @@ dist-ssr
 .nitro
 *.local
 
+# Environment files — real config/secrets, never commit. .env.example is a
+# template with no real values and must stay tracked.
+.env
+.env.*
+!.env.example
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
