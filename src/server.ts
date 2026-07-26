@@ -6,6 +6,7 @@ import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { logger } from "@shared/observability/logger";
 import { runWithRequestContext } from "@shared/observability/request-context";
+import { isDeclaredBodyTooLarge } from "@shared/http/request-limits";
 
 const REQUEST_ID_HEADER = "x-request-id";
 
@@ -56,6 +57,16 @@ export default {
   fetch(request: Request, env: unknown, ctx: unknown): Promise<Response> {
     const requestId = randomUUID();
     return runWithRequestContext(requestId, async () => {
+      if (isDeclaredBodyTooLarge(request)) {
+        logger.warn("Rejected oversized request body", {
+          method: request.method,
+          url: request.url,
+          contentLength: request.headers.get("content-length"),
+        });
+        const response = new Response("Request Entity Too Large", { status: 413 });
+        response.headers.set(REQUEST_ID_HEADER, requestId);
+        return response;
+      }
       try {
         const handler = await getServerEntry();
         const response = await handler.fetch(request, env, ctx);
