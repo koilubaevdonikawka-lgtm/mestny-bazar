@@ -7,6 +7,7 @@ import { renderErrorPage } from "./lib/error-page";
 import { logger } from "@shared/observability/logger";
 import { runWithRequestContext } from "@shared/observability/request-context";
 import { isDeclaredBodyTooLarge } from "@shared/http/request-limits";
+import { isH3SwallowedErrorBody } from "@shared/http/h3-swallowed-error";
 import { createRetryableLazy } from "@shared/lib/retryable-lazy";
 
 const REQUEST_ID_HEADER = "x-request-id";
@@ -36,15 +37,6 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
     status: 500,
     headers: { "content-type": "text/html; charset=utf-8" },
   });
-}
-
-function isH3SwallowedErrorBody(body: string): boolean {
-  try {
-    const payload = JSON.parse(body) as { unhandled?: unknown; message?: unknown };
-    return payload.unhandled === true && payload.message === "HTTPError";
-  } catch {
-    return false;
-  }
 }
 
 export default {
