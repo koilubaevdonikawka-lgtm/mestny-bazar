@@ -1,9 +1,9 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
-import { applySecurityHeaders } from "./lib/security-headers";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 import { logger } from "@shared/observability/logger";
+import { applySecurityHeaders } from "@shared/http/security-headers";
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
