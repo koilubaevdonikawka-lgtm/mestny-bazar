@@ -12,7 +12,7 @@ import {
   formatOrderDate,
   formatOrderStatus,
   formatPaymentStatus,
-} from "@/lib/order-display";
+} from "@shared/lib/order-display";
 import { Loader2, Package, LogIn } from "lucide-react";
 
 export const Route = createFileRoute("/orders/")({

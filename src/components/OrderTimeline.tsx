@@ -5,7 +5,7 @@ import {
   formatOrderStatus,
   getTimelineStepState,
   ORDER_TIMELINE_SEQUENCE,
-} from "@/lib/order-display";
+} from "@shared/lib/order-display";
 import { Check, Circle, X } from "lucide-react";
 
 interface OrderTimelineProps {

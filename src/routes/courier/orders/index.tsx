@@ -12,7 +12,7 @@ import {
   formatOrderDate,
   formatOrderStatus,
   formatPaymentStatus,
-} from "@/lib/order-display";
+} from "@shared/lib/order-display";
 import { OrderStatus } from "@shared/contracts/order";
 import { Loader2, LogIn, Package, ShieldAlert } from "lucide-react";
 
