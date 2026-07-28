@@ -6,7 +6,7 @@ import {
 } from "@/lib/shopify";
 import { getProductBySlug, listProducts } from "@/api/catalog";
 import { isPlatformCatalog } from "@/config/features";
-import { toShopifyProductShim } from "@/lib/product-adapter";
+import { toShopifyProductShim } from "@shared/lib/product-adapter";
 
 /** One "Показать ещё" batch, same size regardless of catalog source. */
 export const CATALOG_PAGE_SIZE = 24;

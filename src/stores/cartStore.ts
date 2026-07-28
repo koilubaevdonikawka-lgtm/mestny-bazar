@@ -8,7 +8,7 @@ import {
   updateShopifyCartLine,
   type ShopifyProduct,
 } from "@/lib/shopify";
-import { isPlatformVariantId } from "@/lib/product-adapter";
+import { isPlatformVariantId } from "@shared/lib/product-adapter";
 
 export interface CartItem {
   lineId: string | null;
