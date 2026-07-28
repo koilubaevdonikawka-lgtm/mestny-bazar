@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@server/adapters/supabase/client";
 import { ForbiddenError, UnauthorizedError } from "@server/domain/orders.errors";
 import type { UserRole } from "@shared/contracts/user";
 
-function isNewSupabaseApiKey(value: string): boolean {
+export function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
 }
 
@@ -15,7 +15,7 @@ function isNewSupabaseApiKey(value: string): boolean {
 // every authenticated request indefinitely.
 const AUTH_FETCH_TIMEOUT_MS = 5000;
 
-function createSupabaseFetch(supabaseKey: string): typeof fetch {
+export function createSupabaseFetch(supabaseKey: string): typeof fetch {
   return (input, init) => {
     const headers = new Headers(
       typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined,
