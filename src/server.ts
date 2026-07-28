@@ -7,6 +7,7 @@ import { renderErrorPage } from "./lib/error-page";
 import { logger } from "@shared/observability/logger";
 import { runWithRequestContext } from "@shared/observability/request-context";
 import { isDeclaredBodyTooLarge } from "@shared/http/request-limits";
+import { createRetryableLazy } from "@shared/lib/retryable-lazy";
 
 const REQUEST_ID_HEADER = "x-request-id";
 
@@ -14,16 +15,9 @@ type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };
 
-let serverEntryPromise: Promise<ServerEntry> | undefined;
-
-async function getServerEntry(): Promise<ServerEntry> {
-  if (!serverEntryPromise) {
-    serverEntryPromise = import("@tanstack/react-start/server-entry").then(
-      (m) => (m.default ?? m) as ServerEntry,
-    );
-  }
-  return serverEntryPromise;
-}
+const getServerEntry = createRetryableLazy(() =>
+  import("@tanstack/react-start/server-entry").then((m) => (m.default ?? m) as ServerEntry),
+);
 
 // h3 swallows in-handler throws into a normal 500 Response with body
 // {"unhandled":true,"message":"HTTPError"} — try/catch alone never fires for those.
