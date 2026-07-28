@@ -1,4 +1,4 @@
-import { getServerEnv, isPlatformCatalogEnabled, type ServerEnv } from "@server/config/env";
+import { getServerEnv, type ServerEnv } from "@server/config/env";
 import { CatalogService } from "@server/domain/catalog.service";
 import { CheckoutService } from "@server/domain/checkout.service";
 import { InventoryService } from "@server/domain/inventory.service";
@@ -117,8 +117,8 @@ export interface ServiceContainer {
 
 let container: ServiceContainer | undefined;
 
-function createProductRepository(_env: ServerEnv): IProductRepository {
-  if (isPlatformCatalogEnabled()) {
+function createProductRepository(env: ServerEnv): IProductRepository {
+  if (env.FEATURE_CATALOG_SOURCE === "platform") {
     return new SupabaseProductRepository();
   }
   return new ShopifyCatalogAdapter();

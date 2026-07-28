@@ -64,14 +64,6 @@ export function getServerEnv(): ServerEnv {
   return cachedEnv;
 }
 
-export function getCatalogSource(): CatalogSource {
-  return getServerEnv().FEATURE_CATALOG_SOURCE;
-}
-
-export function isPlatformCatalogEnabled(): boolean {
-  return getCatalogSource() === "platform";
-}
-
 export function getCheckoutSource(): CheckoutSource {
   return getServerEnv().FEATURE_CHECKOUT_SOURCE;
 }
