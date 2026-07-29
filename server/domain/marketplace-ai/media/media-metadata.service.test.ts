@@ -33,6 +33,23 @@ function makeJpeg(width: number, height: number): Buffer {
   return buf;
 }
 
+function makeJpegWithApp0(width: number, height: number): Buffer {
+  const buf = Buffer.alloc(19);
+  buf[0] = 0xff;
+  buf[1] = 0xd8; // SOI
+  buf[2] = 0xff;
+  buf[3] = 0xe0; // APP0 (JFIF)
+  buf.writeUInt16BE(6, 4); // segment length: 2 length bytes + 4 payload bytes
+  buf.write("JFIF", 6, "ascii");
+  buf[10] = 0xff;
+  buf[11] = 0xc0; // SOF0
+  buf.writeUInt16BE(0x0011, 12);
+  buf[14] = 0x08;
+  buf.writeUInt16BE(height, 15);
+  buf.writeUInt16BE(width, 17);
+  return buf;
+}
+
 function makeWebpVp8(width: number, height: number): Buffer {
   const buf = Buffer.alloc(30);
   buf.write("RIFF", 0, "ascii");
@@ -293,6 +310,18 @@ describe("MediaMetadataService.resolveAssets", () => {
       expect(result.height).toBe(768);
     });
 
+    it("skips a leading APP0/JFIF marker segment to find SOF0 — the common real-world JPEG layout", async () => {
+      const result = await resolveFromBuffer(makeJpegWithApp0(640, 480));
+      expect(result.width).toBe(640);
+      expect(result.height).toBe(480);
+    });
+
+    it("returns null dimensions for a JPEG with no SOF marker at all", async () => {
+      const result = await resolveFromBuffer(Buffer.from([0xff, 0xd8, 0x00, 0x00]));
+      expect(result.width).toBeNull();
+      expect(result.height).toBeNull();
+    });
+
     it("parses lossy WebP (VP8) width/height", async () => {
       const result = await resolveFromBuffer(makeWebpVp8(500, 400));
       expect(result.width).toBe(500);
@@ -311,9 +340,37 @@ describe("MediaMetadataService.resolveAssets", () => {
       expect(result.height).toBe(150);
     });
 
+    it("returns null dimensions for a RIFF/WEBP container with an unrecognized chunk type", async () => {
+      const buf = Buffer.alloc(30);
+      buf.write("RIFF", 0, "ascii");
+      buf.writeUInt32LE(22, 4);
+      buf.write("WEBP", 8, "ascii");
+      buf.write("ANIM", 12, "ascii");
+
+      const result = await resolveFromBuffer(buf);
+      expect(result.width).toBeNull();
+      expect(result.height).toBeNull();
+    });
+
     it("computes and rounds aspect ratio to 4 decimals from the parsed dimensions", async () => {
       const result = await resolveFromBuffer(makeJpeg(1000, 300));
       expect(result.aspectRatio).toBe(Number((1000 / 300).toFixed(4)));
     });
+  });
+
+  it("degrades gracefully (URL hash, null dimensions) when the server responds with a non-2xx status", async () => {
+    global.fetch = vi.fn(
+      async () => new Response(null, { status: 404 }),
+    ) as unknown as typeof fetch;
+
+    const service = new MediaMetadataService();
+    const result = await service.resolveAssets([
+      { id: "product-1", url: "https://example.com/missing.jpg" },
+    ]);
+
+    expect(result[0]).toMatchObject({ id: "product-1", width: null, height: null });
+    expect(result[0]?.hash).toBe(
+      createHash("sha256").update("https://example.com/missing.jpg").digest("hex"),
+    );
   });
 });
