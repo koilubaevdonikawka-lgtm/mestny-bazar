@@ -62,6 +62,16 @@ describe("AdminConfirmOrderRule", () => {
   const rule = new AdminConfirmOrderRule();
   const applyCtx = ctx({ reason: "admin_confirm", targetStatus: OrderStatus.CONFIRMED });
 
+  it("applies only to admin_confirm -> CONFIRMED", () => {
+    expect(rule.applies(applyCtx)).toBe(true);
+    expect(rule.applies(ctx({ reason: "admin_cancel", targetStatus: OrderStatus.CONFIRMED }))).toBe(
+      false,
+    );
+    expect(
+      rule.applies(ctx({ reason: "admin_confirm", targetStatus: OrderStatus.CANCELLED })),
+    ).toBe(false);
+  });
+
   it("requires admin role", () => {
     const result = rule.evaluate({ ...applyCtx, actor: { id: "u1" } });
     expect(result).toMatchObject({ allowed: false, denialCode: "ADMIN_ROLE_REQUIRED" });
@@ -91,6 +101,18 @@ describe("AdminConfirmOrderRule", () => {
 describe("AdminCancelOrderRule", () => {
   const rule = new AdminCancelOrderRule();
   const admin = { id: "a1", roles: ["admin" as const] };
+
+  it("applies only to admin_cancel -> CANCELLED", () => {
+    expect(rule.applies(ctx({ reason: "admin_cancel", targetStatus: OrderStatus.CANCELLED }))).toBe(
+      true,
+    );
+    expect(
+      rule.applies(ctx({ reason: "customer_cancel", targetStatus: OrderStatus.CANCELLED })),
+    ).toBe(false);
+    expect(rule.applies(ctx({ reason: "admin_cancel", targetStatus: OrderStatus.CONFIRMED }))).toBe(
+      false,
+    );
+  });
 
   it("requires admin role", () => {
     const result = rule.evaluate(
@@ -177,6 +199,15 @@ describe("WarehouseStartAssemblyRule", () => {
   const warehouse = { id: "w1", roles: ["warehouse" as const] };
   const applyCtx = { reason: "warehouse_start_assembly", targetStatus: OrderStatus.ASSEMBLING };
 
+  it("applies only to warehouse_start_assembly -> ASSEMBLING", () => {
+    expect(rule.applies(ctx(applyCtx))).toBe(true);
+    expect(
+      rule.applies(
+        ctx({ reason: "warehouse_complete_assembly", targetStatus: OrderStatus.ASSEMBLING }),
+      ),
+    ).toBe(false);
+  });
+
   it("requires warehouse role", () => {
     const result = rule.evaluate(ctx({ ...applyCtx, actor: { id: "u1" } }));
     expect(result).toMatchObject({ allowed: false, denialCode: "WAREHOUSE_ROLE_REQUIRED" });
@@ -208,6 +239,15 @@ describe("WarehouseCompleteAssemblyRule", () => {
     targetStatus: OrderStatus.READY_FOR_DELIVERY,
   };
 
+  it("applies only to warehouse_complete_assembly -> READY_FOR_DELIVERY", () => {
+    expect(rule.applies(ctx(applyCtx))).toBe(true);
+    expect(
+      rule.applies(
+        ctx({ reason: "warehouse_start_assembly", targetStatus: OrderStatus.READY_FOR_DELIVERY }),
+      ),
+    ).toBe(false);
+  });
+
   it("requires warehouse role", () => {
     const result = rule.evaluate(
       ctx({ ...applyCtx, actor: { id: "u1" }, currentStatus: OrderStatus.ASSEMBLING }),
@@ -235,6 +275,15 @@ describe("CourierAcceptOrderRule", () => {
   const courier = { id: "c1", roles: ["courier" as const] };
   const applyCtx = { reason: "courier_accept", targetStatus: OrderStatus.READY_FOR_DELIVERY };
 
+  it("applies only to courier_accept -> READY_FOR_DELIVERY", () => {
+    expect(rule.applies(ctx(applyCtx))).toBe(true);
+    expect(
+      rule.applies(
+        ctx({ reason: "courier_start_delivery", targetStatus: OrderStatus.READY_FOR_DELIVERY }),
+      ),
+    ).toBe(false);
+  });
+
   it("requires courier role", () => {
     const result = rule.evaluate(ctx({ ...applyCtx, actor: { id: "u1" } }));
     expect(result).toMatchObject({ allowed: false, denialCode: "COURIER_ROLE_REQUIRED" });
@@ -260,6 +309,13 @@ describe("CourierStartDeliveryRule", () => {
   const rule = new CourierStartDeliveryRule();
   const courier = { id: "c1", roles: ["courier" as const] };
   const applyCtx = { reason: "courier_start_delivery", targetStatus: OrderStatus.OUT_FOR_DELIVERY };
+
+  it("applies only to courier_start_delivery -> OUT_FOR_DELIVERY", () => {
+    expect(rule.applies(ctx(applyCtx))).toBe(true);
+    expect(
+      rule.applies(ctx({ reason: "courier_arrive", targetStatus: OrderStatus.OUT_FOR_DELIVERY })),
+    ).toBe(false);
+  });
 
   it("requires courier role", () => {
     const result = rule.evaluate(ctx({ ...applyCtx, actor: { id: "u1" } }));
@@ -290,6 +346,13 @@ describe("CourierArriveRule", () => {
   const courier = { id: "c1", roles: ["courier" as const] };
   const applyCtx = { reason: "courier_arrive", targetStatus: OrderStatus.ARRIVED };
 
+  it("applies only to courier_arrive -> ARRIVED", () => {
+    expect(rule.applies(ctx(applyCtx))).toBe(true);
+    expect(
+      rule.applies(ctx({ reason: "courier_complete_delivery", targetStatus: OrderStatus.ARRIVED })),
+    ).toBe(false);
+  });
+
   it("requires courier role", () => {
     const result = rule.evaluate(
       ctx({ ...applyCtx, actor: { id: "u1" }, currentStatus: OrderStatus.OUT_FOR_DELIVERY }),
@@ -314,6 +377,13 @@ describe("CourierCompleteDeliveryRule", () => {
   const rule = new CourierCompleteDeliveryRule();
   const courier = { id: "c1", roles: ["courier" as const] };
   const applyCtx = { reason: "courier_complete_delivery", targetStatus: OrderStatus.DELIVERED };
+
+  it("applies only to courier_complete_delivery -> DELIVERED", () => {
+    expect(rule.applies(ctx(applyCtx))).toBe(true);
+    expect(
+      rule.applies(ctx({ reason: "courier_arrive", targetStatus: OrderStatus.DELIVERED })),
+    ).toBe(false);
+  });
 
   it("requires courier role", () => {
     const result = rule.evaluate(
