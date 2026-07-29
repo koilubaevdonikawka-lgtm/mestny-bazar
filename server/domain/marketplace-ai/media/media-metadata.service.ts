@@ -158,8 +158,16 @@ export class MediaMetadataService implements IMediaMetadataService {
   }
 }
 
+// Compared byte-for-byte rather than via buffer.toString("ascii", ...): Node's
+// "ascii" decoding strips the high bit of every byte, so 0x89 (this signature's
+// first byte, present in every real PNG) would decode to 0x09 and never match
+// the literal "\x89..." string here — that string comparison could never be
+// true for an actual PNG file, silently sending every PNG through this
+// function as if it were unrecognized.
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
 function parseImageDimensions(buffer: Buffer): { width: number; height: number } | null {
-  if (buffer.length >= 24 && buffer.toString("ascii", 0, 8) === "\x89PNG\r\n\x1a\n") {
+  if (buffer.length >= 24 && buffer.subarray(0, 8).equals(PNG_SIGNATURE)) {
     return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
   }
 
