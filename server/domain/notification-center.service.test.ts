@@ -59,4 +59,34 @@ describe("NotificationCenter.dispatch(order.created)", () => {
       center.dispatch({ type: "order.created", order: makeOrder() }),
     ).resolves.toBeUndefined();
   });
+
+  it("throws a clear error for an unrecognized event type instead of silently no-op'ing", async () => {
+    const orderEvents: IOrderEventNotifier = {
+      notifyAdmin: vi.fn(async () => {}),
+      notifyWarehouse: vi.fn(async () => {}),
+      notifyCourier: vi.fn(async () => {}),
+    };
+    const center = new NotificationCenter(orderEvents, fakeProvider());
+
+    await expect(center.dispatch({ type: "something.else" } as never)).rejects.toThrow(
+      "Unknown notification event: something.else",
+    );
+  });
+});
+
+describe("NotificationCenter.subscribe", () => {
+  it("delegates to the notification provider", async () => {
+    const provider = fakeProvider();
+    const center = new NotificationCenter(
+      { notifyAdmin: vi.fn(), notifyWarehouse: vi.fn(), notifyCourier: vi.fn() },
+      provider,
+    );
+    const request = { userId: "user-1", channel: "telegram" } as Parameters<
+      typeof provider.subscribe
+    >[0];
+
+    await center.subscribe(request);
+
+    expect(provider.subscribe).toHaveBeenCalledWith(request);
+  });
 });
