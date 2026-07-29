@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { toast } from "sonner";
 import {
   addLineToShopifyCart,
   createShopifyCart,
@@ -71,6 +72,8 @@ export const useCartStore = create<CartStore>()(
                 checkoutUrl: result.checkoutUrl,
                 items: [{ ...item, lineId: result.lineId }],
               });
+            } else {
+              toast.error("Не удалось добавить товар в корзину. Попробуйте ещё раз.");
             }
           } else if (existingItem) {
             const newQuantity = existingItem.quantity + item.quantity;
@@ -82,15 +85,28 @@ export const useCartStore = create<CartStore>()(
                   i.variantId === item.variantId ? { ...i, quantity: newQuantity } : i,
                 ),
               });
-            } else if (result.cartNotFound) clearCart();
+            } else if (result.cartNotFound) {
+              clearCart();
+              toast.error("Корзина устарела и была очищена. Добавьте товар ещё раз.");
+            } else {
+              toast.error("Не удалось обновить количество товара. Попробуйте ещё раз.");
+            }
           } else {
             const result = await addLineToShopifyCart(cartId, item.variantId, item.quantity);
             if (result.success) {
               set({ items: [...get().items, { ...item, lineId: result.lineId ?? null }] });
-            } else if (result.cartNotFound) clearCart();
+            } else if (result.cartNotFound) {
+              clearCart();
+              toast.error("Корзина устарела и была очищена. Добавьте товар ещё раз.");
+            } else {
+              toast.error("Не удалось добавить товар в корзину. Попробуйте ещё раз.");
+            }
           }
         } catch (e) {
           console.error("Failed to add item:", e);
+          toast.error(
+            "Не удалось добавить товар в корзину. Проверьте соединение и попробуйте ещё раз.",
+          );
         } finally {
           set({ isLoading: false });
         }
@@ -118,7 +134,17 @@ export const useCartStore = create<CartStore>()(
             set({
               items: get().items.map((i) => (i.variantId === variantId ? { ...i, quantity } : i)),
             });
-          } else if (result.cartNotFound) clearCart();
+          } else if (result.cartNotFound) {
+            clearCart();
+            toast.error("Корзина устарела и была очищена. Добавьте товар ещё раз.");
+          } else {
+            toast.error("Не удалось обновить количество товара. Попробуйте ещё раз.");
+          }
+        } catch (e) {
+          console.error("Failed to update quantity:", e);
+          toast.error(
+            "Не удалось обновить количество товара. Проверьте соединение и попробуйте ещё раз.",
+          );
         } finally {
           set({ isLoading: false });
         }
@@ -151,7 +177,17 @@ export const useCartStore = create<CartStore>()(
             } else {
               set({ items: newItems });
             }
-          } else if (result.cartNotFound) clearCart();
+          } else if (result.cartNotFound) {
+            clearCart();
+            toast.error("Корзина устарела и была очищена.");
+          } else {
+            toast.error("Не удалось удалить товар из корзины. Попробуйте ещё раз.");
+          }
+        } catch (e) {
+          console.error("Failed to remove item:", e);
+          toast.error(
+            "Не удалось удалить товар из корзины. Проверьте соединение и попробуйте ещё раз.",
+          );
         } finally {
           set({ isLoading: false });
         }
