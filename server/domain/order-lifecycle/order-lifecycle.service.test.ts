@@ -141,6 +141,22 @@ describe("OrderLifecycleService (rule engine)", () => {
     }
   });
 
+  it("assertCanTransition falls back to a default code/message when a rule denies without supplying either", () => {
+    const service = new OrderLifecycleService([
+      fakeRule({ order: 10, evaluate: () => ({ allowed: false }) }),
+    ]);
+
+    try {
+      service.assertCanTransition(baseContext());
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(OrderLifecycleDeniedError);
+      const denied = error as InstanceType<typeof OrderLifecycleDeniedError>;
+      expect(denied.code).toBe("ORDER_LIFECYCLE_DENIED");
+      expect(denied.message).toBe("Order status transition is not allowed");
+    }
+  });
+
   it("assertCanTransition does not throw when the transition is allowed", () => {
     const service = new OrderLifecycleService([
       fakeRule({ order: 10, evaluate: () => ({ allowed: true }) }),
