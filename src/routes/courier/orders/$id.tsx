@@ -165,7 +165,14 @@ function CourierOrderDetailPage() {
 
   const isReadyForDelivery = order.status === OrderStatus.READY_FOR_DELIVERY;
   const canAccept = isReadyForDelivery && !accepted;
-  const canStartDelivery = isReadyForDelivery && accepted;
+  // Deliberately NOT gated on the local `accepted` flag: acceptCourierOrder has no
+  // server-persisted effect (READY_FOR_DELIVERY -> READY_FOR_DELIVERY, validation
+  // only — see CourierAcceptOrderRule), so `accepted` is plain component state that
+  // resets on every remount/refresh. Gating "Start Delivery" on it meant a courier
+  // who accepted an order and then reloaded the page would see "Accept" again
+  // instead of "Start Delivery", even though nothing had actually changed —
+  // order.status is the only durable signal here, same as every other role page.
+  const canStartDelivery = isReadyForDelivery;
   const canMarkArrival = order.status === OrderStatus.OUT_FOR_DELIVERY && !arrived;
   const canCompleteDelivery =
     order.status === OrderStatus.ARRIVED ||
