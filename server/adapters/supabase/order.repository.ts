@@ -11,17 +11,26 @@ import { mapOrderRowToDto, toDbOrderStatus } from "@server/adapters/supabase/ord
 import { isUuid } from "@server/domain/shared/uuid";
 import { OrderConcurrentModificationError, OrderNotFoundError } from "@server/domain/orders.errors";
 
-function encodePaymentMethodNote(method: OrderDTO["paymentMethod"]): string {
+export function encodePaymentMethodNote(method: OrderDTO["paymentMethod"]): string {
   return `payment_method:${method}`;
 }
 
-function decodePaymentMethodNote(notes: string | null): OrderDTO["paymentMethod"] {
+// Anchored to the LAST line only, not a bare substring match: userNotes is
+// client-controlled free text (see CheckoutService, which passes
+// request.notes straight through), and mergeNotes always appends the real
+// tag as the final line. A customer's own note text containing e.g. the
+// literal string "payment_method:ONLINE" earlier in the field must not be
+// able to spoof the decoded payment method on every later read (admin/
+// courier/warehouse views) — a bare regex.match() over the whole string
+// would return whichever occurrence comes first, not the real tag.
+export function decodePaymentMethodNote(notes: string | null): OrderDTO["paymentMethod"] {
   if (!notes) return "CASH";
-  const match = notes.match(/payment_method:(ONLINE|CASH)/);
+  const lastLine = notes.split("\n").pop() ?? "";
+  const match = /^payment_method:(ONLINE|CASH)$/.exec(lastLine);
   return match?.[1] === "ONLINE" ? "ONLINE" : "CASH";
 }
 
-function mergeNotes(
+export function mergeNotes(
   userNotes: string | undefined,
   paymentMethod: OrderDTO["paymentMethod"],
 ): string | null {
