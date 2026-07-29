@@ -5,7 +5,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { listWarehouseOrders } from "@/api/warehouse";
-import { lovable } from "@/integrations/lovable";
+import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import {
   formatMoney,
@@ -37,9 +37,7 @@ function WarehouseOrdersPage() {
   });
 
   const handleSignIn = async () => {
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/warehouse/orders",
-    });
+    await signInWithGoogle(window.location.origin + "/warehouse/orders");
   };
 
   if (isAuthenticated === null) {

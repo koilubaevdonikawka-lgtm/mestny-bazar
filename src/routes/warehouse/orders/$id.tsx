@@ -9,7 +9,7 @@ import {
   getWarehouseOrder,
   startWarehouseAssembly,
 } from "@/api/warehouse";
-import { lovable } from "@/integrations/lovable";
+import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import {
   formatMoney,
@@ -66,9 +66,7 @@ function WarehouseOrderDetailPage() {
   });
 
   const handleSignIn = async () => {
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + `/warehouse/orders/${id}`,
-    });
+    await signInWithGoogle(window.location.origin + `/warehouse/orders/${id}`);
   };
 
   if (isAuthenticated === null) {

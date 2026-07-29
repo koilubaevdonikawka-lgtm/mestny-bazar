@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
-import { lovable } from "@/integrations/lovable";
+import { signInWithGoogle } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { LogOut, MapPin, Package, User } from "lucide-react";
 import { toast } from "sonner";
@@ -17,9 +17,7 @@ export function AccountMenu() {
   const { isAuthenticated } = useSupabaseSession();
 
   const handleSignIn = async () => {
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
+    await signInWithGoogle(window.location.origin);
   };
 
   const handleSignOut = async () => {

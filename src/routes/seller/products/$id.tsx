@@ -15,7 +15,7 @@ import {
   updateSellerProduct,
 } from "@/api/seller";
 import { ProductPublicationStatus } from "@shared/contracts/seller-product";
-import { lovable } from "@/integrations/lovable";
+import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { ArrowLeft, EyeOff, Loader2, LogIn, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
@@ -109,9 +109,7 @@ function SellerProductDetailPage() {
   });
 
   const handleSignIn = async () => {
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + `/seller/products/${id}`,
-    });
+    await signInWithGoogle(window.location.origin + `/seller/products/${id}`);
   };
 
   const handleSubmit = (event: React.FormEvent) => {

@@ -16,7 +16,7 @@ import {
   updateAddress,
 } from "@/api/addresses";
 import type { AddressDTO } from "@shared/contracts/delivery";
-import { lovable } from "@/integrations/lovable";
+import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { Loader2, LogIn, MapPin, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -152,9 +152,7 @@ function ProfileAddressesPage() {
   };
 
   const handleSignIn = async () => {
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/profile/addresses",
-    });
+    await signInWithGoogle(window.location.origin + "/profile/addresses");
   };
 
   const isSaving = createMutation.isPending || updateMutation.isPending;

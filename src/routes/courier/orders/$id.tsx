@@ -12,7 +12,7 @@ import {
   markCourierArrival,
   startCourierDelivery,
 } from "@/api/courier";
-import { lovable } from "@/integrations/lovable";
+import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import {
   formatMoney,
@@ -90,9 +90,7 @@ function CourierOrderDetailPage() {
   });
 
   const handleSignIn = async () => {
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + `/courier/orders/${id}`,
-    });
+    await signInWithGoogle(window.location.origin + `/courier/orders/${id}`);
   };
 
   if (isAuthenticated === null) {

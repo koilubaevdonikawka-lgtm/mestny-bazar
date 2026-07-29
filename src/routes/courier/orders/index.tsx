@@ -5,7 +5,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { listCourierOrders } from "@/api/courier";
-import { lovable } from "@/integrations/lovable";
+import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import {
   formatMoney,
@@ -37,9 +37,7 @@ function CourierOrdersPage() {
   });
 
   const handleSignIn = async () => {
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/courier/orders",
-    });
+    await signInWithGoogle(window.location.origin + "/courier/orders");
   };
 
   if (isAuthenticated === null) {

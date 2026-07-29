@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createSellerProduct, listSellerProducts } from "@/api/seller";
 import { ProductPublicationStatus } from "@shared/contracts/seller-product";
-import { lovable } from "@/integrations/lovable";
+import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { Loader2, LogIn, Plus, ShieldAlert, Store } from "lucide-react";
 import { toast } from "sonner";
@@ -83,9 +83,7 @@ function SellerProductsPage() {
   });
 
   const handleSignIn = async () => {
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/seller/products",
-    });
+    await signInWithGoogle(window.location.origin + "/seller/products");
   };
 
   const handleSubmit = (event: React.FormEvent) => {

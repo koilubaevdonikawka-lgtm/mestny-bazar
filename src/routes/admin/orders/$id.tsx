@@ -5,7 +5,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cancelAdminOrder, confirmAdminOrder, getAdminOrder } from "@/api/admin";
-import { lovable } from "@/integrations/lovable";
+import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import {
   formatMoney,
@@ -62,9 +62,7 @@ function AdminOrderDetailPage() {
   });
 
   const handleSignIn = async () => {
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + `/admin/orders/${id}`,
-    });
+    await signInWithGoogle(window.location.origin + `/admin/orders/${id}`);
   };
 
   if (isAuthenticated === null) {

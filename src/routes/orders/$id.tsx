@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { OrderTimeline } from "@/components/OrderTimeline";
 import { cancelOrder, getOrder } from "@/api/orders";
-import { lovable } from "@/integrations/lovable";
+import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import {
   formatMoney,
@@ -56,9 +56,7 @@ function OrderDetailPage() {
   });
 
   const handleSignIn = async () => {
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + `/orders/${id}`,
-    });
+    await signInWithGoogle(window.location.origin + `/orders/${id}`);
   };
 
   if (isAuthenticated === null) {
