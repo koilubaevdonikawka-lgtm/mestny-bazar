@@ -80,15 +80,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: BRAND.title },
-      {
-        name: "description",
-        content: BRAND.description,
-      },
       { property: "og:title", content: BRAND.title },
-      {
-        property: "og:description",
-        content: "Продукты с доставкой. Оплата через Finik.",
-      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: BRAND.title },

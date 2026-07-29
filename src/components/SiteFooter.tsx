@@ -13,7 +13,7 @@ export function SiteFooter() {
             <span className="font-serif text-xl">{BRAND.name}</span>
           </div>
           <p className="mt-3 text-sm text-muted-foreground max-w-xs">
-            Продукты с доставкой. Оплата через Finik.
+            Продукты с доставкой. Оплата онлайн или наличными при получении.
           </p>
         </div>
         <div className="text-sm">
@@ -28,7 +28,7 @@ export function SiteFooter() {
           <h4 className="font-medium mb-3">Контакты</h4>
           <ul className="space-y-2 text-muted-foreground">
             <li>Пн–Вс, 8:00–22:00</li>
-            <li>Оплата: Finik</li>
+            <li>Оплата: онлайн или наличными</li>
           </ul>
         </div>
       </div>
