@@ -72,7 +72,7 @@ function ProductPage() {
 
   const handleAdd = async () => {
     if (!variant) return;
-    await addItem({
+    const added = await addItem({
       product: { node: product },
       variantId: variant.id,
       variantTitle: variant.title,
@@ -80,7 +80,9 @@ function ProductPage() {
       quantity: 1,
       selectedOptions: variant.selectedOptions || [],
     });
-    toast.success("Добавлено в корзину", { description: product.title, position: "top-center" });
+    if (added) {
+      toast.success("Добавлено в корзину", { description: product.title, position: "top-center" });
+    }
   };
 
   return (

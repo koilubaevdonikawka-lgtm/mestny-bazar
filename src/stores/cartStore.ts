@@ -27,7 +27,8 @@ interface CartStore {
   checkoutUrl: string | null;
   isLoading: boolean;
   isSyncing: boolean;
-  addItem: (item: Omit<CartItem, "lineId">) => Promise<void>;
+  /** Resolves true only if the item was actually added — callers must not show a success toast otherwise. */
+  addItem: (item: Omit<CartItem, "lineId">) => Promise<boolean>;
   updateQuantity: (variantId: string, quantity: number) => Promise<void>;
   removeItem: (variantId: string) => Promise<void>;
   clearCart: () => void;
@@ -57,7 +58,7 @@ export const useCartStore = create<CartStore>()(
           } else {
             set({ items: [...items, { ...item, lineId: null }] });
           }
-          return;
+          return true;
         }
 
         const { items, cartId, clearCart } = get();
@@ -72,12 +73,14 @@ export const useCartStore = create<CartStore>()(
                 checkoutUrl: result.checkoutUrl,
                 items: [{ ...item, lineId: result.lineId }],
               });
-            } else {
-              toast.error("Не удалось добавить товар в корзину. Попробуйте ещё раз.");
+              return true;
             }
-          } else if (existingItem) {
+            toast.error("Не удалось добавить товар в корзину. Попробуйте ещё раз.");
+            return false;
+          }
+          if (existingItem) {
             const newQuantity = existingItem.quantity + item.quantity;
-            if (!existingItem.lineId) return;
+            if (!existingItem.lineId) return false;
             const result = await updateShopifyCartLine(cartId, existingItem.lineId, newQuantity);
             if (result.success) {
               set({
@@ -85,28 +88,34 @@ export const useCartStore = create<CartStore>()(
                   i.variantId === item.variantId ? { ...i, quantity: newQuantity } : i,
                 ),
               });
-            } else if (result.cartNotFound) {
+              return true;
+            }
+            if (result.cartNotFound) {
               clearCart();
               toast.error("Корзина устарела и была очищена. Добавьте товар ещё раз.");
             } else {
               toast.error("Не удалось обновить количество товара. Попробуйте ещё раз.");
             }
-          } else {
-            const result = await addLineToShopifyCart(cartId, item.variantId, item.quantity);
-            if (result.success) {
-              set({ items: [...get().items, { ...item, lineId: result.lineId ?? null }] });
-            } else if (result.cartNotFound) {
-              clearCart();
-              toast.error("Корзина устарела и была очищена. Добавьте товар ещё раз.");
-            } else {
-              toast.error("Не удалось добавить товар в корзину. Попробуйте ещё раз.");
-            }
+            return false;
           }
+          const result = await addLineToShopifyCart(cartId, item.variantId, item.quantity);
+          if (result.success) {
+            set({ items: [...get().items, { ...item, lineId: result.lineId ?? null }] });
+            return true;
+          }
+          if (result.cartNotFound) {
+            clearCart();
+            toast.error("Корзина устарела и была очищена. Добавьте товар ещё раз.");
+          } else {
+            toast.error("Не удалось добавить товар в корзину. Попробуйте ещё раз.");
+          }
+          return false;
         } catch (e) {
           console.error("Failed to add item:", e);
           toast.error(
             "Не удалось добавить товар в корзину. Проверьте соединение и попробуйте ещё раз.",
           );
+          return false;
         } finally {
           set({ isLoading: false });
         }

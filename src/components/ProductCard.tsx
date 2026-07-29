@@ -18,7 +18,7 @@ export function ProductCard({ product }: { product: ShopifyProduct }) {
     e.preventDefault();
     e.stopPropagation();
     if (!variant) return;
-    await addItem({
+    const added = await addItem({
       product,
       variantId: variant.id,
       variantTitle: variant.title,
@@ -26,10 +26,12 @@ export function ProductCard({ product }: { product: ShopifyProduct }) {
       quantity: 1,
       selectedOptions: variant.selectedOptions || [],
     });
-    toast.success("Добавлено в корзину", {
-      description: p.title,
-      position: "top-center",
-    });
+    if (added) {
+      toast.success("Добавлено в корзину", {
+        description: p.title,
+        position: "top-center",
+      });
+    }
   };
 
   return (
