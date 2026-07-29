@@ -44,13 +44,15 @@ function ProductPage() {
   const addItem = useCartStore((s) => s.addItem);
   const isLoading = useCartStore((s) => s.isLoading);
 
-  const { data: product, isLoading: loading } = useQuery({
+  const {
+    data: product,
+    isLoading: loading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ["product", handle],
-    queryFn: async () => {
-      const p = await fetchCatalogProduct(handle);
-      if (!p) throw notFound();
-      return p;
-    },
+    queryFn: () => fetchCatalogProduct(handle),
+    retry: false,
   });
 
   if (loading) {
@@ -64,7 +66,33 @@ function ProductPage() {
     );
   }
 
-  if (!product) return null;
+  if (isError) {
+    const message = error instanceof Error ? error.message : "Не удалось загрузить продукт";
+    return (
+      <div className="min-h-screen flex flex-col">
+        <SiteHeader />
+        <div className="flex-1 flex items-center justify-center p-6 text-center">
+          <div>
+            <h2 className="font-serif text-2xl">Не удалось загрузить продукт</h2>
+            <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+            <Button asChild className="mt-6">
+              <Link to="/">На главную</Link>
+            </Button>
+          </div>
+        </div>
+        <SiteFooter />
+      </div>
+    );
+  }
+
+  // Throwing here (during render) is what actually engages the route's
+  // notFoundComponent — throwing notFound() inside queryFn above did not:
+  // React Query catches all queryFn errors internally into `error` and never
+  // rethrows them, so that throw was silently swallowed and this page
+  // rendered blank for every missing (or failed) product.
+  if (!product) {
+    throw notFound();
+  }
 
   const variant = product.variants.edges[0]?.node;
   const image = product.images.edges[0]?.node;
