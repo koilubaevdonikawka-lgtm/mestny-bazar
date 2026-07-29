@@ -122,4 +122,28 @@ describe("AIOrchestrator.run", () => {
     const result = await orchestrator.run(makeJob());
     expect(result.workerResults.map((r) => r.workerId)).toEqual(["a", "b"]);
   });
+
+  it("silently drops a planned worker id that no longer resolves in the registry, instead of pushing undefined", async () => {
+    // The planner and the orchestrator's own lookup registry are deliberately
+    // different instances here: the plan is built from a registry containing
+    // "ghost", but the orchestrator resolves worker ids against an empty one —
+    // this is the only way to exercise runWorker's "worker not found" branch,
+    // since AIExecutionPlanner.plan() never emits an id the same registry
+    // doesn't have.
+    const plannerRegistry = new AIWorkerRegistry();
+    plannerRegistry.register(makeWorker("ghost", async () => okResult("job-1", "ghost")));
+    const lookupRegistry = new AIWorkerRegistry();
+
+    const orchestrator = new AIOrchestrator(
+      new AIExecutionPlanner(plannerRegistry),
+      lookupRegistry,
+      new AIResultAggregator(),
+      fakeEventBus(),
+    );
+
+    const result = await orchestrator.run(makeJob());
+
+    expect(result.workerResults).toEqual([]);
+    expect(result.status).toBe("skipped");
+  });
 });
