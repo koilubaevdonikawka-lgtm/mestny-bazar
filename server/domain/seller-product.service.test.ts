@@ -47,6 +47,37 @@ function fakePolicy(overrides: Partial<IProductPublicationPolicy> = {}): IProduc
   };
 }
 
+describe("SellerProductService.listProducts / getProduct", () => {
+  it("listProducts delegates to the repository for the given seller", async () => {
+    const repo = fakeRepo({ listBySeller: vi.fn(async () => [makeProduct()]) });
+    const service = new SellerProductService(repo, fakePolicy());
+
+    const result = await service.listProducts("seller-1");
+
+    expect(repo.listBySeller).toHaveBeenCalledWith("seller-1");
+    expect(result).toEqual([makeProduct()]);
+  });
+
+  it("getProduct returns the product when it exists", async () => {
+    const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()) });
+    const service = new SellerProductService(repo, fakePolicy());
+
+    const result = await service.getProduct("product-1", "seller-1");
+
+    expect(repo.getById).toHaveBeenCalledWith("product-1", "seller-1");
+    expect(result).toEqual(makeProduct());
+  });
+
+  it("getProduct throws SellerProductNotFoundError when the repository returns null", async () => {
+    const repo = fakeRepo({ getById: vi.fn(async () => null) });
+    const service = new SellerProductService(repo, fakePolicy());
+
+    await expect(service.getProduct("missing", "seller-1")).rejects.toBeInstanceOf(
+      SellerProductNotFoundError,
+    );
+  });
+});
+
 describe("SellerProductService.createProduct", () => {
   it("rejects a name shorter than 2 characters", async () => {
     const repo = fakeRepo();
@@ -107,6 +138,16 @@ describe("SellerProductService.createProduct", () => {
     expect(payload.slug).toBe("fresh-bread-2");
   });
 
+  it("falls back to a timestamp-suffixed slug once all 19 numeric suffixes (2-20) are also taken", async () => {
+    const repo = fakeRepo({ slugExists: vi.fn(async () => true) });
+    const service = new SellerProductService(repo, fakePolicy());
+
+    await service.createProduct("seller-1", { name: "Fresh Bread", price: 10 });
+    const [, payload] = (repo.create as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(payload.slug).toMatch(/^fresh-bread-\d+$/);
+    expect(payload.slug).not.toBe("fresh-bread-2");
+  });
+
   it("checks the publication policy allows seller_create before creating", async () => {
     const policy = fakePolicy({
       assertCanTransition: vi.fn(() => {
@@ -140,6 +181,61 @@ describe("SellerProductService.updateProduct", () => {
 
     await expect(
       service.updateProduct("seller-1", { id: "product-1", price: -5 }),
+    ).rejects.toBeInstanceOf(SellerProductValidationError);
+    expect(repo.update).not.toHaveBeenCalled();
+  });
+
+  it("validates name when it is being changed", async () => {
+    const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()) });
+    const service = new SellerProductService(repo, fakePolicy());
+
+    await expect(
+      service.updateProduct("seller-1", { id: "product-1", name: "A" }),
+    ).rejects.toBeInstanceOf(SellerProductValidationError);
+    expect(repo.update).not.toHaveBeenCalled();
+  });
+
+  it("validates stock when it is being changed", async () => {
+    const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()) });
+    const service = new SellerProductService(repo, fakePolicy());
+
+    await expect(
+      service.updateProduct("seller-1", { id: "product-1", stock: -1 }),
+    ).rejects.toBeInstanceOf(SellerProductValidationError);
+    expect(repo.update).not.toHaveBeenCalled();
+  });
+
+  it("leaves unspecified fields unvalidated and applies the patch when nothing changed is invalid", async () => {
+    const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()) });
+    const service = new SellerProductService(repo, fakePolicy());
+
+    await service.updateProduct("seller-1", { id: "product-1", description: "New description" });
+
+    expect(repo.update).toHaveBeenCalledWith(
+      "seller-1",
+      expect.objectContaining({ id: "product-1", description: "New description" }),
+    );
+  });
+
+  it("resolves a fresh unique slug when the slug is being changed", async () => {
+    const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()) });
+    const service = new SellerProductService(repo, fakePolicy());
+
+    await service.updateProduct("seller-1", { id: "product-1", slug: "new-slug" });
+
+    expect(repo.slugExists).toHaveBeenCalledWith("new-slug", "product-1");
+    expect(repo.update).toHaveBeenCalledWith(
+      "seller-1",
+      expect.objectContaining({ slug: "new-slug" }),
+    );
+  });
+
+  it("rejects a blank slug on update", async () => {
+    const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()) });
+    const service = new SellerProductService(repo, fakePolicy());
+
+    await expect(
+      service.updateProduct("seller-1", { id: "product-1", slug: "   " }),
     ).rejects.toBeInstanceOf(SellerProductValidationError);
     expect(repo.update).not.toHaveBeenCalled();
   });
