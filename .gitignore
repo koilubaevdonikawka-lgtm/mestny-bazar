@@ -16,6 +16,9 @@ dist-ssr
 .nitro
 *.local
 
+# vitest --coverage report output
+coverage
+
 # Environment files — real config/secrets, never commit. .env.example is a
 # template with no real values and must stay tracked.
 .env
