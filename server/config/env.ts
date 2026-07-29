@@ -1,7 +1,13 @@
 import { z } from "zod";
 
 const catalogSourceSchema = z.enum(["shopify", "platform"]).default("shopify");
-const checkoutSourceSchema = z.enum(["shopify", "platform"]).default("platform");
+// Must track catalogSourceSchema's default — CheckoutService resolves every
+// line item against the Supabase products table only, never Shopify (see
+// src/config/features.ts for the client-side mirror of this same rule).
+// Defaulting this to "platform" while the catalog defaults to "shopify"
+// reintroduces the exact bug fixed in af9afde for any deployment that
+// leaves FEATURE_CHECKOUT_SOURCE unset.
+const checkoutSourceSchema = z.enum(["shopify", "platform"]).default("shopify");
 
 export const serverEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).optional(),

@@ -33,10 +33,10 @@ describe("serverEnvSchema", () => {
     );
   });
 
-  it("defaults FEATURE_CATALOG_SOURCE and FEATURE_CHECKOUT_SOURCE when absent", () => {
+  it("defaults FEATURE_CATALOG_SOURCE and FEATURE_CHECKOUT_SOURCE to the same source when absent — CheckoutService only ever resolves line items against the Supabase products table, so a mismatched pair breaks checkout for the default catalog", () => {
     const result = serverEnvSchema.parse(validEnv);
     expect(result.FEATURE_CATALOG_SOURCE).toBe("shopify");
-    expect(result.FEATURE_CHECKOUT_SOURCE).toBe("platform");
+    expect(result.FEATURE_CHECKOUT_SOURCE).toBe("shopify");
   });
 
   it("leaves Finik/Telegram/WhatsApp secrets optional — those integrations are still stubs", () => {
