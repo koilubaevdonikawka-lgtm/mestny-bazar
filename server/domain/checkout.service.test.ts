@@ -321,3 +321,200 @@ describe("CheckoutService.checkout", () => {
     expect(productRepo.reserveStock).not.toHaveBeenCalled();
   });
 });
+
+describe("CheckoutService.checkout — request validation", () => {
+  async function expectValidationDetail(
+    overrides: Partial<CreateOrderRequest>,
+    detailKey: string,
+    userId: string | null = null,
+  ) {
+    const { checkout } = buildCheckoutService({});
+    try {
+      await checkout.checkout(userId, makeRequest(overrides));
+      expect.fail("expected CheckoutValidationError to be thrown");
+    } catch (error) {
+      expect(error).toMatchObject({ name: "CheckoutValidationError" });
+      expect(Object.keys((error as { details: Record<string, string[]> }).details)).toContain(
+        detailKey,
+      );
+    }
+  }
+
+  it("rejects a blank idempotencyKey", async () => {
+    await expectValidationDetail({ idempotencyKey: "  " }, "idempotencyKey");
+  });
+
+  it("rejects an empty items array", async () => {
+    await expectValidationDetail({ items: [] }, "items");
+  });
+
+  it("rejects a line item with neither productId nor productSlug", async () => {
+    await expectValidationDetail({ items: [{ quantity: 1 }] }, "items.0.productId");
+  });
+
+  it("rejects a line item with a non-positive quantity", async () => {
+    await expectValidationDetail(
+      { items: [{ productId: PRODUCT_ID, quantity: 0 }] },
+      "items.0.quantity",
+    );
+  });
+
+  it("rejects a customer name under 2 characters", async () => {
+    await expectValidationDetail({ customerName: "A" }, "customerName");
+  });
+
+  it("rejects a phone number with fewer than 9 digits", async () => {
+    await expectValidationDetail({ customerPhone: "12345" }, "customerPhone");
+  });
+
+  it("rejects a missing payment method", async () => {
+    await expectValidationDetail(
+      { paymentMethod: undefined as unknown as CreateOrderRequest["paymentMethod"] },
+      "paymentMethod",
+    );
+  });
+
+  it("rejects a guest checkout with no address snapshot", async () => {
+    await expectValidationDetail({ addressSnapshot: undefined }, "address", null);
+  });
+
+  it("rejects a guest checkout with an address snapshot under 5 characters", async () => {
+    await expectValidationDetail({ addressSnapshot: "abc" }, "addressSnapshot", null);
+  });
+
+  it("rejects an authenticated checkout whose supplied address snapshot is under 5 characters", async () => {
+    await expectValidationDetail({ addressSnapshot: "abc" }, "addressSnapshot", "user-1");
+  });
+});
+
+describe("CheckoutService.checkout — address resolution", () => {
+  const address = {
+    id: "address-1",
+    label: null,
+    fullAddress: "г. Бишкек, ул. Абая 10",
+    city: null,
+    district: null,
+    notes: null,
+    zoneId: "zone-9",
+    isDefault: false,
+  };
+
+  it("rejects addressId when the caller is a guest", async () => {
+    const { checkout } = buildCheckoutService({});
+    await expect(
+      checkout.checkout(null, makeRequest({ addressId: "address-1" })),
+    ).rejects.toMatchObject({ name: "CheckoutValidationError" });
+  });
+
+  it("rejects addressId when the address does not belong to (or exist for) the user", async () => {
+    const addressRepo = fakeAddressRepository({ getById: vi.fn(async () => null) });
+    const { checkout } = buildCheckoutService({ addressRepo });
+
+    await expect(
+      checkout.checkout("user-1", makeRequest({ addressId: "missing" })),
+    ).rejects.toMatchObject({ name: "CheckoutValidationError" });
+  });
+
+  it("falls back to the user's default saved address when none is specified", async () => {
+    const addressRepo = fakeAddressRepository({
+      listByUser: vi.fn(async () => [
+        { ...address, id: "not-default", isDefault: false },
+        { ...address, id: "default-one", isDefault: true },
+      ]),
+    });
+    const orderRepo = fakeOrderRepository();
+    const { checkout } = buildCheckoutService({ addressRepo, orderRepo });
+
+    await checkout.checkout("user-1", makeRequest({ addressSnapshot: undefined }));
+
+    expect(orderRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ addressId: "default-one" }),
+    );
+  });
+
+  it("rejects an authenticated checkout with no addressId/snapshot and no default address on file", async () => {
+    const addressRepo = fakeAddressRepository({ listByUser: vi.fn(async () => []) });
+    const { checkout } = buildCheckoutService({ addressRepo });
+
+    await expect(
+      checkout.checkout("user-1", makeRequest({ addressSnapshot: undefined })),
+    ).rejects.toMatchObject({ name: "CheckoutValidationError" });
+  });
+});
+
+describe("CheckoutService.checkout — delivery zone resolution", () => {
+  it("rejects an explicit zoneId that does not exist", async () => {
+    const zoneRepo = fakeZoneRepository({ getById: vi.fn(async () => null) });
+    const { checkout } = buildCheckoutService({ zoneRepo });
+
+    await expect(
+      checkout.checkout(null, makeRequest({ zoneId: "missing-zone" })),
+    ).rejects.toMatchObject({ name: "CheckoutValidationError" });
+  });
+
+  it("uses the resolved zone id when an explicit zoneId is valid", async () => {
+    const zoneRepo = fakeZoneRepository({
+      getById: vi.fn(async (id: string) => ({
+        id,
+        name: "Zone",
+        price: 0,
+        freeFrom: null,
+        sortOrder: 0,
+      })),
+    });
+    const orderRepo = fakeOrderRepository();
+    const { checkout } = buildCheckoutService({ zoneRepo, orderRepo });
+
+    await checkout.checkout(null, makeRequest({ zoneId: "zone-42" }));
+
+    expect(orderRepo.create).toHaveBeenCalledWith(expect.objectContaining({ zoneId: "zone-42" }));
+  });
+});
+
+describe("CheckoutService.checkout — line item resolution", () => {
+  it("resolves a line item by productSlug when no productId is given", async () => {
+    const productRepo = fakeProductRepository({
+      getManyByIds: vi.fn(async () => []),
+      getManyBySlugs: vi.fn(async (slugs: string[]) =>
+        slugs.includes("test-product") ? [makeProduct()] : [],
+      ),
+    });
+    const { checkout } = buildCheckoutService({ productRepo });
+
+    const result = await checkout.checkout(
+      null,
+      makeRequest({ items: [{ productSlug: "test-product", quantity: 1 }] }),
+    );
+
+    expect(productRepo.getManyBySlugs).toHaveBeenCalledWith(["test-product"]);
+    expect(result.order.total).toBeGreaterThan(0);
+  });
+
+  it("rejects a line item with neither a real productId nor a productSlug fallback", async () => {
+    const { checkout } = buildCheckoutService({});
+
+    await expect(
+      checkout.checkout(null, makeRequest({ items: [{ productId: "not-a-uuid", quantity: 1 }] })),
+    ).rejects.toMatchObject({ name: "CheckoutValidationError" });
+  });
+
+  it("throws ProductNotSynchronized when the product id isn't in the platform catalog", async () => {
+    const productRepo = fakeProductRepository({ getManyByIds: vi.fn(async () => []) });
+    const { checkout } = buildCheckoutService({ productRepo });
+
+    await expect(checkout.checkout(null, makeRequest())).rejects.toMatchObject({
+      name: "ProductNotSynchronized",
+    });
+  });
+
+  it("rejects a product that is out of stock", async () => {
+    const productRepo = fakeProductRepository({
+      getManyByIds: vi.fn(async () => [makeProduct({ inStock: false })]),
+    });
+    const { checkout } = buildCheckoutService({ productRepo });
+
+    await expect(checkout.checkout(null, makeRequest())).rejects.toMatchObject({
+      name: "CheckoutValidationError",
+    });
+  });
+});
