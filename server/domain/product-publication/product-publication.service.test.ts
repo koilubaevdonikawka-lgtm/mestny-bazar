@@ -61,6 +61,32 @@ describe("ProductPublicationService (rule engine)", () => {
     expect(result).toMatchObject({ allowed: false, denialCode: "NO_MATCHING_RULE" });
   });
 
+  it("continues to the next rule when a matching rule allows but is non-terminal", () => {
+    const calls: number[] = [];
+    const service = new ProductPublicationService([
+      fakeRule({
+        order: 10,
+        terminal: false,
+        evaluate: () => {
+          calls.push(10);
+          return { allowed: true };
+        },
+      }),
+      fakeRule({
+        order: 20,
+        evaluate: () => {
+          calls.push(20);
+          return { allowed: true, message: "final" };
+        },
+      }),
+    ]);
+
+    const result = service.canTransition(baseContext());
+
+    expect(calls).toEqual([10, 20]);
+    expect(result).toEqual({ allowed: true, message: "final" });
+  });
+
   it("stops at the first matching rule's denial", () => {
     const service = new ProductPublicationService([
       fakeRule({ order: 10, evaluate: () => ({ allowed: false, denialCode: "DENIED" }) }),
