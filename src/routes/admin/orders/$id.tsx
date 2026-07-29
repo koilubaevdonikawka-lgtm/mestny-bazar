@@ -215,6 +215,7 @@ function AdminOrderDetailPage() {
                     <img
                       src={item.productImageUrl}
                       alt={item.productName}
+                      loading="lazy"
                       className="w-full h-full object-cover"
                     />
                   )}
