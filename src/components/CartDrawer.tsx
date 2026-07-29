@@ -43,10 +43,14 @@ export const CartDrawer = () => {
 
   const handleShopifyCheckout = () => {
     const url = getCheckoutUrl();
-    if (url) {
-      window.open(url, "_blank");
-      setIsOpen(false);
+    if (!url) {
+      toast.error(
+        "Не удалось открыть оформление заказа. Попробуйте удалить и снова добавить товар в корзину.",
+      );
+      return;
     }
+    window.open(url, "_blank");
+    setIsOpen(false);
   };
 
   const resolveCustomerName = async (): Promise<string> => {
