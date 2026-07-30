@@ -24,6 +24,7 @@ import { Truck, Loader2, ShoppingBasket, MessageCircle, CreditCard, Send } from 
 import { fetchCatalogProducts } from "@/lib/catalog";
 import type { ShopifyProduct } from "@/lib/shopify";
 import { listCategories } from "@/api/category";
+import { BRAND } from "@/config/brand";
 import catFlour from "@/assets/cat-flour.png";
 import catProduce from "@/assets/cat-produce.png";
 import catOils from "@/assets/cat-oils.png";
@@ -155,7 +156,7 @@ function Home() {
         <div className="mx-auto max-w-7xl px-6 pt-16 pb-16 md:pt-24 md:pb-24 text-center">
           <div className="inline-block rounded-2xl bg-primary px-8 py-4 md:px-12 md:py-6 shadow-[var(--shadow-card)]">
             <h1 className="font-serif text-5xl md:text-7xl leading-[1.02] tracking-tight text-primary-foreground">
-              «Кант базар»
+              «{BRAND.name}»
             </h1>
           </div>
 
