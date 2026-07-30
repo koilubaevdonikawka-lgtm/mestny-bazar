@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -23,32 +23,48 @@ import { useCheckoutStore } from "@/stores/checkoutStore";
 import { Truck, Loader2, ShoppingBasket, MessageCircle, CreditCard, Send } from "lucide-react";
 import { fetchCatalogProducts } from "@/lib/catalog";
 import type { ShopifyProduct } from "@/lib/shopify";
+import { listCategories } from "@/api/category";
 import catFlour from "@/assets/cat-flour.png";
 import catProduce from "@/assets/cat-produce.png";
 import catOils from "@/assets/cat-oils.png";
 import catDrinks from "@/assets/cat-drinks.png";
 import catSweets from "@/assets/cat-sweets.png";
-import catPickles from "@/assets/cat-pickles.png";
 import catDairy from "@/assets/cat-dairy.png";
-import catEggs from "@/assets/cat-eggs.png";
 import catMeat from "@/assets/cat-meat.png";
 
 export const Route = createFileRoute("/")({
   component: Home,
 });
 
-const CATEGORIES = [
-  { kg: "Ун", ru: "Мука", image: catFlour },
-  { kg: "Жашылча-жемиш", ru: "Фрукты и овощи", image: catProduce },
+// public.categories has no Kyrgyz-name column — this is a presentation-only
+// supplement for the categories the storefront already had a translation
+// for. A slug missing here just renders without the Kyrgyz line, not an
+// empty one.
+const KG_NAME_BY_SLUG: Record<string, string> = {
+  "muka-krupy": "Ун",
+  "ovoshchi-frukty": "Жашылча-жемиш",
+  masla: "Майлар",
+  napitki: "Суусундуктар",
+  sladosti: "Таттуу",
+  molochnoe: "Сүт азык",
+  myasnoe: "Эт азык",
+};
 
-  { kg: "Майлар", ru: "Масла", image: catOils },
-  { kg: "Суусундуктар", ru: "Напитки", image: catDrinks },
-  { kg: "Таттуу", ru: "Сладости", image: catSweets },
-  { kg: "Ачуу-кычкыл", ru: "Острокислое", image: catPickles },
-  { kg: "Сүт азык", ru: "Молочное", image: catDairy },
-  { kg: "Жумуртка", ru: "Яйца", image: catEggs },
-  { kg: "Эт азык", ru: "Мясное", image: catMeat },
-];
+// image_url is still empty for every seeded category (nothing's been
+// uploaded to Supabase Storage yet) — these keep the section looking the way
+// it always has until real photos are set via category-images. Any slug
+// without a specific match (e.g. a future category) falls back to catProduce
+// rather than rendering an empty card.
+const FALLBACK_IMAGE_BY_SLUG: Record<string, string> = {
+  "muka-krupy": catFlour,
+  "ovoshchi-frukty": catProduce,
+  masla: catOils,
+  napitki: catDrinks,
+  sladosti: catSweets,
+  molochnoe: catDairy,
+  myasnoe: catMeat,
+};
+const DEFAULT_FALLBACK_IMAGE = catProduce;
 
 function Home() {
   useCartSync();
@@ -66,6 +82,14 @@ function Home() {
     queryFn: ({ pageParam }) => fetchCatalogProducts(debouncedSearch, pageParam),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
+  });
+
+  // Categories change rarely — a single unpaginated fetch, cached for a
+  // while, is enough (unlike the product list above).
+  const { data: categories } = useQuery({
+    queryKey: ["categories"],
+    queryFn: listCategories,
+    staleTime: 5 * 60 * 1000,
   });
 
   const products = useMemo(() => {
@@ -149,26 +173,31 @@ function Home() {
       {/* Categories */}
       <section id="categories" className="mx-auto max-w-7xl px-6 py-16 w-full">
         <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-          {CATEGORIES.map((c) => (
-            <a
-              key={c.ru}
-              href="#products"
-              className="group rounded-2xl border border-border/60 bg-card p-5 text-center transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-card)] hover:border-primary/40"
-            >
-              <div className="aspect-square w-full overflow-hidden rounded-xl bg-secondary/40">
-                <img
-                  src={c.image}
-                  alt={c.ru}
-                  loading="lazy"
-                  width={512}
-                  height={512}
-                  className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
-                />
-              </div>
-              <div className="mt-3 font-serif text-lg text-primary">{c.kg}</div>
-              <div className="font-serif text-lg text-accent mt-0.5">{c.ru}</div>
-            </a>
-          ))}
+          {(categories ?? []).map((c) => {
+            const kgName = KG_NAME_BY_SLUG[c.slug];
+            return (
+              <a
+                key={c.id}
+                href="#products"
+                className="group rounded-2xl border border-border/60 bg-card p-5 text-center transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-card)] hover:border-primary/40"
+              >
+                <div className="aspect-square w-full overflow-hidden rounded-xl bg-secondary/40">
+                  <img
+                    src={c.imageUrl || FALLBACK_IMAGE_BY_SLUG[c.slug] || DEFAULT_FALLBACK_IMAGE}
+                    alt={c.name}
+                    loading="lazy"
+                    width={512}
+                    height={512}
+                    className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
+                  />
+                </div>
+                {kgName && <div className="mt-3 font-serif text-lg text-primary">{kgName}</div>}
+                <div className={`font-serif text-lg text-accent ${kgName ? "mt-0.5" : "mt-3"}`}>
+                  {c.name}
+                </div>
+              </a>
+            );
+          })}
         </div>
       </section>
 

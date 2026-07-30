@@ -27,6 +27,7 @@ function fakeEnv(overrides: Partial<ServerEnv> = {}): ServerEnv {
 
 const EXPECTED_KEYS: Array<keyof ServiceContainer> = [
   "catalog",
+  "categories",
   "checkout",
   "orderService",
   "adminOrderService",
