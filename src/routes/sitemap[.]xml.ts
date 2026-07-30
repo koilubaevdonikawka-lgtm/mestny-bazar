@@ -4,7 +4,7 @@ import type {} from "@tanstack/react-start";
 const BASE_URL =
   (typeof process !== "undefined" ? process.env.APP_URL : undefined) ??
   import.meta.env.VITE_APP_URL ??
-  "https://daily-goodies-shop.lovable.app";
+  "https://your-app.example.com";
 
 export const Route = createFileRoute("/sitemap.xml")({
   server: {

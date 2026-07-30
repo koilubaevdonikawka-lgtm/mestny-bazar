@@ -66,9 +66,9 @@ See [stage-1-checklist.md](./stage-1-checklist.md) and [ADR-001](./adr/ADR-001-p
 | 9     | Data migration, remove Shopify      |
 | 10    | Scale (10k+ orders/day)             |
 
-## Divergence from Lovable plan
+## Divergence from the original Lovable-generated plan
 
-`.lovable/plan.md` suggests reading catalog via Supabase RLS from the client. This architecture **rejects** that approach: Supabase Auth JWT is acceptable on the client, but **all data operations** go through `server/functions/*`.
+The original Lovable-generated project plan suggested reading catalog via Supabase RLS from the client. This architecture **rejects** that approach: Supabase Auth JWT is acceptable on the client, but **all data operations** go through `server/functions/*`.
 
 ## Environment
 

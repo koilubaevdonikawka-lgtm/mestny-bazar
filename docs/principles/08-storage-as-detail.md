@@ -12,9 +12,9 @@ Supabase (Postgres, Auth, Storage) — **деталь реализации**,
 - Маппинг `Database` row → DTO — только в адаптерах
 - `src/integrations/supabase/types.ts` не импортируется из routes/components
 
-## Отклонение от Lovable plan
+## Отклонение от исходного Lovable-плана
 
-`.lovable/plan.md` предлагает прямое чтение каталога через RLS.  
+Исходный план проекта, сгенерированный Lovable, предлагал прямое чтение каталога через RLS.  
 Этот принцип **отклоняет** такой подход.
 
 ## Auth exception
