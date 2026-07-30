@@ -25,6 +25,7 @@ import { fetchCatalogProducts } from "@/lib/catalog";
 import type { ShopifyProduct } from "@/lib/shopify";
 import { listCategories } from "@/api/category";
 import { BRAND } from "@/config/brand";
+import { CONTACT } from "@/config/contact";
 import catFlour from "@/assets/cat-flour.png";
 import catProduce from "@/assets/cat-produce.png";
 import catOils from "@/assets/cat-oils.png";
@@ -106,10 +107,6 @@ function Home() {
     return merged;
   }, [data]);
 
-  // Номер магазина в международном формате без +, 0 и пробелов (например: 996555123456)
-  const SHOP_WHATSAPP = "996700000000";
-  const SHOP_TELEGRAM = "kantbazar";
-
   const [phone, setPhone] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [addressOpen, setAddressOpen] = useState(false);
@@ -139,8 +136,8 @@ function Home() {
     const text = encodeURIComponent(buildMessage(clientPhone));
     const url =
       channel === "whatsapp"
-        ? `https://wa.me/${SHOP_WHATSAPP}?text=${text}`
-        : `https://t.me/${SHOP_TELEGRAM}?text=${text}`;
+        ? `https://wa.me/${CONTACT.whatsapp}?text=${text}`
+        : `https://t.me/${CONTACT.telegram}?text=${text}`;
     window.open(url, "_blank", "noopener,noreferrer");
     toast.success("Отправьте сообщение — мы подпишем вас на уведомления");
     setDialogOpen(false);
