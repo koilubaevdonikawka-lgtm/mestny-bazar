@@ -41,7 +41,9 @@ export interface CartDTO {
 
 export type CartLineStatus = "ok" | "price_changed" | "out_of_stock" | "not_found";
 
-export interface CartLineValidationResult extends CartLineIdentifier {
+export interface CartLineValidationResult {
+  productId: string | null;
+  productSlug: string | null;
   quantity: number;
   status: CartLineStatus;
   /** Authoritative current product data from IProductRepository — null when not_found. */

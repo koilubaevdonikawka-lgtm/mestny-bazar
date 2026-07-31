@@ -1,4 +1,5 @@
 import { getServerEnv, type ServerEnv } from "@server/config/env";
+import { CartService } from "@server/domain/cart.service";
 import { CatalogService } from "@server/domain/catalog.service";
 import { CategoryService } from "@server/domain/category.service";
 import { CheckoutService } from "@server/domain/checkout.service";
@@ -13,12 +14,14 @@ import { StubOrderEventNotifier } from "@server/adapters/notifications/stub-orde
 import { CheckoutPaymentHandler } from "@server/adapters/payment/checkout-payment.handler";
 import { FinikPaymentAdapter } from "@server/adapters/payment/finik.adapter";
 import { SupabaseAddressRepository } from "@server/adapters/supabase/address.repository";
+import { SupabaseCartRepository } from "@server/adapters/supabase/cart.repository";
 import { SupabaseCategoryRepository } from "@server/adapters/supabase/category.repository";
 import { SupabaseDeliveryZoneRepository } from "@server/adapters/supabase/delivery-zone.repository";
 import { SupabaseOrderRepository } from "@server/adapters/supabase/order.repository";
 import { SupabaseProductRepository } from "@server/adapters/supabase/product.repository";
 import { SupabaseSellerProductRepository } from "@server/adapters/supabase/seller-product.repository";
 import type { IAddressRepository } from "@server/ports/address.repository";
+import type { ICartRepository } from "@server/ports/cart.repository";
 import type { ICategoryRepository } from "@server/ports/category.repository";
 import type { ICheckoutPaymentHandler } from "@server/ports/checkout-payment.port";
 import type { IDeliveryZoneRepository } from "@server/ports/delivery-zone.repository";
@@ -90,6 +93,8 @@ import {
 export interface ServiceContainer {
   catalog: CatalogService;
   categories: CategoryService;
+  cartService: CartService;
+  carts: ICartRepository;
   checkout: CheckoutService;
   orderService: OrderService;
   adminOrderService: AdminOrderService;
@@ -135,6 +140,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const orders = new SupabaseOrderRepository();
   const sellerProducts = new SupabaseSellerProductRepository();
   const addresses = new SupabaseAddressRepository();
+  const carts = new SupabaseCartRepository();
   const zones = new SupabaseDeliveryZoneRepository();
   const categoryRepository: ICategoryRepository = new SupabaseCategoryRepository();
   const payments = new FinikPaymentAdapter();
@@ -188,6 +194,10 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const courierOrderService = new CourierOrderService(orders, orderLifecycle);
   const sellerProductService = new SellerProductService(sellerProducts, productPublication);
   const addressService = new AddressService(addresses);
+  // Reuses orderProducts (always Supabase, regardless of FEATURE_CATALOG_SOURCE) —
+  // the same product repository CheckoutService validates against, so a cart
+  // line and an order line item are validated against identical truth.
+  const cartService = new CartService(orderProducts, carts);
   const pricing = new PricingService(zones);
   const inventory = new InventoryService(orderProducts);
   const marketplaceEvents: IMarketplaceEventBus = new MarketplaceEventsService();
@@ -231,6 +241,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     orders,
     sellerProducts,
     addresses,
+    carts,
     zones,
     payments,
     notifications,
@@ -246,6 +257,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     aiOrchestrator,
     catalog: new CatalogService(catalogProducts),
     categories: new CategoryService(categoryRepository),
+    cartService,
     orderService,
     adminOrderService,
     warehouseOrderService,
