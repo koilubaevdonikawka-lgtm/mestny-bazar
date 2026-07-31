@@ -19,6 +19,8 @@ export interface OrderLifecycleContext {
   targetStatus: OrderStatus;
   actor: OrderLifecycleActor;
   reason?: string;
+  /** order.created_at (DB) — the only source of truth for time-boxed rules (e.g. customer self-cancellation). Never a client-supplied elapsed time. */
+  orderCreatedAt?: string;
 }
 
 export interface OrderLifecycleResult {

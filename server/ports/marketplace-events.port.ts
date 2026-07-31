@@ -12,6 +12,7 @@ import type {
 /** Unified marketplace events routed through Marketplace Events. */
 export type MarketplaceEvent =
   | { type: "order.created"; order: OrderDTO }
+  | { type: "order.cancelled"; order: OrderDTO; reason: string }
   | { type: "product.media.analysis.requested"; productId: string; photos: MediaAssetInput[] }
   | { type: "product.catalog.analysis.requested"; productId: string; product: CatalogProductInput }
   | { type: "ai.job.completed"; job: AIJob; result: AggregatedAIJobResult }

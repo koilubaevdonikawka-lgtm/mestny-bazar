@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { OrderLifecycleContext } from "@server/ports/order-lifecycle.port";
 import { OrderStatus } from "@shared/contracts/order";
 
@@ -156,7 +156,23 @@ describe("AdminCancelOrderRule", () => {
 
 describe("CustomerCancelOrderRule", () => {
   const rule = new CustomerCancelOrderRule();
-  const applyCtx = { reason: "customer_cancel", targetStatus: OrderStatus.CANCELLED };
+  const FROZEN_NOW = Date.parse("2026-01-01T00:02:00.000Z");
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(FROZEN_NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // Order created 1 minute before the frozen "now" — well within the 2-minute window.
+  const applyCtx = {
+    reason: "customer_cancel",
+    targetStatus: OrderStatus.CANCELLED,
+    orderCreatedAt: new Date(FROZEN_NOW - 60_000).toISOString(),
+  };
 
   it("applies only to customer_cancel -> CANCELLED", () => {
     expect(rule.applies(ctx(applyCtx))).toBe(true);
@@ -170,8 +186,8 @@ describe("CustomerCancelOrderRule", () => {
     expect(result).toMatchObject({ allowed: false, denialCode: "AUTHENTICATION_REQUIRED" });
   });
 
-  it("allows cancelling before assembly starts", () => {
-    for (const status of [OrderStatus.CREATED, OrderStatus.PAID, OrderStatus.CONFIRMED]) {
+  it("allows cancelling from CREATED or PAID, within the window", () => {
+    for (const status of [OrderStatus.CREATED, OrderStatus.PAID]) {
       const result = rule.evaluate(
         ctx({ ...applyCtx, actor: { id: "u1" }, currentStatus: status }),
       );
@@ -179,8 +195,9 @@ describe("CustomerCancelOrderRule", () => {
     }
   });
 
-  it("denies cancelling once assembly has started", () => {
+  it("denies once the order has been accepted (CONFIRMED) or gone further", () => {
     for (const status of [
+      OrderStatus.CONFIRMED,
       OrderStatus.ASSEMBLING,
       OrderStatus.READY_FOR_DELIVERY,
       OrderStatus.OUT_FOR_DELIVERY,
@@ -191,6 +208,64 @@ describe("CustomerCancelOrderRule", () => {
       );
       expect(result).toMatchObject({ allowed: false, denialCode: "ORDER_ALREADY_IN_PROGRESS" });
     }
+  });
+
+  describe("the 2-minute cancellation window", () => {
+    it("allows right at creation (0 elapsed)", () => {
+      const result = rule.evaluate(
+        ctx({
+          ...applyCtx,
+          actor: { id: "u1" },
+          orderCreatedAt: new Date(FROZEN_NOW).toISOString(),
+        }),
+      );
+      expect(result.allowed).toBe(true);
+    });
+
+    it("allows at just under 2 minutes elapsed", () => {
+      const result = rule.evaluate(
+        ctx({
+          ...applyCtx,
+          actor: { id: "u1" },
+          orderCreatedAt: new Date(FROZEN_NOW - (2 * 60 * 1000 - 1)).toISOString(),
+        }),
+      );
+      expect(result.allowed).toBe(true);
+    });
+
+    it("denies exactly at the 2-minute boundary", () => {
+      const result = rule.evaluate(
+        ctx({
+          ...applyCtx,
+          actor: { id: "u1" },
+          orderCreatedAt: new Date(FROZEN_NOW - 2 * 60 * 1000).toISOString(),
+        }),
+      );
+      expect(result).toMatchObject({ allowed: false, denialCode: "CANCELLATION_WINDOW_EXPIRED" });
+    });
+
+    it("denies once more than 2 minutes have elapsed since order.createdAt", () => {
+      const result = rule.evaluate(
+        ctx({
+          ...applyCtx,
+          actor: { id: "u1" },
+          orderCreatedAt: new Date(FROZEN_NOW - 3 * 60 * 1000).toISOString(),
+        }),
+      );
+      expect(result).toMatchObject({ allowed: false, denialCode: "CANCELLATION_WINDOW_EXPIRED" });
+    });
+
+    it("denies when orderCreatedAt is missing entirely (never trust an absent server timestamp)", () => {
+      const result = rule.evaluate(
+        ctx({
+          reason: "customer_cancel",
+          targetStatus: OrderStatus.CANCELLED,
+          actor: { id: "u1" },
+          orderCreatedAt: undefined,
+        }),
+      );
+      expect(result).toMatchObject({ allowed: false, denialCode: "CANCELLATION_WINDOW_UNKNOWN" });
+    });
   });
 });
 

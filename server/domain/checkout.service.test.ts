@@ -182,10 +182,11 @@ function buildCheckoutService(deps: {
   const orderRepo = deps.orderRepo ?? fakeOrderRepository();
   const productRepo = deps.productRepo ?? fakeProductRepository();
   const orderLifecycle = deps.orderLifecycle ?? fakeOrderLifecycle();
+  const eventBus = deps.eventBus ?? fakeEventBus();
 
-  const orderService = new OrderService(orderRepo, orderLifecycle);
   const pricing = new PricingService(deps.zoneRepo ?? fakeZoneRepository());
   const inventory = new InventoryService(productRepo);
+  const orderService = new OrderService(orderRepo, orderLifecycle, inventory, eventBus);
 
   const checkout = new CheckoutService(
     orderService,
@@ -195,7 +196,7 @@ function buildCheckoutService(deps: {
     pricing,
     inventory,
     deps.paymentHandler ?? fakePaymentHandler(),
-    deps.eventBus ?? fakeEventBus(),
+    eventBus,
     deps.paymentPolicy ?? fakePaymentPolicy(),
     orderLifecycle,
   );

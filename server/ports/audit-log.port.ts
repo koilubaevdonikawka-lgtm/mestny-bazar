@@ -1,5 +1,5 @@
 /** Marketplace actions recorded by the audit log. */
-export type AuditAction = "order.created";
+export type AuditAction = "order.created" | "order.cancelled";
 
 export interface AuditRecord {
   id: string;

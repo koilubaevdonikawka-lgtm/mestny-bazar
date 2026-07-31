@@ -188,7 +188,6 @@ export function createServices(env: ServerEnv): ServiceContainer {
     business: new BusinessStandardsService(),
   });
 
-  const orderService = new OrderService(orders, orderLifecycle);
   const adminOrderService = new AdminOrderService(orders, orderLifecycle);
   const warehouseOrderService = new WarehouseOrderService(orders, orderLifecycle);
   const courierOrderService = new CourierOrderService(orders, orderLifecycle);
@@ -202,6 +201,10 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const inventory = new InventoryService(orderProducts);
   const marketplaceEvents: IMarketplaceEventBus = new MarketplaceEventsService();
   const auditLog: IAuditLog = new SupabaseAuditLog();
+  // Customer self-cancellation releases the same reserved stock checkout took
+  // and publishes order.cancelled — needs inventory/marketplaceEvents, so
+  // this is constructed after both exist.
+  const orderService = new OrderService(orders, orderLifecycle, inventory, marketplaceEvents);
   const notificationCenter = new NotificationCenter(orderEvents, notifications);
   subscribeNotificationCenter(marketplaceEvents, notificationCenter);
   subscribeAuditLog(marketplaceEvents, auditLog);

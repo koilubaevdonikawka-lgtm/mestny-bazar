@@ -25,4 +25,25 @@ export function subscribeAuditLog(bus: IMarketplaceEventBus, auditLog: IAuditLog
       },
     });
   });
+
+  bus.subscribe("order.cancelled", async (event) => {
+    const { order, reason } = event;
+    await auditLog.append({
+      id: randomUUID(),
+      action: "order.cancelled",
+      occurredAt: new Date().toISOString(),
+      entityType: "order",
+      entityId: order.id,
+      actorId: null,
+      payload: {
+        orderNumber: order.orderNumber,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        reason,
+        total: order.total,
+        currency: order.currency,
+        itemCount: order.items.length,
+      },
+    });
+  });
 }
