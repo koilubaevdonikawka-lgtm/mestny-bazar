@@ -5,6 +5,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { OrderTimeline } from "@/components/OrderTimeline";
+import { CancelOrderButton } from "@/components/CancelOrderButton";
 import { cancelOrder, getOrder } from "@/api/orders";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
@@ -14,19 +15,26 @@ import {
   formatOrderStatus,
   formatPaymentStatus,
 } from "@shared/lib/order-display";
-import { OrderStatus } from "@shared/contracts/order";
 import { ArrowLeft, Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
-
-const CUSTOMER_CANCELLABLE_STATUSES: OrderStatus[] = [
-  OrderStatus.CREATED,
-  OrderStatus.PAID,
-  OrderStatus.CONFIRMED,
-];
 
 export const Route = createFileRoute("/orders/$id")({
   component: OrderDetailPage,
 });
+
+const CANCEL_ERROR_MESSAGES: Record<string, string> = {
+  CANCELLATION_WINDOW_EXPIRED: "Время для отмены заказа истекло",
+  ORDER_ALREADY_IN_PROGRESS: "Заказ уже приняли в обработку — отмена больше недоступна",
+};
+
+function formatCancelError(error: unknown): string {
+  if (error instanceof Error) {
+    for (const [code, message] of Object.entries(CANCEL_ERROR_MESSAGES)) {
+      if (error.message.includes(code)) return message;
+    }
+  }
+  return "Не удалось отменить заказ";
+}
 
 function OrderDetailPage() {
   const { id } = Route.useParams();
@@ -47,12 +55,16 @@ function OrderDetailPage() {
 
   const cancelMutation = useMutation({
     mutationFn: () => cancelOrder(id),
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      // Update immediately, in addition to invalidating — the order history
+      // (this page and the list) must not wait on a refetch round trip to
+      // reflect a cancellation the customer just confirmed.
+      queryClient.setQueryData(["orders", id], updated);
       queryClient.invalidateQueries({ queryKey: ["orders", id] });
       queryClient.invalidateQueries({ queryKey: ["orders", "list"] });
       toast.success("Заказ отменён");
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось отменить заказ"),
+    onError: (e) => toast.error(formatCancelError(e)),
   });
 
   const handleSignIn = async () => {
@@ -136,21 +148,13 @@ function OrderDetailPage() {
           </div>
         </div>
 
-        {CUSTOMER_CANCELLABLE_STATUSES.includes(order.status) && (
-          <div className="mt-6">
-            <Button
-              variant="outline"
-              disabled={cancelMutation.isPending}
-              onClick={() => cancelMutation.mutate()}
-            >
-              {cancelMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Отменить заказ"
-              )}
-            </Button>
-          </div>
-        )}
+        <div className="mt-6">
+          <CancelOrderButton
+            order={order}
+            isPending={cancelMutation.isPending}
+            onConfirm={() => cancelMutation.mutate()}
+          />
+        </div>
 
         <OrderTimeline order={order} />
 
