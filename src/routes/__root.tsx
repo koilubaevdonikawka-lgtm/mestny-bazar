@@ -12,6 +12,7 @@ import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
 import { BRAND } from "@/config/brand";
+import { useCartSync } from "@/hooks/useCartSync";
 
 function NotFoundComponent() {
   return (
@@ -125,6 +126,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useCartSync();
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -10,48 +10,45 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { ShoppingCart, Minus, Plus, Trash2, ExternalLink, Loader2 } from "lucide-react";
+import { ShoppingCart, Minus, Plus, Trash2, AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useCartStore } from "@/stores/cartStore";
 import { useCheckoutStore } from "@/stores/checkoutStore";
 import { createOrder } from "@/api/orders";
-import { isPlatformCheckout } from "@/config/features";
 import { supabase } from "@/integrations/supabase/client";
+import type { CartLineStatus } from "@shared/contracts/cart";
+
+const VALIDATION_MESSAGE: Record<Exclude<CartLineStatus, "ok">, string> = {
+  price_changed: "Цена изменилась",
+  out_of_stock: "Товара больше нет в наличии",
+  not_found: "Товар больше не доступен",
+};
 
 export const CartDrawer = () => {
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const {
-    items,
-    isLoading,
-    isSyncing,
-    updateQuantity,
-    removeItem,
-    getCheckoutUrl,
-    syncCart,
-    clearCart,
-  } = useCartStore();
+  const [lineWarnings, setLineWarnings] = useState<Record<string, string>>({});
+  const { items, isLoading, updateQuantity, removeItem, validateCart, clearCart } = useCartStore();
   const { address, paymentMethod, customerPhone, customerName, setCustomerName } =
     useCheckoutStore();
   const totalItems = items.reduce((s, i) => s + i.quantity, 0);
   const totalPrice = items.reduce((s, i) => s + parseFloat(i.price.amount) * i.quantity, 0);
 
   useEffect(() => {
-    if (isOpen) syncCart();
-  }, [isOpen, syncCart]);
-
-  const handleShopifyCheckout = () => {
-    const url = getCheckoutUrl();
-    if (!url) {
-      toast.error(
-        "Не удалось открыть оформление заказа. Попробуйте удалить и снова добавить товар в корзину.",
-      );
-      return;
-    }
-    window.open(url, "_blank");
-    setIsOpen(false);
-  };
+    if (!isOpen) return;
+    setLineWarnings({});
+    void validateCart().then((result) => {
+      if (!result) return;
+      const warnings: Record<string, string> = {};
+      for (const line of result.lines) {
+        if (line.status === "ok") continue;
+        const key = line.productSlug ?? line.productId ?? "";
+        warnings[key] = VALIDATION_MESSAGE[line.status];
+      }
+      setLineWarnings(warnings);
+    });
+  }, [isOpen, validateCart]);
 
   const resolveCustomerName = async (): Promise<string> => {
     if (customerName.trim().length >= 2) return customerName.trim();
@@ -68,7 +65,7 @@ export const CartDrawer = () => {
     return "Покупатель";
   };
 
-  const handlePlatformCheckout = async () => {
+  const handleCheckout = async () => {
     const { data: sessionData } = await supabase.auth.getSession();
     const isAuthenticated = !!sessionData.session?.user;
     const hasManualAddress = address.trim().length >= 5;
@@ -108,7 +105,7 @@ export const CartDrawer = () => {
         idempotencyKey: crypto.randomUUID(),
       });
 
-      clearCart();
+      await clearCart();
       useCheckoutStore.getState().reset();
       setIsOpen(false);
       await navigate({
@@ -132,15 +129,7 @@ export const CartDrawer = () => {
     }
   };
 
-  const handleCheckout = () => {
-    if (isPlatformCheckout()) {
-      void handlePlatformCheckout();
-      return;
-    }
-    handleShopifyCheckout();
-  };
-
-  const checkoutBusy = isLoading || isSyncing || isSubmitting;
+  const checkoutBusy = isLoading || isSubmitting;
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -179,58 +168,70 @@ export const CartDrawer = () => {
             <>
               <div className="flex-1 overflow-y-auto pr-2 min-h-0">
                 <div className="space-y-4">
-                  {items.map((item) => (
-                    <div key={item.variantId} className="flex gap-4 p-2 rounded-lg bg-secondary/40">
-                      <div className="w-20 h-20 bg-secondary rounded-md overflow-hidden flex-shrink-0">
-                        {item.product.node.images?.edges?.[0]?.node && (
-                          <img
-                            src={item.product.node.images.edges[0].node.url}
-                            alt={item.product.node.title}
-                            loading="lazy"
-                            className="w-full h-full object-cover"
-                          />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium truncate">{item.product.node.title}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {item.selectedOptions.map((o) => o.value).join(" • ")}
-                        </p>
-                        <p className="font-semibold mt-1">
-                          {parseFloat(item.price.amount).toFixed(2)} {item.price.currencyCode}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => removeItem(item.variantId)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                        <div className="flex items-center gap-1">
+                  {items.map((item) => {
+                    const warning = lineWarnings[item.product.node.handle];
+                    return (
+                      <div
+                        key={item.variantId}
+                        className="flex gap-4 p-2 rounded-lg bg-secondary/40"
+                      >
+                        <div className="w-20 h-20 bg-secondary rounded-md overflow-hidden flex-shrink-0">
+                          {item.product.node.images?.edges?.[0]?.node && (
+                            <img
+                              src={item.product.node.images.edges[0].node.url}
+                              alt={item.product.node.title}
+                              loading="lazy"
+                              className="w-full h-full object-cover"
+                            />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium truncate">{item.product.node.title}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {item.selectedOptions.map((o) => o.value).join(" • ")}
+                          </p>
+                          <p className="font-semibold mt-1">
+                            {parseFloat(item.price.amount).toFixed(2)} {item.price.currencyCode}
+                          </p>
+                          {warning && (
+                            <p className="mt-1 flex items-center gap-1 text-xs text-destructive">
+                              <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                              {warning}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end gap-2 flex-shrink-0">
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="icon"
                             className="h-7 w-7"
-                            onClick={() => updateQuantity(item.variantId, item.quantity - 1)}
+                            onClick={() => removeItem(item.variantId)}
                           >
-                            <Minus className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
-                          <span className="w-6 text-center text-sm">{item.quantity}</span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => updateQuantity(item.variantId, item.quantity + 1)}
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => updateQuantity(item.variantId, item.quantity - 1)}
+                            >
+                              <Minus className="h-3.5 w-3.5" />
+                            </Button>
+                            <span className="w-6 text-center text-sm">{item.quantity}</span>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => updateQuantity(item.variantId, item.quantity + 1)}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
               <div className="flex-shrink-0 space-y-4 pt-4 border-t bg-background">
@@ -249,7 +250,7 @@ export const CartDrawer = () => {
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <>
-                      <ExternalLink className="w-4 h-4 mr-2" />
+                      <ShoppingCart className="w-4 h-4 mr-2" />
                       Оформить заказ
                     </>
                   )}

@@ -16,7 +16,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { useCartSync } from "@/hooks/useCartSync";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useSearchStore } from "@/stores/searchStore";
 import { useCheckoutStore } from "@/stores/checkoutStore";
@@ -69,7 +68,6 @@ const FALLBACK_IMAGE_BY_SLUG: Record<string, string> = {
 const DEFAULT_FALLBACK_IMAGE = catProduce;
 
 function Home() {
-  useCartSync();
   const search = useSearchStore((s) => s.search);
   // Search runs server-side (the full catalog, not just the loaded page) —
   // debounce so typing doesn't fire a request per keystroke.
