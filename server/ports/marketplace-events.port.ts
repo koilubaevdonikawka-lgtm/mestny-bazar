@@ -1,6 +1,9 @@
 import type { OrderDTO } from "@shared/contracts/order";
 import type { AdminCategoryDTO } from "@shared/contracts/category-admin";
 import type { SupplyDTO } from "@shared/contracts/supplier";
+import type { CouponDTO } from "@shared/contracts/coupon";
+import type { SellerPayoutDTO } from "@shared/contracts/payout";
+import type { BannerDTO } from "@shared/contracts/banner";
 import type { AggregatedAIJobResult, AIJob } from "@server/ports/marketplace-ai.port";
 import type {
   CatalogAnalysisResult,
@@ -46,6 +49,11 @@ export type MarketplaceEvent =
   | { type: "seller.rejected"; userId: string }
   | { type: "supply.requested"; supply: SupplyDTO }
   | { type: "supply.received"; supply: SupplyDTO }
+  | { type: "coupon.created"; coupon: CouponDTO }
+  | { type: "coupon.redeemed"; coupon: CouponDTO }
+  | { type: "payout.created"; payout: SellerPayoutDTO }
+  | { type: "payout.completed"; payout: SellerPayoutDTO }
+  | { type: "content.published"; banner: BannerDTO }
   | { type: "product.media.analysis.requested"; productId: string; photos: MediaAssetInput[] }
   | { type: "product.catalog.analysis.requested"; productId: string; product: CatalogProductInput }
   | { type: "ai.job.completed"; job: AIJob; result: AggregatedAIJobResult }

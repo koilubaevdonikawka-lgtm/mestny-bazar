@@ -39,6 +39,7 @@ export const createOrderRequestSchema = z.object({
   paymentMethod: paymentMethodSchema,
   notes: z.string().trim().max(2000).optional(),
   idempotencyKey: z.string().trim().min(1).max(200),
+  couponCode: z.string().trim().min(1).max(50).optional(),
 });
 
 export const orderListParamsSchema = z

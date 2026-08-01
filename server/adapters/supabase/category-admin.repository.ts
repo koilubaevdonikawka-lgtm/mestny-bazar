@@ -10,6 +10,7 @@ interface CategoryRow {
   image_url: string | null;
   sort_order: number;
   is_active: boolean;
+  name_kg: string | null;
 }
 
 export function mapAdminCategoryRow(row: CategoryRow): AdminCategoryDTO {
@@ -21,10 +22,11 @@ export function mapAdminCategoryRow(row: CategoryRow): AdminCategoryDTO {
     imageUrl: row.image_url,
     sortOrder: row.sort_order,
     isActive: row.is_active,
+    nameKg: row.name_kg,
   };
 }
 
-const CATEGORY_SELECT = "id, name, slug, description, image_url, sort_order, is_active";
+const CATEGORY_SELECT = "id, name, slug, description, image_url, sort_order, is_active, name_kg";
 
 /** Admin-facing category repository — sees active and inactive categories, unlike SupabaseCategoryRepository. */
 export class SupabaseAdminCategoryRepository implements IAdminCategoryRepository {
@@ -59,6 +61,7 @@ export class SupabaseAdminCategoryRepository implements IAdminCategoryRepository
         image_url: data.imageUrl ?? null,
         sort_order: data.sortOrder ?? 0,
         is_active: data.isActive ?? true,
+        name_kg: data.nameKg ?? null,
       })
       .select(CATEGORY_SELECT)
       .single();
@@ -75,6 +78,7 @@ export class SupabaseAdminCategoryRepository implements IAdminCategoryRepository
       image_url?: string | null;
       sort_order?: number;
       is_active?: boolean;
+      name_kg?: string | null;
     } = {};
     if (data.name !== undefined) patch.name = data.name;
     if (data.slug !== undefined) patch.slug = data.slug;
@@ -82,6 +86,7 @@ export class SupabaseAdminCategoryRepository implements IAdminCategoryRepository
     if (data.imageUrl !== undefined) patch.image_url = data.imageUrl;
     if (data.sortOrder !== undefined) patch.sort_order = data.sortOrder;
     if (data.isActive !== undefined) patch.is_active = data.isActive;
+    if (data.nameKg !== undefined) patch.name_kg = data.nameKg;
 
     const { data: row, error } = await supabaseAdmin
       .from("categories")

@@ -4,13 +4,17 @@ import { Button } from "@/components/ui/button";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { signInWithGoogle } from "@/lib/auth";
 import {
+  Banknote,
+  BarChart3,
   Bike,
+  Image as ImageIcon,
   LayoutDashboard,
   Loader2,
   LogIn,
   Package,
   Settings,
   Store,
+  Tag,
   Tags,
   Truck,
   Users,
@@ -42,6 +46,10 @@ interface NavEntry {
     | "/admin/suppliers"
     | "/admin/users"
     | "/admin/couriers"
+    | "/admin/analytics"
+    | "/admin/finance"
+    | "/admin/marketing"
+    | "/admin/design"
     | "/admin/settings";
   icon: LucideIcon;
 }
@@ -55,13 +63,13 @@ const NAV_ENTRIES: NavEntry[] = [
   { label: "Поставщики", to: "/admin/suppliers", icon: Truck },
   { label: "Покупатели", to: "/admin/users", icon: Users },
   { label: "Курьеры", to: "/admin/couriers", icon: Bike },
-  { label: "Аналитика", icon: Package },
-  { label: "Финансы", icon: Package },
-  { label: "Маркетинг", icon: Package },
+  { label: "Аналитика", to: "/admin/analytics", icon: BarChart3 },
+  { label: "Финансы", to: "/admin/finance", icon: Banknote },
+  { label: "Маркетинг", to: "/admin/marketing", icon: Tag },
   { label: "ИИ-инструменты", icon: Package },
   { label: "Интеграции", icon: Package },
   { label: "Автоматизация", icon: Package },
-  { label: "Оформление", icon: Package },
+  { label: "Оформление", to: "/admin/design", icon: ImageIcon },
   { label: "Настройки", to: "/admin/settings", icon: Settings },
   { label: "Права доступа", icon: Package },
   { label: "Журналы событий", icon: Package },

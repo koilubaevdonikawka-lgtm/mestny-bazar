@@ -28,6 +28,8 @@ describe("mapOrderRowToDto", () => {
       payment_status: "paid" as const,
       subtotal: 100,
       delivery_fee: 20,
+      discount_amount: 0,
+      coupon_code: null,
       total: 120,
       currency: "KGS",
       customer_name: "Buyer",

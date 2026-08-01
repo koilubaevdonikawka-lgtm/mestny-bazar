@@ -9,6 +9,7 @@ function mapCategory(row: {
   description: string | null;
   image_url: string | null;
   sort_order: number;
+  name_kg: string | null;
 }): CategoryDTO {
   return {
     id: row.id,
@@ -17,10 +18,11 @@ function mapCategory(row: {
     description: row.description,
     imageUrl: row.image_url,
     sortOrder: row.sort_order,
+    nameKg: row.name_kg,
   };
 }
 
-const CATEGORY_SELECT = "id, name, slug, description, image_url, sort_order";
+const CATEGORY_SELECT = "id, name, slug, description, image_url, sort_order, name_kg";
 
 /** Supabase category repository — buyers see active categories only. */
 export class SupabaseCategoryRepository implements ICategoryRepository {

@@ -66,6 +66,8 @@ function fakeOrder(items: OrderItemDTO[]): OrderDTO {
     paymentMethod: "CASH",
     subtotal: 100,
     deliveryFee: 0,
+    discountAmount: 0,
+    couponCode: null,
     total: 100,
     currency: "KGS",
     customerName: "Buyer",

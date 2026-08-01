@@ -28,6 +28,24 @@ import { SupplyService } from "@server/domain/supply.service";
 import { UserAdminService } from "@server/domain/user-admin.service";
 import { CourierAssignmentPolicyService } from "@server/domain/courier-assignment/courier-assignment.service";
 import { LeastLoadedAvailableCourierRule } from "@server/domain/courier-assignment/rules/least-loaded-available-courier.rule";
+import { AnalyticsService } from "@server/domain/analytics.service";
+import { CommissionPolicyService } from "@server/domain/commission-policy/commission-policy.service";
+import { FlatCommissionRule } from "@server/domain/commission-policy/rules/flat-commission.rule";
+import { PayoutService } from "@server/domain/payout.service";
+import { DiscountPolicyService } from "@server/domain/discount-policy/discount-policy.service";
+import { CouponValidityRule } from "@server/domain/discount-policy/rules/coupon-validity.rule";
+import { CouponMinOrderRule } from "@server/domain/discount-policy/rules/coupon-min-order.rule";
+import { CouponDiscountAmountRule } from "@server/domain/discount-policy/rules/coupon-discount-amount.rule";
+import { CouponService } from "@server/domain/coupon.service";
+import { BannerService } from "@server/domain/banner.service";
+import { SupabaseCouponRepository } from "@server/adapters/supabase/coupon.repository";
+import { SupabasePayoutRepository } from "@server/adapters/supabase/payout.repository";
+import { SupabaseBannerRepository } from "@server/adapters/supabase/banner.repository";
+import type { ICouponRepository } from "@server/ports/coupon.repository";
+import type { IPayoutRepository } from "@server/ports/payout.repository";
+import type { IBannerRepository } from "@server/ports/banner.repository";
+import type { ICommissionPolicy } from "@server/ports/commission-policy.port";
+import type { IDiscountPolicy } from "@server/ports/discount-policy.port";
 import { ShopifyCatalogAdapter } from "@server/adapters/migration/shopify.adapter";
 import { StubNotificationAdapter } from "@server/adapters/notifications/stub-notification.adapter";
 import { StubOrderEventNotifier } from "@server/adapters/notifications/stub-order-event.notifier";
@@ -191,6 +209,15 @@ export interface ServiceContainer {
   permissionPolicy: IPermissionPolicy;
   settings: ISettingsRepository;
   settingsService: SettingsService;
+  analyticsService: AnalyticsService;
+  commissionPolicy: ICommissionPolicy;
+  payouts: IPayoutRepository;
+  payoutService: PayoutService;
+  discountPolicy: IDiscountPolicy;
+  coupons: ICouponRepository;
+  couponService: CouponService;
+  banners: IBannerRepository;
+  bannerService: BannerService;
 }
 
 let container: ServiceContainer | undefined;
@@ -222,6 +249,9 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const categoryRepository: ICategoryRepository = new SupabaseCategoryRepository();
   const adminCategories: IAdminCategoryRepository = new SupabaseAdminCategoryRepository();
   const stock: IStockRepository = new SupabaseStockRepository();
+  const coupons: ICouponRepository = new SupabaseCouponRepository();
+  const payouts: IPayoutRepository = new SupabasePayoutRepository();
+  const banners: IBannerRepository = new SupabaseBannerRepository();
   const payments = new FinikPaymentAdapter();
   const notifications = new StubNotificationAdapter();
   const orderEvents = new StubOrderEventNotifier(notifications);
@@ -281,6 +311,20 @@ export function createServices(env: ServerEnv): ServiceContainer {
     new LeastLoadedAvailableCourierRule(),
   ]);
 
+  // Commission: MVP single rule (flat rate, admin-overridable via Settings) —
+  // per-seller/per-category rates are a documented future extension (finance.md).
+  const commissionPolicy: ICommissionPolicy = new CommissionPolicyService([
+    new FlatCommissionRule(),
+  ]);
+
+  // Discount: validity guard -> min-order guard -> amount computation
+  // (marketing.md), the same ordered-chain shape as PaymentPolicyService.
+  const discountPolicy: IDiscountPolicy = new DiscountPolicyService([
+    new CouponValidityRule(),
+    new CouponMinOrderRule(),
+    new CouponDiscountAmountRule(),
+  ]);
+
   // Marketplace standards — infrastructure; publication delegates to productPublication.
   const marketplaceStandards: IMarketplaceStandards = new MarketplaceStandardsService({
     category: new CategoryStandardsService(),
@@ -301,6 +345,11 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const inventory = new InventoryService(orderProducts);
   const marketplaceEvents: IMarketplaceEventBus = new MarketplaceEventsService();
   const auditLog: IAuditLog = new SupabaseAuditLog();
+
+  const analyticsService = new AnalyticsService(orders);
+  const payoutService = new PayoutService(payouts, commissionPolicy, settingsService);
+  const couponService = new CouponService(coupons, discountPolicy, marketplaceEvents);
+  const bannerService = new BannerService(banners, marketplaceEvents);
 
   // Auto-assignment orchestrator (platform-lifecycle.md §3) — needs
   // courierStatus/orders (candidates + workload) + the policy + events.
@@ -387,6 +436,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     paymentPolicy,
     orderLifecycle,
     customerStatus,
+    couponService,
   );
 
   return {
@@ -421,6 +471,15 @@ export function createServices(env: ServerEnv): ServiceContainer {
     permissionPolicy,
     settings,
     settingsService,
+    analyticsService,
+    commissionPolicy,
+    payouts,
+    payoutService,
+    discountPolicy,
+    coupons,
+    couponService,
+    banners,
+    bannerService,
     productPublication,
     marketplaceStandards,
     marketplaceEvents,

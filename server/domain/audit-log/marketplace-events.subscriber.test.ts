@@ -13,6 +13,8 @@ function makeOrder(overrides: Partial<OrderDTO> = {}): OrderDTO {
     paymentMethod: "CASH",
     subtotal: 100,
     deliveryFee: 0,
+    discountAmount: 0,
+    couponCode: null,
     total: 100,
     currency: "KGS",
     customerName: "Buyer",
@@ -125,6 +127,7 @@ describe("subscribeAuditLog", () => {
       imageUrl: null,
       sortOrder: 0,
       isActive: true,
+      nameKg: null,
     };
 
     await bus.publish({ type: "category.created", category });

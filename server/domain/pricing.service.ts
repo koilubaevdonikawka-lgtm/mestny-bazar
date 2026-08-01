@@ -12,7 +12,8 @@ export class PricingService {
     return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   }
 
-  calculateTotal(subtotal: number, deliveryFee: number): number {
-    return subtotal + deliveryFee;
+  /** discount defaults to 0 — existing callers are unaffected (marketing.md coupon support). */
+  calculateTotal(subtotal: number, deliveryFee: number, discount = 0): number {
+    return Math.max(0, subtotal + deliveryFee - discount);
   }
 }

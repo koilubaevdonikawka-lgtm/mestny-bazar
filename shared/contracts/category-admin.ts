@@ -12,6 +12,8 @@ export interface AdminCategoryDTO {
   imageUrl: string | null;
   sortOrder: number;
   isActive: boolean;
+  /** design.md — replaces the frontend's hardcoded KG_NAME_BY_SLUG map when set. */
+  nameKg: string | null;
 }
 
 export interface CreateCategoryRequest {
@@ -21,6 +23,7 @@ export interface CreateCategoryRequest {
   imageUrl?: string | null;
   sortOrder?: number;
   isActive?: boolean;
+  nameKg?: string | null;
 }
 
 export interface UpdateCategoryRequest {
@@ -31,4 +34,5 @@ export interface UpdateCategoryRequest {
   imageUrl?: string | null;
   sortOrder?: number;
   isActive?: boolean;
+  nameKg?: string | null;
 }

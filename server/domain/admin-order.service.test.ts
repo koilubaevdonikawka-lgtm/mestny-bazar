@@ -22,6 +22,8 @@ function makeOrder(overrides: Partial<OrderDTO> = {}): OrderDTO {
     paymentMethod: "CASH",
     subtotal: 100,
     deliveryFee: 0,
+    discountAmount: 0,
+    couponCode: null,
     total: 100,
     currency: "KGS",
     customerName: "Buyer",
@@ -57,6 +59,7 @@ function fakeRepo(overrides: Partial<IOrderRepository> = {}): IOrderRepository {
     countActiveDeliveriesByCourier: vi.fn(async () => 0),
 
     listByStatusesForCourier: vi.fn(async () => []),
+    listInPeriod: vi.fn(async () => []),
     ...overrides,
   };
 }

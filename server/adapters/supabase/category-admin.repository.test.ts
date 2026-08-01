@@ -12,6 +12,7 @@ describe("mapAdminCategoryRow", () => {
         image_url: "https://example.com/dairy.jpg",
         sort_order: 1,
         is_active: true,
+        name_kg: "Сүт азыктар",
       }),
     ).toEqual({
       id: "cat-1",
@@ -21,6 +22,7 @@ describe("mapAdminCategoryRow", () => {
       imageUrl: "https://example.com/dairy.jpg",
       sortOrder: 1,
       isActive: true,
+      nameKg: "Сүт азыктар",
     });
   });
 
@@ -33,6 +35,7 @@ describe("mapAdminCategoryRow", () => {
       image_url: null,
       sort_order: 0,
       is_active: false,
+      name_kg: null,
     });
 
     expect(mapped.isActive).toBe(false);

@@ -23,7 +23,12 @@ export type AuditAction =
   | "supply.requested"
   | "supply.received"
   | "role.assigned"
-  | "role.revoked";
+  | "role.revoked"
+  | "coupon.created"
+  | "coupon.redeemed"
+  | "payout.created"
+  | "payout.completed"
+  | "content.published";
 
 export interface AuditRecord {
   id: string;

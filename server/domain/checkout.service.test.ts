@@ -3,6 +3,11 @@ import { CheckoutService } from "@server/domain/checkout.service";
 import { OrderService } from "@server/domain/order.service";
 import { PricingService } from "@server/domain/pricing.service";
 import { InventoryService } from "@server/domain/inventory.service";
+import { CouponService } from "@server/domain/coupon.service";
+import { DiscountPolicyService } from "@server/domain/discount-policy/discount-policy.service";
+import { CouponValidityRule } from "@server/domain/discount-policy/rules/coupon-validity.rule";
+import { CouponMinOrderRule } from "@server/domain/discount-policy/rules/coupon-min-order.rule";
+import { CouponDiscountAmountRule } from "@server/domain/discount-policy/rules/coupon-discount-amount.rule";
 import { InsufficientStockError } from "@server/domain/checkout.errors";
 import type { CreateOrderData, IOrderRepository } from "@server/ports/order.repository";
 import type { IProductRepository, StockReservationItem } from "@server/ports/product.repository";
@@ -13,8 +18,10 @@ import type { IMarketplaceEventBus, MarketplaceEvent } from "@server/ports/marke
 import type { IPaymentPolicy, PaymentPolicyContext } from "@server/ports/payment-policy.port";
 import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
 import type { ICustomerStatusRepository } from "@server/ports/customer-status.repository";
+import type { ICouponRepository } from "@server/ports/coupon.repository";
 import type { CreateOrderRequest, OrderDTO } from "@shared/contracts/order";
 import type { ProductDTO } from "@shared/contracts/catalog";
+import type { CouponDTO } from "@shared/contracts/coupon";
 
 const PRODUCT_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -44,6 +51,8 @@ function makeOrderDTO(overrides: Partial<OrderDTO> = {}): OrderDTO {
     paymentMethod: "ONLINE",
     subtotal: 100,
     deliveryFee: 0,
+    discountAmount: 0,
+    couponCode: null,
     total: 100,
     currency: "KGS",
     customerName: "Test Buyer",
@@ -98,6 +107,7 @@ function fakeOrderRepository(overrides: Partial<IOrderRepository> = {}): IOrderR
     countActiveDeliveriesByCourier: vi.fn(async () => 0),
 
     listByStatusesForCourier: vi.fn(async () => []),
+    listInPeriod: vi.fn(async () => []),
     ...overrides,
   };
 }
@@ -186,6 +196,20 @@ function fakeCustomerStatusRepository(
   return { isBlocked: vi.fn(async () => false), ...overrides };
 }
 
+function fakeCouponRepository(overrides: Partial<ICouponRepository> = {}): ICouponRepository {
+  return {
+    listAll: vi.fn(async () => []),
+    getById: vi.fn(async () => null),
+    getByCode: vi.fn(async () => null),
+    create: vi.fn(async (data) => ({ ...data, id: "coupon-1", usesCount: 0 }) as CouponDTO),
+    update: vi.fn(async () => {
+      throw new Error("not implemented in fake");
+    }),
+    incrementUsesCount: vi.fn(async () => {}),
+    ...overrides,
+  };
+}
+
 function buildCheckoutService(deps: {
   orderRepo?: IOrderRepository;
   productRepo?: IProductRepository;
@@ -196,6 +220,7 @@ function buildCheckoutService(deps: {
   paymentPolicy?: IPaymentPolicy;
   orderLifecycle?: IOrderLifecyclePolicy;
   customerStatus?: ICustomerStatusRepository;
+  couponRepo?: ICouponRepository;
 }) {
   const orderRepo = deps.orderRepo ?? fakeOrderRepository();
   const productRepo = deps.productRepo ?? fakeProductRepository();
@@ -205,6 +230,16 @@ function buildCheckoutService(deps: {
   const pricing = new PricingService(deps.zoneRepo ?? fakeZoneRepository());
   const inventory = new InventoryService(productRepo);
   const orderService = new OrderService(orderRepo, orderLifecycle, inventory, eventBus);
+  const discountPolicy = new DiscountPolicyService([
+    new CouponValidityRule(),
+    new CouponMinOrderRule(),
+    new CouponDiscountAmountRule(),
+  ]);
+  const coupons = new CouponService(
+    deps.couponRepo ?? fakeCouponRepository(),
+    discountPolicy,
+    eventBus,
+  );
 
   const checkout = new CheckoutService(
     orderService,
@@ -218,6 +253,7 @@ function buildCheckoutService(deps: {
     deps.paymentPolicy ?? fakePaymentPolicy(),
     orderLifecycle,
     deps.customerStatus ?? fakeCustomerStatusRepository(),
+    coupons,
   );
 
   return { checkout, orderRepo, productRepo };
@@ -281,6 +317,47 @@ describe("CheckoutService.checkout", () => {
     );
     expect(result.paymentUrl).toBe("https://pay.example/abc");
     expect(productRepo.releaseStock).not.toHaveBeenCalled();
+  });
+
+  it("applies a valid coupon: reduces the total, persists the discount, and redeems it after order creation", async () => {
+    const coupon: CouponDTO = {
+      id: "coupon-1",
+      code: "SAVE10",
+      discountType: "FIXED",
+      discountValue: 20,
+      minOrderTotal: 0,
+      maxUses: null,
+      usesCount: 0,
+      expiresAt: null,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    };
+    const couponRepo = fakeCouponRepository({
+      getByCode: vi.fn(async () => coupon),
+      getById: vi.fn(async () => coupon),
+    });
+    const orderRepo = fakeOrderRepository();
+    const eventBus = fakeEventBus();
+    const { checkout } = buildCheckoutService({ couponRepo, orderRepo, eventBus });
+
+    await checkout.checkout(null, makeRequest({ couponCode: "save10" }));
+
+    expect(orderRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ discountAmount: 20, couponCode: "SAVE10", total: 180 }),
+    );
+    expect(couponRepo.incrementUsesCount).toHaveBeenCalledWith("coupon-1");
+    expect(eventBus.publish).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "coupon.redeemed" }),
+    );
+  });
+
+  it("rejects checkout with an unknown coupon code and releases reserved stock", async () => {
+    const couponRepo = fakeCouponRepository({ getByCode: vi.fn(async () => null) });
+    const { checkout, orderRepo, productRepo } = buildCheckoutService({ couponRepo });
+
+    await expect(checkout.checkout(null, makeRequest({ couponCode: "MISSING" }))).rejects.toThrow();
+    expect(orderRepo.create).not.toHaveBeenCalled();
+    expect(productRepo.releaseStock).toHaveBeenCalledWith([{ productId: PRODUCT_ID, quantity: 2 }]);
   });
 
   it("propagates InsufficientStockError and never attempts to create an order", async () => {

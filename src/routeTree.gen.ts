@@ -27,9 +27,13 @@ import { Route as AdminSuppliersIndexRouteImport } from './routes/admin/supplier
 import { Route as AdminSettingsIndexRouteImport } from './routes/admin/settings/index'
 import { Route as AdminSellersIndexRouteImport } from './routes/admin/sellers/index'
 import { Route as AdminOrdersIndexRouteImport } from './routes/admin/orders/index'
+import { Route as AdminMarketingIndexRouteImport } from './routes/admin/marketing/index'
+import { Route as AdminFinanceIndexRouteImport } from './routes/admin/finance/index'
+import { Route as AdminDesignIndexRouteImport } from './routes/admin/design/index'
 import { Route as AdminDashboardIndexRouteImport } from './routes/admin/dashboard/index'
 import { Route as AdminCouriersIndexRouteImport } from './routes/admin/couriers/index'
 import { Route as AdminCatalogIndexRouteImport } from './routes/admin/catalog/index'
+import { Route as AdminAnalyticsIndexRouteImport } from './routes/admin/analytics/index'
 import { Route as WarehouseOrdersIdRouteImport } from './routes/warehouse/orders/$id'
 import { Route as SellerProductsIdRouteImport } from './routes/seller/products/$id'
 import { Route as CourierOrdersIdRouteImport } from './routes/courier/orders/$id'
@@ -125,6 +129,21 @@ const AdminOrdersIndexRoute = AdminOrdersIndexRouteImport.update({
   path: '/admin/orders/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminMarketingIndexRoute = AdminMarketingIndexRouteImport.update({
+  id: '/admin/marketing/',
+  path: '/admin/marketing/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminFinanceIndexRoute = AdminFinanceIndexRouteImport.update({
+  id: '/admin/finance/',
+  path: '/admin/finance/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDesignIndexRoute = AdminDesignIndexRouteImport.update({
+  id: '/admin/design/',
+  path: '/admin/design/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminDashboardIndexRoute = AdminDashboardIndexRouteImport.update({
   id: '/admin/dashboard/',
   path: '/admin/dashboard/',
@@ -138,6 +157,11 @@ const AdminCouriersIndexRoute = AdminCouriersIndexRouteImport.update({
 const AdminCatalogIndexRoute = AdminCatalogIndexRouteImport.update({
   id: '/admin/catalog/',
   path: '/admin/catalog/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAnalyticsIndexRoute = AdminAnalyticsIndexRouteImport.update({
+  id: '/admin/analytics/',
+  path: '/admin/analytics/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WarehouseOrdersIdRoute = WarehouseOrdersIdRouteImport.update({
@@ -174,9 +198,13 @@ export interface FileRoutesByFullPath {
   '/courier/orders/$id': typeof CourierOrdersIdRoute
   '/seller/products/$id': typeof SellerProductsIdRoute
   '/warehouse/orders/$id': typeof WarehouseOrdersIdRoute
+  '/admin/analytics/': typeof AdminAnalyticsIndexRoute
   '/admin/catalog/': typeof AdminCatalogIndexRoute
   '/admin/couriers/': typeof AdminCouriersIndexRoute
   '/admin/dashboard/': typeof AdminDashboardIndexRoute
+  '/admin/design/': typeof AdminDesignIndexRoute
+  '/admin/finance/': typeof AdminFinanceIndexRoute
+  '/admin/marketing/': typeof AdminMarketingIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
   '/admin/sellers/': typeof AdminSellersIndexRoute
   '/admin/settings/': typeof AdminSettingsIndexRoute
@@ -201,9 +229,13 @@ export interface FileRoutesByTo {
   '/courier/orders/$id': typeof CourierOrdersIdRoute
   '/seller/products/$id': typeof SellerProductsIdRoute
   '/warehouse/orders/$id': typeof WarehouseOrdersIdRoute
+  '/admin/analytics': typeof AdminAnalyticsIndexRoute
   '/admin/catalog': typeof AdminCatalogIndexRoute
   '/admin/couriers': typeof AdminCouriersIndexRoute
   '/admin/dashboard': typeof AdminDashboardIndexRoute
+  '/admin/design': typeof AdminDesignIndexRoute
+  '/admin/finance': typeof AdminFinanceIndexRoute
+  '/admin/marketing': typeof AdminMarketingIndexRoute
   '/admin/orders': typeof AdminOrdersIndexRoute
   '/admin/sellers': typeof AdminSellersIndexRoute
   '/admin/settings': typeof AdminSettingsIndexRoute
@@ -229,9 +261,13 @@ export interface FileRoutesById {
   '/courier/orders/$id': typeof CourierOrdersIdRoute
   '/seller/products/$id': typeof SellerProductsIdRoute
   '/warehouse/orders/$id': typeof WarehouseOrdersIdRoute
+  '/admin/analytics/': typeof AdminAnalyticsIndexRoute
   '/admin/catalog/': typeof AdminCatalogIndexRoute
   '/admin/couriers/': typeof AdminCouriersIndexRoute
   '/admin/dashboard/': typeof AdminDashboardIndexRoute
+  '/admin/design/': typeof AdminDesignIndexRoute
+  '/admin/finance/': typeof AdminFinanceIndexRoute
+  '/admin/marketing/': typeof AdminMarketingIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
   '/admin/sellers/': typeof AdminSellersIndexRoute
   '/admin/settings/': typeof AdminSettingsIndexRoute
@@ -258,9 +294,13 @@ export interface FileRouteTypes {
     | '/courier/orders/$id'
     | '/seller/products/$id'
     | '/warehouse/orders/$id'
+    | '/admin/analytics/'
     | '/admin/catalog/'
     | '/admin/couriers/'
     | '/admin/dashboard/'
+    | '/admin/design/'
+    | '/admin/finance/'
+    | '/admin/marketing/'
     | '/admin/orders/'
     | '/admin/sellers/'
     | '/admin/settings/'
@@ -285,9 +325,13 @@ export interface FileRouteTypes {
     | '/courier/orders/$id'
     | '/seller/products/$id'
     | '/warehouse/orders/$id'
+    | '/admin/analytics'
     | '/admin/catalog'
     | '/admin/couriers'
     | '/admin/dashboard'
+    | '/admin/design'
+    | '/admin/finance'
+    | '/admin/marketing'
     | '/admin/orders'
     | '/admin/sellers'
     | '/admin/settings'
@@ -312,9 +356,13 @@ export interface FileRouteTypes {
     | '/courier/orders/$id'
     | '/seller/products/$id'
     | '/warehouse/orders/$id'
+    | '/admin/analytics/'
     | '/admin/catalog/'
     | '/admin/couriers/'
     | '/admin/dashboard/'
+    | '/admin/design/'
+    | '/admin/finance/'
+    | '/admin/marketing/'
     | '/admin/orders/'
     | '/admin/sellers/'
     | '/admin/settings/'
@@ -340,9 +388,13 @@ export interface RootRouteChildren {
   CourierOrdersIdRoute: typeof CourierOrdersIdRoute
   SellerProductsIdRoute: typeof SellerProductsIdRoute
   WarehouseOrdersIdRoute: typeof WarehouseOrdersIdRoute
+  AdminAnalyticsIndexRoute: typeof AdminAnalyticsIndexRoute
   AdminCatalogIndexRoute: typeof AdminCatalogIndexRoute
   AdminCouriersIndexRoute: typeof AdminCouriersIndexRoute
   AdminDashboardIndexRoute: typeof AdminDashboardIndexRoute
+  AdminDesignIndexRoute: typeof AdminDesignIndexRoute
+  AdminFinanceIndexRoute: typeof AdminFinanceIndexRoute
+  AdminMarketingIndexRoute: typeof AdminMarketingIndexRoute
   AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute
   AdminSellersIndexRoute: typeof AdminSellersIndexRoute
   AdminSettingsIndexRoute: typeof AdminSettingsIndexRoute
@@ -483,6 +535,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminOrdersIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/marketing/': {
+      id: '/admin/marketing/'
+      path: '/admin/marketing'
+      fullPath: '/admin/marketing/'
+      preLoaderRoute: typeof AdminMarketingIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/finance/': {
+      id: '/admin/finance/'
+      path: '/admin/finance'
+      fullPath: '/admin/finance/'
+      preLoaderRoute: typeof AdminFinanceIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/design/': {
+      id: '/admin/design/'
+      path: '/admin/design'
+      fullPath: '/admin/design/'
+      preLoaderRoute: typeof AdminDesignIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/dashboard/': {
       id: '/admin/dashboard/'
       path: '/admin/dashboard'
@@ -502,6 +575,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/catalog'
       fullPath: '/admin/catalog/'
       preLoaderRoute: typeof AdminCatalogIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/analytics/': {
+      id: '/admin/analytics/'
+      path: '/admin/analytics'
+      fullPath: '/admin/analytics/'
+      preLoaderRoute: typeof AdminAnalyticsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/warehouse/orders/$id': {
@@ -548,9 +628,13 @@ const rootRouteChildren: RootRouteChildren = {
   CourierOrdersIdRoute: CourierOrdersIdRoute,
   SellerProductsIdRoute: SellerProductsIdRoute,
   WarehouseOrdersIdRoute: WarehouseOrdersIdRoute,
+  AdminAnalyticsIndexRoute: AdminAnalyticsIndexRoute,
   AdminCatalogIndexRoute: AdminCatalogIndexRoute,
   AdminCouriersIndexRoute: AdminCouriersIndexRoute,
   AdminDashboardIndexRoute: AdminDashboardIndexRoute,
+  AdminDesignIndexRoute: AdminDesignIndexRoute,
+  AdminFinanceIndexRoute: AdminFinanceIndexRoute,
+  AdminMarketingIndexRoute: AdminMarketingIndexRoute,
   AdminOrdersIndexRoute: AdminOrdersIndexRoute,
   AdminSellersIndexRoute: AdminSellersIndexRoute,
   AdminSettingsIndexRoute: AdminSettingsIndexRoute,

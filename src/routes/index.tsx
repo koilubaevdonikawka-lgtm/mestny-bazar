@@ -23,6 +23,7 @@ import { Truck, Loader2, ShoppingBasket, MessageCircle, CreditCard, Send } from 
 import { fetchCatalogProducts } from "@/lib/catalog";
 import type { ShopifyProduct } from "@/lib/shopify";
 import { listCategories } from "@/api/category";
+import { listActiveBanners } from "@/api/design";
 import { BRAND } from "@/config/brand";
 import { CONTACT } from "@/config/contact";
 import catFlour from "@/assets/cat-flour.png";
@@ -93,6 +94,15 @@ function Home() {
     queryFn: listCategories,
     staleTime: 5 * 60 * 1000,
   });
+
+  // design.md — purely additive: the Hero below only changes if an admin
+  // actually publishes an active banner; an empty result renders nothing.
+  const { data: banners } = useQuery({
+    queryKey: ["banners", "active"],
+    queryFn: listActiveBanners,
+    staleTime: 5 * 60 * 1000,
+  });
+  const banner = banners?.[0] ?? null;
 
   const products = useMemo(() => {
     const seen = new Set<string>();
@@ -166,13 +176,35 @@ function Home() {
             </Button>
           </div>
         </div>
+
+        {banner && (
+          <div className="mx-auto max-w-4xl px-6 pb-16">
+            <a
+              href={banner.linkUrl ?? "#categories"}
+              className="block overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[var(--shadow-card)] transition-transform hover:-translate-y-1"
+            >
+              {banner.imageUrl && (
+                <img
+                  src={banner.imageUrl}
+                  alt={banner.title}
+                  loading="lazy"
+                  className="w-full max-h-64 object-cover"
+                />
+              )}
+              <div className="p-6 text-center">
+                <p className="font-serif text-2xl text-accent">{banner.title}</p>
+                {banner.subtitle && <p className="mt-1 text-muted-foreground">{banner.subtitle}</p>}
+              </div>
+            </a>
+          </div>
+        )}
       </section>
 
       {/* Categories */}
       <section id="categories" className="mx-auto max-w-7xl px-6 py-16 w-full">
         <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           {(categories ?? []).map((c) => {
-            const kgName = KG_NAME_BY_SLUG[c.slug];
+            const kgName = c.nameKg ?? KG_NAME_BY_SLUG[c.slug];
             const image = c.imageUrl || FALLBACK_IMAGE_BY_SLUG[c.slug];
             return (
               <a

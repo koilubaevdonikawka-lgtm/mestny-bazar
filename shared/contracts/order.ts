@@ -35,6 +35,8 @@ export interface OrderDTO {
   paymentMethod: PaymentMethod;
   subtotal: number;
   deliveryFee: number;
+  discountAmount: number;
+  couponCode: string | null;
   total: number;
   currency: string;
   customerName: string;
@@ -74,6 +76,8 @@ export interface CreateOrderRequest {
   paymentMethod: PaymentMethod;
   notes?: string;
   idempotencyKey: string;
+  /** marketing.md — validated and applied server-side by DiscountPolicyService; never trusted as-is. */
+  couponCode?: string;
 }
 
 export interface CreateOrderResponse {

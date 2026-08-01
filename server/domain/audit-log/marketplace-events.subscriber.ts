@@ -257,4 +257,64 @@ export function subscribeAuditLog(bus: IMarketplaceEventBus, auditLog: IAuditLog
       payload: { role: event.role },
     });
   });
+
+  bus.subscribe("coupon.created", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "coupon.created",
+      occurredAt: new Date().toISOString(),
+      entityType: "coupon",
+      entityId: event.coupon.id,
+      actorId: null,
+      payload: { code: event.coupon.code, discountType: event.coupon.discountType },
+    });
+  });
+
+  bus.subscribe("coupon.redeemed", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "coupon.redeemed",
+      occurredAt: new Date().toISOString(),
+      entityType: "coupon",
+      entityId: event.coupon.id,
+      actorId: null,
+      payload: { code: event.coupon.code, usesCount: event.coupon.usesCount },
+    });
+  });
+
+  bus.subscribe("payout.created", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "payout.created",
+      occurredAt: new Date().toISOString(),
+      entityType: "payout",
+      entityId: event.payout.id,
+      actorId: null,
+      payload: { sellerId: event.payout.sellerId, payoutAmount: event.payout.payoutAmount },
+    });
+  });
+
+  bus.subscribe("payout.completed", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "payout.completed",
+      occurredAt: new Date().toISOString(),
+      entityType: "payout",
+      entityId: event.payout.id,
+      actorId: null,
+      payload: { sellerId: event.payout.sellerId, payoutAmount: event.payout.payoutAmount },
+    });
+  });
+
+  bus.subscribe("content.published", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "content.published",
+      occurredAt: new Date().toISOString(),
+      entityType: "banner",
+      entityId: event.banner.id,
+      actorId: null,
+      payload: { title: event.banner.title, isActive: event.banner.isActive },
+    });
+  });
 }

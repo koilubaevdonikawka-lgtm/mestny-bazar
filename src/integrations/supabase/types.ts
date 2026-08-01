@@ -180,6 +180,7 @@ export type Database = {
           image_url: string | null;
           is_active: boolean;
           name: string;
+          name_kg: string | null;
           slug: string;
           sort_order: number;
           updated_at: string;
@@ -191,6 +192,7 @@ export type Database = {
           image_url?: string | null;
           is_active?: boolean;
           name: string;
+          name_kg?: string | null;
           slug: string;
           sort_order?: number;
           updated_at?: string;
@@ -202,9 +204,136 @@ export type Database = {
           image_url?: string | null;
           is_active?: boolean;
           name?: string;
+          name_kg?: string | null;
           slug?: string;
           sort_order?: number;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      coupons: {
+        Row: {
+          code: string;
+          created_at: string;
+          discount_type: Database["public"]["Enums"]["coupon_discount_type"];
+          discount_value: number;
+          expires_at: string | null;
+          id: string;
+          is_active: boolean;
+          max_uses: number | null;
+          min_order_total: number;
+          updated_at: string;
+          uses_count: number;
+        };
+        Insert: {
+          code: string;
+          created_at?: string;
+          discount_type: Database["public"]["Enums"]["coupon_discount_type"];
+          discount_value: number;
+          expires_at?: string | null;
+          id?: string;
+          is_active?: boolean;
+          max_uses?: number | null;
+          min_order_total?: number;
+          updated_at?: string;
+          uses_count?: number;
+        };
+        Update: {
+          code?: string;
+          created_at?: string;
+          discount_type?: Database["public"]["Enums"]["coupon_discount_type"];
+          discount_value?: number;
+          expires_at?: string | null;
+          id?: string;
+          is_active?: boolean;
+          max_uses?: number | null;
+          min_order_total?: number;
+          updated_at?: string;
+          uses_count?: number;
+        };
+        Relationships: [];
+      };
+      banners: {
+        Row: {
+          created_at: string;
+          ends_at: string | null;
+          id: string;
+          image_url: string | null;
+          is_active: boolean;
+          link_url: string | null;
+          sort_order: number;
+          starts_at: string | null;
+          subtitle: string | null;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          ends_at?: string | null;
+          id?: string;
+          image_url?: string | null;
+          is_active?: boolean;
+          link_url?: string | null;
+          sort_order?: number;
+          starts_at?: string | null;
+          subtitle?: string | null;
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          ends_at?: string | null;
+          id?: string;
+          image_url?: string | null;
+          is_active?: boolean;
+          link_url?: string | null;
+          sort_order?: number;
+          starts_at?: string | null;
+          subtitle?: string | null;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      seller_payouts: {
+        Row: {
+          commission_amount: number;
+          commission_rate: number;
+          completed_at: string | null;
+          created_at: string;
+          gross_revenue: number;
+          id: string;
+          payout_amount: number;
+          period_end: string;
+          period_start: string;
+          seller_id: string;
+          status: Database["public"]["Enums"]["payout_status"];
+        };
+        Insert: {
+          commission_amount: number;
+          commission_rate: number;
+          completed_at?: string | null;
+          created_at?: string;
+          gross_revenue: number;
+          id?: string;
+          payout_amount: number;
+          period_end: string;
+          period_start: string;
+          seller_id: string;
+          status?: Database["public"]["Enums"]["payout_status"];
+        };
+        Update: {
+          commission_amount?: number;
+          commission_rate?: number;
+          completed_at?: string | null;
+          created_at?: string;
+          gross_revenue?: number;
+          id?: string;
+          payout_amount?: number;
+          period_end?: string;
+          period_start?: string;
+          seller_id?: string;
+          status?: Database["public"]["Enums"]["payout_status"];
         };
         Relationships: [];
       };
@@ -324,6 +453,8 @@ export type Database = {
           customer_name: string;
           customer_phone: string;
           delivery_fee: number;
+          discount_amount: number;
+          coupon_code: string | null;
           finik_payment_id: string | null;
           finik_payment_url: string | null;
           id: string;
@@ -347,6 +478,8 @@ export type Database = {
           customer_name: string;
           customer_phone: string;
           delivery_fee?: number;
+          discount_amount?: number;
+          coupon_code?: string | null;
           finik_payment_id?: string | null;
           finik_payment_url?: string | null;
           id?: string;
@@ -370,6 +503,8 @@ export type Database = {
           customer_name?: string;
           customer_phone?: string;
           delivery_fee?: number;
+          discount_amount?: number;
+          coupon_code?: string | null;
           finik_payment_id?: string | null;
           finik_payment_url?: string | null;
           id?: string;
@@ -722,6 +857,10 @@ export type Database = {
         Args: { order_data: Json; items: Json };
         Returns: string;
       };
+      increment_coupon_uses: {
+        Args: { p_coupon_id: string };
+        Returns: undefined;
+      };
       set_default_address: {
         Args: { p_user_id: string; p_address_id: string };
         Returns: undefined;
@@ -756,6 +895,8 @@ export type Database = {
       product_publication_status: "DRAFT" | "PUBLISHED" | "HIDDEN";
       seller_verification_status: "PENDING" | "VERIFIED" | "REJECTED";
       supply_status: "DRAFT" | "SENT" | "CONFIRMED" | "RECEIVED" | "CANCELLED";
+      coupon_discount_type: "PERCENTAGE" | "FIXED";
+      payout_status: "PENDING" | "COMPLETED";
     };
     CompositeTypes: {
       [_ in never]: never;

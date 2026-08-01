@@ -5,6 +5,8 @@ export interface CategoryDTO {
   description: string | null;
   imageUrl: string | null;
   sortOrder: number;
+  /** design.md — admin-editable Kyrgyz name, replaces the frontend's hardcoded KG_NAME_BY_SLUG map when set. */
+  nameKg: string | null;
 }
 
 export interface ProductDTO {

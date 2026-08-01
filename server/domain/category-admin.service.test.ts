@@ -17,6 +17,7 @@ function makeCategory(overrides: Partial<AdminCategoryDTO> = {}): AdminCategoryD
     imageUrl: null,
     sortOrder: 0,
     isActive: true,
+    nameKg: null,
     ...overrides,
   };
 }

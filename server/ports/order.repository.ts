@@ -29,6 +29,7 @@ export interface CreateOrderData extends Omit<
   paymentStatus: PaymentStatus;
   subtotal: number;
   deliveryFee: number;
+  discountAmount: number;
   total: number;
   currency: string;
 }
@@ -61,4 +62,6 @@ export interface IOrderRepository {
   countActiveDeliveriesByCourier(courierId: string): Promise<number>;
   /** Filters at the query level to only orders assigned to this courier — closes the shared-queue gap (couriers.md). */
   listByStatusesForCourier(statuses: OrderStatus[], courierId: string): Promise<OrderDTO[]>;
+  /** analytics.md — orders created within [periodStart, periodEnd], for sales aggregation. Not paginated: callers are internal aggregators, not staff-facing lists. */
+  listInPeriod(periodStart: string, periodEnd: string): Promise<OrderDTO[]>;
 }

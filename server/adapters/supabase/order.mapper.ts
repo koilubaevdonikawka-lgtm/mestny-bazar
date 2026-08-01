@@ -54,6 +54,8 @@ interface DbOrderRow {
   payment_status: OrderDTO["paymentStatus"];
   subtotal: number;
   delivery_fee: number;
+  discount_amount: number;
+  coupon_code: string | null;
   total: number;
   currency: string;
   customer_name: string;
@@ -89,6 +91,8 @@ export function mapOrderRowToDto(
     paymentMethod,
     subtotal: Number(row.subtotal),
     deliveryFee: Number(row.delivery_fee),
+    discountAmount: Number(row.discount_amount),
+    couponCode: row.coupon_code,
     total: Number(row.total),
     currency: row.currency,
     customerName: row.customer_name,

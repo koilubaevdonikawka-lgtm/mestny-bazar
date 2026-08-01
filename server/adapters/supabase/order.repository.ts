@@ -41,7 +41,7 @@ export function mergeNotes(
 }
 
 const ORDER_COLUMNS =
-  "id, order_number, status, payment_status, subtotal, delivery_fee, total, currency, customer_name, customer_phone, address_snapshot, notes, finik_payment_url, paid_at, created_at, assigned_courier_id";
+  "id, order_number, status, payment_status, subtotal, delivery_fee, discount_amount, coupon_code, total, currency, customer_name, customer_phone, address_snapshot, notes, finik_payment_url, paid_at, created_at, assigned_courier_id";
 
 /** Postgres unique_violation — see https://www.postgresql.org/docs/current/errcodes-appendix.html */
 const UNIQUE_VIOLATION = "23505";
@@ -69,6 +69,8 @@ export class SupabaseOrderRepository implements IOrderRepository {
         payment_status: data.paymentStatus,
         subtotal: data.subtotal,
         delivery_fee: data.deliveryFee,
+        discount_amount: data.discountAmount,
+        coupon_code: data.couponCode ?? null,
         total: data.total,
         currency: data.currency,
         customer_name: data.customerName,
@@ -197,6 +199,18 @@ export class SupabaseOrderRepository implements IOrderRepository {
     return this.mapOrdersWithItems(orders ?? []);
   }
 
+  async listInPeriod(periodStart: string, periodEnd: string): Promise<OrderDTO[]> {
+    const { data: orders, error } = await supabaseAdmin
+      .from("orders")
+      .select(ORDER_COLUMNS)
+      .gte("created_at", periodStart)
+      .lte("created_at", periodEnd)
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error(`Failed to list orders in period: ${error.message}`);
+    return this.mapOrdersWithItems(orders ?? []);
+  }
+
   async listByStatusesForCourier(statuses: OrderStatus[], courierId: string): Promise<OrderDTO[]> {
     if (statuses.length === 0) return [];
 
@@ -219,6 +233,8 @@ export class SupabaseOrderRepository implements IOrderRepository {
       payment_status: OrderDTO["paymentStatus"];
       subtotal: number;
       delivery_fee: number;
+      discount_amount: number;
+      coupon_code: string | null;
       total: number;
       currency: string;
       customer_name: string;

@@ -17,6 +17,7 @@ import { CheckoutValidationError, ProductNotSynchronized } from "@server/domain/
 import { InventoryService } from "@server/domain/inventory.service";
 import { OrderService } from "@server/domain/order.service";
 import { PricingService } from "@server/domain/pricing.service";
+import { CouponService } from "@server/domain/coupon.service";
 import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
 import { isUuid } from "@server/domain/shared/uuid";
 import { logger } from "@shared/observability/logger";
@@ -34,6 +35,7 @@ export class CheckoutService {
     private readonly paymentPolicy: IPaymentPolicy,
     private readonly orderLifecycle: IOrderLifecyclePolicy,
     private readonly customerStatus: ICustomerStatusRepository,
+    private readonly coupons: CouponService,
   ) {}
 
   async checkout(userId: string | null, request: CreateOrderRequest): Promise<CreateOrderResponse> {
@@ -78,10 +80,23 @@ export class CheckoutService {
         lineItems.map((item) => ({ price: item.unitPrice, quantity: item.quantity })),
       );
 
+      // Validated and computed server-side, never trusted from the client (CD-01) —
+      // marketing.md's DiscountPolicyService, invoked the same way
+      // paymentPolicy.assertCanUsePaymentMethod() already validates payment method.
+      let discountAmount = 0;
+      let appliedCouponId: string | null = null;
+      let appliedCouponCode: string | null = null;
+      if (request.couponCode) {
+        const application = await this.coupons.validateAndApply(request.couponCode, subtotal);
+        discountAmount = application.discountAmount;
+        appliedCouponId = application.coupon.id;
+        appliedCouponCode = application.coupon.code;
+      }
+
       const deliveryFee = zoneId
         ? (await this.pricing.calculateDeliveryFee(zoneId, subtotal)).fee
         : 0;
-      const total = this.pricing.calculateTotal(subtotal, deliveryFee);
+      const total = this.pricing.calculateTotal(subtotal, deliveryFee, discountAmount);
       const isBlocked = userId ? await this.customerStatus.isBlocked(userId) : false;
 
       this.paymentPolicy.assertCanUsePaymentMethod(
@@ -105,11 +120,26 @@ export class CheckoutService {
         paymentStatus: this.paymentPolicy.getInitialPaymentStatus(request.paymentMethod),
         subtotal,
         deliveryFee,
+        discountAmount,
+        couponCode: appliedCouponCode ?? undefined,
         total,
         currency,
       };
 
       order = await this.orderService.createOrder(orderData);
+
+      // Only burn a use once an order actually exists — an aborted checkout
+      // (a later failure below, or a client that never submits) must not
+      // consume the coupon. A redeem failure here must not fail an already
+      // successful checkout; it's logged for manual reconciliation instead.
+      if (appliedCouponId) {
+        await this.coupons.redeemCoupon(appliedCouponId).catch(() => {
+          logger.error("Failed to redeem coupon after successful checkout", {
+            couponId: appliedCouponId,
+            orderId: order.id,
+          });
+        });
+      }
     } catch (error) {
       await this.inventory.releaseStock(stockItems).catch(() => {
         logger.error("Failed to release reserved stock after a failed checkout", {
