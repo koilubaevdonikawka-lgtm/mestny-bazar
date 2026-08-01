@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { listWarehouseOrders } from "@/api/warehouse";
@@ -14,7 +13,7 @@ import {
   formatPaymentStatus,
 } from "@shared/lib/order-display";
 import { OrderStatus } from "@shared/contracts/order";
-import { Loader2, LogIn, Package, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Loader2, LogIn, Package, ShieldAlert } from "lucide-react";
 
 export const Route = createFileRoute("/warehouse/orders/")({
   component: WarehouseOrdersPage,
@@ -42,17 +41,17 @@ function WarehouseOrdersPage() {
 
   if (isAuthenticated === null) {
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="flex justify-center py-24">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="max-w-md mx-auto text-center py-24">
           <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
             <LogIn className="h-6 w-6 text-primary" />
@@ -63,17 +62,17 @@ function WarehouseOrdersPage() {
             Войти
           </Button>
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
   if (isLoading) {
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="flex justify-center py-24">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
@@ -86,7 +85,7 @@ function WarehouseOrdersPage() {
       message.toLowerCase().includes("authentication") || message.includes("Unauthorized");
 
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="max-w-md mx-auto text-center py-24">
           {isForbidden ? (
             <>
@@ -115,7 +114,7 @@ function WarehouseOrdersPage() {
             </>
           )}
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
@@ -125,8 +124,15 @@ function WarehouseOrdersPage() {
   const inAssembly = orders.filter((order) => order.status === OrderStatus.ASSEMBLING);
 
   return (
-    <PageShell>
+    <AdminLayout>
       <div className="mx-auto max-w-3xl px-6 py-12">
+        <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
+          <Link to="/admin">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Административная платформа
+          </Link>
+        </Button>
+
         <h1 className="font-serif text-4xl tracking-tight">Сборка заказов</h1>
         <p className="mt-2 text-muted-foreground">
           Ожидают сборки: {pendingAssembly.length} · В работе: {inAssembly.length}
@@ -172,16 +178,6 @@ function WarehouseOrdersPage() {
           </ul>
         )}
       </div>
-    </PageShell>
-  );
-}
-
-function PageShell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen flex flex-col">
-      <SiteHeader />
-      <main className="flex-1">{children}</main>
-      <SiteFooter />
-    </div>
+    </AdminLayout>
   );
 }

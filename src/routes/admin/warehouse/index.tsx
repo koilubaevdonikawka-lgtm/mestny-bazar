@@ -141,11 +141,18 @@ function AdminWarehousePage() {
           </Link>
         </Button>
 
-        <h1 className="font-serif text-4xl tracking-tight">Склад — остатки</h1>
-        <p className="mt-2 text-muted-foreground">
-          Ручная корректировка остатка и пороги предупреждения (см.{" "}
-          <code className="text-sm">docs/admin-platform/warehouse.md</code>).
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="font-serif text-4xl tracking-tight">Склад — остатки</h1>
+            <p className="mt-2 text-muted-foreground">
+              Ручная корректировка остатка и пороги предупреждения (см.{" "}
+              <code className="text-sm">docs/admin-platform/warehouse.md</code>).
+            </p>
+          </div>
+          <Button asChild variant="outline">
+            <Link to="/warehouse/orders">Очередь сборки заказов</Link>
+          </Button>
+        </div>
 
         <section className="mt-8 rounded-2xl border border-border/60 bg-card p-6">
           {!items || items.length === 0 ? (
