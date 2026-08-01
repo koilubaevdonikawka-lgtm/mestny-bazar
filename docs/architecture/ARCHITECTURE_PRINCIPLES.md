@@ -2,9 +2,16 @@
 
 **Status:** archaeological recovery, not a new specification
 **Purpose:** consolidate every architecture principle already governing «Местный Базар» into one document, with its original source cited
-**Method:** this document does not invent, merge, or rewrite anything. Every entry below is either (a) transcribed from an existing documentation source, or (b) reconstructed from a repeated, multi-file pattern in the code and explicitly marked `PARTIALLY RECOVERED` because no single authoritative rationale for it exists in writing. Where a principle could not be reconstructed at all, it is listed in §5 (Missing Principles) instead of fabricated as an entry.
+**Method:** this document does not invent, merge, or rewrite anything. Every entry below is either (a) transcribed from an existing documentation source, or (b) reconstructed from a repeated, multi-file pattern in the code and explicitly marked `PARTIALLY RECOVERED` because no single authoritative rationale for it exists in writing. Where a principle could not be reconstructed at all, it is listed in §6 (Missing Principles) instead of fabricated as an entry.
 
 Sources scanned: `docs/PROJECT_STANDARDS.md`, all 14 files in `docs/principles/`, `docs/adr/ADR-001-ports-and-adapters.md`, `docs/architecture.md`, `docs/architecture/ARCHITECTURE_POLICY.md`, `docs/architecture/ONBOARDING_BOUNDARY.md`, `docs/stage-1-checklist.md`, `docs/manual-test-scenarios.md`, the root-level audit trail (`ARCHITECTURE_AUDIT.md`, `ARCHITECTURE_AUDIT_RESOLUTION.md`, `IMPLEMENTATION_PLAN_A.md`, `analysis.md`), `eslint.config.js`, `tsconfig.json`, `server/di/container.ts`, every `server/ports/*`, `server/domain/**`, `server/adapters/**` file reachable from the composition root, and inline code comments throughout.
+
+**Revision log:**
+
+| Date | Change |
+|---|---|
+| 2026-08-01 | Document created — 41 principles recovered. |
+| 2026-08-01 | Audit pass: fixed inconsistent section numbering (`§5a` → `§5`; the summary section, previously mislabeled `§5`, is now `§6`) and all cross-references to it. Verified all 60+ file paths cited throughout the document against the current repository state — no broken references found. No new principle content added or changed by this pass; see the chat-delivered audit report for the full methodology and findings (duplicates, contradictions, formatting, link freshness). |
 
 ---
 
@@ -90,7 +97,7 @@ These are transcribed near-verbatim from their source files (originally in Russi
 
 **Rationale (as stated):** Prevent Supabase and server code from leaking into the client bundle.
 
-**Consequences:** Enforcement is real and verified in the current `eslint.config.js` (`no-restricted-imports` blocks `@supabase/supabase-js` and `@server/*`/`../server/*` patterns for `src/**`, with `src/api/**` and `src/integrations/supabase/**` explicitly exempted) — matching the documented matrix. **Known gap:** the same file has **no equivalent rule constraining imports within `server/**` itself** — nothing stops `server/domain` from importing `server/adapters` directly. This gap is independently documented as Finding F9 in `ARCHITECTURE_AUDIT.md`, named there as the root-cause mechanism that let an orphaned ~4,600-file duplicate architecture (Findings F1/F2/F3/F6) accumulate undetected before being deleted. As of this recovery, F9 remains unresolved (see §5).
+**Consequences:** Enforcement is real and verified in the current `eslint.config.js` (`no-restricted-imports` blocks `@supabase/supabase-js` and `@server/*`/`../server/*` patterns for `src/**`, with `src/api/**` and `src/integrations/supabase/**` explicitly exempted) — matching the documented matrix. **Known gap:** the same file has **no equivalent rule constraining imports within `server/**` itself** — nothing stops `server/domain` from importing `server/adapters` directly. This gap is independently documented as Finding F9 in `ARCHITECTURE_AUDIT.md`, named there as the root-cause mechanism that let an orphaned ~4,600-file duplicate architecture (Findings F1/F2/F3/F6) accumulate undetected before being deleted. As of this recovery, F9 remains unresolved (see §6).
 
 **Affected modules:** `eslint.config.js`, `tsconfig.json`, all of `src/`, `server/`.
 
@@ -228,7 +235,7 @@ Also documents per-service "knows / doesn't know" boundaries (e.g. `CheckoutServ
 
 **Rationale:** Not separately stated beyond traceability of significant decisions.
 
-**Consequences:** Only one ADR exists in the repository (`ADR-001`), despite at least one decision that, by this principle's own criteria, should have produced a second one: the deletion of the ~4,600-file orphaned second composition root (Findings F1/F2/F3/F6 in `ARCHITECTURE_AUDIT.md`) materially affected layer boundaries and was never recorded as an ADR. This is a live, self-identified gap — see §5.
+**Consequences:** Only one ADR exists in the repository (`ADR-001`), despite at least one decision that, by this principle's own criteria, should have produced a second one: the deletion of the ~4,600-file orphaned second composition root (Findings F1/F2/F3/F6 in `ARCHITECTURE_AUDIT.md`) materially affected layer boundaries and was never recorded as an ADR. This is a live, self-identified gap — see §6.
 
 **Affected modules:** `docs/adr/`.
 
@@ -478,7 +485,7 @@ This document is explicitly scoped ("данный документ не треб
 
 ---
 
-## §5a. Recovered from code patterns (no dedicated document found)
+## §5. Recovered from code patterns (no dedicated document found)
 
 Every entry in this section is marked **PARTIALLY RECOVERED**: each is reconstructed from a repeated pattern across multiple independent files plus inline comments, but no single document states the principle, its full rationale, or its boundaries the way §1–§4's sources do. The "Rationale" given is synthesized from the clearest available comment(s), not quoted from a dedicated write-up.
 
@@ -638,7 +645,7 @@ Every entry in this section is marked **PARTIALLY RECOVERED**: each is reconstru
 
 ---
 
-## §5. Summary
+## §6. Summary
 
 ### 1. Total recovered principles: **41**
 
@@ -648,12 +655,12 @@ Every entry in this section is marked **PARTIALLY RECOVERED**: each is reconstru
 | §2 ADR (ADR-001) | 1 | FULLY RECOVERED |
 | §3 `ARCHITECTURE_POLICY.md` (POL-01…POL-14) | 14 | FULLY RECOVERED (vision-status, not implementation-status) |
 | §4 `ONBOARDING_BOUNDARY.md` (OB-01) | 1 | FULLY RECOVERED (describes a not-yet-built subsystem) |
-| §5a code-derived (CD-01…CD-11) | 11 | **PARTIALLY RECOVERED** (all 11) |
+| §5 code-derived (CD-01…CD-11) | 11 | **PARTIALLY RECOVERED** (all 11) |
 | **Total** | **41** | — |
 
 ### 2. Partially recovered principles
 
-All 11 entries in §5a (`CD-01` through `CD-11`) are marked **PARTIALLY RECOVERED** — each is reconstructed from a repeated multi-file code/comment pattern rather than transcribed from a single authoritative document, so their stated "Rationale" is this recovery's best synthesis, not a verbatim quote of a design decision.
+All 11 entries in §5 (`CD-01` through `CD-11`) are marked **PARTIALLY RECOVERED** — each is reconstructed from a repeated multi-file code/comment pattern rather than transcribed from a single authoritative document, so their stated "Rationale" is this recovery's best synthesis, not a verbatim quote of a design decision.
 
 No entry in §1–§4 is marked partially recovered — each source document was complete and unambiguous in itself, even where its *content* is now stale (PL-10, PL-11) or describes a not-yet-built system (all of §3, OB-01).
 
