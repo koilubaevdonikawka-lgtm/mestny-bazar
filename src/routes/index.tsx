@@ -53,9 +53,12 @@ const KG_NAME_BY_SLUG: Record<string, string> = {
 
 // image_url is still empty for every seeded category (nothing's been
 // uploaded to Supabase Storage yet) — these keep the section looking the way
-// it always has until real photos are set via category-images. Any slug
-// without a specific match (e.g. a future category) falls back to catProduce
-// rather than rendering an empty card.
+// it always has until real photos are set via category-images. A slug with
+// no entry here (e.g. "hleb-vypechka" — seeded in the DB but never given a
+// local asset) must fall through to the "Нет фото" placeholder below, not to
+// another category's specific image: this map used to also expose a shared
+// DEFAULT_FALLBACK_IMAGE equal to catProduce, so any unmapped category
+// silently rendered as "Овощи и фрукты" instead of admitting it has no photo.
 const FALLBACK_IMAGE_BY_SLUG: Record<string, string> = {
   "muka-krupy": catFlour,
   "ovoshchi-frukty": catProduce,
@@ -65,7 +68,6 @@ const FALLBACK_IMAGE_BY_SLUG: Record<string, string> = {
   molochnoe: catDairy,
   myasnoe: catMeat,
 };
-const DEFAULT_FALLBACK_IMAGE = catProduce;
 
 function Home() {
   const search = useSearchStore((s) => s.search);
@@ -171,6 +173,7 @@ function Home() {
         <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           {(categories ?? []).map((c) => {
             const kgName = KG_NAME_BY_SLUG[c.slug];
+            const image = c.imageUrl || FALLBACK_IMAGE_BY_SLUG[c.slug];
             return (
               <a
                 key={c.id}
@@ -178,14 +181,20 @@ function Home() {
                 className="group rounded-2xl border border-border/60 bg-card p-5 text-center transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-card)] hover:border-primary/40"
               >
                 <div className="aspect-square w-full overflow-hidden rounded-xl bg-secondary/40">
-                  <img
-                    src={c.imageUrl || FALLBACK_IMAGE_BY_SLUG[c.slug] || DEFAULT_FALLBACK_IMAGE}
-                    alt={c.name}
-                    loading="lazy"
-                    width={512}
-                    height={512}
-                    className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
-                  />
+                  {image ? (
+                    <img
+                      src={image}
+                      alt={c.name}
+                      loading="lazy"
+                      width={512}
+                      height={512}
+                      className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+                      Нет фото
+                    </div>
+                  )}
                 </div>
                 {kgName && <div className="mt-3 font-serif text-lg text-primary">{kgName}</div>}
                 <div className={`font-serif text-lg text-accent ${kgName ? "mt-0.5" : "mt-3"}`}>
