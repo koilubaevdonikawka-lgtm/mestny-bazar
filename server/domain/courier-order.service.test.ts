@@ -3,6 +3,7 @@ import { CourierOrderService } from "@server/domain/courier-order.service";
 import { OrderNotFoundError } from "@server/domain/orders.errors";
 import type { IOrderRepository } from "@server/ports/order.repository";
 import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
+import type { IMarketplaceEventBus, MarketplaceEvent } from "@server/ports/marketplace-events.port";
 import type { OrderDTO } from "@shared/contracts/order";
 import { OrderStatus } from "@shared/contracts/order";
 
@@ -37,8 +38,10 @@ function fakeRepo(overrides: Partial<IOrderRepository> = {}): IOrderRepository {
     listByUser: vi.fn(async () => []),
     listAll: vi.fn(async () => ({ items: [], total: 0, page: 1, pageSize: 50, hasMore: false })),
     listByStatuses: vi.fn(async () => []),
-    updateStatus: vi.fn(async (_id, status) => makeOrder({ status })),
+    updateStatus: vi.fn(async (_id, _from, status) => makeOrder({ status })),
     updatePaymentStatus: vi.fn(async () => makeOrder()),
+    countByStatuses: vi.fn(async () => 0),
+    getTodaySummary: vi.fn(async () => ({ orderCount: 0, revenue: 0 })),
     ...overrides,
   };
 }
@@ -51,12 +54,20 @@ function fakeLifecycle(overrides: Partial<IOrderLifecyclePolicy> = {}): IOrderLi
   };
 }
 
+function fakeEventBus(overrides: Partial<IMarketplaceEventBus> = {}): IMarketplaceEventBus {
+  return {
+    publish: vi.fn(async (_event: MarketplaceEvent) => {}),
+    subscribe: vi.fn(),
+    ...overrides,
+  };
+}
+
 const courier = { id: "courier-1", roles: ["courier" as const] };
 
 describe("CourierOrderService", () => {
   it("listDeliveryOrders queries only the delivery-queue statuses", async () => {
     const repo = fakeRepo();
-    const service = new CourierOrderService(repo, fakeLifecycle());
+    const service = new CourierOrderService(repo, fakeLifecycle(), fakeEventBus());
 
     await service.listDeliveryOrders();
 
@@ -71,7 +82,7 @@ describe("CourierOrderService", () => {
   it("acceptOrder validates the transition but never mutates status", async () => {
     const repo = fakeRepo();
     const lifecycle = fakeLifecycle();
-    const service = new CourierOrderService(repo, lifecycle);
+    const service = new CourierOrderService(repo, lifecycle, fakeEventBus());
 
     await service.acceptOrder("order-1", courier);
 
@@ -86,22 +97,26 @@ describe("CourierOrderService", () => {
 
   it("acceptOrder throws OrderNotFoundError for a nonexistent order", async () => {
     const repo = fakeRepo({ getById: vi.fn(async () => null) });
-    const service = new CourierOrderService(repo, fakeLifecycle());
+    const service = new CourierOrderService(repo, fakeLifecycle(), fakeEventBus());
 
     await expect(service.acceptOrder("missing", courier)).rejects.toBeInstanceOf(
       OrderNotFoundError,
     );
   });
 
-  it("startDelivery updates status to OUT_FOR_DELIVERY once allowed", async () => {
+  it("startDelivery updates status to OUT_FOR_DELIVERY and publishes order.out_for_delivery", async () => {
     const repo = fakeRepo();
-    const service = new CourierOrderService(repo, fakeLifecycle());
+    const events = fakeEventBus();
+    const service = new CourierOrderService(repo, fakeLifecycle(), events);
 
     await service.startDelivery("order-1", courier);
     expect(repo.updateStatus).toHaveBeenCalledWith(
       "order-1",
       OrderStatus.READY_FOR_DELIVERY,
       OrderStatus.OUT_FOR_DELIVERY,
+    );
+    expect(events.publish).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "order.out_for_delivery" }),
     );
   });
 
@@ -112,21 +127,34 @@ describe("CourierOrderService", () => {
         throw new Error("denied");
       }),
     });
-    const service = new CourierOrderService(repo, lifecycle);
+    const service = new CourierOrderService(repo, lifecycle, fakeEventBus());
 
     await expect(service.markArrival("order-1", courier)).rejects.toThrow("denied");
     expect(repo.updateStatus).not.toHaveBeenCalled();
   });
 
-  it("completeDelivery updates status to DELIVERED", async () => {
+  it("markArrival publishes order.arrived once allowed", async () => {
     const repo = fakeRepo();
-    const service = new CourierOrderService(repo, fakeLifecycle());
+    const events = fakeEventBus();
+    const service = new CourierOrderService(repo, fakeLifecycle(), events);
+
+    await service.markArrival("order-1", courier);
+    expect(events.publish).toHaveBeenCalledWith(expect.objectContaining({ type: "order.arrived" }));
+  });
+
+  it("completeDelivery updates status to DELIVERED and publishes order.delivered", async () => {
+    const repo = fakeRepo();
+    const events = fakeEventBus();
+    const service = new CourierOrderService(repo, fakeLifecycle(), events);
 
     await service.completeDelivery("order-1", courier);
     expect(repo.updateStatus).toHaveBeenCalledWith(
       "order-1",
       OrderStatus.READY_FOR_DELIVERY,
       OrderStatus.DELIVERED,
+    );
+    expect(events.publish).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "order.delivered" }),
     );
   });
 });

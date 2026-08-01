@@ -292,6 +292,29 @@ export type Database = {
           },
         ];
       };
+      order_operational_cascades: {
+        Row: {
+          order_id: string;
+          triggered_at: string;
+        };
+        Insert: {
+          order_id: string;
+          triggered_at?: string;
+        };
+        Update: {
+          order_id?: string;
+          triggered_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "order_operational_cascades_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: true;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       orders: {
         Row: {
           address_snapshot: string;
@@ -402,6 +425,7 @@ export type Database = {
           id: string;
           image_url: string | null;
           is_active: boolean;
+          low_stock_threshold: number | null;
           name: string;
           price: number;
           publication_status: Database["public"]["Enums"]["product_publication_status"];
@@ -419,6 +443,7 @@ export type Database = {
           id?: string;
           image_url?: string | null;
           is_active?: boolean;
+          low_stock_threshold?: number | null;
           name: string;
           price: number;
           publication_status?: Database["public"]["Enums"]["product_publication_status"];
@@ -436,6 +461,7 @@ export type Database = {
           id?: string;
           image_url?: string | null;
           is_active?: boolean;
+          low_stock_threshold?: number | null;
           name?: string;
           price?: number;
           publication_status?: Database["public"]["Enums"]["product_publication_status"];

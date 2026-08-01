@@ -88,6 +88,8 @@ function fakeOrderRepository(overrides: Partial<IOrderRepository> = {}): IOrderR
     listByStatuses: vi.fn(async () => []),
     updateStatus: vi.fn(async () => makeOrderDTO()),
     updatePaymentStatus: vi.fn(async () => makeOrderDTO()),
+    countByStatuses: vi.fn(async () => 0),
+    getTodaySummary: vi.fn(async () => ({ orderCount: 0, revenue: 0 })),
     ...overrides,
   };
 }

@@ -1,4 +1,5 @@
 import type { OrderDTO } from "@shared/contracts/order";
+import type { AdminCategoryDTO } from "@shared/contracts/category-admin";
 import type { AggregatedAIJobResult, AIJob } from "@server/ports/marketplace-ai.port";
 import type {
   CatalogAnalysisResult,
@@ -13,6 +14,26 @@ import type {
 export type MarketplaceEvent =
   | { type: "order.created"; order: OrderDTO }
   | { type: "order.cancelled"; order: OrderDTO; reason: string }
+  /**
+   * Fired once, idempotently, when an order's 2-minute cancellation buffer
+   * has expired without the customer cancelling — the gate for the
+   * operational cascade (docs/admin-platform/platform-lifecycle.md, §3).
+   * Not the same as order.created: subscribers that act on staff-facing
+   * consequences of a new order (seller notification today; courier search,
+   * seller domain — later stages) must react to THIS event, not
+   * order.created directly.
+   */
+  | { type: "order.operational_cascade_started"; order: OrderDTO }
+  | { type: "order.confirmed"; order: OrderDTO }
+  | { type: "order.assembling_started"; order: OrderDTO }
+  | { type: "order.ready_for_delivery"; order: OrderDTO }
+  | { type: "order.out_for_delivery"; order: OrderDTO }
+  | { type: "order.arrived"; order: OrderDTO }
+  | { type: "order.delivered"; order: OrderDTO }
+  | { type: "category.created"; category: AdminCategoryDTO }
+  | { type: "category.updated"; category: AdminCategoryDTO }
+  | { type: "stock.low"; productId: string; stock: number; threshold: number }
+  | { type: "stock.depleted"; productId: string }
   | { type: "product.media.analysis.requested"; productId: string; photos: MediaAssetInput[] }
   | { type: "product.catalog.analysis.requested"; productId: string; product: CatalogProductInput }
   | { type: "ai.job.completed"; job: AIJob; result: AggregatedAIJobResult }

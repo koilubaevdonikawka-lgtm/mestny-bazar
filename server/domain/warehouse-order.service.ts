@@ -1,5 +1,6 @@
 import type { IOrderRepository } from "@server/ports/order.repository";
 import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
+import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
 import type { OrderDTO } from "@shared/contracts/order";
 import { OrderStatus } from "@shared/contracts/order";
 import type { UserRole } from "@shared/contracts/user";
@@ -20,6 +21,7 @@ export class WarehouseOrderService {
   constructor(
     private readonly orders: IOrderRepository,
     private readonly orderLifecycle: IOrderLifecyclePolicy,
+    private readonly events: IMarketplaceEventBus,
   ) {}
 
   async listAssemblyOrders(): Promise<OrderDTO[]> {
@@ -33,16 +35,25 @@ export class WarehouseOrderService {
   }
 
   async startAssembly(orderId: string, actor: WarehouseActor): Promise<OrderDTO> {
-    return this.transitionOrder(orderId, OrderStatus.ASSEMBLING, "warehouse_start_assembly", actor);
+    const order = await this.transitionOrder(
+      orderId,
+      OrderStatus.ASSEMBLING,
+      "warehouse_start_assembly",
+      actor,
+    );
+    await this.events.publish({ type: "order.assembling_started", order });
+    return order;
   }
 
   async completeAssembly(orderId: string, actor: WarehouseActor): Promise<OrderDTO> {
-    return this.transitionOrder(
+    const order = await this.transitionOrder(
       orderId,
       OrderStatus.READY_FOR_DELIVERY,
       "warehouse_complete_assembly",
       actor,
     );
+    await this.events.publish({ type: "order.ready_for_delivery", order });
+    return order;
   }
 
   private async transitionOrder(

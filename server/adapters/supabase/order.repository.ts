@@ -5,6 +5,7 @@ import type {
   OrderStatus,
   PaymentStatus,
 } from "@shared/contracts/order";
+import { OrderStatus as OrderStatusEnum } from "@shared/contracts/order";
 import type { CreateOrderData, IOrderRepository } from "@server/ports/order.repository";
 import { supabaseAdmin } from "@server/adapters/supabase/client";
 import { mapOrderRowToDto, toDbOrderStatus } from "@server/adapters/supabase/order.mapper";
@@ -285,5 +286,33 @@ export class SupabaseOrderRepository implements IOrderRepository {
     const order = await this.getById(id);
     if (!order) throw new Error(`Order ${id} not found after payment status update`);
     return order;
+  }
+
+  async countByStatuses(statuses: OrderStatus[]): Promise<number> {
+    if (statuses.length === 0) return 0;
+
+    const { count, error } = await supabaseAdmin
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .in("status", statuses.map(toDbOrderStatus));
+
+    if (error) throw new Error(`Failed to count orders: ${error.message}`);
+    return count ?? 0;
+  }
+
+  async getTodaySummary(): Promise<{ orderCount: number; revenue: number }> {
+    const startOfDay = new Date();
+    startOfDay.setUTCHours(0, 0, 0, 0);
+
+    const { data, error, count } = await supabaseAdmin
+      .from("orders")
+      .select("total", { count: "exact" })
+      .gte("created_at", startOfDay.toISOString())
+      .neq("status", toDbOrderStatus(OrderStatusEnum.CANCELLED));
+
+    if (error) throw new Error(`Failed to summarize today's orders: ${error.message}`);
+
+    const revenue = (data ?? []).reduce((sum, row) => sum + Number(row.total), 0);
+    return { orderCount: count ?? data?.length ?? 0, revenue };
   }
 }

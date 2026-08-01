@@ -2,15 +2,21 @@ import { getServerEnv, type ServerEnv } from "@server/config/env";
 import { CartService } from "@server/domain/cart.service";
 import { CatalogService } from "@server/domain/catalog.service";
 import { CategoryService } from "@server/domain/category.service";
+import { CategoryAdminService } from "@server/domain/category-admin.service";
 import { CheckoutService } from "@server/domain/checkout.service";
+import { DashboardService } from "@server/domain/dashboard.service";
 import { InventoryService } from "@server/domain/inventory.service";
 import { NotificationService } from "@server/domain/notification.service";
 import { NotificationCenter } from "@server/domain/notification-center.service";
 import { OrderService } from "@server/domain/order.service";
+import { OrderLifecycleCascadeService } from "@server/domain/order-lifecycle-cascade.service";
 import { PermissionPolicyService } from "@server/domain/permission-policy/permission-policy.service";
 import { AdminFullAccessRule } from "@server/domain/permission-policy/rules/admin-full-access.rule";
 import { PricingService } from "@server/domain/pricing.service";
 import { SettingsService } from "@server/domain/settings.service";
+import { StockAdminService } from "@server/domain/stock-admin.service";
+import { StockPolicyService } from "@server/domain/stock-policy/stock-policy.service";
+import { LowStockThresholdRule } from "@server/domain/stock-policy/rules/low-stock-threshold.rule";
 import { ShopifyCatalogAdapter } from "@server/adapters/migration/shopify.adapter";
 import { StubNotificationAdapter } from "@server/adapters/notifications/stub-notification.adapter";
 import { StubOrderEventNotifier } from "@server/adapters/notifications/stub-order-event.notifier";
@@ -19,21 +25,28 @@ import { FinikPaymentAdapter } from "@server/adapters/payment/finik.adapter";
 import { SupabaseAddressRepository } from "@server/adapters/supabase/address.repository";
 import { SupabaseCartRepository } from "@server/adapters/supabase/cart.repository";
 import { SupabaseCategoryRepository } from "@server/adapters/supabase/category.repository";
+import { SupabaseAdminCategoryRepository } from "@server/adapters/supabase/category-admin.repository";
 import { SupabaseDeliveryZoneRepository } from "@server/adapters/supabase/delivery-zone.repository";
 import { SupabaseOrderRepository } from "@server/adapters/supabase/order.repository";
+import { SupabaseOrderCascadeRepository } from "@server/adapters/supabase/order-cascade.repository";
 import { SupabaseProductRepository } from "@server/adapters/supabase/product.repository";
 import { SupabaseSellerProductRepository } from "@server/adapters/supabase/seller-product.repository";
 import { SupabaseSettingsRepository } from "@server/adapters/supabase/settings.repository";
+import { SupabaseStockRepository } from "@server/adapters/supabase/stock.repository";
 import type { IAddressRepository } from "@server/ports/address.repository";
 import type { ICartRepository } from "@server/ports/cart.repository";
 import type { ICategoryRepository } from "@server/ports/category.repository";
+import type { IAdminCategoryRepository } from "@server/ports/category-admin.repository";
 import type { ICheckoutPaymentHandler } from "@server/ports/checkout-payment.port";
 import type { IDeliveryZoneRepository } from "@server/ports/delivery-zone.repository";
 import type { IOrderEventNotifier } from "@server/ports/order-events.port";
 import type { IOrderRepository } from "@server/ports/order.repository";
+import type { IOrderCascadeRepository } from "@server/ports/order-cascade.repository";
 import type { IPermissionPolicy } from "@server/ports/permission-policy.port";
 import type { IPaymentProvider } from "@server/ports/payment.provider";
 import type { ISettingsRepository } from "@server/ports/settings.repository";
+import type { IStockRepository } from "@server/ports/stock.repository";
+import type { IStockPolicy } from "@server/ports/stock-policy.port";
 import type { INotificationProvider } from "@server/ports/notification.provider";
 import type { INotificationCenter } from "@server/ports/notification-center.port";
 import type { IProductRepository } from "@server/ports/product.repository";
@@ -99,6 +112,7 @@ import {
 export interface ServiceContainer {
   catalog: CatalogService;
   categories: CategoryService;
+  categoryAdminService: CategoryAdminService;
   cartService: CartService;
   carts: ICartRepository;
   checkout: CheckoutService;
@@ -113,9 +127,16 @@ export interface ServiceContainer {
   catalogProducts: IProductRepository;
   orderProducts: IProductRepository;
   orders: IOrderRepository;
+  orderCascades: IOrderCascadeRepository;
+  orderCascadeService: OrderLifecycleCascadeService;
   sellerProducts: ISellerProductRepository;
   addresses: IAddressRepository;
   zones: IDeliveryZoneRepository;
+  adminCategories: IAdminCategoryRepository;
+  stock: IStockRepository;
+  stockPolicy: IStockPolicy;
+  stockAdminService: StockAdminService;
+  dashboardService: DashboardService;
   payments: IPaymentProvider;
   checkoutPayment: ICheckoutPaymentHandler;
   paymentPolicy: IPaymentPolicy;
@@ -147,12 +168,15 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const catalogProducts = createProductRepository(env);
   const orderProducts = new SupabaseProductRepository();
   const orders = new SupabaseOrderRepository();
+  const orderCascades: IOrderCascadeRepository = new SupabaseOrderCascadeRepository();
   const sellerProducts = new SupabaseSellerProductRepository();
   const addresses = new SupabaseAddressRepository();
   const carts = new SupabaseCartRepository();
   const settings: ISettingsRepository = new SupabaseSettingsRepository();
   const zones = new SupabaseDeliveryZoneRepository();
   const categoryRepository: ICategoryRepository = new SupabaseCategoryRepository();
+  const adminCategories: IAdminCategoryRepository = new SupabaseAdminCategoryRepository();
+  const stock: IStockRepository = new SupabaseStockRepository();
   const payments = new FinikPaymentAdapter();
   const notifications = new StubNotificationAdapter();
   const orderEvents = new StubOrderEventNotifier(notifications);
@@ -196,6 +220,11 @@ export function createServices(env: ServerEnv): ServiceContainer {
     new AdminFullAccessRule(),
   ]);
 
+  // Stock policy: a single rule today (per-product threshold override, else
+  // the platform default) — per-category thresholds are a documented future
+  // extension (warehouse.md), not yet backed by a schema/UI.
+  const stockPolicy: IStockPolicy = new StockPolicyService([new LowStockThresholdRule()]);
+
   // Marketplace standards — infrastructure; publication delegates to productPublication.
   const marketplaceStandards: IMarketplaceStandards = new MarketplaceStandardsService({
     category: new CategoryStandardsService(),
@@ -206,10 +235,6 @@ export function createServices(env: ServerEnv): ServiceContainer {
     business: new BusinessStandardsService(),
   });
 
-  const adminOrderService = new AdminOrderService(orders, orderLifecycle);
-  const warehouseOrderService = new WarehouseOrderService(orders, orderLifecycle);
-  const courierOrderService = new CourierOrderService(orders, orderLifecycle);
-  const sellerProductService = new SellerProductService(sellerProducts, productPublication);
   const addressService = new AddressService(addresses);
   const settingsService = new SettingsService(settings);
   // Reuses orderProducts (always Supabase, regardless of FEATURE_CATALOG_SOURCE) —
@@ -220,6 +245,31 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const inventory = new InventoryService(orderProducts);
   const marketplaceEvents: IMarketplaceEventBus = new MarketplaceEventsService();
   const auditLog: IAuditLog = new SupabaseAuditLog();
+
+  // Buffer-as-gate for the operational cascade (platform-lifecycle.md, §3) —
+  // needs orderCascades (idempotency claim) + marketplaceEvents (publish),
+  // so it's constructed after both exist and before adminOrderService, which
+  // sweeps it on every staff-facing order read.
+  const orderCascadeService = new OrderLifecycleCascadeService(orderCascades, marketplaceEvents);
+
+  const adminOrderService = new AdminOrderService(
+    orders,
+    orderLifecycle,
+    orderCascadeService,
+    inventory,
+    marketplaceEvents,
+  );
+  const warehouseOrderService = new WarehouseOrderService(
+    orders,
+    orderLifecycle,
+    marketplaceEvents,
+  );
+  const courierOrderService = new CourierOrderService(orders, orderLifecycle, marketplaceEvents);
+  const sellerProductService = new SellerProductService(sellerProducts, productPublication);
+  const categoryAdminService = new CategoryAdminService(adminCategories, marketplaceEvents);
+  const stockAdminService = new StockAdminService(stock, stockPolicy, marketplaceEvents);
+  const dashboardService = new DashboardService(orders, stockAdminService);
+
   // Customer self-cancellation releases the same reserved stock checkout took
   // and publishes order.cancelled — needs inventory/marketplaceEvents, so
   // this is constructed after both exist.
@@ -261,10 +311,17 @@ export function createServices(env: ServerEnv): ServiceContainer {
     catalogProducts,
     orderProducts,
     orders,
+    orderCascades,
+    orderCascadeService,
     sellerProducts,
     addresses,
     carts,
     zones,
+    adminCategories,
+    stock,
+    stockPolicy,
+    stockAdminService,
+    dashboardService,
     payments,
     notifications,
     orderEvents,
@@ -282,6 +339,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     aiOrchestrator,
     catalog: new CatalogService(catalogProducts),
     categories: new CategoryService(categoryRepository),
+    categoryAdminService,
     cartService,
     orderService,
     adminOrderService,

@@ -3,7 +3,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { signInWithGoogle } from "@/lib/auth";
-import { Loader2, LogIn, Package, Settings } from "lucide-react";
+import { LayoutDashboard, Loader2, LogIn, Package, Settings, Tags, Warehouse } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
@@ -12,23 +12,28 @@ export const Route = createFileRoute("/admin/")({
 
 /**
  * Navigation follows docs/admin-platform/ADMIN_PLATFORM_MASTER_SPEC.md, §4
- * exactly — module list and order are not invented here. Only "Заказы" and
- * "Настройки" are wired to a real route in this stage (Stage 1); every other
+ * exactly — module list and order are not invented here. Stage 2 activates
+ * Dashboard/Каталог/Склад on top of Stage 1's Заказы/Настройки; every other
  * entry is a visible placeholder, not a broken link, matching the modules'
  * documented status (docs/admin-platform/*.md — "не реализовано"/"частично
- * реализовано"). See docs/admin-platform/IMPLEMENTATION_ORDER.md, Этап 1.
+ * реализовано"). See docs/admin-platform/IMPLEMENTATION_ORDER.md, Этап 2.
  */
 interface NavEntry {
   label: string;
-  to?: "/admin/orders" | "/admin/settings";
+  to?:
+    | "/admin/dashboard"
+    | "/admin/orders"
+    | "/admin/catalog"
+    | "/admin/warehouse"
+    | "/admin/settings";
   icon: LucideIcon;
 }
 
 const NAV_ENTRIES: NavEntry[] = [
-  { label: "Dashboard", icon: Package },
+  { label: "Dashboard", to: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Заказы", to: "/admin/orders", icon: Package },
-  { label: "Каталог", icon: Package },
-  { label: "Склад", icon: Package },
+  { label: "Каталог", to: "/admin/catalog", icon: Tags },
+  { label: "Склад", to: "/admin/warehouse", icon: Warehouse },
   { label: "Продавцы", icon: Package },
   { label: "Поставщики", icon: Package },
   { label: "Покупатели", icon: Package },

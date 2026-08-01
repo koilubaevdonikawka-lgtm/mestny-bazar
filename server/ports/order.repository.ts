@@ -51,4 +51,8 @@ export interface IOrderRepository {
    */
   updateStatus(id: string, fromStatus: OrderStatus, toStatus: OrderStatus): Promise<OrderDTO>;
   updatePaymentStatus(id: string, paymentStatus: PaymentStatus): Promise<OrderDTO>;
+  /** Count only — Dashboard KPI cards (dashboard.md), avoids fetching full order rows. */
+  countByStatuses(statuses: OrderStatus[]): Promise<number>;
+  /** Orders created since server-computed UTC midnight, excluding CANCELLED — Dashboard KPI cards. */
+  getTodaySummary(): Promise<{ orderCount: number; revenue: number }>;
 }

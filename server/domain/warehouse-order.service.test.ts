@@ -3,6 +3,7 @@ import { WarehouseOrderService } from "@server/domain/warehouse-order.service";
 import { OrderNotFoundError } from "@server/domain/orders.errors";
 import type { IOrderRepository } from "@server/ports/order.repository";
 import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
+import type { IMarketplaceEventBus, MarketplaceEvent } from "@server/ports/marketplace-events.port";
 import type { OrderDTO } from "@shared/contracts/order";
 import { OrderStatus } from "@shared/contracts/order";
 
@@ -37,8 +38,10 @@ function fakeRepo(overrides: Partial<IOrderRepository> = {}): IOrderRepository {
     listByUser: vi.fn(async () => []),
     listAll: vi.fn(async () => ({ items: [], total: 0, page: 1, pageSize: 50, hasMore: false })),
     listByStatuses: vi.fn(async () => []),
-    updateStatus: vi.fn(async (_id, status) => makeOrder({ status })),
+    updateStatus: vi.fn(async (_id, _from, status) => makeOrder({ status })),
     updatePaymentStatus: vi.fn(async () => makeOrder()),
+    countByStatuses: vi.fn(async () => 0),
+    getTodaySummary: vi.fn(async () => ({ orderCount: 0, revenue: 0 })),
     ...overrides,
   };
 }
@@ -51,12 +54,20 @@ function fakeLifecycle(overrides: Partial<IOrderLifecyclePolicy> = {}): IOrderLi
   };
 }
 
+function fakeEventBus(overrides: Partial<IMarketplaceEventBus> = {}): IMarketplaceEventBus {
+  return {
+    publish: vi.fn(async (_event: MarketplaceEvent) => {}),
+    subscribe: vi.fn(),
+    ...overrides,
+  };
+}
+
 const warehouse = { id: "warehouse-1", roles: ["warehouse" as const] };
 
 describe("WarehouseOrderService", () => {
   it("listAssemblyOrders queries only CONFIRMED and ASSEMBLING", async () => {
     const repo = fakeRepo();
-    const service = new WarehouseOrderService(repo, fakeLifecycle());
+    const service = new WarehouseOrderService(repo, fakeLifecycle(), fakeEventBus());
 
     await service.listAssemblyOrders();
 
@@ -68,15 +79,16 @@ describe("WarehouseOrderService", () => {
 
   it("getOrder throws OrderNotFoundError when the repository returns null", async () => {
     const repo = fakeRepo({ getById: vi.fn(async () => null) });
-    const service = new WarehouseOrderService(repo, fakeLifecycle());
+    const service = new WarehouseOrderService(repo, fakeLifecycle(), fakeEventBus());
 
     await expect(service.getOrder("missing")).rejects.toBeInstanceOf(OrderNotFoundError);
   });
 
-  it("startAssembly asserts warehouse_start_assembly -> ASSEMBLING", async () => {
+  it("startAssembly asserts warehouse_start_assembly -> ASSEMBLING and publishes order.assembling_started", async () => {
     const repo = fakeRepo();
     const lifecycle = fakeLifecycle();
-    const service = new WarehouseOrderService(repo, lifecycle);
+    const events = fakeEventBus();
+    const service = new WarehouseOrderService(repo, lifecycle, events);
 
     await service.startAssembly("order-1", warehouse);
 
@@ -92,6 +104,9 @@ describe("WarehouseOrderService", () => {
       OrderStatus.CONFIRMED,
       OrderStatus.ASSEMBLING,
     );
+    expect(events.publish).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "order.assembling_started" }),
+    );
   });
 
   it("completeAssembly does not update status when the lifecycle policy denies it", async () => {
@@ -101,21 +116,25 @@ describe("WarehouseOrderService", () => {
         throw new Error("denied");
       }),
     });
-    const service = new WarehouseOrderService(repo, lifecycle);
+    const service = new WarehouseOrderService(repo, lifecycle, fakeEventBus());
 
     await expect(service.completeAssembly("order-1", warehouse)).rejects.toThrow("denied");
     expect(repo.updateStatus).not.toHaveBeenCalled();
   });
 
-  it("completeAssembly updates status to READY_FOR_DELIVERY once allowed", async () => {
+  it("completeAssembly updates status to READY_FOR_DELIVERY and publishes order.ready_for_delivery", async () => {
     const repo = fakeRepo();
-    const service = new WarehouseOrderService(repo, fakeLifecycle());
+    const events = fakeEventBus();
+    const service = new WarehouseOrderService(repo, fakeLifecycle(), events);
 
     await service.completeAssembly("order-1", warehouse);
     expect(repo.updateStatus).toHaveBeenCalledWith(
       "order-1",
       OrderStatus.CONFIRMED,
       OrderStatus.READY_FOR_DELIVERY,
+    );
+    expect(events.publish).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "order.ready_for_delivery" }),
     );
   });
 });

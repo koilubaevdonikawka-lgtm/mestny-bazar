@@ -1,5 +1,6 @@
 import type { IOrderRepository } from "@server/ports/order.repository";
 import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
+import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
 import type { OrderDTO } from "@shared/contracts/order";
 import { OrderStatus } from "@shared/contracts/order";
 import type { UserRole } from "@shared/contracts/user";
@@ -21,6 +22,7 @@ export class CourierOrderService {
   constructor(
     private readonly orders: IOrderRepository,
     private readonly orderLifecycle: IOrderLifecyclePolicy,
+    private readonly events: IMarketplaceEventBus,
   ) {}
 
   async listDeliveryOrders(): Promise<OrderDTO[]> {
@@ -46,20 +48,31 @@ export class CourierOrderService {
   }
 
   async startDelivery(orderId: string, actor: CourierActor): Promise<OrderDTO> {
-    return this.transitionOrder(
+    const order = await this.transitionOrder(
       orderId,
       OrderStatus.OUT_FOR_DELIVERY,
       "courier_start_delivery",
       actor,
     );
+    await this.events.publish({ type: "order.out_for_delivery", order });
+    return order;
   }
 
   async markArrival(orderId: string, actor: CourierActor): Promise<OrderDTO> {
-    return this.transitionOrder(orderId, OrderStatus.ARRIVED, "courier_arrive", actor);
+    const order = await this.transitionOrder(orderId, OrderStatus.ARRIVED, "courier_arrive", actor);
+    await this.events.publish({ type: "order.arrived", order });
+    return order;
   }
 
   async completeDelivery(orderId: string, actor: CourierActor): Promise<OrderDTO> {
-    return this.transitionOrder(orderId, OrderStatus.DELIVERED, "courier_complete_delivery", actor);
+    const order = await this.transitionOrder(
+      orderId,
+      OrderStatus.DELIVERED,
+      "courier_complete_delivery",
+      actor,
+    );
+    await this.events.publish({ type: "order.delivered", order });
+    return order;
   }
 
   private async transitionOrder(

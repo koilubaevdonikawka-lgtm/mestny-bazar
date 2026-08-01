@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CancellationWindowBadge } from "@/components/admin/CancellationWindowBadge";
 import { listAdminOrders } from "@/api/admin";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
@@ -155,6 +156,7 @@ function AdminOrdersPage() {
                     <div className="flex flex-wrap gap-2">
                       <Badge variant="secondary">{formatOrderStatus(order.status)}</Badge>
                       <Badge variant="outline">{formatPaymentStatus(order.paymentStatus)}</Badge>
+                      <CancellationWindowBadge order={order} />
                     </div>
                   </div>
                   <p className="mt-4 font-semibold text-lg">
