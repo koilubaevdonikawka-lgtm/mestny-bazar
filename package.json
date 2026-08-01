@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "guard": "node scripts/architecture-guard.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

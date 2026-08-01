@@ -5,7 +5,7 @@
 | **Версия** | 0.1 |
 | **Статус** | План реализации — главный документ разработки |
 | **Дата последнего обновления** | 2026-08-02 |
-| **Связанные документы** | все документы `docs/admin-platform/` (см. колонку «Связанные документы» каждого этапа), [`dependency-map.md`](./dependency-map.md) |
+| **Связанные документы** | все документы `docs/admin-platform/` (см. колонку «Связанные документы» каждого этапа), [`dependency-map.md`](./dependency-map.md), [`docs/architecture/ARCHITECTURE_GUARD.md`](../architecture/ARCHITECTURE_GUARD.md) |
 | **Связанные ADR** | [ADR-001](../adr/ADR-001-ports-and-adapters.md); Этапы 3–4 порождают новые ADR-кандидаты, см. §«Связь с ADR» в [`README.md`](./README.md) |
 | **Связанные Architecture Principles** | PL-05 (Composition Root), PL-12 (Rule Engine), POL-14 (Extend, Never Replace) |
 
@@ -19,7 +19,25 @@
 
 Минимальное число крупных, максимально автономных этапов — **5**, не десятки мелких задач. «Автономный» означает: по завершении этапа платформа (включая уже существующий маркетплейс) находится в полностью рабочем состоянии. Порядок этапов следует карте зависимостей ([`dependency-map.md`](./dependency-map.md)), но группирует модули по эффективности совместной реализации, а не разбивает их по одному модулю на этап.
 
-**Каждый этап обязан:** пройти `typecheck` → `lint` → `tests` → `build` без ошибок и **завершиться отдельным commit**. Ни один этап не считается выполненным при красном статусе хотя бы одной проверки.
+**Каждый этап обязан пройти строго следующую последовательность** (начиная с Этапа 4, закрытого Промптом №009 — введение [`ARCHITECTURE_GUARD.md`](../architecture/ARCHITECTURE_GUARD.md)):
+
+```
+1. Реализация этапа
+2. typecheck
+3. lint
+4. tests
+5. build
+6. Architecture Guard (npm run guard + ручной чек-лист ARCHITECTURE_GUARD.md §3)
+      PASS → разрешён шаг 7
+      FAIL → commit запрещён; см. ARCHITECTURE_GUARD.md §4 (перечень нарушенных
+             документов/принципов/файлов и причины запрета — обязателен)
+7. git commit
+8. Обновление IMPLEMENTATION_ORDER.md
+9. Финальный отчёт
+10. Официальный сертификат закрытия этапа
+```
+
+Ни один этап не считается выполненным при красном статусе хотя бы одной проверки — включая Architecture Guard, начиная с этой ревизии равноправную с `typecheck`/`lint`/`tests`/`build`, а не дополнительную опциональную проверку.
 
 ---
 
@@ -86,7 +104,7 @@
 
 | Поле | Значение |
 |---|---|
-| **Статус этапа** | ✅ Выполнен (2026-08-02) — typecheck, lint, tests (629 passed), build пройдены; commit создан |
+| **Статус этапа** | ✅ Полностью завершён (2026-08-02) — typecheck, lint, tests (629 passed), build, Architecture Guard (PASS) пройдены; commit создан |
 | **Номер** | 4 |
 | **Название** | Аналитика, Финансы, Маркетинг, Оформление |
 | **Цель** | Дать администратору понимание динамики платформы и инструменты роста, поверх операционных данных, накопленных на Этапах 2–3 |
@@ -95,7 +113,7 @@
 | **Какие файлы будут создаваться** | `supabase/migrations/{<ts>_coupons,<ts>_seller_payouts,<ts>_category_name_kg,<ts>_banners,<ts>_orders_discount}.sql`; `shared/contracts/{coupon,payout,banner,analytics}.ts`; `shared/validation/{coupon,payout,banner,analytics}.schema.ts`; `server/ports/{coupon.repository,payout.repository,banner.repository,commission-policy.port,discount-policy.port}.ts`; `server/domain/analytics.service.ts` (+тест); `server/domain/commission-policy/*` (Rule Engine, +тест) `server/domain/discount-policy/*` (Rule Engine, +тесты правил); `server/domain/{payout,coupon,banner}.service.ts` (+errors, +тесты); `server/adapters/supabase/{coupon,payout,banner}.repository.ts` (+тесты маппера); `server/functions/{analytics,finance,marketing,design}.executor.ts`; `src/api/{analytics,finance,marketing,design}.{functions.ts,ts}`; `src/routes/admin/{analytics,finance,marketing,design}/index.tsx` |
 | **Какие модули будут создаваться** | Аналитика (read-only агрегаты по Заказам — выручка/число заказов/средний чек/топ товаров; Покупатели/Курьеры/Экспорт — отложено); Финансы (расчёт выплат продавцам и комиссии платформы через `CommissionPolicyService`; сверка с Finik заблокирована, как и задокументировано в `finance.md`); Маркетинг (купоны — CRUD + серверная валидация/расчёт скидки через `DiscountPolicyService`, встроенный в `CheckoutService`); Оформление (`categories.name_kg` — заменяет `KG_NAME_BY_SLUG`; баннеры главной страницы — новая, полностью аддитивная сущность) |
 | **Какие API будут использоваться** | Новые: `getSalesAnalyticsFn`, `getFinanceOverviewFn`/`listPayoutsFn`/`listMyPayoutsFn`/`createPayoutRunFn`/`completePayoutFn`, `listCouponsFn`/`createCouponFn`/`updateCouponFn`, `listActiveBannersFn`/`listBannersFn`/`createBannerFn`/`updateBannerFn`. Существующие: `PricingService`, `CheckoutService`, `CategoryAdminService`/`updateCategoryFn` (расширены полем `nameKg`, ранее существовали без UI-редактора `image_url`/`nameKg` — теперь есть), `PermissionPolicyService` (модули `analytics`/`finance`/`marketing`/`design` — правила `AdminFinanceScopeRule`/`AdminMarketingScopeRule` существовали с Этапа 3 без модулей, которые могли бы их использовать) |
-| **Какие проверки должны быть выполнены** | typecheck, lint, tests, build |
+| **Какие проверки должны быть выполнены** | typecheck, lint, tests, build, Architecture Guard (`npm run guard` + ручной чек-лист [`ARCHITECTURE_GUARD.md`](../architecture/ARCHITECTURE_GUARD.md) §3) |
 | **Критерии готовности** | Администратор видит динамику продаж (заказы/выручка/средний чек/топ товаров за период); купоны создаются и валидируются/применяются сервером при оформлении заказа, а не на клиенте (CD-01); выплаты продавцам считаются автоматически по формуле `валовая выручка − комиссия` (комиссия — Rule Engine, ставка по умолчанию с возможностью переопределения через Settings), без сверки с провайдером — явно помечено как заблокированное (`finik.adapter.ts` — заглушка), не обойдено суррогатным решением; кыргызские названия категорий читаются из БД (`name_kg`) с откатом на прежний хардкод, если поле не заполнено — нулевая визуальная регрессия |
 | **Commit** | Один commit по завершении этапа |
 | **Известные ограничения (честно задокументированы, не обойдены суррогатно)** | На витрине нет поля ввода кода купона — бэкенд полностью реализован и покрыт тестами (валидация, расчёт скидки, погашение), но реальный покупатель пока не может подставить купон иначе как через API; аналогичный паттерн уже применялся к некликабельным KPI-карточкам Dashboard в Этапе 2. Аналитика ограничена Заказами (выручка/число заказов/средний чек/топ товаров за период) — аналитика по Покупателям, Курьерам (время доставки) и CSV-экспорт отложены как заявленное в `analytics.md` будущее расширение; агрегация выполняется на лету по всем заказам периода без materialized views — сознательно принято на текущем масштабе платформы, точный механизм периодической агрегации `analytics.md` явно оставляет открытым инженерным решением. Финансы: сверка платежей с Finik заблокирована (интеграция не завершена); ставка комиссии — плоская (одно правило `FlatCommissionRule`), персональные/категорийные ставки — будущее расширение, как прямо разрешает `finance.md` для первого прохода. Оформление: сезонные темы и редактируемые тексты интерфейса (`design.md`) не реализованы — только баннеры и `name_kg`/`image_url` категорий, явно названные в списке файлов Этапа 4. `FALLBACK_IMAGE_BY_SLUG` в `src/routes/index.tsx` сознательно не удалён — `c.imageUrl || FALLBACK_IMAGE_BY_SLUG[c.slug]` уже был DB-first до этого этапа; реальный пробел был в отсутствии админ-UI для `image_url`, который теперь закрыт расширенной формой `/admin/catalog`. |
@@ -114,7 +132,7 @@
 | **Какие файлы будут создаваться** | `server/domain/automation-overview.service.ts`; `server/functions/{automation,integrations-status,security-overview}.executor.ts`; `src/api/{automation,integrations-status,security-overview}.{functions.ts,ts}`; `src/routes/admin/{automation,integrations,ai,security,logs}/*.tsx` |
 | **Какие модули будут создаваться** | Автоматизация (обзор событий/подписчиков); Интеграции (статус, без редактирования секретов); AI (обзор результатов анализа — при условии, что Этап 2/4 подключили хранение); Безопасность (обзор периметра); Журналы (полноценный UI поверх уже существующего `audit_log`) |
 | **Какие API будут использоваться** | Новые: `getAutomationOverviewFn`, `getIntegrationsStatusFn`, `getSecurityOverviewFn`, `listAuditLogFn`. Существующие: `IMarketplaceEventBus`, `SupabaseAuditLog`, `AIWorkerRegistry`/`AIOrchestrator` |
-| **Какие проверки должны быть выполнены** | typecheck, lint, tests, build |
+| **Какие проверки должны быть выполнены** | typecheck, lint, tests, build, Architecture Guard (`npm run guard` + ручной чек-лист [`ARCHITECTURE_GUARD.md`](../architecture/ARCHITECTURE_GUARD.md) §3) |
 | **Критерии готовности** | Ни одно значимое действие платформы не происходит «молча» (без события/записи в журнале); AI-анализ запускается на публикацию товара, не на каждый заказ; администратор видит статус безопасности и интеграций в одном месте |
 | **Commit** | Один commit по завершении этапа |
 
@@ -132,9 +150,11 @@
 
 ## Итоговое условие
 
+Начиная с закрытия Этапа 4 (Промпт №009), «Итоговое условие» включает Architecture Guard ([`docs/architecture/ARCHITECTURE_GUARD.md`](../architecture/ARCHITECTURE_GUARD.md)) как обязательный, равноправный шаг между `build` и `commit` — не дополнительную опциональную проверку:
+
 ```
 Этап N считается закрытым только при:
-  typecheck ✅  →  lint ✅  →  tests ✅  →  build ✅  →  commit
+  typecheck ✅  →  lint ✅  →  tests ✅  →  build ✅  →  Architecture Guard ✅ (PASS)  →  commit
 ```
 
-Без исключений. Этап не начинается, пока предыдущий не закрыт этим условием — это и есть смысл «максимально автономного» этапа: он не оставляет систему в состоянии, из которого нельзя откатиться или остановиться.
+Если Architecture Guard возвращает `FAIL` — commit запрещён безусловно, независимо от того, что все остальные четыре проверки зелёные (см. `ARCHITECTURE_GUARD.md`, §4). Без исключений. Этап не начинается, пока предыдущий не закрыт этим условием — это и есть смысл «максимально автономного» этапа: он не оставляет систему в состоянии, из которого нельзя откатиться или остановиться.
