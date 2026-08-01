@@ -1,10 +1,11 @@
 import type { IOrderRepository } from "@server/ports/order.repository";
 import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
 import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
+import type { ICourierStatusRepository } from "@server/ports/courier-status.repository";
 import type { OrderDTO } from "@shared/contracts/order";
 import { OrderStatus } from "@shared/contracts/order";
 import type { UserRole } from "@shared/contracts/user";
-import { OrderNotFoundError } from "@server/domain/orders.errors";
+import { ForbiddenError, OrderNotFoundError } from "@server/domain/orders.errors";
 
 export interface CourierActor {
   id: string;
@@ -23,10 +24,13 @@ export class CourierOrderService {
     private readonly orders: IOrderRepository,
     private readonly orderLifecycle: IOrderLifecyclePolicy,
     private readonly events: IMarketplaceEventBus,
+    private readonly courierStatus: ICourierStatusRepository,
   ) {}
 
-  async listDeliveryOrders(): Promise<OrderDTO[]> {
-    return this.orders.listByStatuses(DELIVERY_QUEUE_STATUSES);
+  /** Closes couriers.md's documented gap: only THIS courier's assigned orders, not the shared queue. */
+  async listDeliveryOrders(actor: CourierActor): Promise<OrderDTO[]> {
+    await this.courierStatus.touch(actor.id);
+    return this.orders.listByStatusesForCourier(DELIVERY_QUEUE_STATUSES, actor.id);
   }
 
   async getOrder(id: string): Promise<OrderDTO> {
@@ -35,8 +39,16 @@ export class CourierOrderService {
     return order;
   }
 
+  /**
+   * Auto-assignment (CourierAssignmentService, triggered from the buffer cascade) is
+   * the primary path. This remains a fallback claim for the edge case where no courier
+   * was available at cascade time — it now genuinely persists assignedCourierId
+   * instead of being a check-only no-op, and only succeeds for an order that either
+   * has no courier yet or is already assigned to this same courier.
+   */
   async acceptOrder(orderId: string, actor: CourierActor): Promise<OrderDTO> {
     const order = await this.getOrder(orderId);
+
     this.orderLifecycle.assertCanTransition({
       orderId,
       currentStatus: order.status,
@@ -44,7 +56,20 @@ export class CourierOrderService {
       actor: { id: actor.id, roles: actor.roles },
       reason: "courier_accept",
     });
-    return order;
+
+    if (order.assignedCourierId && order.assignedCourierId !== actor.id) {
+      throw new ForbiddenError("Order is already assigned to another courier");
+    }
+    if (order.assignedCourierId === actor.id) {
+      return order;
+    }
+
+    const assigned = await this.orders.assignCourier(orderId, actor.id);
+    if (assigned.assignedCourierId !== actor.id) {
+      throw new ForbiddenError("Order is already assigned to another courier");
+    }
+    await this.events.publish({ type: "courier.assigned", order: assigned, courierId: actor.id });
+    return assigned;
   }
 
   async startDelivery(orderId: string, actor: CourierActor): Promise<OrderDTO> {

@@ -55,4 +55,10 @@ export interface IOrderRepository {
   countByStatuses(statuses: OrderStatus[]): Promise<number>;
   /** Orders created since server-computed UTC midnight, excluding CANCELLED — Dashboard KPI cards. */
   getTodaySummary(): Promise<{ orderCount: number; revenue: number }>;
+  /** Persists the auto-assignment decision (couriers.md — closes the "no assignment persisted" gap). */
+  assignCourier(orderId: string, courierId: string): Promise<OrderDTO>;
+  /** Active (READY_FOR_DELIVERY/OUT_FOR_DELIVERY/ARRIVED) deliveries currently assigned to this courier — CourierAssignmentService workload input. */
+  countActiveDeliveriesByCourier(courierId: string): Promise<number>;
+  /** Filters at the query level to only orders assigned to this courier — closes the shared-queue gap (couriers.md). */
+  listByStatusesForCourier(statuses: OrderStatus[], courierId: string): Promise<OrderDTO[]>;
 }

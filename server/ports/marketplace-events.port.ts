@@ -1,5 +1,6 @@
 import type { OrderDTO } from "@shared/contracts/order";
 import type { AdminCategoryDTO } from "@shared/contracts/category-admin";
+import type { SupplyDTO } from "@shared/contracts/supplier";
 import type { AggregatedAIJobResult, AIJob } from "@server/ports/marketplace-ai.port";
 import type {
   CatalogAnalysisResult,
@@ -34,6 +35,17 @@ export type MarketplaceEvent =
   | { type: "category.updated"; category: AdminCategoryDTO }
   | { type: "stock.low"; productId: string; stock: number; threshold: number }
   | { type: "stock.depleted"; productId: string }
+  | { type: "courier.assigned"; order: OrderDTO; courierId: string }
+  | { type: "courier.status_changed"; courierId: string; isAvailable: boolean }
+  | { type: "customer.blocked"; userId: string }
+  | { type: "customer.unblocked"; userId: string }
+  | { type: "role.assigned"; userId: string; role: string }
+  | { type: "role.revoked"; userId: string; role: string }
+  | { type: "seller.registered"; userId: string }
+  | { type: "seller.verified"; userId: string }
+  | { type: "seller.rejected"; userId: string }
+  | { type: "supply.requested"; supply: SupplyDTO }
+  | { type: "supply.received"; supply: SupplyDTO }
   | { type: "product.media.analysis.requested"; productId: string; photos: MediaAssetInput[] }
   | { type: "product.catalog.analysis.requested"; productId: string; product: CatalogProductInput }
   | { type: "ai.job.completed"; job: AIJob; result: AggregatedAIJobResult }

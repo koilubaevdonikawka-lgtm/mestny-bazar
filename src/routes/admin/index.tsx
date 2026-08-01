@@ -3,7 +3,19 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { signInWithGoogle } from "@/lib/auth";
-import { LayoutDashboard, Loader2, LogIn, Package, Settings, Tags, Warehouse } from "lucide-react";
+import {
+  Bike,
+  LayoutDashboard,
+  Loader2,
+  LogIn,
+  Package,
+  Settings,
+  Store,
+  Tags,
+  Truck,
+  Users,
+  Warehouse,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
@@ -12,11 +24,12 @@ export const Route = createFileRoute("/admin/")({
 
 /**
  * Navigation follows docs/admin-platform/ADMIN_PLATFORM_MASTER_SPEC.md, §4
- * exactly — module list and order are not invented here. Stage 2 activates
- * Dashboard/Каталог/Склад on top of Stage 1's Заказы/Настройки; every other
- * entry is a visible placeholder, not a broken link, matching the modules'
- * documented status (docs/admin-platform/*.md — "не реализовано"/"частично
- * реализовано"). See docs/admin-platform/IMPLEMENTATION_ORDER.md, Этап 2.
+ * exactly — module list and order are not invented here. Stage 3 activates
+ * Продавцы/Поставщики/Покупатели(Пользователи)/Курьеры on top of Stages 1-2's
+ * Dashboard/Заказы/Каталог/Склад/Настройки; every other entry is a visible
+ * placeholder, not a broken link, matching the modules' documented status
+ * (docs/admin-platform/*.md — "не реализовано"/"частично реализовано"). See
+ * docs/admin-platform/IMPLEMENTATION_ORDER.md, Этап 3.
  */
 interface NavEntry {
   label: string;
@@ -25,6 +38,10 @@ interface NavEntry {
     | "/admin/orders"
     | "/admin/catalog"
     | "/admin/warehouse"
+    | "/admin/sellers"
+    | "/admin/suppliers"
+    | "/admin/users"
+    | "/admin/couriers"
     | "/admin/settings";
   icon: LucideIcon;
 }
@@ -34,10 +51,10 @@ const NAV_ENTRIES: NavEntry[] = [
   { label: "Заказы", to: "/admin/orders", icon: Package },
   { label: "Каталог", to: "/admin/catalog", icon: Tags },
   { label: "Склад", to: "/admin/warehouse", icon: Warehouse },
-  { label: "Продавцы", icon: Package },
-  { label: "Поставщики", icon: Package },
-  { label: "Покупатели", icon: Package },
-  { label: "Курьеры", icon: Package },
+  { label: "Продавцы", to: "/admin/sellers", icon: Store },
+  { label: "Поставщики", to: "/admin/suppliers", icon: Truck },
+  { label: "Покупатели", to: "/admin/users", icon: Users },
+  { label: "Курьеры", to: "/admin/couriers", icon: Bike },
   { label: "Аналитика", icon: Package },
   { label: "Финансы", icon: Package },
   { label: "Маркетинг", icon: Package },

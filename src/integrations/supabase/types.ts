@@ -318,6 +318,7 @@ export type Database = {
       orders: {
         Row: {
           address_snapshot: string;
+          assigned_courier_id: string | null;
           created_at: string;
           currency: string;
           customer_name: string;
@@ -340,6 +341,7 @@ export type Database = {
         };
         Insert: {
           address_snapshot: string;
+          assigned_courier_id?: string | null;
           created_at?: string;
           currency?: string;
           customer_name: string;
@@ -362,6 +364,7 @@ export type Database = {
         };
         Update: {
           address_snapshot?: string;
+          assigned_courier_id?: string | null;
           created_at?: string;
           currency?: string;
           customer_name?: string;
@@ -486,6 +489,7 @@ export type Database = {
           created_at: string;
           full_name: string | null;
           id: string;
+          is_blocked: boolean;
           phone: string | null;
           updated_at: string;
         };
@@ -493,6 +497,7 @@ export type Database = {
           created_at?: string;
           full_name?: string | null;
           id: string;
+          is_blocked?: boolean;
           phone?: string | null;
           updated_at?: string;
         };
@@ -500,6 +505,7 @@ export type Database = {
           created_at?: string;
           full_name?: string | null;
           id?: string;
+          is_blocked?: boolean;
           phone?: string | null;
           updated_at?: string;
         };
@@ -523,6 +529,179 @@ export type Database = {
           id?: string;
           role?: Database["public"]["Enums"]["app_role"];
           user_id?: string;
+        };
+        Relationships: [];
+      };
+      admin_scopes: {
+        Row: {
+          created_at: string;
+          scope: Database["public"]["Enums"]["admin_scope"];
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          scope: Database["public"]["Enums"]["admin_scope"];
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          scope?: Database["public"]["Enums"]["admin_scope"];
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      seller_profiles: {
+        Row: {
+          contact_phone: string | null;
+          created_at: string;
+          payout_details: string | null;
+          store_name: string;
+          updated_at: string;
+          user_id: string;
+          verification_status: Database["public"]["Enums"]["seller_verification_status"];
+        };
+        Insert: {
+          contact_phone?: string | null;
+          created_at?: string;
+          payout_details?: string | null;
+          store_name: string;
+          updated_at?: string;
+          user_id: string;
+          verification_status?: Database["public"]["Enums"]["seller_verification_status"];
+        };
+        Update: {
+          contact_phone?: string | null;
+          created_at?: string;
+          payout_details?: string | null;
+          store_name?: string;
+          updated_at?: string;
+          user_id?: string;
+          verification_status?: Database["public"]["Enums"]["seller_verification_status"];
+        };
+        Relationships: [];
+      };
+      suppliers: {
+        Row: {
+          contact_person: string | null;
+          contact_phone: string | null;
+          created_at: string;
+          id: string;
+          is_active: boolean;
+          name: string;
+          notes: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          contact_person?: string | null;
+          contact_phone?: string | null;
+          created_at?: string;
+          id?: string;
+          is_active?: boolean;
+          name: string;
+          notes?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          contact_person?: string | null;
+          contact_phone?: string | null;
+          created_at?: string;
+          id?: string;
+          is_active?: boolean;
+          name?: string;
+          notes?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      supplies: {
+        Row: {
+          created_at: string;
+          expected_at: string | null;
+          id: string;
+          status: Database["public"]["Enums"]["supply_status"];
+          supplier_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          expected_at?: string | null;
+          id?: string;
+          status?: Database["public"]["Enums"]["supply_status"];
+          supplier_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          expected_at?: string | null;
+          id?: string;
+          status?: Database["public"]["Enums"]["supply_status"];
+          supplier_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "supplies_supplier_id_fkey";
+            columns: ["supplier_id"];
+            isOneToOne: false;
+            referencedRelation: "suppliers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      supply_items: {
+        Row: {
+          id: string;
+          product_id: string;
+          purchase_price: number;
+          quantity: number;
+          supply_id: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          purchase_price: number;
+          quantity: number;
+          supply_id: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          purchase_price?: number;
+          quantity?: number;
+          supply_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "supply_items_supply_id_fkey";
+            columns: ["supply_id"];
+            isOneToOne: false;
+            referencedRelation: "supplies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "supply_items_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      courier_status: {
+        Row: {
+          courier_id: string;
+          is_available: boolean;
+          last_seen_at: string;
+        };
+        Insert: {
+          courier_id: string;
+          is_available?: boolean;
+          last_seen_at?: string;
+        };
+        Update: {
+          courier_id?: string;
+          is_available?: boolean;
+          last_seen_at?: string;
         };
         Relationships: [];
       };
@@ -562,6 +741,7 @@ export type Database = {
     };
     Enums: {
       app_role: "admin" | "customer" | "seller" | "warehouse" | "courier";
+      admin_scope: "finance" | "marketing";
       order_status:
         | "pending"
         | "paid"
@@ -574,6 +754,8 @@ export type Database = {
         | "cancelled";
       payment_status: "unpaid" | "awaiting" | "paid" | "failed" | "refunded";
       product_publication_status: "DRAFT" | "PUBLISHED" | "HIDDEN";
+      seller_verification_status: "PENDING" | "VERIFIED" | "REJECTED";
+      supply_status: "DRAFT" | "SENT" | "CONFIRMED" | "RECEIVED" | "CANCELLED";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -696,6 +878,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "customer", "seller", "warehouse", "courier"],
+      admin_scope: ["finance", "marketing"],
       order_status: [
         "pending",
         "paid",
@@ -709,6 +892,8 @@ export const Constants = {
       ],
       payment_status: ["unpaid", "awaiting", "paid", "failed", "refunded"],
       product_publication_status: ["DRAFT", "PUBLISHED", "HIDDEN"],
+      seller_verification_status: ["PENDING", "VERIFIED", "REJECTED"],
+      supply_status: ["DRAFT", "SENT", "CONFIRMED", "RECEIVED", "CANCELLED"],
     },
   },
 } as const;

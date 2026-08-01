@@ -12,6 +12,7 @@ import type { CreateOrderData, OrderLineItemInput } from "@server/ports/order.re
 import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
 import type { IPaymentPolicy, PaymentPolicyContext } from "@server/ports/payment-policy.port";
 import type { IProductRepository } from "@server/ports/product.repository";
+import type { ICustomerStatusRepository } from "@server/ports/customer-status.repository";
 import { CheckoutValidationError, ProductNotSynchronized } from "@server/domain/checkout.errors";
 import { InventoryService } from "@server/domain/inventory.service";
 import { OrderService } from "@server/domain/order.service";
@@ -32,6 +33,7 @@ export class CheckoutService {
     private readonly events: IMarketplaceEventBus,
     private readonly paymentPolicy: IPaymentPolicy,
     private readonly orderLifecycle: IOrderLifecyclePolicy,
+    private readonly customerStatus: ICustomerStatusRepository,
   ) {}
 
   async checkout(userId: string | null, request: CreateOrderRequest): Promise<CreateOrderResponse> {
@@ -80,9 +82,10 @@ export class CheckoutService {
         ? (await this.pricing.calculateDeliveryFee(zoneId, subtotal)).fee
         : 0;
       const total = this.pricing.calculateTotal(subtotal, deliveryFee);
+      const isBlocked = userId ? await this.customerStatus.isBlocked(userId) : false;
 
       this.paymentPolicy.assertCanUsePaymentMethod(
-        this.buildPaymentPolicyContext(userId, request, { orderTotal: total, zoneId }),
+        this.buildPaymentPolicyContext(userId, request, { orderTotal: total, zoneId, isBlocked }),
       );
 
       const initialStatus = this.resolveInitialStatus(userId, request.idempotencyKey);
@@ -155,7 +158,7 @@ export class CheckoutService {
   private buildPaymentPolicyContext(
     userId: string | null,
     request: CreateOrderRequest,
-    extras: Pick<PaymentPolicyContext, "orderTotal" | "zoneId">,
+    extras: Pick<PaymentPolicyContext, "orderTotal" | "zoneId" | "isBlocked">,
   ): PaymentPolicyContext {
     return {
       user: {
@@ -165,6 +168,7 @@ export class CheckoutService {
       paymentMethod: request.paymentMethod,
       orderTotal: extras.orderTotal,
       zoneId: extras.zoneId,
+      isBlocked: extras.isBlocked,
     };
   }
 

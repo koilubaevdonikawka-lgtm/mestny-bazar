@@ -63,6 +63,7 @@ interface DbOrderRow {
   finik_payment_url: string | null;
   paid_at: string | null;
   created_at: string;
+  assigned_courier_id: string | null;
 }
 
 interface DbOrderItemRow {
@@ -106,5 +107,6 @@ export function mapOrderRowToDto(
     })),
     createdAt: row.created_at,
     paidAt: row.paid_at,
+    assignedCourierId: row.assigned_courier_id,
   };
 }

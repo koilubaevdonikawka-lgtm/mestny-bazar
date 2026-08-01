@@ -1,10 +1,11 @@
 import type { OrderDTO } from "@shared/contracts/order";
+import type { CourierStatusDTO } from "@shared/contracts/courier-status";
 import { requireCourierFromRequest } from "@server/auth/resolve-user";
 import { getServices } from "@server/di/container";
 
 export async function executeListCourierOrders(): Promise<OrderDTO[]> {
-  await requireCourierFromRequest();
-  return getServices().courierOrderService.listDeliveryOrders();
+  const { userId, roles } = await requireCourierFromRequest();
+  return getServices().courierOrderService.listDeliveryOrders({ id: userId, roles });
 }
 
 export async function executeGetCourierOrder(orderId: string): Promise<OrderDTO> {
@@ -30,4 +31,11 @@ export async function executeMarkCourierArrival(orderId: string): Promise<OrderD
 export async function executeCompleteCourierDelivery(orderId: string): Promise<OrderDTO> {
   const { userId, roles } = await requireCourierFromRequest();
   return getServices().courierOrderService.completeDelivery(orderId, { id: userId, roles });
+}
+
+export async function executeSetCourierAvailability(
+  isAvailable: boolean,
+): Promise<CourierStatusDTO> {
+  const { userId } = await requireCourierFromRequest();
+  return getServices().courierStatusService.setAvailability(userId, isAvailable);
 }

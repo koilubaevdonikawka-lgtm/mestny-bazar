@@ -12,4 +12,9 @@ export class InventoryService {
   async releaseStock(items: StockReservationItem[]): Promise<void> {
     await this.products.releaseStock(items);
   }
+
+  /** New stock physically received from a supplier (suppliers.md) — the single entry point Suppliers uses to write to Warehouse's stock. */
+  async increaseStock(items: StockReservationItem[]): Promise<void> {
+    await this.products.increaseStock(items);
+  }
 }

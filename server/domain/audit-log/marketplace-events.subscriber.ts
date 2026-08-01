@@ -132,4 +132,129 @@ export function subscribeAuditLog(bus: IMarketplaceEventBus, auditLog: IAuditLog
       payload: {},
     });
   });
+
+  bus.subscribe(
+    "courier.assigned",
+    logOrderEvent("courier.assigned", (order) => ({ courierId: order.assignedCourierId })),
+  );
+
+  bus.subscribe("courier.status_changed", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "courier.status_changed",
+      occurredAt: new Date().toISOString(),
+      entityType: "courier",
+      entityId: event.courierId,
+      actorId: event.courierId,
+      payload: { isAvailable: event.isAvailable },
+    });
+  });
+
+  bus.subscribe("customer.blocked", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "customer.blocked",
+      occurredAt: new Date().toISOString(),
+      entityType: "customer",
+      entityId: event.userId,
+      actorId: null,
+      payload: {},
+    });
+  });
+
+  bus.subscribe("customer.unblocked", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "customer.unblocked",
+      occurredAt: new Date().toISOString(),
+      entityType: "customer",
+      entityId: event.userId,
+      actorId: null,
+      payload: {},
+    });
+  });
+
+  bus.subscribe("seller.registered", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "seller.registered",
+      occurredAt: new Date().toISOString(),
+      entityType: "seller",
+      entityId: event.userId,
+      actorId: event.userId,
+      payload: {},
+    });
+  });
+
+  bus.subscribe("seller.verified", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "seller.verified",
+      occurredAt: new Date().toISOString(),
+      entityType: "seller",
+      entityId: event.userId,
+      actorId: null,
+      payload: {},
+    });
+  });
+
+  bus.subscribe("seller.rejected", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "seller.rejected",
+      occurredAt: new Date().toISOString(),
+      entityType: "seller",
+      entityId: event.userId,
+      actorId: null,
+      payload: {},
+    });
+  });
+
+  bus.subscribe("supply.requested", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "supply.requested",
+      occurredAt: new Date().toISOString(),
+      entityType: "supply",
+      entityId: event.supply.id,
+      actorId: null,
+      payload: { supplierId: event.supply.supplierId, itemCount: event.supply.items.length },
+    });
+  });
+
+  bus.subscribe("supply.received", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "supply.received",
+      occurredAt: new Date().toISOString(),
+      entityType: "supply",
+      entityId: event.supply.id,
+      actorId: null,
+      payload: { supplierId: event.supply.supplierId, itemCount: event.supply.items.length },
+    });
+  });
+
+  bus.subscribe("role.assigned", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "role.assigned",
+      occurredAt: new Date().toISOString(),
+      entityType: "user",
+      entityId: event.userId,
+      actorId: null,
+      payload: { role: event.role },
+    });
+  });
+
+  bus.subscribe("role.revoked", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "role.revoked",
+      occurredAt: new Date().toISOString(),
+      entityType: "user",
+      entityId: event.userId,
+      actorId: null,
+      payload: { role: event.role },
+    });
+  });
 }

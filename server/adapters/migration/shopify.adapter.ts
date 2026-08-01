@@ -190,6 +190,11 @@ export class ShopifyCatalogAdapter implements IProductRepository {
     // No-op: nothing was actually reserved in Shopify's inventory.
   }
 
+  async increaseStock(): Promise<void> {
+    // No-op: Suppliers (suppliers.md) targets the platform's own products table
+    // (SupabaseProductRepository via InventoryService), never Shopify inventory.
+  }
+
   private toProductDTO(node: ShopifyProductNode): ProductDTO {
     const price = parseFloat(node.priceRange.minVariantPrice.amount);
     const inStock = node.variants.edges[0]?.node.availableForSale ?? false;

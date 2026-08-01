@@ -37,6 +37,7 @@ describe("mapOrderRowToDto", () => {
       finik_payment_url: null,
       paid_at: null,
       created_at: "2026-01-01T00:00:00.000Z",
+      assigned_courier_id: null,
     };
   }
 
@@ -137,5 +138,16 @@ describe("mapOrderRowToDto", () => {
     expect(dto.notes).toBe("Leave at the door");
     expect(dto.paymentUrl).toBe("https://finik.example/pay/1");
     expect(dto.paidAt).toBe("2026-01-02T00:00:00.000Z");
+  });
+
+  it("maps assigned_courier_id, including the not-yet-assigned null case", () => {
+    expect(mapOrderRowToDto(fakeRow(), [], "CASH").assignedCourierId).toBeNull();
+
+    const assigned = mapOrderRowToDto(
+      { ...fakeRow(), assigned_courier_id: "courier-1" },
+      [],
+      "CASH",
+    );
+    expect(assigned.assignedCourierId).toBe("courier-1");
   });
 });

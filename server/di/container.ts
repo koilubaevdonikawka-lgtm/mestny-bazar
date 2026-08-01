@@ -4,6 +4,9 @@ import { CatalogService } from "@server/domain/catalog.service";
 import { CategoryService } from "@server/domain/category.service";
 import { CategoryAdminService } from "@server/domain/category-admin.service";
 import { CheckoutService } from "@server/domain/checkout.service";
+import { CourierAdminService } from "@server/domain/courier-admin.service";
+import { CourierAssignmentService } from "@server/domain/courier-assignment.service";
+import { CourierStatusService } from "@server/domain/courier-status.service";
 import { DashboardService } from "@server/domain/dashboard.service";
 import { InventoryService } from "@server/domain/inventory.service";
 import { NotificationService } from "@server/domain/notification.service";
@@ -12,11 +15,19 @@ import { OrderService } from "@server/domain/order.service";
 import { OrderLifecycleCascadeService } from "@server/domain/order-lifecycle-cascade.service";
 import { PermissionPolicyService } from "@server/domain/permission-policy/permission-policy.service";
 import { AdminFullAccessRule } from "@server/domain/permission-policy/rules/admin-full-access.rule";
+import { AdminFinanceScopeRule } from "@server/domain/permission-policy/rules/admin-finance-scope.rule";
+import { AdminMarketingScopeRule } from "@server/domain/permission-policy/rules/admin-marketing-scope.rule";
 import { PricingService } from "@server/domain/pricing.service";
+import { SellerProfileService } from "@server/domain/seller-profile.service";
 import { SettingsService } from "@server/domain/settings.service";
 import { StockAdminService } from "@server/domain/stock-admin.service";
 import { StockPolicyService } from "@server/domain/stock-policy/stock-policy.service";
 import { LowStockThresholdRule } from "@server/domain/stock-policy/rules/low-stock-threshold.rule";
+import { SupplierService } from "@server/domain/supplier.service";
+import { SupplyService } from "@server/domain/supply.service";
+import { UserAdminService } from "@server/domain/user-admin.service";
+import { CourierAssignmentPolicyService } from "@server/domain/courier-assignment/courier-assignment.service";
+import { LeastLoadedAvailableCourierRule } from "@server/domain/courier-assignment/rules/least-loaded-available-courier.rule";
 import { ShopifyCatalogAdapter } from "@server/adapters/migration/shopify.adapter";
 import { StubNotificationAdapter } from "@server/adapters/notifications/stub-notification.adapter";
 import { StubOrderEventNotifier } from "@server/adapters/notifications/stub-order-event.notifier";
@@ -26,27 +37,40 @@ import { SupabaseAddressRepository } from "@server/adapters/supabase/address.rep
 import { SupabaseCartRepository } from "@server/adapters/supabase/cart.repository";
 import { SupabaseCategoryRepository } from "@server/adapters/supabase/category.repository";
 import { SupabaseAdminCategoryRepository } from "@server/adapters/supabase/category-admin.repository";
+import { SupabaseCourierStatusRepository } from "@server/adapters/supabase/courier-status.repository";
+import { SupabaseCustomerStatusRepository } from "@server/adapters/supabase/customer-status.repository";
 import { SupabaseDeliveryZoneRepository } from "@server/adapters/supabase/delivery-zone.repository";
 import { SupabaseOrderRepository } from "@server/adapters/supabase/order.repository";
 import { SupabaseOrderCascadeRepository } from "@server/adapters/supabase/order-cascade.repository";
 import { SupabaseProductRepository } from "@server/adapters/supabase/product.repository";
 import { SupabaseSellerProductRepository } from "@server/adapters/supabase/seller-product.repository";
+import { SupabaseSellerProfileRepository } from "@server/adapters/supabase/seller-profile.repository";
 import { SupabaseSettingsRepository } from "@server/adapters/supabase/settings.repository";
 import { SupabaseStockRepository } from "@server/adapters/supabase/stock.repository";
+import { SupabaseSupplierRepository } from "@server/adapters/supabase/supplier.repository";
+import { SupabaseSupplyRepository } from "@server/adapters/supabase/supply.repository";
+import { SupabaseUserAdminRepository } from "@server/adapters/supabase/user-admin.repository";
 import type { IAddressRepository } from "@server/ports/address.repository";
 import type { ICartRepository } from "@server/ports/cart.repository";
 import type { ICategoryRepository } from "@server/ports/category.repository";
 import type { IAdminCategoryRepository } from "@server/ports/category-admin.repository";
 import type { ICheckoutPaymentHandler } from "@server/ports/checkout-payment.port";
+import type { ICourierAssignmentPolicy } from "@server/ports/courier-assignment.port";
+import type { ICourierStatusRepository } from "@server/ports/courier-status.repository";
+import type { ICustomerStatusRepository } from "@server/ports/customer-status.repository";
 import type { IDeliveryZoneRepository } from "@server/ports/delivery-zone.repository";
 import type { IOrderEventNotifier } from "@server/ports/order-events.port";
 import type { IOrderRepository } from "@server/ports/order.repository";
 import type { IOrderCascadeRepository } from "@server/ports/order-cascade.repository";
 import type { IPermissionPolicy } from "@server/ports/permission-policy.port";
 import type { IPaymentProvider } from "@server/ports/payment.provider";
+import type { ISellerProfileRepository } from "@server/ports/seller-profile.repository";
 import type { ISettingsRepository } from "@server/ports/settings.repository";
 import type { IStockRepository } from "@server/ports/stock.repository";
 import type { IStockPolicy } from "@server/ports/stock-policy.port";
+import type { ISupplierRepository } from "@server/ports/supplier.repository";
+import type { ISupplyRepository } from "@server/ports/supply.repository";
+import type { IUserAdminRepository } from "@server/ports/user-admin.repository";
 import type { INotificationProvider } from "@server/ports/notification.provider";
 import type { INotificationCenter } from "@server/ports/notification-center.port";
 import type { IProductRepository } from "@server/ports/product.repository";
@@ -54,6 +78,7 @@ import type { IPaymentPolicy } from "@server/ports/payment-policy.port";
 import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
 import { PaymentPolicyService } from "@server/domain/payment-policy/payment-policy.service";
 import { OrderLifecycleService } from "@server/domain/order-lifecycle/order-lifecycle.service";
+import { BlockedUserRule } from "@server/domain/payment-policy/rules/blocked-user.rule";
 import { CashRequiresAuthenticationRule } from "@server/domain/payment-policy/rules/cash-requires-auth.rule";
 import { OnlineAllowedRule } from "@server/domain/payment-policy/rules/online-allowed.rule";
 import { BootstrapCreatedRule } from "@server/domain/order-lifecycle/rules/bootstrap-created.rule";
@@ -120,7 +145,21 @@ export interface ServiceContainer {
   adminOrderService: AdminOrderService;
   warehouseOrderService: WarehouseOrderService;
   courierOrderService: CourierOrderService;
+  courierAdminService: CourierAdminService;
+  courierAssignmentPolicy: ICourierAssignmentPolicy;
+  courierAssignmentService: CourierAssignmentService;
+  courierStatus: ICourierStatusRepository;
+  courierStatusService: CourierStatusService;
+  customerStatus: ICustomerStatusRepository;
   sellerProductService: SellerProductService;
+  sellerProfiles: ISellerProfileRepository;
+  sellerProfileService: SellerProfileService;
+  suppliers: ISupplierRepository;
+  supplierService: SupplierService;
+  supplies: ISupplyRepository;
+  supplyService: SupplyService;
+  userAdmin: IUserAdminRepository;
+  userAdminService: UserAdminService;
   addressService: AddressService;
   notificationService: NotificationService;
   notificationCenter: INotificationCenter;
@@ -170,6 +209,12 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const orders = new SupabaseOrderRepository();
   const orderCascades: IOrderCascadeRepository = new SupabaseOrderCascadeRepository();
   const sellerProducts = new SupabaseSellerProductRepository();
+  const sellerProfiles: ISellerProfileRepository = new SupabaseSellerProfileRepository();
+  const suppliers: ISupplierRepository = new SupabaseSupplierRepository();
+  const supplies: ISupplyRepository = new SupabaseSupplyRepository();
+  const courierStatus: ICourierStatusRepository = new SupabaseCourierStatusRepository();
+  const customerStatus: ICustomerStatusRepository = new SupabaseCustomerStatusRepository();
+  const userAdmin: IUserAdminRepository = new SupabaseUserAdminRepository();
   const addresses = new SupabaseAddressRepository();
   const carts = new SupabaseCartRepository();
   const settings: ISettingsRepository = new SupabaseSettingsRepository();
@@ -182,10 +227,13 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const orderEvents = new StubOrderEventNotifier(notifications);
   const checkoutPayment = new CheckoutPaymentHandler(payments);
   // Payment policy rule chain (ascending order):
-  //   0–70  — future global guards (Maintenance, BlockedUser, Corporate, …)
+  //   10    — GLOBAL_GUARD (reserved)
+  //   20    — BlockedUserRule (users.md)
+  //   30–70 — future global guards (Corporate, city, …)
   //   80    — CashRequiresAuthenticationRule
   //   90    — OnlineAllowedRule
   const paymentPolicy: IPaymentPolicy = new PaymentPolicyService([
+    new BlockedUserRule(),
     new CashRequiresAuthenticationRule(),
     new OnlineAllowedRule(),
   ]);
@@ -213,10 +261,12 @@ export function createServices(env: ServerEnv): ServiceContainer {
   ]);
 
   // Admin Platform module access — second line of defense after
-  // require<Role>FromRequest(). Stage 1: a single rule (existing roles keep
-  // their existing access, no sub-roles yet); later stages add role-scoped
-  // rules here without restructuring callers (docs/admin-platform/permissions.md).
+  // require<Role>FromRequest(). AdminFinance/AdminMarketingScopeRule run
+  // before AdminFullAccessRule (order 15 < 20) and only apply to admins who
+  // actually carry a scope — a plain admin's access is unaffected.
   const permissionPolicy: IPermissionPolicy = new PermissionPolicyService([
+    new AdminFinanceScopeRule(),
+    new AdminMarketingScopeRule(),
     new AdminFullAccessRule(),
   ]);
 
@@ -224,6 +274,12 @@ export function createServices(env: ServerEnv): ServiceContainer {
   // the platform default) — per-category thresholds are a documented future
   // extension (warehouse.md), not yet backed by a schema/UI.
   const stockPolicy: IStockPolicy = new StockPolicyService([new LowStockThresholdRule()]);
+
+  // Courier assignment: MVP single rule (least-loaded available courier) —
+  // exact criteria (distance, rating) is an open product question (couriers.md).
+  const courierAssignmentPolicy: ICourierAssignmentPolicy = new CourierAssignmentPolicyService([
+    new LeastLoadedAvailableCourierRule(),
+  ]);
 
   // Marketplace standards — infrastructure; publication delegates to productPublication.
   const marketplaceStandards: IMarketplaceStandards = new MarketplaceStandardsService({
@@ -246,11 +302,25 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const marketplaceEvents: IMarketplaceEventBus = new MarketplaceEventsService();
   const auditLog: IAuditLog = new SupabaseAuditLog();
 
+  // Auto-assignment orchestrator (platform-lifecycle.md §3) — needs
+  // courierStatus/orders (candidates + workload) + the policy + events.
+  const courierAssignmentService = new CourierAssignmentService(
+    courierStatus,
+    orders,
+    courierAssignmentPolicy,
+    marketplaceEvents,
+  );
+
   // Buffer-as-gate for the operational cascade (platform-lifecycle.md, §3) —
-  // needs orderCascades (idempotency claim) + marketplaceEvents (publish),
-  // so it's constructed after both exist and before adminOrderService, which
+  // needs orderCascades (idempotency claim) + marketplaceEvents (publish) +
+  // courierAssignmentService (opportunistic (re-)assignment), so it's
+  // constructed after all three exist and before adminOrderService, which
   // sweeps it on every staff-facing order read.
-  const orderCascadeService = new OrderLifecycleCascadeService(orderCascades, marketplaceEvents);
+  const orderCascadeService = new OrderLifecycleCascadeService(
+    orderCascades,
+    marketplaceEvents,
+    courierAssignmentService,
+  );
 
   const adminOrderService = new AdminOrderService(
     orders,
@@ -264,8 +334,19 @@ export function createServices(env: ServerEnv): ServiceContainer {
     orderLifecycle,
     marketplaceEvents,
   );
-  const courierOrderService = new CourierOrderService(orders, orderLifecycle, marketplaceEvents);
+  const courierOrderService = new CourierOrderService(
+    orders,
+    orderLifecycle,
+    marketplaceEvents,
+    courierStatus,
+  );
+  const courierAdminService = new CourierAdminService(courierStatus, orders);
+  const courierStatusService = new CourierStatusService(courierStatus, marketplaceEvents);
   const sellerProductService = new SellerProductService(sellerProducts, productPublication);
+  const sellerProfileService = new SellerProfileService(sellerProfiles, marketplaceEvents);
+  const supplierService = new SupplierService(suppliers);
+  const supplyService = new SupplyService(supplies, suppliers, inventory, marketplaceEvents);
+  const userAdminService = new UserAdminService(userAdmin, marketplaceEvents);
   const categoryAdminService = new CategoryAdminService(adminCategories, marketplaceEvents);
   const stockAdminService = new StockAdminService(stock, stockPolicy, marketplaceEvents);
   const dashboardService = new DashboardService(orders, stockAdminService);
@@ -305,6 +386,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     marketplaceEvents,
     paymentPolicy,
     orderLifecycle,
+    customerStatus,
   );
 
   return {
@@ -314,6 +396,14 @@ export function createServices(env: ServerEnv): ServiceContainer {
     orderCascades,
     orderCascadeService,
     sellerProducts,
+    sellerProfiles,
+    sellerProfileService,
+    suppliers,
+    supplierService,
+    supplies,
+    supplyService,
+    userAdmin,
+    userAdminService,
     addresses,
     carts,
     zones,
@@ -345,6 +435,12 @@ export function createServices(env: ServerEnv): ServiceContainer {
     adminOrderService,
     warehouseOrderService,
     courierOrderService,
+    courierAdminService,
+    courierAssignmentPolicy,
+    courierAssignmentService,
+    courierStatus,
+    courierStatusService,
+    customerStatus,
     sellerProductService,
     addressService,
     notificationService,

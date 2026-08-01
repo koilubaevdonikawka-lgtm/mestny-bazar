@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { AdminOrderService } from "@server/domain/admin-order.service";
 import { OrderLifecycleCascadeService } from "@server/domain/order-lifecycle-cascade.service";
+import { CourierAssignmentService } from "@server/domain/courier-assignment.service";
 import { InventoryService } from "@server/domain/inventory.service";
 import { OrderNotFoundError } from "@server/domain/orders.errors";
 import type { IOrderRepository } from "@server/ports/order.repository";
 import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
 import type { IOrderCascadeRepository } from "@server/ports/order-cascade.repository";
+import type { ICourierStatusRepository } from "@server/ports/courier-status.repository";
 import type { IMarketplaceEventBus, MarketplaceEvent } from "@server/ports/marketplace-events.port";
 import type { IProductRepository, StockReservationItem } from "@server/ports/product.repository";
 import type { OrderDTO } from "@shared/contracts/order";
@@ -32,6 +34,7 @@ function makeOrder(overrides: Partial<OrderDTO> = {}): OrderDTO {
     // no-ops unless a test explicitly overrides createdAt.
     createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
     paidAt: null,
+    assignedCourierId: null,
     ...overrides,
   };
 }
@@ -48,6 +51,12 @@ function fakeRepo(overrides: Partial<IOrderRepository> = {}): IOrderRepository {
     updatePaymentStatus: vi.fn(async () => makeOrder()),
     countByStatuses: vi.fn(async () => 0),
     getTodaySummary: vi.fn(async () => ({ orderCount: 0, revenue: 0 })),
+
+    assignCourier: vi.fn(async (_id, courierId) => makeOrder({ assignedCourierId: courierId })),
+
+    countActiveDeliveriesByCourier: vi.fn(async () => 0),
+
+    listByStatusesForCourier: vi.fn(async () => []),
     ...overrides,
   };
 }
@@ -77,6 +86,19 @@ function fakeEventBus(overrides: Partial<IMarketplaceEventBus> = {}): IMarketpla
   };
 }
 
+function fakeCourierStatusRepo(
+  overrides: Partial<ICourierStatusRepository> = {},
+): ICourierStatusRepository {
+  return {
+    listAvailable: vi.fn(async () => []),
+    listAll: vi.fn(async () => []),
+    get: vi.fn(async () => null),
+    setAvailability: vi.fn(),
+    touch: vi.fn(),
+    ...overrides,
+  };
+}
+
 function fakeProductRepository(overrides: Partial<IProductRepository> = {}): IProductRepository {
   return {
     list: vi.fn(async () => ({ items: [], total: 0, page: 1, pageSize: 50, hasMore: false })),
@@ -87,6 +109,7 @@ function fakeProductRepository(overrides: Partial<IProductRepository> = {}): IPr
     checkStock: vi.fn(async () => true),
     reserveStock: vi.fn(async (_items: StockReservationItem[]) => {}),
     releaseStock: vi.fn(async (_items: StockReservationItem[]) => {}),
+    increaseStock: vi.fn(async (_items: StockReservationItem[]) => {}),
     ...overrides,
   };
 }
@@ -103,7 +126,17 @@ function buildService(deps: {
   const repo = deps.repo ?? fakeRepo();
   const lifecycle = deps.lifecycle ?? fakeLifecycle();
   const events = deps.events ?? fakeEventBus();
-  const cascade = new OrderLifecycleCascadeService(deps.cascadeRepo ?? fakeCascadeRepo(), events);
+  const courierAssignment = new CourierAssignmentService(
+    fakeCourierStatusRepo(),
+    repo,
+    { selectCourier: vi.fn(() => ({ courierId: null })) },
+    events,
+  );
+  const cascade = new OrderLifecycleCascadeService(
+    deps.cascadeRepo ?? fakeCascadeRepo(),
+    events,
+    courierAssignment,
+  );
   const inventory = new InventoryService(deps.productRepo ?? fakeProductRepository());
   return new AdminOrderService(repo, lifecycle, cascade, inventory, events);
 }

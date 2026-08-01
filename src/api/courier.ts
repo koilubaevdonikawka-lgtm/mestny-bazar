@@ -1,10 +1,12 @@
 import type { OrderDTO } from "@shared/contracts/order";
+import type { CourierStatusDTO } from "@shared/contracts/courier-status";
 import {
   acceptCourierOrderFn,
   completeCourierDeliveryFn,
   getCourierOrderFn,
   listCourierOrdersFn,
   markCourierArrivalFn,
+  setCourierAvailabilityFn,
   startCourierDeliveryFn,
 } from "@/api/courier.functions";
 
@@ -30,4 +32,8 @@ export async function markCourierArrival(id: string): Promise<OrderDTO> {
 
 export async function completeCourierDelivery(id: string): Promise<OrderDTO> {
   return completeCourierDeliveryFn({ data: { id } });
+}
+
+export async function setCourierAvailability(isAvailable: boolean): Promise<CourierStatusDTO> {
+  return setCourierAvailabilityFn({ data: { isAvailable } });
 }

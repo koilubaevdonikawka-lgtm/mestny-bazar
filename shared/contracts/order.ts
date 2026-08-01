@@ -45,6 +45,8 @@ export interface OrderDTO {
   items: OrderItemDTO[];
   createdAt: string;
   paidAt: string | null;
+  /** Persistent courier assignment (couriers.md §"Обнаруженный пробел") — null until auto-assigned. */
+  assignedCourierId: string | null;
 }
 
 export interface CreateOrderItemRequest {

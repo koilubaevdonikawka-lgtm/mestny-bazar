@@ -17,4 +17,6 @@ export interface IProductRepository {
   reserveStock(items: StockReservationItem[]): Promise<void>;
   /** Best-effort compensation for a reservation that must be undone. */
   releaseStock(items: StockReservationItem[]): Promise<void>;
+  /** New stock physically received from a supplier (suppliers.md) — additive, no floor check. */
+  increaseStock(items: StockReservationItem[]): Promise<void>;
 }

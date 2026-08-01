@@ -23,6 +23,7 @@ function makeOrder(overrides: Partial<OrderDTO> = {}): OrderDTO {
     items: [],
     createdAt: new Date().toISOString(),
     paidAt: null,
+    assignedCourierId: null,
     ...overrides,
   };
 }

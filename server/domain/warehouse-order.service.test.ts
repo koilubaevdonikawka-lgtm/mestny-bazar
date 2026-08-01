@@ -26,6 +26,7 @@ function makeOrder(overrides: Partial<OrderDTO> = {}): OrderDTO {
     items: [],
     createdAt: new Date().toISOString(),
     paidAt: null,
+    assignedCourierId: null,
     ...overrides,
   };
 }
@@ -42,6 +43,12 @@ function fakeRepo(overrides: Partial<IOrderRepository> = {}): IOrderRepository {
     updatePaymentStatus: vi.fn(async () => makeOrder()),
     countByStatuses: vi.fn(async () => 0),
     getTodaySummary: vi.fn(async () => ({ orderCount: 0, revenue: 0 })),
+
+    assignCourier: vi.fn(async (_id, courierId) => makeOrder({ assignedCourierId: courierId })),
+
+    countActiveDeliveriesByCourier: vi.fn(async () => 0),
+
+    listByStatusesForCourier: vi.fn(async () => []),
     ...overrides,
   };
 }

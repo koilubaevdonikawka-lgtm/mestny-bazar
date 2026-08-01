@@ -160,4 +160,16 @@ export class SupabaseProductRepository implements IProductRepository {
 
     if (error) throw new Error(`Failed to release stock: ${error.message}`);
   }
+
+  // Reuses release_product_stock (same additive, no-floor-check semantics a supply
+  // receipt needs) — a dedicated RPC would run identical SQL under a different name.
+  async increaseStock(items: StockReservationItem[]): Promise<void> {
+    if (items.length === 0) return;
+
+    const { error } = await supabaseAdmin.rpc("release_product_stock", {
+      items: toRpcItems(items),
+    });
+
+    if (error) throw new Error(`Failed to increase stock: ${error.message}`);
+  }
 }

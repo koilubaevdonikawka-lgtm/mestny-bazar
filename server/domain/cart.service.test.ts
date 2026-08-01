@@ -45,6 +45,7 @@ function fakeProductRepository(overrides: Partial<IProductRepository> = {}): IPr
     checkStock: vi.fn(async () => true),
     reserveStock: vi.fn(async () => {}),
     releaseStock: vi.fn(async () => {}),
+    increaseStock: vi.fn(async () => {}),
     ...overrides,
   };
 }

@@ -12,6 +12,7 @@ import type { ICheckoutPaymentHandler } from "@server/ports/checkout-payment.por
 import type { IMarketplaceEventBus, MarketplaceEvent } from "@server/ports/marketplace-events.port";
 import type { IPaymentPolicy, PaymentPolicyContext } from "@server/ports/payment-policy.port";
 import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
+import type { ICustomerStatusRepository } from "@server/ports/customer-status.repository";
 import type { CreateOrderRequest, OrderDTO } from "@shared/contracts/order";
 import type { ProductDTO } from "@shared/contracts/catalog";
 
@@ -53,6 +54,7 @@ function makeOrderDTO(overrides: Partial<OrderDTO> = {}): OrderDTO {
     items: [],
     createdAt: new Date().toISOString(),
     paidAt: null,
+    assignedCourierId: null,
     ...overrides,
   };
 }
@@ -90,6 +92,12 @@ function fakeOrderRepository(overrides: Partial<IOrderRepository> = {}): IOrderR
     updatePaymentStatus: vi.fn(async () => makeOrderDTO()),
     countByStatuses: vi.fn(async () => 0),
     getTodaySummary: vi.fn(async () => ({ orderCount: 0, revenue: 0 })),
+
+    assignCourier: vi.fn(async (_id, courierId) => makeOrderDTO({ assignedCourierId: courierId })),
+
+    countActiveDeliveriesByCourier: vi.fn(async () => 0),
+
+    listByStatusesForCourier: vi.fn(async () => []),
     ...overrides,
   };
 }
@@ -104,6 +112,7 @@ function fakeProductRepository(overrides: Partial<IProductRepository> = {}): IPr
     checkStock: vi.fn(async () => true),
     reserveStock: vi.fn(async (_items: StockReservationItem[]) => {}),
     releaseStock: vi.fn(async (_items: StockReservationItem[]) => {}),
+    increaseStock: vi.fn(async (_items: StockReservationItem[]) => {}),
     ...overrides,
   };
 }
@@ -171,6 +180,12 @@ function fakeOrderLifecycle(overrides: Partial<IOrderLifecyclePolicy> = {}): IOr
   };
 }
 
+function fakeCustomerStatusRepository(
+  overrides: Partial<ICustomerStatusRepository> = {},
+): ICustomerStatusRepository {
+  return { isBlocked: vi.fn(async () => false), ...overrides };
+}
+
 function buildCheckoutService(deps: {
   orderRepo?: IOrderRepository;
   productRepo?: IProductRepository;
@@ -180,6 +195,7 @@ function buildCheckoutService(deps: {
   eventBus?: IMarketplaceEventBus;
   paymentPolicy?: IPaymentPolicy;
   orderLifecycle?: IOrderLifecyclePolicy;
+  customerStatus?: ICustomerStatusRepository;
 }) {
   const orderRepo = deps.orderRepo ?? fakeOrderRepository();
   const productRepo = deps.productRepo ?? fakeProductRepository();
@@ -201,6 +217,7 @@ function buildCheckoutService(deps: {
     eventBus,
     deps.paymentPolicy ?? fakePaymentPolicy(),
     orderLifecycle,
+    deps.customerStatus ?? fakeCustomerStatusRepository(),
   );
 
   return { checkout, orderRepo, productRepo };
@@ -220,6 +237,28 @@ describe("CheckoutService.checkout", () => {
     expect(result.order).toBe(existing);
     expect(productRepo.reserveStock).not.toHaveBeenCalled();
     expect(orderRepo.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects checkout for a blocked authenticated customer (users.md)", async () => {
+    const customerStatus = fakeCustomerStatusRepository({ isBlocked: vi.fn(async () => true) });
+    const paymentPolicy = fakePaymentPolicy({
+      assertCanUsePaymentMethod: vi.fn((context: PaymentPolicyContext) => {
+        if (context.isBlocked) throw new Error("USER_BLOCKED");
+      }),
+    });
+    const { checkout } = buildCheckoutService({ customerStatus, paymentPolicy });
+
+    await expect(checkout.checkout("blocked-user", makeRequest())).rejects.toThrow("USER_BLOCKED");
+    expect(customerStatus.isBlocked).toHaveBeenCalledWith("blocked-user");
+  });
+
+  it("never checks block status for a guest checkout", async () => {
+    const customerStatus = fakeCustomerStatusRepository();
+    const { checkout } = buildCheckoutService({ customerStatus });
+
+    await checkout.checkout(null, makeRequest());
+
+    expect(customerStatus.isBlocked).not.toHaveBeenCalled();
   });
 
   it("reserves stock, creates the order, prepares payment, and publishes an event on the happy path", async () => {

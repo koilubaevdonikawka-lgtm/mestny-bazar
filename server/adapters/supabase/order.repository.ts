@@ -41,7 +41,7 @@ export function mergeNotes(
 }
 
 const ORDER_COLUMNS =
-  "id, order_number, status, payment_status, subtotal, delivery_fee, total, currency, customer_name, customer_phone, address_snapshot, notes, finik_payment_url, paid_at, created_at";
+  "id, order_number, status, payment_status, subtotal, delivery_fee, total, currency, customer_name, customer_phone, address_snapshot, notes, finik_payment_url, paid_at, created_at, assigned_courier_id";
 
 /** Postgres unique_violation — see https://www.postgresql.org/docs/current/errcodes-appendix.html */
 const UNIQUE_VIOLATION = "23505";
@@ -197,6 +197,20 @@ export class SupabaseOrderRepository implements IOrderRepository {
     return this.mapOrdersWithItems(orders ?? []);
   }
 
+  async listByStatusesForCourier(statuses: OrderStatus[], courierId: string): Promise<OrderDTO[]> {
+    if (statuses.length === 0) return [];
+
+    const { data: orders, error } = await supabaseAdmin
+      .from("orders")
+      .select(ORDER_COLUMNS)
+      .in("status", statuses.map(toDbOrderStatus))
+      .eq("assigned_courier_id", courierId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error(`Failed to list courier orders: ${error.message}`);
+    return this.mapOrdersWithItems(orders ?? []);
+  }
+
   private async mapOrdersWithItems(
     orders: Array<{
       id: string;
@@ -214,6 +228,7 @@ export class SupabaseOrderRepository implements IOrderRepository {
       finik_payment_url: string | null;
       paid_at: string | null;
       created_at: string;
+      assigned_courier_id: string | null;
     }>,
   ): Promise<OrderDTO[]> {
     if (!orders.length) return [];
@@ -314,5 +329,41 @@ export class SupabaseOrderRepository implements IOrderRepository {
 
     const revenue = (data ?? []).reduce((sum, row) => sum + Number(row.total), 0);
     return { orderCount: count ?? data?.length ?? 0, revenue };
+  }
+
+  async assignCourier(orderId: string, courierId: string): Promise<OrderDTO> {
+    // Conditioned on assigned_courier_id IS NULL — a concurrent assignment race
+    // resolves to whichever call wins the UPDATE first; the loser gets back the
+    // order as actually persisted (not necessarily with its own courierId), so
+    // the caller can tell it lost and must not publish a false courier.assigned.
+    const { error } = await supabaseAdmin
+      .from("orders")
+      .update({ assigned_courier_id: courierId })
+      .eq("id", orderId)
+      .is("assigned_courier_id", null);
+
+    if (error) throw new Error(`Failed to assign courier: ${error.message}`);
+
+    const order = await this.getById(orderId);
+    if (!order) throw new OrderNotFoundError();
+    return order;
+  }
+
+  async countActiveDeliveriesByCourier(courierId: string): Promise<number> {
+    const { count, error } = await supabaseAdmin
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("assigned_courier_id", courierId)
+      .in(
+        "status",
+        [
+          OrderStatusEnum.READY_FOR_DELIVERY,
+          OrderStatusEnum.OUT_FOR_DELIVERY,
+          OrderStatusEnum.ARRIVED,
+        ].map(toDbOrderStatus),
+      );
+
+    if (error) throw new Error(`Failed to count courier deliveries: ${error.message}`);
+    return count ?? 0;
   }
 }

@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { OrderDTO } from "@shared/contracts/order";
+import type { CourierStatusDTO } from "@shared/contracts/courier-status";
 import { uuidParamSchema } from "@shared/validation/common.schema";
+import { setCourierAvailabilityRequestSchema } from "@shared/validation/courier-status.schema";
 
 export const listCourierOrdersFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<OrderDTO[]> => {
@@ -42,4 +44,11 @@ export const completeCourierDeliveryFn = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<OrderDTO> => {
     const { executeCompleteCourierDelivery } = await import("@server/functions/courier.executor");
     return executeCompleteCourierDelivery(data.id);
+  });
+
+export const setCourierAvailabilityFn = createServerFn({ method: "POST" })
+  .validator((data: unknown) => setCourierAvailabilityRequestSchema.parse(data))
+  .handler(async ({ data }): Promise<CourierStatusDTO> => {
+    const { executeSetCourierAvailability } = await import("@server/functions/courier.executor");
+    return executeSetCourierAvailability(data.isAvailable);
   });

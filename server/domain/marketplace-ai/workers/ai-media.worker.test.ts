@@ -92,6 +92,7 @@ function fakeOrder(items: OrderItemDTO[]): OrderDTO {
     items,
     createdAt: new Date().toISOString(),
     paidAt: null,
+    assignedCourierId: null,
   };
 }
 

@@ -12,7 +12,18 @@ export type AuditAction =
   | "category.created"
   | "category.updated"
   | "stock.low"
-  | "stock.depleted";
+  | "stock.depleted"
+  | "courier.assigned"
+  | "courier.status_changed"
+  | "customer.blocked"
+  | "customer.unblocked"
+  | "seller.registered"
+  | "seller.verified"
+  | "seller.rejected"
+  | "supply.requested"
+  | "supply.received"
+  | "role.assigned"
+  | "role.revoked";
 
 export interface AuditRecord {
   id: string;
