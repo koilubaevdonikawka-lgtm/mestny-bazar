@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -74,17 +73,17 @@ function AdminSettingsPage() {
 
   if (isAuthenticated === null) {
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="flex justify-center py-24">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="max-w-md mx-auto text-center py-24">
           <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
             <LogIn className="h-6 w-6 text-primary" />
@@ -95,17 +94,17 @@ function AdminSettingsPage() {
             Войти
           </Button>
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
   if (isLoading) {
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="flex justify-center py-24">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
@@ -119,7 +118,7 @@ function AdminSettingsPage() {
       message.toLowerCase().includes("authentication") || message.includes("Unauthorized");
 
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="max-w-md mx-auto text-center py-24">
           {isForbidden ? (
             <>
@@ -148,12 +147,12 @@ function AdminSettingsPage() {
             </>
           )}
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
   return (
-    <PageShell>
+    <AdminLayout>
       <div className="mx-auto max-w-3xl px-6 py-12">
         <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
           <Link to="/admin">
@@ -242,16 +241,6 @@ function AdminSettingsPage() {
           </form>
         </section>
       </div>
-    </PageShell>
-  );
-}
-
-function PageShell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen flex flex-col">
-      <SiteHeader />
-      <main className="flex-1">{children}</main>
-      <SiteFooter />
-    </div>
+    </AdminLayout>
   );
 }
