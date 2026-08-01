@@ -7,7 +7,10 @@ import { InventoryService } from "@server/domain/inventory.service";
 import { NotificationService } from "@server/domain/notification.service";
 import { NotificationCenter } from "@server/domain/notification-center.service";
 import { OrderService } from "@server/domain/order.service";
+import { PermissionPolicyService } from "@server/domain/permission-policy/permission-policy.service";
+import { AdminFullAccessRule } from "@server/domain/permission-policy/rules/admin-full-access.rule";
 import { PricingService } from "@server/domain/pricing.service";
+import { SettingsService } from "@server/domain/settings.service";
 import { ShopifyCatalogAdapter } from "@server/adapters/migration/shopify.adapter";
 import { StubNotificationAdapter } from "@server/adapters/notifications/stub-notification.adapter";
 import { StubOrderEventNotifier } from "@server/adapters/notifications/stub-order-event.notifier";
@@ -20,6 +23,7 @@ import { SupabaseDeliveryZoneRepository } from "@server/adapters/supabase/delive
 import { SupabaseOrderRepository } from "@server/adapters/supabase/order.repository";
 import { SupabaseProductRepository } from "@server/adapters/supabase/product.repository";
 import { SupabaseSellerProductRepository } from "@server/adapters/supabase/seller-product.repository";
+import { SupabaseSettingsRepository } from "@server/adapters/supabase/settings.repository";
 import type { IAddressRepository } from "@server/ports/address.repository";
 import type { ICartRepository } from "@server/ports/cart.repository";
 import type { ICategoryRepository } from "@server/ports/category.repository";
@@ -27,7 +31,9 @@ import type { ICheckoutPaymentHandler } from "@server/ports/checkout-payment.por
 import type { IDeliveryZoneRepository } from "@server/ports/delivery-zone.repository";
 import type { IOrderEventNotifier } from "@server/ports/order-events.port";
 import type { IOrderRepository } from "@server/ports/order.repository";
+import type { IPermissionPolicy } from "@server/ports/permission-policy.port";
 import type { IPaymentProvider } from "@server/ports/payment.provider";
+import type { ISettingsRepository } from "@server/ports/settings.repository";
 import type { INotificationProvider } from "@server/ports/notification.provider";
 import type { INotificationCenter } from "@server/ports/notification-center.port";
 import type { IProductRepository } from "@server/ports/product.repository";
@@ -122,6 +128,9 @@ export interface ServiceContainer {
   aiOrchestrator: AIOrchestrator;
   notifications: INotificationProvider;
   orderEvents: IOrderEventNotifier;
+  permissionPolicy: IPermissionPolicy;
+  settings: ISettingsRepository;
+  settingsService: SettingsService;
 }
 
 let container: ServiceContainer | undefined;
@@ -141,6 +150,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const sellerProducts = new SupabaseSellerProductRepository();
   const addresses = new SupabaseAddressRepository();
   const carts = new SupabaseCartRepository();
+  const settings: ISettingsRepository = new SupabaseSettingsRepository();
   const zones = new SupabaseDeliveryZoneRepository();
   const categoryRepository: ICategoryRepository = new SupabaseCategoryRepository();
   const payments = new FinikPaymentAdapter();
@@ -178,6 +188,14 @@ export function createServices(env: ServerEnv): ServiceContainer {
     new BootstrapDraftRule(),
   ]);
 
+  // Admin Platform module access — second line of defense after
+  // require<Role>FromRequest(). Stage 1: a single rule (existing roles keep
+  // their existing access, no sub-roles yet); later stages add role-scoped
+  // rules here without restructuring callers (docs/admin-platform/permissions.md).
+  const permissionPolicy: IPermissionPolicy = new PermissionPolicyService([
+    new AdminFullAccessRule(),
+  ]);
+
   // Marketplace standards — infrastructure; publication delegates to productPublication.
   const marketplaceStandards: IMarketplaceStandards = new MarketplaceStandardsService({
     category: new CategoryStandardsService(),
@@ -193,6 +211,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const courierOrderService = new CourierOrderService(orders, orderLifecycle);
   const sellerProductService = new SellerProductService(sellerProducts, productPublication);
   const addressService = new AddressService(addresses);
+  const settingsService = new SettingsService(settings);
   // Reuses orderProducts (always Supabase, regardless of FEATURE_CATALOG_SOURCE) —
   // the same product repository CheckoutService validates against, so a cart
   // line and an order line item are validated against identical truth.
@@ -252,6 +271,9 @@ export function createServices(env: ServerEnv): ServiceContainer {
     checkoutPayment,
     paymentPolicy,
     orderLifecycle,
+    permissionPolicy,
+    settings,
+    settingsService,
     productPublication,
     marketplaceStandards,
     marketplaceEvents,

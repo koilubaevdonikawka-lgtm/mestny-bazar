@@ -369,6 +369,30 @@ export type Database = {
           },
         ];
       };
+      platform_settings: {
+        Row: {
+          category: string;
+          key: string;
+          updated_at: string;
+          updated_by: string | null;
+          value: Json;
+        };
+        Insert: {
+          category: string;
+          key: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          value: Json;
+        };
+        Update: {
+          category?: string;
+          key?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          value?: Json;
+        };
+        Relationships: [];
+      };
       products: {
         Row: {
           category_id: string | null;

@@ -13,12 +13,14 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as OrderSuccessRouteImport } from './routes/order-success'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OrdersIndexRouteImport } from './routes/orders/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as ProfileAddressesRouteImport } from './routes/profile/addresses'
 import { Route as ProductHandleRouteImport } from './routes/product.$handle'
 import { Route as OrdersIdRouteImport } from './routes/orders/$id'
 import { Route as WarehouseOrdersIndexRouteImport } from './routes/warehouse/orders/index'
 import { Route as SellerProductsIndexRouteImport } from './routes/seller/products/index'
 import { Route as CourierOrdersIndexRouteImport } from './routes/courier/orders/index'
+import { Route as AdminSettingsIndexRouteImport } from './routes/admin/settings/index'
 import { Route as AdminOrdersIndexRouteImport } from './routes/admin/orders/index'
 import { Route as WarehouseOrdersIdRouteImport } from './routes/warehouse/orders/$id'
 import { Route as SellerProductsIdRouteImport } from './routes/seller/products/$id'
@@ -43,6 +45,11 @@ const IndexRoute = IndexRouteImport.update({
 const OrdersIndexRoute = OrdersIndexRouteImport.update({
   id: '/orders/',
   path: '/orders/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileAddressesRoute = ProfileAddressesRouteImport.update({
@@ -73,6 +80,11 @@ const SellerProductsIndexRoute = SellerProductsIndexRouteImport.update({
 const CourierOrdersIndexRoute = CourierOrdersIndexRouteImport.update({
   id: '/courier/orders/',
   path: '/courier/orders/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSettingsIndexRoute = AdminSettingsIndexRouteImport.update({
+  id: '/admin/settings/',
+  path: '/admin/settings/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminOrdersIndexRoute = AdminOrdersIndexRouteImport.update({
@@ -108,12 +120,14 @@ export interface FileRoutesByFullPath {
   '/orders/$id': typeof OrdersIdRoute
   '/product/$handle': typeof ProductHandleRoute
   '/profile/addresses': typeof ProfileAddressesRoute
+  '/admin/': typeof AdminIndexRoute
   '/orders/': typeof OrdersIndexRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/courier/orders/$id': typeof CourierOrdersIdRoute
   '/seller/products/$id': typeof SellerProductsIdRoute
   '/warehouse/orders/$id': typeof WarehouseOrdersIdRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
+  '/admin/settings/': typeof AdminSettingsIndexRoute
   '/courier/orders/': typeof CourierOrdersIndexRoute
   '/seller/products/': typeof SellerProductsIndexRoute
   '/warehouse/orders/': typeof WarehouseOrdersIndexRoute
@@ -125,12 +139,14 @@ export interface FileRoutesByTo {
   '/orders/$id': typeof OrdersIdRoute
   '/product/$handle': typeof ProductHandleRoute
   '/profile/addresses': typeof ProfileAddressesRoute
+  '/admin': typeof AdminIndexRoute
   '/orders': typeof OrdersIndexRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/courier/orders/$id': typeof CourierOrdersIdRoute
   '/seller/products/$id': typeof SellerProductsIdRoute
   '/warehouse/orders/$id': typeof WarehouseOrdersIdRoute
   '/admin/orders': typeof AdminOrdersIndexRoute
+  '/admin/settings': typeof AdminSettingsIndexRoute
   '/courier/orders': typeof CourierOrdersIndexRoute
   '/seller/products': typeof SellerProductsIndexRoute
   '/warehouse/orders': typeof WarehouseOrdersIndexRoute
@@ -143,12 +159,14 @@ export interface FileRoutesById {
   '/orders/$id': typeof OrdersIdRoute
   '/product/$handle': typeof ProductHandleRoute
   '/profile/addresses': typeof ProfileAddressesRoute
+  '/admin/': typeof AdminIndexRoute
   '/orders/': typeof OrdersIndexRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/courier/orders/$id': typeof CourierOrdersIdRoute
   '/seller/products/$id': typeof SellerProductsIdRoute
   '/warehouse/orders/$id': typeof WarehouseOrdersIdRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
+  '/admin/settings/': typeof AdminSettingsIndexRoute
   '/courier/orders/': typeof CourierOrdersIndexRoute
   '/seller/products/': typeof SellerProductsIndexRoute
   '/warehouse/orders/': typeof WarehouseOrdersIndexRoute
@@ -162,12 +180,14 @@ export interface FileRouteTypes {
     | '/orders/$id'
     | '/product/$handle'
     | '/profile/addresses'
+    | '/admin/'
     | '/orders/'
     | '/admin/orders/$id'
     | '/courier/orders/$id'
     | '/seller/products/$id'
     | '/warehouse/orders/$id'
     | '/admin/orders/'
+    | '/admin/settings/'
     | '/courier/orders/'
     | '/seller/products/'
     | '/warehouse/orders/'
@@ -179,12 +199,14 @@ export interface FileRouteTypes {
     | '/orders/$id'
     | '/product/$handle'
     | '/profile/addresses'
+    | '/admin'
     | '/orders'
     | '/admin/orders/$id'
     | '/courier/orders/$id'
     | '/seller/products/$id'
     | '/warehouse/orders/$id'
     | '/admin/orders'
+    | '/admin/settings'
     | '/courier/orders'
     | '/seller/products'
     | '/warehouse/orders'
@@ -196,12 +218,14 @@ export interface FileRouteTypes {
     | '/orders/$id'
     | '/product/$handle'
     | '/profile/addresses'
+    | '/admin/'
     | '/orders/'
     | '/admin/orders/$id'
     | '/courier/orders/$id'
     | '/seller/products/$id'
     | '/warehouse/orders/$id'
     | '/admin/orders/'
+    | '/admin/settings/'
     | '/courier/orders/'
     | '/seller/products/'
     | '/warehouse/orders/'
@@ -214,12 +238,14 @@ export interface RootRouteChildren {
   OrdersIdRoute: typeof OrdersIdRoute
   ProductHandleRoute: typeof ProductHandleRoute
   ProfileAddressesRoute: typeof ProfileAddressesRoute
+  AdminIndexRoute: typeof AdminIndexRoute
   OrdersIndexRoute: typeof OrdersIndexRoute
   AdminOrdersIdRoute: typeof AdminOrdersIdRoute
   CourierOrdersIdRoute: typeof CourierOrdersIdRoute
   SellerProductsIdRoute: typeof SellerProductsIdRoute
   WarehouseOrdersIdRoute: typeof WarehouseOrdersIdRoute
   AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute
+  AdminSettingsIndexRoute: typeof AdminSettingsIndexRoute
   CourierOrdersIndexRoute: typeof CourierOrdersIndexRoute
   SellerProductsIndexRoute: typeof SellerProductsIndexRoute
   WarehouseOrdersIndexRoute: typeof WarehouseOrdersIndexRoute
@@ -253,6 +279,13 @@ declare module '@tanstack/react-router' {
       path: '/orders'
       fullPath: '/orders/'
       preLoaderRoute: typeof OrdersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile/addresses': {
@@ -295,6 +328,13 @@ declare module '@tanstack/react-router' {
       path: '/courier/orders'
       fullPath: '/courier/orders/'
       preLoaderRoute: typeof CourierOrdersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/settings/': {
+      id: '/admin/settings/'
+      path: '/admin/settings'
+      fullPath: '/admin/settings/'
+      preLoaderRoute: typeof AdminSettingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/orders/': {
@@ -342,12 +382,14 @@ const rootRouteChildren: RootRouteChildren = {
   OrdersIdRoute: OrdersIdRoute,
   ProductHandleRoute: ProductHandleRoute,
   ProfileAddressesRoute: ProfileAddressesRoute,
+  AdminIndexRoute: AdminIndexRoute,
   OrdersIndexRoute: OrdersIndexRoute,
   AdminOrdersIdRoute: AdminOrdersIdRoute,
   CourierOrdersIdRoute: CourierOrdersIdRoute,
   SellerProductsIdRoute: SellerProductsIdRoute,
   WarehouseOrdersIdRoute: WarehouseOrdersIdRoute,
   AdminOrdersIndexRoute: AdminOrdersIndexRoute,
+  AdminSettingsIndexRoute: AdminSettingsIndexRoute,
   CourierOrdersIndexRoute: CourierOrdersIndexRoute,
   SellerProductsIndexRoute: SellerProductsIndexRoute,
   WarehouseOrdersIndexRoute: WarehouseOrdersIndexRoute,
