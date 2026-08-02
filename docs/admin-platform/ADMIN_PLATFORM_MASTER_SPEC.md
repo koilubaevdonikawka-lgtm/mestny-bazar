@@ -4,8 +4,8 @@
 |---|---|
 | **Версия** | 0.1 |
 | **Статус** | Действующий — центральный документ |
-| **Дата последнего обновления** | 2026-08-01 |
-| **Связанные документы** | [`README.md`](./README.md) (полный список), [`platform-lifecycle.md`](./platform-lifecycle.md), [`dependency-map.md`](./dependency-map.md), [`IMPLEMENTATION_ORDER.md`](./IMPLEMENTATION_ORDER.md) |
+| **Дата последнего обновления** | 2026-08-02 (добавлен модуль «Доставка» — см. `docs/delivery/`) |
+| **Связанные документы** | [`README.md`](./README.md) (полный список), [`platform-lifecycle.md`](./platform-lifecycle.md), [`dependency-map.md`](./dependency-map.md), [`IMPLEMENTATION_ORDER.md`](./IMPLEMENTATION_ORDER.md), [`../delivery/DELIVERY_MASTER_SPEC.md`](../delivery/DELIVERY_MASTER_SPEC.md) |
 | **Связанные ADR** | [ADR-001](../adr/ADR-001-ports-and-adapters.md) |
 | **Связанные Architecture Principles** | PL-01…PL-14 (все — см. [`ARCHITECTURE_PRINCIPLES.md`](../architecture/ARCHITECTURE_PRINCIPLES.md)) |
 
@@ -103,6 +103,8 @@
 ├── Поставщики           (см. suppliers.md)
 ├── Покупатели           (см. users.md)
 ├── Курьеры              (см. couriers.md — управление, не сама PWA)
+├── Доставка             (см. ../delivery/DELIVERY_MASTER_SPEC.md — отдельный модуль,
+│                          Delivery Management & Pricing: зоны, тарифы, коэффициенты)
 ├── Аналитика            (см. analytics.md)
 ├── Финансы              (см. finance.md)
 ├── Маркетинг            (см. marketing.md)
@@ -131,6 +133,7 @@
 | Поставщики | `suppliers.md` | Не существует (0 совпадений в кодовой базе — подтверждено аудитом) |
 | Покупатели | `users.md` | Частично существует (`ProfileDTO`, `AddressService`); отдельного admin-инструмента для покупателей нет |
 | Курьеры | `couriers.md` | Частично существует (`CourierOrderService` — общая очередь); привязки курьера к заказу и авто-подбора — нет (см. §9, найденное расхождение) |
+| Доставка | [`../delivery/DELIVERY_MASTER_SPEC.md`](../delivery/DELIVERY_MASTER_SPEC.md) | Частично существует (`delivery_zones` — плоский список, одна цена на зону, `PricingService.calculateDeliveryFee`); зоны/тарифы/коэффициенты как конфигурируемые сущности, города, магазины — спроектированы (Этап 1 из 3, отдельный roadmap — `docs/delivery/IMPLEMENTATION_ORDER.md`), не реализованы |
 | Продавцы | `sellers.md` | Частично существует (`SellerProductService`, публикация товара); admin-обзора продавцов — нет |
 | Аналитика | `analytics.md` | Не существует |
 | Финансы | `finance.md` | Не существует |
@@ -157,6 +160,7 @@
 Склад ──owns──> Остатки, резервирование  (частично: резерв уже владеет Checkout)
 Заказы ──owns──> Заказ, статус, позиции заказа
 Курьеры ──owns──> Доставку конкретного заказа (после устранения пробела §9)
+Доставка ──owns──> Зоны, тарифы, коэффициенты (docs/delivery/); ──produces──> стоимость/ETA, которые Заказы применяют через DeliveryPricingEngine (не напрямую)
 Покупатели ──owns──> Профиль, адреса
 Финансы ──consumes──> Заказы, Оплаты (read-only агрегация, не пишет в Заказы)
 Аналитика ──consumes──> Заказы, Каталог, Покупатели, Курьеры (read-only)
