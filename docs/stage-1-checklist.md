@@ -82,10 +82,11 @@ API, gated by `isPlatformCatalog()` (`src/config/features.ts`, `VITE_FEATURE_CAT
 - `src/routes/index.tsx`, `src/routes/product.$handle.tsx` — now call `fetchCatalogProducts()` /
   `fetchCatalogProduct()` instead of querying the Shopify Storefront API directly.
 
-Note: `server/functions/catalog.functions.ts` (Stage 1) is no longer called by anything — the
-`createServerFn` boundary now lives in `src/api/catalog.functions.ts` instead, since TanStack
+Note: `server/functions/catalog.functions.ts` (Stage 1) was no longer called by anything — the
+`createServerFn` boundary lives in `src/api/catalog.functions.ts` instead, since TanStack
 Start's `import-protection` plugin denies any client-reachable import under `server/**`
-regardless of whether the target is `createServerFn`-wrapped. Left in place, not deleted.
+regardless of whether the target is `createServerFn`-wrapped. Deleted as confirmed dead code
+(Промпт №018) — zero importers found across the repository.
 
 ## Stage 9 — done
 
