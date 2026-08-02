@@ -5,7 +5,7 @@
 | **Версия** | 1.0 |
 | **Статус** | Действующий, обязательный этап процесса разработки |
 | **Дата создания** | 2026-08-02 |
-| **Связанные документы** | [`ARCHITECTURE_PRINCIPLES.md`](./ARCHITECTURE_PRINCIPLES.md), [`ARCHITECTURE_POLICY.md`](./ARCHITECTURE_POLICY.md), [`ADR_INDEX.md`](./ADR_INDEX.md), [`docs/admin-platform/ADMIN_PLATFORM_MASTER_SPEC.md`](../admin-platform/ADMIN_PLATFORM_MASTER_SPEC.md), [`docs/admin-platform/IMPLEMENTATION_ORDER.md`](../admin-platform/IMPLEMENTATION_ORDER.md), [`docs/admin-platform/platform-lifecycle.md`](../admin-platform/platform-lifecycle.md), [`docs/admin-platform/dependency-map.md`](../admin-platform/dependency-map.md) |
+| **Связанные документы** | [`ARCHITECTURE_BASELINE_V1.md`](./ARCHITECTURE_BASELINE_V1.md), [`ARCHITECTURE_PRINCIPLES.md`](./ARCHITECTURE_PRINCIPLES.md), [`ARCHITECTURE_POLICY.md`](./ARCHITECTURE_POLICY.md), [`ADR_INDEX.md`](./ADR_INDEX.md), [`docs/admin-platform/ADMIN_PLATFORM_MASTER_SPEC.md`](../admin-platform/ADMIN_PLATFORM_MASTER_SPEC.md), [`docs/admin-platform/IMPLEMENTATION_ORDER.md`](../admin-platform/IMPLEMENTATION_ORDER.md), [`docs/admin-platform/platform-lifecycle.md`](../admin-platform/platform-lifecycle.md), [`docs/admin-platform/dependency-map.md`](../admin-platform/dependency-map.md) |
 | **Связанные ADR** | [ADR-001](../adr/ADR-001-ports-and-adapters.md) |
 | **Связанные Architecture Principles** | Все — Architecture Guard не вводит новых принципов, он проверяет соблюдение уже существующих (PL-01…PL-14, CD-01…CD-11, POL-01…POL-14) |
 | **Исполняемая часть** | [`scripts/architecture-guard.mjs`](../../scripts/architecture-guard.mjs) — `npm run guard` |
@@ -26,13 +26,14 @@ Architecture Guard не вводит собственных критериев �
 
 | № | Источник | Что определяет |
 |---|---|---|
-| 1 | [`ARCHITECTURE_PRINCIPLES.md`](./ARCHITECTURE_PRINCIPLES.md) | Свод из 41 принципа (`PL-01`…`PL-14`, `CD-01`…`CD-11`, восстановленные `POL-01`…`POL-14`), фактически действующих в проекте — основной источник для проверок §3 |
-| 2 | [`ARCHITECTURE_POLICY.md`](./ARCHITECTURE_POLICY.md) | Продуктовая архитектурная политика: стабильное ядро, независимость модулей, принцип «расширяй, не заменяй» (`POL-14`) |
-| 3 | Все ADR (`docs/adr/ADR-001-*.md`, будущие `docs/architecture/adr/ADR-NNN-*.md`, индекс — [`ADR_INDEX.md`](./ADR_INDEX.md)) | Конкретные, разовые архитектурные решения, обязательные к соблюдению там, где приняты |
-| 4 | [`docs/admin-platform/ADMIN_PLATFORM_MASTER_SPEC.md`](../admin-platform/ADMIN_PLATFORM_MASTER_SPEC.md) | Полный список модулей Административной платформы, роли, сводная матрица доступа |
-| 5 | [`docs/admin-platform/IMPLEMENTATION_ORDER.md`](../admin-platform/IMPLEMENTATION_ORDER.md) | Порядок реализации, границы каждого этапа, обязательные проверки и критерии готовности |
-| 6 | [`docs/admin-platform/platform-lifecycle.md`](../admin-platform/platform-lifecycle.md) | Последовательность взаимодействия ролей во времени (буфер отмены, операционный каскад) |
-| 7 | [`docs/admin-platform/dependency-map.md`](../admin-platform/dependency-map.md) | Зависимости между модулями Административной платформы и пары, которые нельзя менять изолированно |
+| 1 | [`ARCHITECTURE_BASELINE_V1.md`](./ARCHITECTURE_BASELINE_V1.md) | **Официальный эталон (Version 1.0, VERIFIED)** — итоговая схема платформы, зафиксированный список принципов, инварианты, границы ответственности, Source of Truth. Основной критерий проверки — при противоречии с любым источником ниже побеждает Baseline, если он не устарел относительно принятого нового ADR |
+| 2 | [`ARCHITECTURE_PRINCIPLES.md`](./ARCHITECTURE_PRINCIPLES.md) | Свод из 41 принципа (`PL-01`…`PL-14`, `CD-01`…`CD-11`, восстановленные `POL-01`…`POL-14`), фактически действующих в проекте — основной источник для проверок §3 |
+| 3 | [`ARCHITECTURE_POLICY.md`](./ARCHITECTURE_POLICY.md) | Продуктовая архитектурная политика: стабильное ядро, независимость модулей, принцип «расширяй, не заменяй» (`POL-14`) |
+| 4 | Все ADR (`docs/adr/ADR-001-*.md`, `docs/architecture/adr/ADR-NNN-*.md`, индекс — [`ADR_INDEX.md`](./ADR_INDEX.md)) | Конкретные, разовые архитектурные решения, обязательные к соблюдению там, где приняты |
+| 5 | [`docs/admin-platform/ADMIN_PLATFORM_MASTER_SPEC.md`](../admin-platform/ADMIN_PLATFORM_MASTER_SPEC.md) | Полный список модулей Административной платформы, роли, сводная матрица доступа |
+| 6 | [`docs/admin-platform/IMPLEMENTATION_ORDER.md`](../admin-platform/IMPLEMENTATION_ORDER.md) | Порядок реализации, границы каждого этапа, обязательные проверки и критерии готовности |
+| 7 | [`docs/admin-platform/platform-lifecycle.md`](../admin-platform/platform-lifecycle.md) | Последовательность взаимодействия ролей во времени (буфер отмены, операционный каскад) |
+| 8 | [`docs/admin-platform/dependency-map.md`](../admin-platform/dependency-map.md) | Зависимости между модулями Административной платформы и пары, которые нельзя менять изолированно |
 
 Если задача требует нарушить принцип из источника 1 или 2 — это не решается внутри задачи и не обходится молча; см. `docs/architecture/README.md`, раздел «Когда нельзя менять Architecture Principles», и §4 этого документа (обязательный FAIL с указанием, что для продолжения требуется либо пересмотр принципа отдельным решением, либо новый ADR).
 
