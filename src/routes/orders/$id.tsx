@@ -215,6 +215,12 @@ function OrderDetailPage() {
               <span className="text-muted-foreground">Доставка</span>
               <span>{formatMoney(order.deliveryFee, order.currency)}</span>
             </div>
+            {order.discountAmount > 0 && (
+              <div className="flex justify-between text-primary">
+                <span>Скидка{order.couponCode ? ` (${order.couponCode})` : ""}</span>
+                <span>−{formatMoney(order.discountAmount, order.currency)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-lg font-semibold pt-2">
               <span>Итого</span>
               <span>{formatMoney(order.total, order.currency)}</span>

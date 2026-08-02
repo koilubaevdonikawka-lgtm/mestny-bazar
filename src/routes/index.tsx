@@ -242,7 +242,9 @@ function Home() {
       <section id="products" className="mx-auto max-w-7xl px-6 py-12 w-full flex-1">
         <div className="mb-10">
           <h2 className="font-serif text-4xl md:text-5xl tracking-tight">Товары</h2>
-          <p className="mt-2 text-muted-foreground">Скоро здесь появятся товары с ценами и фото.</p>
+          <p className="mt-2 text-muted-foreground">
+            Свежие продукты с ценами и фото, с доставкой на дом.
+          </p>
         </div>
 
         {isLoading ? (

@@ -7,13 +7,14 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/stores/cartStore";
 import { fetchCatalogProduct } from "@/lib/catalog";
+import { BRAND } from "@/config/brand";
 
 export const Route = createFileRoute("/product/$handle")({
   component: ProductPage,
   head: ({ params }) => ({
     meta: [
-      { title: `${params.handle} — Свежий Двор` },
-      { name: "description", content: `Купить ${params.handle} с доставкой в Свежем Дворе.` },
+      { title: `${params.handle} — ${BRAND.name}` },
+      { name: "description", content: `Купить ${params.handle} с доставкой в «${BRAND.name}».` },
     ],
   }),
   errorComponent: ({ error, reset }) => (
