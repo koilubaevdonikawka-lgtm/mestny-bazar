@@ -346,7 +346,7 @@ export class CheckoutService {
           identifierType: useId ? "id" : "slug",
           note: useId
             ? "Sync catalog to platform DB before checkout — Checkout must not create products."
-            : "Map Shopify handle → products.slug and sync catalog before checkout — Checkout must not create products.",
+            : "Sync catalog so products.slug matches before checkout — Checkout must not create products.",
         });
         throw new ProductNotSynchronized(identifier);
       }

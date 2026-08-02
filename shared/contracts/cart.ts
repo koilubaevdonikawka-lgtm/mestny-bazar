@@ -3,9 +3,8 @@ import type { ProductDTO } from "./catalog";
 /**
  * Identifies a cart/order line's product — exactly one of these two is set.
  * Mirrors CreateOrderItemRequest's identity shape in shared/contracts/order.ts
- * so a cart line and an order line item validate/resolve the same way while
- * the Shopify catalog is still live (Stage 9 not done): productId is a
- * platform UUID, productSlug is a Shopify handle / platform slug.
+ * so a cart line and an order line item validate/resolve the same way:
+ * productId is a platform UUID, productSlug is the product's platform slug.
  */
 export interface CartLineIdentifier {
   productId?: string;

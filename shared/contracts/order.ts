@@ -55,7 +55,7 @@ export interface CreateOrderItemRequest {
   quantity: number;
   /** Platform product UUID. */
   productId?: string;
-  /** Shopify handle / platform slug during catalog migration. */
+  /** Product's platform slug. */
   productSlug?: string;
   /** Used to provision a platform product when slug is not in DB yet. */
   snapshot?: {

@@ -1,6 +1,6 @@
 # Местный Базар (Everyday Eats Hub)
 
-Локальный food-маркетплейс: каталог, продавцы, заказы, доставка, оплата, административные и складские сценарии. Построен на **TanStack Start** (React 19) поверх **Supabase** (Postgres + Auth), с временным параллельным источником каталога/checkout через **Shopify** на время миграции.
+Локальный food-маркетплейс: каталог, продавцы, заказы, доставка, оплата, административные и складские сценарии. Построен на **TanStack Start** (React 19) поверх **Supabase** (Postgres + Auth) — единственный источник каталога, заказов и всех остальных данных (см. [ADR-002](docs/architecture/adr/ADR-002-complete-shopify-catalog-migration.md)).
 
 ## Стек
 
@@ -22,7 +22,7 @@ Platform API (src/api/ → server/functions/)
     ↓ порты (интерфейсы)
 Domain services (server/domain/)
     ↓ адаптеры
-Supabase | Shopify (временно) | Finik (заглушка)
+Supabase | Finik (заглушка)
 ```
 
 Подробности:

@@ -18,8 +18,6 @@
  */
 
 const SUPABASE_CONNECT_SRC = "https://*.supabase.co";
-const SHOPIFY_CONNECT_SRC = "https://*.myshopify.com";
-const SHOPIFY_CDN_SRC = "https://cdn.shopify.com";
 
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
@@ -29,7 +27,7 @@ const CONTENT_SECURITY_POLICY = [
   // Seller-submitted product image URLs can point to any host, so img-src
   // can't be locked to a fixed allow-list without breaking real listings.
   "img-src 'self' data: https:",
-  `connect-src 'self' ${SUPABASE_CONNECT_SRC} ${SHOPIFY_CONNECT_SRC} ${SHOPIFY_CDN_SRC}`,
+  `connect-src 'self' ${SUPABASE_CONNECT_SRC}`,
   "frame-ancestors 'none'",
   "object-src 'none'",
   "base-uri 'self'",

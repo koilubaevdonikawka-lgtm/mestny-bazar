@@ -56,7 +56,7 @@ describe("applySecurityHeaders", () => {
     expect(csp).toContain("default-src 'self'");
   });
 
-  it("allows Supabase and Shopify hosts in connect-src", () => {
+  it("allows Supabase hosts in connect-src", () => {
     process.env.NODE_ENV = "production";
     const headers = new Headers();
 
@@ -64,8 +64,17 @@ describe("applySecurityHeaders", () => {
 
     const csp = headers.get("Content-Security-Policy") ?? "";
     expect(csp).toContain("https://*.supabase.co");
-    expect(csp).toContain("https://*.myshopify.com");
-    expect(csp).toContain("https://cdn.shopify.com");
+  });
+
+  it("does not allow Shopify hosts in connect-src — Supabase is the sole catalog source (ADR-002)", () => {
+    process.env.NODE_ENV = "production";
+    const headers = new Headers();
+
+    applySecurityHeaders(headers);
+
+    const csp = headers.get("Content-Security-Policy") ?? "";
+    expect(csp).not.toContain("myshopify.com");
+    expect(csp).not.toContain("shopify.com");
   });
 
   it("treats test environment the same as development (no CSP/HSTS)", () => {
