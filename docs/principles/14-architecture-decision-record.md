@@ -47,6 +47,7 @@ ADR — обязательный артефакт перед внедрение�
 | ADR | Решение | Статус |
 |-----|---------|--------|
 | [ADR-001](../adr/ADR-001-ports-and-adapters.md) | Ports & Adapters Platform Layer | Accepted |
+| [ADR-002](../architecture/adr/ADR-002-complete-shopify-catalog-migration.md) | Завершение миграции каталога — Supabase единственный источник | Accepted |
 
 ## Связь с принципами
 

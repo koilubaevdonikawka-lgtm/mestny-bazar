@@ -24,7 +24,7 @@
 ## Explicitly NOT done (later stages)
 
 - [x] UI switch to `src/api/catalog.ts` (Stage 3 — done, see below)
-- [ ] Remove `src/lib/shopify.ts` (Stage 9 — still required for `checkoutSource: "shopify"` fallback and Cart API)
+- [x] Remove `src/lib/shopify.ts` (Stage 9 — done, see [ADR-002](./architecture/adr/ADR-002-complete-shopify-catalog-migration.md))
 - [x] Supabase repository implementations (Stage 2 — done)
 - [ ] Frontend direct Supabase catalog reads (never — use Platform API)
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` in production secrets
@@ -87,10 +87,12 @@ Note: `server/functions/catalog.functions.ts` (Stage 1) is no longer called by a
 Start's `import-protection` plugin denies any client-reachable import under `server/**`
 regardless of whether the target is `createServerFn`-wrapped. Left in place, not deleted.
 
-## Next: Stage 9
+## Stage 9 — done
 
-Remove `src/lib/shopify.ts` and the Shopify Storefront/Cart API once `checkoutSource` also
-defaults to `"platform"` and no fallback path depends on it.
+`src/lib/shopify.ts`, `server/adapters/migration/shopify.adapter.ts`, `FEATURE_CATALOG_SOURCE`,
+and `FEATURE_CHECKOUT_SOURCE` all removed — see
+[ADR-002](./architecture/adr/ADR-002-complete-shopify-catalog-migration.md).
+`SupabaseProductRepository` is now the unconditional, sole `IProductRepository` implementation.
 
 ## Acceptance criteria (Stage 1)
 
@@ -100,4 +102,4 @@ defaults to `"platform"` and no fallback path depends on it.
 | Shopify catalog works in browser         | ✅ unchanged |
 | New folders exist                        | ✅           |
 | ESLint blocks `src/` → `server/domain`   | ✅           |
-| `FEATURE_CATALOG_SOURCE=shopify` default | ✅           |
+| `FEATURE_CATALOG_SOURCE=shopify` default | ✅ (Stage 1; flag removed entirely at Stage 9, ADR-002) |

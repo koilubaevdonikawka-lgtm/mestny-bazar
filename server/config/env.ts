@@ -1,14 +1,5 @@
 import { z } from "zod";
 
-const catalogSourceSchema = z.enum(["shopify", "platform"]).default("shopify");
-// Must track catalogSourceSchema's default — CheckoutService resolves every
-// line item against the Supabase products table only, never Shopify (see
-// src/config/features.ts for the client-side mirror of this same rule).
-// Defaulting this to "platform" while the catalog defaults to "shopify"
-// reintroduces the exact bug fixed in af9afde for any deployment that
-// leaves FEATURE_CHECKOUT_SOURCE unset.
-const checkoutSourceSchema = z.enum(["shopify", "platform"]).default("shopify");
-
 export const serverEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).optional(),
 
@@ -16,21 +7,11 @@ export const serverEnvSchema = z.object({
   APP_URL: z.string().url().optional(),
 
   SUPABASE_URL: z.string().url(),
-  // Required in every deployment configuration, not just when the platform
-  // catalog feature flag is on: server/di/container.ts unconditionally
-  // constructs SupabaseOrderRepository, SupabaseAddressRepository,
-  // SupabaseSellerProductRepository, SupabaseDeliveryZoneRepository, and
-  // SupabaseAuditLog regardless of FEATURE_CATALOG_SOURCE — checkout, orders,
-  // addresses, and seller management all need it no matter which catalog
-  // source is active.
+  // Required in every deployment configuration: server/di/container.ts
+  // unconditionally constructs every Supabase-backed repository (catalog,
+  // orders, addresses, seller products, delivery zones, audit log, ...) —
+  // Supabase is the sole data source for the whole platform (ADR-002).
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
-
-  FEATURE_CATALOG_SOURCE: catalogSourceSchema,
-  FEATURE_CHECKOUT_SOURCE: checkoutSourceSchema,
-
-  SHOPIFY_STORE_DOMAIN: z.string().optional(),
-  SHOPIFY_STOREFRONT_TOKEN: z.string().optional(),
-  SHOPIFY_API_VERSION: z.string().default("2025-07"),
 
   FINIK_API_KEY: z.string().optional(),
   FINIK_WEBHOOK_SECRET: z.string().optional(),
@@ -43,8 +24,6 @@ export const serverEnvSchema = z.object({
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
-export type CatalogSource = z.infer<typeof catalogSourceSchema>;
-export type CheckoutSource = z.infer<typeof checkoutSourceSchema>;
 
 let cachedEnv: ServerEnv | undefined;
 
@@ -68,12 +47,4 @@ export function getServerEnv(): ServerEnv {
     cachedEnv = result.data;
   }
   return cachedEnv;
-}
-
-export function getCheckoutSource(): CheckoutSource {
-  return getServerEnv().FEATURE_CHECKOUT_SOURCE;
-}
-
-export function isPlatformCheckoutEnabled(): boolean {
-  return getCheckoutSource() === "platform";
 }

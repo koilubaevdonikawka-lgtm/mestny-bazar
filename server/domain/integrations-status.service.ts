@@ -21,13 +21,6 @@ export class IntegrationsStatusService {
   getStatus(): IntegrationsStatusDTO {
     const integrations: IntegrationSummary[] = [
       {
-        name: "Каталог (миграционный)",
-        port: "IProductRepository",
-        adapter: "ShopifyCatalogAdapter",
-        status: IntegrationStatus.ACTIVE,
-        secretConfigured: null,
-      },
-      {
         name: "Оплата",
         port: "IPaymentProvider",
         adapter: "FinikPaymentAdapter",

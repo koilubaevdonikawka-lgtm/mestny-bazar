@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { toast } from "sonner";
-import type { ShopifyProduct } from "@/lib/shopify";
+import type { CatalogProductNode } from "@shared/lib/product-adapter";
 import type {
   CartItemDTO,
   CartLineIdentifier,
@@ -19,7 +19,7 @@ import {
 } from "@/api/cart";
 
 export interface CartItem {
-  product: ShopifyProduct;
+  product: CatalogProductNode;
   variantId: string;
   variantTitle: string;
   price: { amount: string; currencyCode: string };
@@ -28,12 +28,9 @@ export interface CartItem {
 }
 
 /**
- * The frontend has always identified a cart line by the Shopify handle
- * (product.node.handle), for both Shopify-catalog and platform-catalog
- * items (the platform shim sets node.handle to the product's own slug) —
- * CartDrawer's checkout request already resolved every line this way before
- * this stage. Reusing the same identity here keeps cart and checkout in
- * lockstep with zero behavior change for the identifier itself.
+ * A cart line is identified by product.node.handle, which toCatalogProductNode
+ * sets to the product's own slug (shared/lib/product-adapter.ts) — the same
+ * identity CartDrawer's checkout request resolves against.
  */
 function toIdentifier(item: Pick<CartItem, "product">): CartLineIdentifier {
   return { productSlug: item.product.node.handle };

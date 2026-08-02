@@ -8,17 +8,17 @@ API-ключи, токены и service role keys **никогда** не поп
 
 | Переменная | Назначение |
 |------------|------------|
-| `SHOPIFY_STOREFRONT_TOKEN` | Migration adapter |
 | `SUPABASE_SERVICE_ROLE_KEY` | Repository adapters |
 | `FINIK_API_KEY` | Payment adapter |
 | `TELEGRAM_BOT_TOKEN` | Notifications |
+
+`SHOPIFY_STOREFRONT_TOKEN` удалена вместе с миграционным адаптером — [ADR-002](../architecture/adr/ADR-002-complete-shopify-catalog-migration.md).
 
 ## Client-safe переменные
 
 | Переменная | Назначение |
 |------------|------------|
 | `VITE_SUPABASE_URL` | Auth client |
-| `VITE_FEATURE_CATALOG_SOURCE` | UI feature flag |
 | `VITE_APP_URL` | Meta, sitemap |
 
 ## Валидация

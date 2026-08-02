@@ -53,7 +53,6 @@ import type { IPayoutRepository } from "@server/ports/payout.repository";
 import type { IBannerRepository } from "@server/ports/banner.repository";
 import type { ICommissionPolicy } from "@server/ports/commission-policy.port";
 import type { IDiscountPolicy } from "@server/ports/discount-policy.port";
-import { ShopifyCatalogAdapter } from "@server/adapters/migration/shopify.adapter";
 import { StubNotificationAdapter } from "@server/adapters/notifications/stub-notification.adapter";
 import { StubOrderEventNotifier } from "@server/adapters/notifications/stub-order-event.notifier";
 import { CheckoutPaymentHandler } from "@server/adapters/payment/checkout-payment.handler";
@@ -233,16 +232,9 @@ export interface ServiceContainer {
 
 let container: ServiceContainer | undefined;
 
-function createProductRepository(env: ServerEnv): IProductRepository {
-  if (env.FEATURE_CATALOG_SOURCE === "platform") {
-    return new SupabaseProductRepository();
-  }
-  return new ShopifyCatalogAdapter();
-}
-
 /** Composition root — wires concrete adapters to port interfaces. */
 export function createServices(env: ServerEnv): ServiceContainer {
-  const catalogProducts = createProductRepository(env);
+  const catalogProducts: IProductRepository = new SupabaseProductRepository();
   const orderProducts = new SupabaseProductRepository();
   const orders = new SupabaseOrderRepository();
   const orderCascades: IOrderCascadeRepository = new SupabaseOrderCascadeRepository();
@@ -347,9 +339,9 @@ export function createServices(env: ServerEnv): ServiceContainer {
   });
 
   const addressService = new AddressService(addresses);
-  // Reuses orderProducts (always Supabase, regardless of FEATURE_CATALOG_SOURCE) —
-  // the same product repository CheckoutService validates against, so a cart
-  // line and an order line item are validated against identical truth.
+  // Reuses orderProducts — the same product repository CheckoutService
+  // validates against, so a cart line and an order line item are validated
+  // against identical truth (both Supabase, per ADR-002).
   const cartService = new CartService(orderProducts, carts);
   const pricing = new PricingService(zones);
   const inventory = new InventoryService(orderProducts);

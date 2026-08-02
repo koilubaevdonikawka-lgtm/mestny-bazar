@@ -3,7 +3,6 @@ import { createServices, getServices, type ServiceContainer } from "./container"
 import { serverEnvSchema, type ServerEnv } from "@server/config/env";
 import { CheckoutService } from "@server/domain/checkout.service";
 import { SupabaseProductRepository } from "@server/adapters/supabase/product.repository";
-import { ShopifyCatalogAdapter } from "@server/adapters/migration/shopify.adapter";
 
 /**
  * server/di/container.ts is the single Composition Root — every domain
@@ -70,18 +69,13 @@ describe("createServices", () => {
     expect(services.checkout).toBeInstanceOf(CheckoutService);
   });
 
-  it("routes the buyer catalog to SupabaseProductRepository when FEATURE_CATALOG_SOURCE=platform", () => {
-    const services = createServices(fakeEnv({ FEATURE_CATALOG_SOURCE: "platform" }));
+  it("routes the buyer catalog to SupabaseProductRepository — Supabase is the sole catalog source (ADR-002)", () => {
+    const services = createServices(fakeEnv());
     expect(services.catalogProducts).toBeInstanceOf(SupabaseProductRepository);
   });
 
-  it("routes the buyer catalog to ShopifyCatalogAdapter when FEATURE_CATALOG_SOURCE=shopify", () => {
-    const services = createServices(fakeEnv({ FEATURE_CATALOG_SOURCE: "shopify" }));
-    expect(services.catalogProducts).toBeInstanceOf(ShopifyCatalogAdapter);
-  });
-
-  it("always uses SupabaseProductRepository for order/checkout inventory, regardless of catalog source", () => {
-    const services = createServices(fakeEnv({ FEATURE_CATALOG_SOURCE: "shopify" }));
+  it("uses SupabaseProductRepository for order/checkout inventory too — same instance path as the browse catalog", () => {
+    const services = createServices(fakeEnv());
     expect(services.orderProducts).toBeInstanceOf(SupabaseProductRepository);
   });
 });

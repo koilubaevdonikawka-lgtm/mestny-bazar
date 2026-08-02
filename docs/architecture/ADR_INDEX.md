@@ -23,7 +23,7 @@
 | ADR | Заголовок | Статус | Краткое описание |
 |---|---|---|---|
 | [ADR-001](../adr/ADR-001-ports-and-adapters.md) | Ports & Adapters Platform Layer | **Accepted** (2026-07-16) | Вводит Platform Layer между frontend и всеми внешними сервисами: Contracts / Ports / Adapters / Domain services / Transport / Frontend API. Отклоняет прямое чтение каталога через Supabase RLS с фронтенда (план Lovable) и big-bang-переписывание без Ports & Adapters. |
-| ADR-002 | *(не создан)* | — | *(зарезервировано)* |
+| [ADR-002](./adr/ADR-002-complete-shopify-catalog-migration.md) | Завершение миграции каталога — Supabase единственный источник | **Accepted** (2026-08-02) | Закрывает временное состояние «dual catalog», принятое ADR-001. Удаляет `ShopifyCatalogAdapter`, `FEATURE_CATALOG_SOURCE`/`FEATURE_CHECKOUT_SOURCE`, `src/lib/shopify.ts`. `SupabaseProductRepository` — единственная реализация `IProductRepository`. |
 | ADR-003 | *(не создан)* | — | *(зарезервировано)* |
 | ADR-004 | *(не создан)* | — | *(зарезервировано)* |
 | ADR-NNN | *(не создан)* | — | *(добавляйте новые строки по мере создания ADR — см. `docs/principles/14-architecture-decision-record.md` о том, когда ADR обязателен)* |

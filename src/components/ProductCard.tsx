@@ -3,9 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useCartStore } from "@/stores/cartStore";
-import type { ShopifyProduct } from "@/lib/shopify";
+import type { CatalogProductNode } from "@shared/lib/product-adapter";
 
-export function ProductCard({ product }: { product: ShopifyProduct }) {
+export function ProductCard({ product }: { product: CatalogProductNode }) {
   const addItem = useCartStore((s) => s.addItem);
   const isLoading = useCartStore((s) => s.isLoading);
 

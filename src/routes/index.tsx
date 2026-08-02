@@ -21,7 +21,7 @@ import { useSearchStore } from "@/stores/searchStore";
 import { useCheckoutStore } from "@/stores/checkoutStore";
 import { Truck, Loader2, ShoppingBasket, MessageCircle, CreditCard, Send } from "lucide-react";
 import { fetchCatalogProducts } from "@/lib/catalog";
-import type { ShopifyProduct } from "@/lib/shopify";
+import type { CatalogProductNode } from "@shared/lib/product-adapter";
 import { listCategories } from "@/api/category";
 import { listActiveBanners } from "@/api/design";
 import { BRAND } from "@/config/brand";
@@ -106,7 +106,7 @@ function Home() {
 
   const products = useMemo(() => {
     const seen = new Set<string>();
-    const merged: ShopifyProduct[] = [];
+    const merged: CatalogProductNode[] = [];
     for (const page of data?.pages ?? []) {
       for (const product of page.items) {
         if (seen.has(product.node.id)) continue;

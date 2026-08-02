@@ -11,7 +11,7 @@ describe("serverEnvSchema", () => {
     expect(serverEnvSchema.safeParse(validEnv).success).toBe(true);
   });
 
-  it("rejects a missing SUPABASE_SERVICE_ROLE_KEY — required in every deployment configuration, since server/di/container.ts unconditionally constructs Supabase-backed order/address/seller-product/audit-log repositories regardless of FEATURE_CATALOG_SOURCE", () => {
+  it("rejects a missing SUPABASE_SERVICE_ROLE_KEY — required in every deployment configuration, since server/di/container.ts unconditionally constructs every Supabase-backed repository, including the catalog itself (ADR-002)", () => {
     const { SUPABASE_SERVICE_ROLE_KEY: _omit, ...rest } = validEnv;
     expect(serverEnvSchema.safeParse(rest).success).toBe(false);
   });
@@ -31,12 +31,6 @@ describe("serverEnvSchema", () => {
     expect(serverEnvSchema.safeParse({ ...validEnv, SUPABASE_URL: "not-a-url" }).success).toBe(
       false,
     );
-  });
-
-  it("defaults FEATURE_CATALOG_SOURCE and FEATURE_CHECKOUT_SOURCE to the same source when absent — CheckoutService only ever resolves line items against the Supabase products table, so a mismatched pair breaks checkout for the default catalog", () => {
-    const result = serverEnvSchema.parse(validEnv);
-    expect(result.FEATURE_CATALOG_SOURCE).toBe("shopify");
-    expect(result.FEATURE_CHECKOUT_SOURCE).toBe("shopify");
   });
 
   it("leaves Finik/Telegram/WhatsApp secrets optional — those integrations are still stubs", () => {

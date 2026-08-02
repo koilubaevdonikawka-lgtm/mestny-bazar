@@ -16,7 +16,7 @@ Adapter — выполняет I/O; Frontend — только отображае
 | Transport | `server/functions/` | Валидация входа, вызов domain, маппинг DTO | SQL, HTTP к внешним API |
 | Domain | `server/domain/` | Бизнес-правила через порты | `new Adapter()`, знание провайдера |
 | Ports | `server/ports/` | Интерфейсы зависимостей | Реализация |
-| Adapters | `server/adapters/` | Supabase, Finik, Telegram, Shopify | Бизнес-решения |
+| Adapters | `server/adapters/` | Supabase, Finik, Telegram | Бизнес-решения |
 | Composition Root | `server/di/container.ts` | Сборка зависимостей, rule chains, feature flags | Domain-логика |
 
 ## Роли сервисов (domain)
@@ -35,7 +35,7 @@ Adapter — выполняет I/O; Frontend — только отображае
 |--------|--------------|
 | «Можно ли оплатить наличными?» | `PaymentPolicyService` |
 | «Можно ли перейти CREATED → PAID?» | `OrderLifecycleService` |
-| «Какой адаптер каталога?» | `container.ts` + `FEATURE_CATALOG_SOURCE` |
+| «Какой адаптер каталога?» | `container.ts` — единственный вариант, `SupabaseProductRepository` (ADR-002) |
 | «Как выглядит заказ в UI?» | Frontend по `OrderDTO` |
 
 ## Правило делегирования

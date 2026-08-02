@@ -28,7 +28,7 @@ describe("IntegrationsStatusService.getStatus", () => {
     expect(telegram?.secretConfigured).toBe(false);
   });
 
-  it("never exposes a secretConfigured flag for integrations with no secret (storage, Shopify)", () => {
+  it("never exposes a secretConfigured flag for integrations with no secret (storage)", () => {
     const service = new IntegrationsStatusService({
       finikApiKeyConfigured: false,
       telegramBotTokenConfigured: false,

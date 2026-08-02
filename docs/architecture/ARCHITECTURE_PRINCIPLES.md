@@ -113,7 +113,9 @@ These are transcribed near-verbatim from their source files (originally in Russi
 
 **Consequences:** Any new server-only credential must be added to the Zod schema in `server/config/env.ts` and never prefixed `VITE_`. **Note:** at time of recovery, `src/lib/shopify.ts` hardcodes `SHOPIFY_STOREFRONT_TOKEN` as a client-side constant (a Shopify *Storefront* token, which is designed to be public-safe by Shopify's own model) — this is a naming/documentation tension worth flagging, not necessarily a violation, since the principle's table itself lists this exact token as "server-only" while the current code ships an equivalent literal client-side for catalog fetching.
 
-**Affected modules:** `server/config/env.ts`, `.env` / `.env.example`, `src/lib/shopify.ts`.
+**Affected modules:** `server/config/env.ts`, `.env` / `.env.example`, ~~`src/lib/shopify.ts`~~ (deleted).
+
+**Update (2026-08-02, [ADR-002](./adr/ADR-002-complete-shopify-catalog-migration.md)):** `src/lib/shopify.ts` and its hardcoded `SHOPIFY_STOREFRONT_TOKEN` no longer exist — the naming/documentation tension noted above is resolved by removal, not by reclassification. `VITE_FEATURE_CATALOG_SOURCE` also no longer exists (see PL-11 below).
 
 **Source:** `docs/principles/07-server-only-secrets.md`
 
@@ -139,9 +141,11 @@ These are transcribed near-verbatim from their source files (originally in Russi
 
 **Rationale:** Not separately stated beyond the mechanism.
 
-**Consequences:** `ShopifyCatalogAdapter` (`server/adapters/migration/`) is explicitly scoped as temporary under this principle — its continued presence today is expected, not drift, until Stage 9.
+**Consequences:** `ShopifyCatalogAdapter` (`server/adapters/migration/`) was explicitly scoped as temporary under this principle.
 
-**Affected modules:** `server/adapters/`, `server/adapters/migration/`, `server/di/container.ts`.
+**Update (2026-08-02, [ADR-002](./adr/ADR-002-complete-shopify-catalog-migration.md)):** Stage 9 reached — `ShopifyCatalogAdapter` and `server/adapters/migration/` deleted. `SupabaseProductRepository` is now the sole `IProductRepository` implementation; this principle's replaceability guarantee still holds (a future provider would still be a new adapter, not a change to `CatalogService`).
+
+**Affected modules:** `server/adapters/`, `server/di/container.ts`.
 
 **Source:** `docs/principles/09-replaceable-adapters.md`
 
@@ -169,9 +173,11 @@ These are transcribed near-verbatim from their source files (originally in Russi
 
 **Rationale:** Not separately stated beyond enabling safe parallel rollout.
 
-**Consequences:** `createProductRepository(env)` in `server/di/container.ts` is the one place implementing this — confirmed current and consistent with the principle. **Note:** `src/config/features.ts` also defines `FEATURE_CHECKOUT_SOURCE`/`isPlatformCheckout()`, a second flag not mentioned in this document at all — evidence the document predates that flag's introduction.
+**Consequences:** `createProductRepository(env)` in `server/di/container.ts` was the one place implementing this.
 
-**Affected modules:** `server/di/container.ts`, `server/config/env.ts`, `src/config/features.ts`.
+**Update (2026-08-02, [ADR-002](./adr/ADR-002-complete-shopify-catalog-migration.md)):** Migration plan's own stated end state reached — "Stage 9: platform is default, Shopify removed." `FEATURE_CATALOG_SOURCE`, `VITE_FEATURE_CATALOG_SOURCE`, `FEATURE_CHECKOUT_SOURCE`, and `VITE_FEATURE_CHECKOUT_SOURCE` are all removed (the latter two confirmed to have zero call sites gating any behavior before removal). `createProductRepository()` itself is deleted — `catalogProducts` in `server/di/container.ts` is now an unconditional `new SupabaseProductRepository()`. `src/config/features.ts` is deleted.
+
+**Affected modules:** `server/di/container.ts`, `server/config/env.ts`.
 
 **Source:** `docs/principles/11-feature-flags.md`
 

@@ -67,7 +67,7 @@ function read(p) {
 {
   const domainFiles = walk(join(ROOT, "server", "domain")).filter((f) => !f.endsWith(".test.ts"));
   const ctorPattern =
-    /new\s+(Supabase\w+|FinikPaymentAdapter|ShopifyCatalogAdapter|Stub\w+Adapter|Stub\w+Notifier)\s*\(/g;
+    /new\s+(Supabase\w+|FinikPaymentAdapter|Stub\w+Adapter|Stub\w+Notifier)\s*\(/g;
   for (const file of domainFiles) {
     const content = read(file);
     const matches = [...content.matchAll(ctorPattern)];
@@ -111,23 +111,18 @@ function read(p) {
 }
 
 // --- Check 4: Server-Only Secrets (PL-07) — a server-only env var name must
-// never appear in genuinely client-reachable src/** code. Two documented,
-// pre-existing exceptions are excluded, not silently — both are named in
+// never appear in genuinely client-reachable src/** code. One documented,
+// pre-existing exception is excluded, not silently — named in
 // ARCHITECTURE_PRINCIPLES.md itself:
 //   - *.server.ts files (CD-08: the sanctioned "never bundled" marker,
 //     confirmed by ARCHITECTURE_PRINCIPLES.md §CD-08) — client.server.ts
 //     legitimately reads SUPABASE_SERVICE_ROLE_KEY.
-//   - src/lib/shopify.ts's SHOPIFY_STOREFRONT_TOKEN — PL-07's own recovered
-//     text flags this as "a naming/documentation tension worth flagging, not
-//     necessarily a violation" (a Shopify Storefront token is designed by
-//     Shopify to be public-safe). Pre-existing from before this project's
-//     ADR-001 migration, not introduced by any stage this Guard governs.
+// (src/lib/shopify.ts's SHOPIFY_STOREFRONT_TOKEN exception was removed by
+// ADR-002 — that file, and the Shopify catalog it hardcoded a token for, no
+// longer exist.)
 {
   const SERVER_ONLY_NAMES = ["SUPABASE_SERVICE_ROLE_KEY", "FINIK_API_KEY", "TELEGRAM_BOT_TOKEN"];
-  const EXCEPTION_FILES = new Set(["src/lib/shopify.ts"]);
-  const srcFiles = walk(join(ROOT, "src")).filter(
-    (f) => !f.endsWith(".server.ts") && !EXCEPTION_FILES.has(rel(f)),
-  );
+  const srcFiles = walk(join(ROOT, "src")).filter((f) => !f.endsWith(".server.ts"));
   for (const file of srcFiles) {
     const content = read(file);
     for (const name of SERVER_ONLY_NAMES) {

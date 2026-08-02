@@ -1,6 +1,6 @@
 import type { ProductDTO } from "@shared/contracts/catalog";
 
-/** Marks cart line identities that originate from the Platform catalog (Stage 3), not Shopify. */
+/** Marks cart line identities that originate from the Platform catalog. */
 export const PLATFORM_VARIANT_PREFIX = "platform:";
 
 export function isPlatformVariantId(variantId: string): boolean {
@@ -8,11 +8,13 @@ export function isPlatformVariantId(variantId: string): boolean {
 }
 
 /**
- * Structurally matches src/lib/shopify.ts's ShopifyProduct — duplicated rather than
- * imported so shared/ doesn't depend on src/ (shared is meant to be upstream of both
- * src/ and server/, not downstream of either).
+ * Product rendering, cart, and checkout code across the buyer PWA share this
+ * shape (title/handle/priceRange/images/variants) — a legacy naming carried
+ * over from the pre-ADR-002 Shopify Storefront API era, kept because dozens
+ * of components already understand it and Supabase is now the only producer
+ * of this shape (see ADR-002).
  */
-export interface ShopifyProductShim {
+export interface CatalogProductNode {
   node: {
     id: string;
     title: string;
@@ -39,12 +41,8 @@ export interface ShopifyProductShim {
   };
 }
 
-/**
- * Adapts a Platform ProductDTO into the ShopifyProduct shape existing product rendering and
- * cart/checkout code already understands, so switching catalog source (Stage 3) requires no
- * changes to that code.
- */
-export function toShopifyProductShim(product: ProductDTO): ShopifyProductShim {
+/** Adapts a Platform ProductDTO into the CatalogProductNode shape product rendering and cart/checkout code understand. */
+export function toCatalogProductNode(product: ProductDTO): CatalogProductNode {
   const variantId = `${PLATFORM_VARIANT_PREFIX}${product.id}`;
   const price = { amount: product.price.toFixed(2), currencyCode: product.currency };
 

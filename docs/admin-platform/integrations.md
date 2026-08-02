@@ -6,7 +6,7 @@
 | **Статус** | Черновая архитектура — частично реализовано (большинство адаптеров — заглушки) |
 | **Дата последнего обновления** | 2026-08-01 |
 | **Связанные документы** | [`finance.md`](./finance.md), [`automation.md`](./automation.md), [`security.md`](./security.md) |
-| **Связанные ADR** | [ADR-001](../adr/ADR-001-ports-and-adapters.md) |
+| **Связанные ADR** | [ADR-001](../adr/ADR-001-ports-and-adapters.md), [ADR-002](../architecture/adr/ADR-002-complete-shopify-catalog-migration.md) |
 | **Связанные Architecture Principles** | PL-02 (Ports & Adapters), PL-09 (Replaceable Adapters), PL-07 (Server-Only Secrets) |
 
 ---
@@ -23,9 +23,10 @@
 
 ## Уже существующие интеграции (аудит)
 
+Каталог (`IProductRepository`) больше не входит в эту таблицу — с [ADR-002](../architecture/adr/ADR-002-complete-shopify-catalog-migration.md) единственная реализация — `SupabaseProductRepository`, часть основной платформы, а не внешняя интеграция (Shopify-адаптер удалён).
+
 | Интеграция | Порт | Адаптер | Статус |
 |---|---|---|---|
-| Каталог (миграционный) | `IProductRepository` | `ShopifyCatalogAdapter` | Работает, временный (удаляется на Stage 9 миграции, см. `docs/architecture.md`) |
 | Оплата | `IPaymentProvider` | `FinikPaymentAdapter` | **Заглушка** — все методы (`createPayment`, `verifyWebhook`, `getStatus`) выбрасывают `not implemented (Stage 7)` |
 | Уведомления (общие) | `INotificationProvider` | `StubNotificationAdapter` | Работает, но только логирует — не отправляет реальных сообщений |
 | Уведомления (Telegram) | — | `TelegramNotificationAdapter` | **Заглушка** — `not implemented (Stage 8)`, не подключена в `server/di/container.ts` |
