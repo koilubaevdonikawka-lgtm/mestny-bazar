@@ -19,10 +19,23 @@ import {
   updateDeliveryTariff,
 } from "@/api/delivery-tariff";
 import { previewDeliveryFee } from "@/api/delivery-pricing";
-import type { DeliveryPricingModel, DeliveryTariffType } from "@shared/contracts/delivery";
+import type {
+  DeliveryPricingModel,
+  DeliveryTariffDTO,
+  DeliveryTariffType,
+  DeliveryZoneDTO,
+} from "@shared/contracts/delivery";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
-import { ArrowLeft, Calculator, Loader2, LogIn, MapPinned, ShieldAlert } from "lucide-react";
+import {
+  ArrowLeft,
+  Calculator,
+  Loader2,
+  LogIn,
+  MapPinned,
+  Pencil,
+  ShieldAlert,
+} from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/delivery/")({
@@ -64,9 +77,11 @@ function AdminDeliveryPage() {
   const { isAuthenticated } = useSupabaseSession();
   const queryClient = useQueryClient();
 
+  const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
   const [zoneName, setZoneName] = useState("");
   const [zoneCityId, setZoneCityId] = useState("");
 
+  const [editingTariffId, setEditingTariffId] = useState<string | null>(null);
   const [tariffName, setTariffName] = useState("");
   const [tariffZoneId, setTariffZoneId] = useState<string>("");
   const [tariffType, setTariffType] = useState<DeliveryTariffType>("STANDARD");
@@ -106,21 +121,28 @@ function AdminDeliveryPage() {
   const invalidateTariffs = () =>
     queryClient.invalidateQueries({ queryKey: ["admin", "delivery", "tariffs"] });
 
+  const resetZoneForm = () => {
+    setEditingZoneId(null);
+    setZoneName("");
+    setZoneCityId("");
+  };
+
   const createZoneMutation = useMutation({
     mutationFn: createDeliveryZone,
     onSuccess: () => {
       invalidateZones();
       toast.success("Зона создана");
-      setZoneName("");
+      resetZoneForm();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось создать зону"),
   });
 
-  const toggleZoneMutation = useMutation({
+  const updateZoneMutation = useMutation({
     mutationFn: updateDeliveryZone,
     onSuccess: () => {
       invalidateZones();
       toast.success("Зона обновлена");
+      resetZoneForm();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось обновить зону"),
   });
@@ -134,25 +156,34 @@ function AdminDeliveryPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось деактивировать зону"),
   });
 
+  const resetTariffForm = () => {
+    setEditingTariffId(null);
+    setTariffName("");
+    setTariffZoneId("");
+    setTariffType("STANDARD");
+    setTariffPricingModel("FIXED");
+    setTariffBasePrice("");
+    setTariffFreeFrom("");
+    setTariffEtaMin("");
+    setTariffEtaMax("");
+  };
+
   const createTariffMutation = useMutation({
     mutationFn: createDeliveryTariff,
     onSuccess: () => {
       invalidateTariffs();
       toast.success("Тариф создан");
-      setTariffName("");
-      setTariffBasePrice("");
-      setTariffFreeFrom("");
-      setTariffEtaMin("");
-      setTariffEtaMax("");
+      resetTariffForm();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось создать тариф"),
   });
 
-  const toggleTariffMutation = useMutation({
+  const updateTariffMutation = useMutation({
     mutationFn: updateDeliveryTariff,
     onSuccess: () => {
       invalidateTariffs();
       toast.success("Тариф обновлён");
+      resetTariffForm();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось обновить тариф"),
   });
@@ -166,7 +197,13 @@ function AdminDeliveryPage() {
     await signInWithGoogle(window.location.origin + "/admin/delivery");
   };
 
-  const handleCreateZone = (e: React.FormEvent) => {
+  const openEditZone = (zone: DeliveryZoneDTO) => {
+    setEditingZoneId(zone.id);
+    setZoneName(zone.name);
+    setZoneCityId(zone.cityId);
+  };
+
+  const handleZoneSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!zoneName.trim() || zoneName.trim().length < 2) {
       toast.error("Название зоны должно содержать минимум 2 символа");
@@ -176,10 +213,28 @@ function AdminDeliveryPage() {
       toast.error("Выберите город");
       return;
     }
+    if (editingZoneId) {
+      updateZoneMutation.mutate({ id: editingZoneId, cityId: zoneCityId, name: zoneName.trim() });
+      return;
+    }
     createZoneMutation.mutate({ cityId: zoneCityId, name: zoneName.trim() });
   };
 
-  const handleCreateTariff = (e: React.FormEvent) => {
+  const openEditTariff = (tariff: DeliveryTariffDTO) => {
+    setEditingTariffId(tariff.id);
+    setTariffName(tariff.name);
+    setTariffZoneId(tariff.zoneId ?? "");
+    setTariffType(tariff.tariffType);
+    setTariffPricingModel(tariff.pricingModel);
+    setTariffBasePrice(String(tariff.basePrice));
+    setTariffFreeFrom(
+      tariff.minOrderForFreeDelivery != null ? String(tariff.minOrderForFreeDelivery) : "",
+    );
+    setTariffEtaMin(tariff.etaMinMinutes != null ? String(tariff.etaMinMinutes) : "");
+    setTariffEtaMax(tariff.etaMaxMinutes != null ? String(tariff.etaMaxMinutes) : "");
+  };
+
+  const handleTariffSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const basePrice = Number(tariffBasePrice);
     if (!tariffName.trim() || tariffName.trim().length < 2) {
@@ -190,7 +245,7 @@ function AdminDeliveryPage() {
       toast.error("Укажите базовую стоимость");
       return;
     }
-    createTariffMutation.mutate({
+    const payload = {
       zoneId: tariffZoneId || null,
       name: tariffName.trim(),
       tariffType,
@@ -199,7 +254,12 @@ function AdminDeliveryPage() {
       minOrderForFreeDelivery: tariffFreeFrom ? Number(tariffFreeFrom) : null,
       etaMinMinutes: tariffEtaMin ? Number(tariffEtaMin) : null,
       etaMaxMinutes: tariffEtaMax ? Number(tariffEtaMax) : null,
-    });
+    };
+    if (editingTariffId) {
+      updateTariffMutation.mutate({ id: editingTariffId, ...payload });
+      return;
+    }
+    createTariffMutation.mutate(payload);
   };
 
   const handlePreview = (e: React.FormEvent) => {
@@ -329,12 +389,15 @@ function AdminDeliveryPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => openEditZone(zone)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={toggleZoneMutation.isPending}
+                      disabled={updateZoneMutation.isPending}
                       onClick={() =>
-                        toggleZoneMutation.mutate({ id: zone.id, isActive: !zone.isActive })
+                        updateZoneMutation.mutate({ id: zone.id, isActive: !zone.isActive })
                       }
                     >
                       <Badge variant={zone.isActive ? "secondary" : "outline"}>
@@ -357,7 +420,10 @@ function AdminDeliveryPage() {
             </ul>
           )}
 
-          <form onSubmit={handleCreateZone} className="mt-6 grid gap-4 sm:grid-cols-3 sm:items-end">
+          <form onSubmit={handleZoneSubmit} className="mt-6 grid gap-4 sm:grid-cols-3 sm:items-end">
+            {editingZoneId && (
+              <p className="sm:col-span-3 text-sm text-muted-foreground">Редактирование зоны</p>
+            )}
             <div className="grid gap-2">
               <Label htmlFor="zone-name">Название зоны</Label>
               <Input
@@ -383,17 +449,31 @@ function AdminDeliveryPage() {
                 ))}
               </select>
             </div>
-            <Button
-              type="submit"
-              className="h-12 rounded-full"
-              disabled={createZoneMutation.isPending}
-            >
-              {createZoneMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Создать зону"
+            <div className="flex gap-2">
+              <Button
+                type="submit"
+                className="h-12 rounded-full"
+                disabled={createZoneMutation.isPending || updateZoneMutation.isPending}
+              >
+                {createZoneMutation.isPending || updateZoneMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : editingZoneId ? (
+                  "Сохранить изменения"
+                ) : (
+                  "Создать зону"
+                )}
+              </Button>
+              {editingZoneId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 rounded-full"
+                  onClick={resetZoneForm}
+                >
+                  Отмена
+                </Button>
               )}
-            </Button>
+            </div>
           </form>
         </section>
 
@@ -425,24 +505,32 @@ function AdminDeliveryPage() {
                         ` · ETA ${tariff.etaMinMinutes}–${tariff.etaMaxMinutes} мин`}
                     </p>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={toggleTariffMutation.isPending}
-                    onClick={() =>
-                      toggleTariffMutation.mutate({ id: tariff.id, isActive: !tariff.isActive })
-                    }
-                  >
-                    <Badge variant={tariff.isActive ? "secondary" : "outline"}>
-                      {tariff.isActive ? "Активен" : "Выключен"}
-                    </Badge>
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => openEditTariff(tariff)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={updateTariffMutation.isPending}
+                      onClick={() =>
+                        updateTariffMutation.mutate({ id: tariff.id, isActive: !tariff.isActive })
+                      }
+                    >
+                      <Badge variant={tariff.isActive ? "secondary" : "outline"}>
+                        {tariff.isActive ? "Активен" : "Выключен"}
+                      </Badge>
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>
           )}
 
-          <form onSubmit={handleCreateTariff} className="mt-6 grid gap-4 sm:grid-cols-3">
+          <form onSubmit={handleTariffSubmit} className="mt-6 grid gap-4 sm:grid-cols-3">
+            {editingTariffId && (
+              <p className="sm:col-span-3 text-sm text-muted-foreground">Редактирование тарифа</p>
+            )}
             <div className="grid gap-2">
               <Label htmlFor="tariff-name">Название</Label>
               <Input
@@ -539,17 +627,31 @@ function AdminDeliveryPage() {
                 onChange={(e) => setTariffEtaMax(e.target.value)}
               />
             </div>
-            <Button
-              type="submit"
-              className="h-12 rounded-full sm:col-span-3"
-              disabled={createTariffMutation.isPending}
-            >
-              {createTariffMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Создать тариф"
+            <div className="flex gap-2 sm:col-span-3">
+              <Button
+                type="submit"
+                className="h-12 rounded-full"
+                disabled={createTariffMutation.isPending || updateTariffMutation.isPending}
+              >
+                {createTariffMutation.isPending || updateTariffMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : editingTariffId ? (
+                  "Сохранить изменения"
+                ) : (
+                  "Создать тариф"
+                )}
+              </Button>
+              {editingTariffId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 rounded-full"
+                  onClick={resetTariffForm}
+                >
+                  Отмена
+                </Button>
               )}
-            </Button>
+            </div>
           </form>
         </section>
 

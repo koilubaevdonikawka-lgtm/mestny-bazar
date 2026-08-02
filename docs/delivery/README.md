@@ -3,8 +3,8 @@
 | Поле | Значение |
 |---|---|
 | **Версия** | 0.1 |
-| **Статус** | Частично реализовано (Этап 2 из 3: ядро закрыто — зоны, тарифы, Rule Engine, Checkout/PWA-интеграция; расстояние/коэффициенты — Этап 3) |
-| **Дата последнего обновления** | 2026-08-02 (Этап 2 закрыт) |
+| **Статус** | Ядро реализовано и проаудировано (Этапы 1–3 из 3 закрыты — зоны, тарифы, Rule Engine, Checkout/PWA-интеграция, Courier Platform readiness); расстояние/коэффициенты остаются нереализованными, требуют нового промпта + ADR |
+| **Дата последнего обновления** | 2026-08-02 (Этап 3 закрыт) |
 | **Связанные документы** | все документы `docs/delivery/`, [`docs/admin-platform/orders.md`](../admin-platform/orders.md), [`docs/admin-platform/warehouse.md`](../admin-platform/warehouse.md) |
 | **Связанные ADR** | [ADR-001](../adr/ADR-001-ports-and-adapters.md); см. [`delivery-future-roadmap.md`](./delivery-future-roadmap.md) для кандидатов на новый ADR |
 | **Связанные Architecture Principles** | PL-02 (Ports & Adapters), PL-05 (Composition Root), PL-12 (Rule Engine), CD-01 (Never Trust Client Data) |

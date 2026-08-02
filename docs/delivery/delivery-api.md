@@ -39,7 +39,7 @@
 | `listAdminStoresFn` / `createStoreFn` / `updateStoreFn` | GET / POST / POST | Admin | CRUD магазинов |
 | `listAdminDeliveryZonesFn` / `createDeliveryZoneFn` / `updateDeliveryZoneFn` | GET / POST / POST | Admin | CRUD зон (без цены — цена в тарифе) |
 | `listAdminDistrictsFn` / `createDistrictFn` / `updateDistrictFn` | GET / POST / POST | Admin | CRUD районов |
-| `listDeliveryTariffsFn` / `createDeliveryTariffFn` / `updateDeliveryTariffFn` | GET / POST / POST | Admin (стандартные тарифы), Admin-Marketing (сезонные/акционные — переиспользует `AdminMarketingScopeRule`, `permissions.md`) | CRUD тарифов |
+| `listDeliveryTariffsFn` / `createDeliveryTariffFn` / `updateDeliveryTariffFn` | GET / POST / POST | Admin, Admin-Marketing (модульная проверка `AdminMarketingScopeRule`, `permissions.md` — все типы тарифов, не только сезонные/акционные, см. `DELIVERY_MASTER_SPEC.md` §5) | CRUD тарифов |
 | `listDeliveryCoefficientsFn` / `createDeliveryCoefficientFn` / `updateDeliveryCoefficientFn` | GET / POST / POST | Admin | CRUD коэффициентов |
 
 Каждая admin-функция проходит `requireAdminFromRequest()` (или `requireAdminScopeFromRequest("marketing")` для отмеченных выше), затем при необходимости — `assert()` соответствующего Rule Engine, тем же способом, что уже применяется во всех существующих `*.executor.ts` (см. `docs/principles/13-engineering-roles.md`, «Какой адаптер каталога?» — таблица прецедентов «куда смотреть за ответом на вопрос»).

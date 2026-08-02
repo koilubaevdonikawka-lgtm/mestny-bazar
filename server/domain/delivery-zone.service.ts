@@ -8,8 +8,4 @@ export class DeliveryZoneService {
   async listActive(): Promise<DeliveryZoneDTO[]> {
     return this.zones.listActive();
   }
-
-  async getById(id: string): Promise<DeliveryZoneDTO | null> {
-    return this.zones.getById(id);
-  }
 }

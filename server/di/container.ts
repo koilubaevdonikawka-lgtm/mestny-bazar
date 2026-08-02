@@ -18,6 +18,7 @@ import { AdminFullAccessRule } from "@server/domain/permission-policy/rules/admi
 import { AdminFinanceScopeRule } from "@server/domain/permission-policy/rules/admin-finance-scope.rule";
 import { AdminMarketingScopeRule } from "@server/domain/permission-policy/rules/admin-marketing-scope.rule";
 import { PricingService } from "@server/domain/pricing.service";
+import { CityService } from "@server/domain/city.service";
 import { DeliveryZoneService } from "@server/domain/delivery-zone.service";
 import { DeliveryZoneAdminService } from "@server/domain/delivery-zone-admin.service";
 import { DeliveryTariffAdminService } from "@server/domain/delivery-tariff-admin.service";
@@ -218,6 +219,7 @@ export interface ServiceContainer {
   sellerProducts: ISellerProductRepository;
   addresses: IAddressRepository;
   cities: ICityRepository;
+  cityService: CityService;
   zones: IDeliveryZoneRepository;
   adminZones: IAdminDeliveryZoneRepository;
   deliveryTariffs: IDeliveryTariffRepository;
@@ -401,6 +403,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     new DeliveryCalculator(),
   );
   const deliveryZoneService = new DeliveryZoneService(zones);
+  const cityService = new CityService(cities);
 
   const pricing = new PricingService(deliveryPricingEngine);
   const inventory = new InventoryService(orderProducts);
@@ -543,6 +546,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     addresses,
     carts,
     cities,
+    cityService,
     zones,
     adminZones,
     deliveryTariffs,

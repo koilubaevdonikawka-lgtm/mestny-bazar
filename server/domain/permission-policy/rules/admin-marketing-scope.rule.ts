@@ -11,6 +11,14 @@ const MARKETING_ALLOWED_MODULES = [
   "design",
   "automation",
   "ai",
+  // docs/delivery/DELIVERY_MASTER_SPEC.md §5 — Admin-Marketing manages Delivery
+  // Tariffs (seasonal/promotional pricing campaigns). This is a module-level
+  // grant like every other entry here — the same coarse granularity already
+  // used for Marketing (coupons) — not restricted to specific tariffType
+  // values; see the module's own doc for why finer-grained scoping isn't
+  // implemented (it would be a new permission mechanism, not a reuse of this
+  // one).
+  "delivery",
 ];
 
 /**

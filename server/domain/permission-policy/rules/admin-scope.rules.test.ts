@@ -60,6 +60,11 @@ describe("AdminMarketingScopeRule", () => {
       denialCode: "OUT_OF_SCOPE",
     });
   });
+
+  it("allows the delivery module — docs/delivery/DELIVERY_MASTER_SPEC.md §5, Admin-Marketing manages tariffs", () => {
+    const actor: PermissionActor = { id: "a", roles: ["admin"], scopes: ["marketing"] };
+    expect(rule.evaluate(ctx({ actor, module: "delivery" }))).toEqual({ allowed: true });
+  });
 });
 
 describe("scope rules composed with AdminFullAccessRule in PermissionPolicyService", () => {

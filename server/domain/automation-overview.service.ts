@@ -162,6 +162,31 @@ const EVENT_CATALOG: AutomationEventSummary[] = [
       "Анализ карточки завершён — результат нигде не сохраняется (известный пробел, ai.md)",
     subscribers: [],
   },
+  {
+    eventType: "delivery.zone.created",
+    description: "Зона доставки создана (docs/delivery/delivery-events.md)",
+    subscribers: ["AuditLog"],
+  },
+  {
+    eventType: "delivery.zone.updated",
+    description: "Зона доставки обновлена",
+    subscribers: ["AuditLog"],
+  },
+  {
+    eventType: "delivery.zone.deactivated",
+    description: "Зона доставки деактивирована",
+    subscribers: ["AuditLog"],
+  },
+  {
+    eventType: "delivery.tariff.created",
+    description: "Тариф доставки создан",
+    subscribers: ["AuditLog"],
+  },
+  {
+    eventType: "delivery.tariff.updated",
+    description: "Тариф доставки обновлён",
+    subscribers: ["AuditLog"],
+  },
 ];
 
 /** automation.md — read-only observability over the already-existing IMarketplaceEventBus wiring. */
