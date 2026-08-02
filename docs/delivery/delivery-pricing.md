@@ -4,7 +4,7 @@
 |---|---|
 | **Версия** | 0.1 |
 | **Статус** | Черновая архитектура — не реализовано |
-| **Дата последнего обновления** | 2026-08-02 |
+| **Дата последнего обновления** | 2026-08-02 (Этап 2 — порядок шагов Pricing Engine исправлен по факту реализации) |
 | **Связанные документы** | [`delivery-zones.md`](./delivery-zones.md), [`delivery-rule-engine.md`](./delivery-rule-engine.md), [`docs/admin-platform/orders.md`](../admin-platform/orders.md) |
 | **Связанные ADR** | [ADR-001](../adr/ADR-001-ports-and-adapters.md); распознавание адреса по расстоянию требует нового ADR — см. [`delivery-future-roadmap.md`](./delivery-future-roadmap.md) |
 | **Связанные Architecture Principles** | PL-12 (Rule Engine), CD-01 (Never Trust Client Data), CD-06 (DB-row-to-DTO mapping) |
@@ -66,17 +66,19 @@
 `DeliveryPricingEngine` — доменный сервис-оркестратор (не Rule Engine сам по себе), аналогичный по роли `CheckoutService`: не содержит бизнес-правил, а **последовательно вызывает** уже существующие Rule Engine и Calculator, в фиксированном порядке:
 
 ```
-1. DeliveryZoneService.resolveZoneForAddress(address)
-      → Zone (или отказ: адрес вне зоны покрытия)
-2. DeliveryZonePolicyService.assert(context)          — Rule Engine (delivery-rule-engine.md)
-      → допустима ли доставка вообще (минимальная сумма, активность зоны)
-3. DeliveryTariffPolicyService.evaluate(context)       — Rule Engine (delivery-rule-engine.md)
-      → какой Tariff применяется (Corporate → Holiday → Standard, см. приоритет)
-4. DeliveryCoefficientRegistry.collectApplicable(context)
+1. IDeliveryZoneRepository.getById(zoneId)
+      → Zone (или отказ: DeliveryZoneNotFoundError)
+2. DeliveryTariffPolicyService.evaluate(context)       — Rule Engine (delivery-rule-engine.md)
+      → какой Tariff применяется (Corporate → Holiday → Promotional → Standard, см. приоритет)
+3. DeliveryZonePolicyService.assert(context)          — Rule Engine (delivery-rule-engine.md)
+      → допустима ли доставка вообще, используя minOrderAmount УЖЕ ВЫБРАННОГО тарифа
+4. DeliveryCoefficientRegistry.collectApplicable(context)   — Этап 3, не реализовано в Этапе 2
       → список применимых Coefficient (не Rule Engine — см. ниже)
 5. DeliveryCalculator.calculate(tariff, coefficients, context)
       → DeliveryFeeQuote (итоговая fee + breakdown + ETA)
 ```
+
+**Исправление относительно Этапа 1:** первоначальный черновик располагал Zone Policy перед Tariff Policy. При реализации (Этап 2) обнаружено, что `MinOrderAmountRule` физически не может работать до выбора тарифа — `minOrderAmount` принадлежит `DeliveryTariffDTO`, не Zone. Порядок исправлен на «сначала тариф, затем допустимость» — тот же класс находки-и-исправления при реализации, что уже был у Этапа 5 Административной платформы (`payout.created`/`payout.completed`). См. `server/domain/delivery-pricing-engine.service.ts`, doc-комментарий класса.
 
 Это то же самое разделение «оркестратор не содержит правил, правила — в зарегистрированных сервисах», что уже применяется в `CheckoutService` (композирует `PaymentPolicyService`, `OrderLifecyclePolicy`, `DiscountPolicyService` — не содержит их логики внутри себя).
 

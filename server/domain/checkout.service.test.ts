@@ -13,6 +13,7 @@ import type { CreateOrderData, IOrderRepository } from "@server/ports/order.repo
 import type { IProductRepository, StockReservationItem } from "@server/ports/product.repository";
 import type { IAddressRepository } from "@server/ports/address.repository";
 import type { IDeliveryZoneRepository } from "@server/ports/delivery-zone.repository";
+import type { IDeliveryPricingEngine } from "@server/ports/delivery-pricing-engine.port";
 import type { ICheckoutPaymentHandler } from "@server/ports/checkout-payment.port";
 import type { IMarketplaceEventBus, MarketplaceEvent } from "@server/ports/marketplace-events.port";
 import type { IPaymentPolicy, PaymentPolicyContext } from "@server/ports/payment-policy.port";
@@ -64,6 +65,10 @@ function makeOrderDTO(overrides: Partial<OrderDTO> = {}): OrderDTO {
     createdAt: new Date().toISOString(),
     paidAt: null,
     assignedCourierId: null,
+    zoneId: null,
+    deliveryTariffId: null,
+    deliveryEtaMinMinutes: null,
+    deliveryEtaMaxMinutes: null,
     ...overrides,
   };
 }
@@ -144,13 +149,24 @@ function fakeZoneRepository(
   return {
     listActive: vi.fn(async () => []),
     getById: vi.fn(async () => null),
-    calculateFee: vi.fn(async () => ({
+    ...overrides,
+  };
+}
+
+function fakeDeliveryPricingEngine(
+  overrides: Partial<IDeliveryPricingEngine> = {},
+): IDeliveryPricingEngine {
+  return {
+    calculate: vi.fn(async () => ({
       zoneId: "zone-1",
       zoneName: "Zone",
+      tariffId: "tariff-1",
+      tariffName: "Standard",
       fee: 0,
       freeFrom: null,
       subtotal: 0,
       isFree: true,
+      eta: { minMinutes: null, maxMinutes: null },
     })),
     ...overrides,
   };
@@ -215,6 +231,7 @@ function buildCheckoutService(deps: {
   productRepo?: IProductRepository;
   addressRepo?: IAddressRepository;
   zoneRepo?: IDeliveryZoneRepository;
+  deliveryPricingEngine?: IDeliveryPricingEngine;
   paymentHandler?: ICheckoutPaymentHandler;
   eventBus?: IMarketplaceEventBus;
   paymentPolicy?: IPaymentPolicy;
@@ -227,7 +244,7 @@ function buildCheckoutService(deps: {
   const orderLifecycle = deps.orderLifecycle ?? fakeOrderLifecycle();
   const eventBus = deps.eventBus ?? fakeEventBus();
 
-  const pricing = new PricingService(deps.zoneRepo ?? fakeZoneRepository());
+  const pricing = new PricingService(deps.deliveryPricingEngine ?? fakeDeliveryPricingEngine());
   const inventory = new InventoryService(productRepo);
   const orderService = new OrderService(orderRepo, orderLifecycle, inventory, eventBus);
   const discountPolicy = new DiscountPolicyService([
@@ -575,10 +592,11 @@ describe("CheckoutService.checkout — delivery zone resolution", () => {
     const zoneRepo = fakeZoneRepository({
       getById: vi.fn(async (id: string) => ({
         id,
+        cityId: "city-1",
+        storeId: null,
         name: "Zone",
-        price: 0,
-        freeFrom: null,
         sortOrder: 0,
+        isActive: true,
       })),
     });
     const orderRepo = fakeOrderRepository();

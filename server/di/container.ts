@@ -18,6 +18,20 @@ import { AdminFullAccessRule } from "@server/domain/permission-policy/rules/admi
 import { AdminFinanceScopeRule } from "@server/domain/permission-policy/rules/admin-finance-scope.rule";
 import { AdminMarketingScopeRule } from "@server/domain/permission-policy/rules/admin-marketing-scope.rule";
 import { PricingService } from "@server/domain/pricing.service";
+import { DeliveryZoneService } from "@server/domain/delivery-zone.service";
+import { DeliveryZoneAdminService } from "@server/domain/delivery-zone-admin.service";
+import { DeliveryTariffAdminService } from "@server/domain/delivery-tariff-admin.service";
+import { DeliveryCalculator } from "@server/domain/delivery-calculator";
+import { DeliveryPricingEngine } from "@server/domain/delivery-pricing-engine.service";
+import { DeliveryZonePolicyService } from "@server/domain/delivery-zone-policy/delivery-zone-policy.service";
+import { ZoneActiveRule } from "@server/domain/delivery-zone-policy/rules/zone-active.rule";
+import { MinOrderAmountRule } from "@server/domain/delivery-zone-policy/rules/min-order-amount.rule";
+import { AllowRule } from "@server/domain/delivery-zone-policy/rules/allow.rule";
+import { DeliveryTariffPolicyService } from "@server/domain/delivery-tariff-policy/delivery-tariff-policy.service";
+import { CorporateTariffRule } from "@server/domain/delivery-tariff-policy/rules/corporate-tariff.rule";
+import { HolidayTariffRule } from "@server/domain/delivery-tariff-policy/rules/holiday-tariff.rule";
+import { PromotionalTariffRule } from "@server/domain/delivery-tariff-policy/rules/promotional-tariff.rule";
+import { StandardTariffFallbackRule } from "@server/domain/delivery-tariff-policy/rules/standard-tariff-fallback.rule";
 import { SellerProfileService } from "@server/domain/seller-profile.service";
 import { SettingsService } from "@server/domain/settings.service";
 import { StockAdminService } from "@server/domain/stock-admin.service";
@@ -63,7 +77,16 @@ import { SupabaseCategoryRepository } from "@server/adapters/supabase/category.r
 import { SupabaseAdminCategoryRepository } from "@server/adapters/supabase/category-admin.repository";
 import { SupabaseCourierStatusRepository } from "@server/adapters/supabase/courier-status.repository";
 import { SupabaseCustomerStatusRepository } from "@server/adapters/supabase/customer-status.repository";
+import { SupabaseCityRepository } from "@server/adapters/supabase/city.repository";
+import type { ICityRepository } from "@server/ports/city.repository";
 import { SupabaseDeliveryZoneRepository } from "@server/adapters/supabase/delivery-zone.repository";
+import { SupabaseAdminDeliveryZoneRepository } from "@server/adapters/supabase/delivery-zone-admin.repository";
+import { SupabaseDeliveryTariffRepository } from "@server/adapters/supabase/delivery-tariff.repository";
+import type { IAdminDeliveryZoneRepository } from "@server/ports/delivery-zone-admin.repository";
+import type { IDeliveryTariffRepository } from "@server/ports/delivery-tariff.repository";
+import type { IDeliveryZonePolicy } from "@server/ports/delivery-zone-policy.port";
+import type { IDeliveryTariffPolicy } from "@server/ports/delivery-tariff-policy.port";
+import type { IDeliveryPricingEngine } from "@server/ports/delivery-pricing-engine.port";
 import { SupabaseOrderRepository } from "@server/adapters/supabase/order.repository";
 import { SupabaseOrderCascadeRepository } from "@server/adapters/supabase/order-cascade.repository";
 import { SupabaseProductRepository } from "@server/adapters/supabase/product.repository";
@@ -194,7 +217,16 @@ export interface ServiceContainer {
   orderCascadeService: OrderLifecycleCascadeService;
   sellerProducts: ISellerProductRepository;
   addresses: IAddressRepository;
+  cities: ICityRepository;
   zones: IDeliveryZoneRepository;
+  adminZones: IAdminDeliveryZoneRepository;
+  deliveryTariffs: IDeliveryTariffRepository;
+  deliveryZonePolicy: IDeliveryZonePolicy;
+  deliveryTariffPolicy: IDeliveryTariffPolicy;
+  deliveryPricingEngine: IDeliveryPricingEngine;
+  deliveryZoneService: DeliveryZoneService;
+  deliveryZoneAdminService: DeliveryZoneAdminService;
+  deliveryTariffAdminService: DeliveryTariffAdminService;
   adminCategories: IAdminCategoryRepository;
   stock: IStockRepository;
   stockPolicy: IStockPolicy;
@@ -248,7 +280,10 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const addresses = new SupabaseAddressRepository();
   const carts = new SupabaseCartRepository();
   const settings: ISettingsRepository = new SupabaseSettingsRepository();
+  const cities: ICityRepository = new SupabaseCityRepository();
   const zones = new SupabaseDeliveryZoneRepository();
+  const adminZones: IAdminDeliveryZoneRepository = new SupabaseAdminDeliveryZoneRepository();
+  const deliveryTariffs: IDeliveryTariffRepository = new SupabaseDeliveryTariffRepository();
   const categoryRepository: ICategoryRepository = new SupabaseCategoryRepository();
   const adminCategories: IAdminCategoryRepository = new SupabaseAdminCategoryRepository();
   const stock: IStockRepository = new SupabaseStockRepository();
@@ -343,10 +378,39 @@ export function createServices(env: ServerEnv): ServiceContainer {
   // validates against, so a cart line and an order line item are validated
   // against identical truth (both Supabase, per ADR-002).
   const cartService = new CartService(orderProducts, carts);
-  const pricing = new PricingService(zones);
+  // Delivery Rule Engines (docs/delivery/delivery-rule-engine.md) — Tariff
+  // Policy runs before Zone Policy: MinOrderAmountRule needs a resolved
+  // tariff's minOrderAmount, which does not exist before a tariff is chosen
+  // (see DeliveryPricingEngine's own doc comment for the full explanation).
+  const deliveryTariffPolicy: IDeliveryTariffPolicy = new DeliveryTariffPolicyService([
+    new CorporateTariffRule(),
+    new HolidayTariffRule(),
+    new PromotionalTariffRule(),
+    new StandardTariffFallbackRule(),
+  ]);
+  const deliveryZonePolicy: IDeliveryZonePolicy = new DeliveryZonePolicyService([
+    new ZoneActiveRule(),
+    new MinOrderAmountRule(),
+    new AllowRule(),
+  ]);
+  const deliveryPricingEngine: IDeliveryPricingEngine = new DeliveryPricingEngine(
+    zones,
+    deliveryTariffs,
+    deliveryTariffPolicy,
+    deliveryZonePolicy,
+    new DeliveryCalculator(),
+  );
+  const deliveryZoneService = new DeliveryZoneService(zones);
+
+  const pricing = new PricingService(deliveryPricingEngine);
   const inventory = new InventoryService(orderProducts);
   const marketplaceEvents: IMarketplaceEventBus = new MarketplaceEventsService();
   const auditLog: IAuditLog = new SupabaseAuditLog();
+  const deliveryZoneAdminService = new DeliveryZoneAdminService(adminZones, marketplaceEvents);
+  const deliveryTariffAdminService = new DeliveryTariffAdminService(
+    deliveryTariffs,
+    marketplaceEvents,
+  );
 
   const settingsService = new SettingsService(settings, marketplaceEvents);
   const analyticsService = new AnalyticsService(orders);
@@ -478,7 +542,16 @@ export function createServices(env: ServerEnv): ServiceContainer {
     userAdminService,
     addresses,
     carts,
+    cities,
     zones,
+    adminZones,
+    deliveryTariffs,
+    deliveryZonePolicy,
+    deliveryTariffPolicy,
+    deliveryPricingEngine,
+    deliveryZoneService,
+    deliveryZoneAdminService,
+    deliveryTariffAdminService,
     adminCategories,
     stock,
     stockPolicy,

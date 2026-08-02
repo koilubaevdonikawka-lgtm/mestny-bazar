@@ -339,36 +339,231 @@ export type Database = {
       };
       delivery_zones: {
         Row: {
+          city_id: string;
           created_at: string;
-          free_from: number | null;
           id: string;
           is_active: boolean;
           name: string;
-          price: number;
           sort_order: number;
+          store_id: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          city_id: string;
+          created_at?: string;
+          id?: string;
+          is_active?: boolean;
+          name: string;
+          sort_order?: number;
+          store_id?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          city_id?: string;
+          created_at?: string;
+          id?: string;
+          is_active?: boolean;
+          name?: string;
+          sort_order?: number;
+          store_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "delivery_zones_city_id_fkey";
+            columns: ["city_id"];
+            isOneToOne: false;
+            referencedRelation: "cities";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "delivery_zones_store_id_fkey";
+            columns: ["store_id"];
+            isOneToOne: false;
+            referencedRelation: "stores";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      cities: {
+        Row: {
+          created_at: string;
+          id: string;
+          is_active: boolean;
+          name: string;
+          slug: string;
+          sort_order: number;
+          timezone: string;
           updated_at: string;
         };
         Insert: {
           created_at?: string;
-          free_from?: number | null;
           id?: string;
           is_active?: boolean;
           name: string;
-          price?: number;
+          slug: string;
           sort_order?: number;
+          timezone?: string;
           updated_at?: string;
         };
         Update: {
           created_at?: string;
-          free_from?: number | null;
           id?: string;
           is_active?: boolean;
           name?: string;
-          price?: number;
+          slug?: string;
           sort_order?: number;
+          timezone?: string;
           updated_at?: string;
         };
         Relationships: [];
+      };
+      stores: {
+        Row: {
+          address: string;
+          city_id: string;
+          created_at: string;
+          id: string;
+          is_active: boolean;
+          lat: number | null;
+          lng: number | null;
+          name: string;
+          updated_at: string;
+        };
+        Insert: {
+          address: string;
+          city_id: string;
+          created_at?: string;
+          id?: string;
+          is_active?: boolean;
+          lat?: number | null;
+          lng?: number | null;
+          name: string;
+          updated_at?: string;
+        };
+        Update: {
+          address?: string;
+          city_id?: string;
+          created_at?: string;
+          id?: string;
+          is_active?: boolean;
+          lat?: number | null;
+          lng?: number | null;
+          name?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "stores_city_id_fkey";
+            columns: ["city_id"];
+            isOneToOne: false;
+            referencedRelation: "cities";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      delivery_districts: {
+        Row: {
+          created_at: string;
+          id: string;
+          is_active: boolean;
+          name: string;
+          updated_at: string;
+          zone_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          is_active?: boolean;
+          name: string;
+          updated_at?: string;
+          zone_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          is_active?: boolean;
+          name?: string;
+          updated_at?: string;
+          zone_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "delivery_districts_zone_id_fkey";
+            columns: ["zone_id"];
+            isOneToOne: false;
+            referencedRelation: "delivery_zones";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      delivery_tariffs: {
+        Row: {
+          base_price: number;
+          created_at: string;
+          eta_max_minutes: number | null;
+          eta_min_minutes: number | null;
+          id: string;
+          is_active: boolean;
+          min_order_amount: number | null;
+          min_order_for_free_delivery: number | null;
+          name: string;
+          pricing_model: Database["public"]["Enums"]["delivery_pricing_model"];
+          price_per_km: number | null;
+          priority: number;
+          tariff_type: Database["public"]["Enums"]["delivery_tariff_type"];
+          updated_at: string;
+          valid_from: string | null;
+          valid_to: string | null;
+          zone_id: string | null;
+        };
+        Insert: {
+          base_price?: number;
+          created_at?: string;
+          eta_max_minutes?: number | null;
+          eta_min_minutes?: number | null;
+          id?: string;
+          is_active?: boolean;
+          min_order_amount?: number | null;
+          min_order_for_free_delivery?: number | null;
+          name: string;
+          pricing_model?: Database["public"]["Enums"]["delivery_pricing_model"];
+          price_per_km?: number | null;
+          priority?: number;
+          tariff_type?: Database["public"]["Enums"]["delivery_tariff_type"];
+          updated_at?: string;
+          valid_from?: string | null;
+          valid_to?: string | null;
+          zone_id?: string | null;
+        };
+        Update: {
+          base_price?: number;
+          created_at?: string;
+          eta_max_minutes?: number | null;
+          eta_min_minutes?: number | null;
+          id?: string;
+          is_active?: boolean;
+          min_order_amount?: number | null;
+          min_order_for_free_delivery?: number | null;
+          name?: string;
+          pricing_model?: Database["public"]["Enums"]["delivery_pricing_model"];
+          price_per_km?: number | null;
+          priority?: number;
+          tariff_type?: Database["public"]["Enums"]["delivery_tariff_type"];
+          updated_at?: string;
+          valid_from?: string | null;
+          valid_to?: string | null;
+          zone_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "delivery_tariffs_zone_id_fkey";
+            columns: ["zone_id"];
+            isOneToOne: false;
+            referencedRelation: "delivery_zones";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       order_items: {
         Row: {
@@ -453,6 +648,9 @@ export type Database = {
           customer_name: string;
           customer_phone: string;
           delivery_fee: number;
+          delivery_eta_max_minutes: number | null;
+          delivery_eta_min_minutes: number | null;
+          delivery_tariff_id: string | null;
           discount_amount: number;
           coupon_code: string | null;
           finik_payment_id: string | null;
@@ -478,6 +676,9 @@ export type Database = {
           customer_name: string;
           customer_phone: string;
           delivery_fee?: number;
+          delivery_eta_max_minutes?: number | null;
+          delivery_eta_min_minutes?: number | null;
+          delivery_tariff_id?: string | null;
           discount_amount?: number;
           coupon_code?: string | null;
           finik_payment_id?: string | null;
@@ -503,6 +704,9 @@ export type Database = {
           customer_name?: string;
           customer_phone?: string;
           delivery_fee?: number;
+          delivery_eta_max_minutes?: number | null;
+          delivery_eta_min_minutes?: number | null;
+          delivery_tariff_id?: string | null;
           discount_amount?: number;
           coupon_code?: string | null;
           finik_payment_id?: string | null;
@@ -526,6 +730,13 @@ export type Database = {
             columns: ["zone_id"];
             isOneToOne: false;
             referencedRelation: "delivery_zones";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "orders_delivery_tariff_id_fkey";
+            columns: ["delivery_tariff_id"];
+            isOneToOne: false;
+            referencedRelation: "delivery_tariffs";
             referencedColumns: ["id"];
           },
         ];
@@ -897,6 +1108,8 @@ export type Database = {
       supply_status: "DRAFT" | "SENT" | "CONFIRMED" | "RECEIVED" | "CANCELLED";
       coupon_discount_type: "PERCENTAGE" | "FIXED";
       payout_status: "PENDING" | "COMPLETED";
+      delivery_tariff_type: "STANDARD" | "HOLIDAY" | "CORPORATE" | "PROMOTIONAL";
+      delivery_pricing_model: "FIXED" | "BY_ZONE" | "BY_DISTANCE";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -1035,6 +1248,8 @@ export const Constants = {
       product_publication_status: ["DRAFT", "PUBLISHED", "HIDDEN"],
       seller_verification_status: ["PENDING", "VERIFIED", "REJECTED"],
       supply_status: ["DRAFT", "SENT", "CONFIRMED", "RECEIVED", "CANCELLED"],
+      delivery_tariff_type: ["STANDARD", "HOLIDAY", "CORPORATE", "PROMOTIONAL"],
+      delivery_pricing_model: ["FIXED", "BY_ZONE", "BY_DISTANCE"],
     },
   },
 } as const;

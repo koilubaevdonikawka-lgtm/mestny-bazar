@@ -37,6 +37,10 @@ function makeOrder(overrides: Partial<OrderDTO> = {}): OrderDTO {
     createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
     paidAt: null,
     assignedCourierId: null,
+    zoneId: null,
+    deliveryTariffId: null,
+    deliveryEtaMinMinutes: null,
+    deliveryEtaMaxMinutes: null,
     ...overrides,
   };
 }

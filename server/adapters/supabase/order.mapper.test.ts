@@ -40,6 +40,10 @@ describe("mapOrderRowToDto", () => {
       paid_at: null,
       created_at: "2026-01-01T00:00:00.000Z",
       assigned_courier_id: null,
+      zone_id: null,
+      delivery_tariff_id: null,
+      delivery_eta_min_minutes: null,
+      delivery_eta_max_minutes: null,
     };
   }
 

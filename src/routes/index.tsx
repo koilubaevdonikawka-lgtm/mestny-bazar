@@ -24,6 +24,7 @@ import { fetchCatalogProducts } from "@/lib/catalog";
 import type { CatalogProductNode } from "@shared/lib/product-adapter";
 import { listCategories } from "@/api/category";
 import { listActiveBanners } from "@/api/design";
+import { listDeliveryZones } from "@/api/delivery-zone";
 import { BRAND } from "@/config/brand";
 import { CONTACT } from "@/config/contact";
 import catFlour from "@/assets/cat-flour.png";
@@ -120,7 +121,14 @@ function Home() {
   const [phone, setPhone] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [addressOpen, setAddressOpen] = useState(false);
-  const { address, setAddress, setPaymentMethod, setCustomerPhone } = useCheckoutStore();
+  const { address, setAddress, zoneId, setZoneId, setPaymentMethod, setCustomerPhone } =
+    useCheckoutStore();
+
+  const { data: deliveryZones } = useQuery({
+    queryKey: ["delivery", "zones"],
+    queryFn: listDeliveryZones,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const handleSaveAddress = () => {
     if (address.trim().length < 5) {
@@ -340,6 +348,25 @@ function Home() {
                 />
                 <p className="text-xs text-muted-foreground">
                   Город, улица, дом, квартира и ориентир при необходимости.
+                </p>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="delivery-zone">Зона доставки</Label>
+                <select
+                  id="delivery-zone"
+                  value={zoneId ?? ""}
+                  onChange={(e) => setZoneId(e.target.value || null)}
+                  className="h-12 rounded-full border border-input bg-background px-5 text-sm"
+                >
+                  <option value="">Не выбрана</option>
+                  {(deliveryZones ?? []).map((zone) => (
+                    <option key={zone.id} value={zone.id}>
+                      {zone.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  От зоны зависит стоимость и срок доставки — рассчитывается на сервере.
                 </p>
               </div>
               <Button type="submit" size="lg" className="h-14 rounded-full text-base">

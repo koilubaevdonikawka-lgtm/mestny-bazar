@@ -6,6 +6,7 @@ import type { SellerPayoutDTO } from "@shared/contracts/payout";
 import type { BannerDTO } from "@shared/contracts/banner";
 import type { SellerProductDTO } from "@shared/contracts/seller-product";
 import type { AdminScope } from "@shared/contracts/user-admin";
+import type { DeliveryTariffDTO, DeliveryZoneDTO } from "@shared/contracts/delivery";
 import type { AggregatedAIJobResult, AIJob } from "@server/ports/marketplace-ai.port";
 import type {
   CatalogAnalysisResult,
@@ -84,7 +85,13 @@ export type MarketplaceEvent =
       jobId: string;
       productId: string | null;
       result: CatalogAnalysisResult;
-    };
+    }
+  /** docs/delivery/delivery-events.md */
+  | { type: "delivery.zone.created"; zone: DeliveryZoneDTO }
+  | { type: "delivery.zone.updated"; zone: DeliveryZoneDTO }
+  | { type: "delivery.zone.deactivated"; zoneId: string }
+  | { type: "delivery.tariff.created"; tariff: DeliveryTariffDTO }
+  | { type: "delivery.tariff.updated"; tariff: DeliveryTariffDTO };
 
 export type MarketplaceEventType = MarketplaceEvent["type"];
 

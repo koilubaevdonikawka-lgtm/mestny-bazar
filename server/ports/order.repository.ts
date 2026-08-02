@@ -29,6 +29,9 @@ export interface CreateOrderData extends Omit<
   paymentStatus: PaymentStatus;
   subtotal: number;
   deliveryFee: number;
+  deliveryTariffId: string | null;
+  deliveryEtaMinMinutes: number | null;
+  deliveryEtaMaxMinutes: number | null;
   discountAmount: number;
   total: number;
   currency: string;

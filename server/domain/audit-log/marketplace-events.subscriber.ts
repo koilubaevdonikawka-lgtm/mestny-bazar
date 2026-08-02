@@ -365,4 +365,64 @@ export function subscribeAuditLog(bus: IMarketplaceEventBus, auditLog: IAuditLog
       payload: { scope: event.scope, action: event.action },
     });
   });
+
+  bus.subscribe("delivery.zone.created", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "delivery.zone.created",
+      occurredAt: new Date().toISOString(),
+      entityType: "delivery_zone",
+      entityId: event.zone.id,
+      actorId: null,
+      payload: { name: event.zone.name, cityId: event.zone.cityId },
+    });
+  });
+
+  bus.subscribe("delivery.zone.updated", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "delivery.zone.updated",
+      occurredAt: new Date().toISOString(),
+      entityType: "delivery_zone",
+      entityId: event.zone.id,
+      actorId: null,
+      payload: { name: event.zone.name, isActive: event.zone.isActive },
+    });
+  });
+
+  bus.subscribe("delivery.zone.deactivated", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "delivery.zone.deactivated",
+      occurredAt: new Date().toISOString(),
+      entityType: "delivery_zone",
+      entityId: event.zoneId,
+      actorId: null,
+      payload: {},
+    });
+  });
+
+  bus.subscribe("delivery.tariff.created", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "delivery.tariff.created",
+      occurredAt: new Date().toISOString(),
+      entityType: "delivery_tariff",
+      entityId: event.tariff.id,
+      actorId: null,
+      payload: { name: event.tariff.name, tariffType: event.tariff.tariffType },
+    });
+  });
+
+  bus.subscribe("delivery.tariff.updated", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "delivery.tariff.updated",
+      occurredAt: new Date().toISOString(),
+      entityType: "delivery_tariff",
+      entityId: event.tariff.id,
+      actorId: null,
+      payload: { name: event.tariff.name, isActive: event.tariff.isActive },
+    });
+  });
 }

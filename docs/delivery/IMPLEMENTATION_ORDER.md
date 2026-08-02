@@ -4,7 +4,7 @@
 |---|---|
 | **Версия** | 0.1 |
 | **Статус** | План реализации — главный документ разработки модуля |
-| **Дата последнего обновления** | 2026-08-02 (Этап 1 закрыт) |
+| **Дата последнего обновления** | 2026-08-02 (Этап 2 закрыт) |
 | **Связанные документы** | все документы `docs/delivery/`, [`docs/admin-platform/IMPLEMENTATION_ORDER.md`](../admin-platform/IMPLEMENTATION_ORDER.md), [`docs/architecture/ARCHITECTURE_GUARD.md`](../architecture/ARCHITECTURE_GUARD.md) |
 | **Связанные ADR** | [ADR-001](../adr/ADR-001-ports-and-adapters.md); см. [`delivery-future-roadmap.md`](./delivery-future-roadmap.md) для кандидатов, необходимых до Этапа 3 |
 | **Связанные Architecture Principles** | PL-05 (Composition Root), PL-12 (Rule Engine), PL-14 (ADR) |
@@ -56,18 +56,19 @@
 
 ---
 
-## Этап 2 — Реализация ядра (не начат)
+## Этап 2 — Реализация ядра
 
 | Поле | Значение |
 |---|---|
-| **Статус этапа** | Не начат — требует отдельного, явно поставленного промпта |
+| **Статус этапа** | ✅ Выполнен (2026-08-02) — typecheck, lint, tests (671 passed), build, Architecture Guard (PASS) пройдены; commit создан |
 | **Номер** | 2 |
 | **Название** | Реализация ядра: география, стандартные тарифы, Rule Engine, интеграция с Checkout |
-| **Цель** | Дать платформе рабочую, конфигурируемую через Административную платформу систему зон и стандартных тарифов, заменяющую сегодняшний `SupabaseDeliveryZoneRepository.calculateFee()`, без активации продвинутого ценообразования |
-| **Предполагаемый объём** | Миграции: `cities`, `stores`, `delivery_zones` (расширение), `delivery_districts`, `delivery_tariffs` (+ миграция существующих `price`/`free_from` в записи `STANDARD`-тарифа, см. `delivery-pricing.md`, «Миграция с текущей модели»); `server/ports/{city,store,delivery-zone,delivery-district,delivery-tariff}.repository.ts`; `server/adapters/supabase/*` (реализации); `server/domain/delivery/{delivery-zone-policy,delivery-tariff-policy}/*` (Rule Engine по стандарту, `delivery-rule-engine.md`); `server/domain/delivery/{delivery-zone,delivery-tariff,delivery-pricing-engine,delivery-calculator}.service.ts`; `server/functions/delivery*.executor.ts`; `src/api/delivery*.{functions.ts,ts}`; `src/routes/admin/delivery/*`; замена вызова в `CheckoutService`/`PricingService` на `DeliveryPricingEngine` |
-| **Явно НЕ входит в объём** | `pricingModel: BY_DISTANCE`, любые `DeliveryCoefficient`, `tariffType: CORPORATE`/`HOLIDAY`/`PROMOTIONAL` за пределами модели данных (сами правила `CorporateTariffRule`/`HolidayTariffRule` могут быть реализованы как часть Rule Engine, но без реальных провайдеров/данных, дающих им сработать за пределами `STANDARD`, — это Этап 3) |
-| **Зависит от** | Кандидат на ADR №3 (`DeliveryCoefficientRegistry`) не блокирует Этап 2 — коэффициенты не активируются в нём |
+| **Цель** | Дать платформе рабочую, конфигурируемую через Административную платформу систему зон и тарифов (включая CORPORATE/HOLIDAY/PROMOTIONAL как модель данных и работающие правила выбора), заменяющую сегодняшний `SupabaseDeliveryZoneRepository.calculateFee()`, без активации продвинутого ценообразования (расстояние, коэффициенты) |
+| **Что реализовано** | Миграции: `cities`/`stores` (+ seed «Бишкек»), `delivery_zones` (расширен `city_id`/`store_id`, `price`/`free_from` перенесены в тариф), `delivery_districts` (только схема — см. «Известные ограничения»), `delivery_tariffs`, снимок `orders.delivery_tariff_id`/`delivery_eta_min_minutes`/`delivery_eta_max_minutes`; порты и Supabase-адаптеры для City (read-only)/Zone (buyer + admin)/Tariff; два Rule Engine (`DeliveryZonePolicyService`, `DeliveryTariffPolicyService`) с полным набором правил из `delivery-rule-engine.md`; `DeliveryCalculator` (FIXED/BY_ZONE/BY_DISTANCE-формула, свободная доставка, ETA); `DeliveryPricingEngine`-оркестратор; `DeliveryZoneAdminService`/`DeliveryTariffAdminService` (CRUD + события); API (buyer: `listDeliveryZonesFn`, `calculateDeliveryFeeFn`; admin: полный CRUD зон/тарифов, `previewDeliveryFeeFn`); `/admin/delivery` (список/создание/деактивация зон, CRUD тарифов, обзор правил, калькулятор предпросмотра); `PricingService`/`CheckoutService` переведены на `DeliveryPricingEngine` (единственный путь расчёта, `IDeliveryZoneRepository.calculateFee()` удалён как дублирующий); Покупательское PWA — выбор зоны в адресе (гость и авторизованный), отображение стоимости/ETA/прогресса до бесплатной доставки в корзине, ETA на странице заказа |
+| **Явно НЕ входит в объём (перенесено в Этап 3, как и планировалось)** | `pricingModel: BY_DISTANCE` — формула реализована и покрыта тестами, но `distanceKm` всегда `undefined` (нет провайдера геокодирования, ADR-кандидат №1); `DeliveryCoefficient`/`DeliveryCoefficientRegistry` — не реализованы вовсе (ADR-кандидат №3); события `delivery.tariff.activated`/`.expired` — не реализованы (открытый вопрос `delivery-events.md`); автоматическое сопоставление адреса с районом (`DeliveryZoneService.resolveZoneForAddress`) — покупатель выбирает зону вручную, как и было спроектировано как «резервный путь» в `delivery-zones.md` |
+| **Известные ограничения (честно задокументированы)** | `delivery_districts` существует только как таблица — ни Repository, ни Service, ни UI для неё не созданы (не входило в явный список UI Промпта №021); Store (`stores`) аналогично — только схема, `storeId` всегда `null` на всех зонах; найденный при реализации порядок шагов `DeliveryPricingEngine` (Tariff Policy до Zone Policy) исправлен относительно черновика Этапа 1, см. `delivery-pricing.md` |
 | **Какие проверки должны быть выполнены** | typecheck, lint, tests, build, Architecture Guard |
+| **Commit** | Один commit по завершении этапа |
 
 ---
 
@@ -90,7 +91,7 @@
 | № | Этап | Статус | Ключевая зависимость |
 |---|---|---|---|
 | 1 | Архитектура и фундамент | ✅ Выполнен | Нет — корень |
-| 2 | Реализация ядра | Не начат | Этап 1 |
+| 2 | Реализация ядра | ✅ Выполнен | Этап 1 |
 | 3 | Продвинутое ценообразование | Не начат | Этап 2 + ADR №1/№2/№3 |
 
 ## Итоговое условие

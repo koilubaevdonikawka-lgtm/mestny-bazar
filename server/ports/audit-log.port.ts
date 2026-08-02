@@ -34,7 +34,12 @@ export type AuditAction =
   | "product.published"
   | "stock.adjusted"
   | "settings.changed"
-  | "permission.changed";
+  | "permission.changed"
+  | "delivery.zone.created"
+  | "delivery.zone.updated"
+  | "delivery.zone.deactivated"
+  | "delivery.tariff.created"
+  | "delivery.tariff.updated";
 
 export interface AuditRecord {
   id: string;

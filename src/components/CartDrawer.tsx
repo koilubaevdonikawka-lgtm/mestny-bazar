@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -10,11 +11,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { ShoppingCart, Minus, Plus, Trash2, AlertTriangle, Loader2 } from "lucide-react";
+import { ShoppingCart, Minus, Plus, Trash2, AlertTriangle, Loader2, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { useCartStore } from "@/stores/cartStore";
 import { useCheckoutStore } from "@/stores/checkoutStore";
 import { createOrder } from "@/api/orders";
+import { calculateDeliveryFee } from "@/api/delivery-pricing";
 import { supabase } from "@/integrations/supabase/client";
 import type { CartLineStatus } from "@shared/contracts/cart";
 
@@ -30,10 +32,18 @@ export const CartDrawer = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lineWarnings, setLineWarnings] = useState<Record<string, string>>({});
   const { items, isLoading, updateQuantity, removeItem, validateCart, clearCart } = useCartStore();
-  const { address, paymentMethod, customerPhone, customerName, setCustomerName } =
+  const { address, zoneId, paymentMethod, customerPhone, customerName, setCustomerName } =
     useCheckoutStore();
   const totalItems = items.reduce((s, i) => s + i.quantity, 0);
   const totalPrice = items.reduce((s, i) => s + parseFloat(i.price.amount) * i.quantity, 0);
+
+  // Server-computed only (CD-01) — never a client-side estimate. docs/delivery/delivery-pricing.md.
+  const deliveryQuery = useQuery({
+    queryKey: ["delivery", "fee", zoneId, totalPrice],
+    queryFn: () => calculateDeliveryFee({ zoneId: zoneId!, subtotal: totalPrice }),
+    enabled: isOpen && !!zoneId && totalItems > 0,
+    retry: false,
+  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -99,6 +109,7 @@ export const CartDrawer = () => {
           },
         })),
         ...(hasManualAddress ? { addressSnapshot: address.trim() } : {}),
+        ...(zoneId ? { zoneId } : {}),
         customerName: name,
         customerPhone,
         paymentMethod,
@@ -235,6 +246,40 @@ export const CartDrawer = () => {
                 </div>
               </div>
               <div className="flex-shrink-0 space-y-4 pt-4 border-t bg-background">
+                {zoneId ? (
+                  deliveryQuery.data && (
+                    <div className="flex items-start gap-2 rounded-xl bg-secondary/40 px-4 py-3 text-sm">
+                      <Truck className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" />
+                      <div>
+                        <p>
+                          Доставка:{" "}
+                          <strong>
+                            {deliveryQuery.data.isFree
+                              ? "Бесплатно"
+                              : `${deliveryQuery.data.fee.toFixed(2)} ${items[0]?.price.currencyCode || ""}`}
+                          </strong>
+                        </p>
+                        {deliveryQuery.data.eta.minMinutes != null && (
+                          <p className="text-muted-foreground">
+                            Ожидаемое время: {deliveryQuery.data.eta.minMinutes}–
+                            {deliveryQuery.data.eta.maxMinutes} мин
+                          </p>
+                        )}
+                        {!deliveryQuery.data.isFree && deliveryQuery.data.freeFrom != null && (
+                          <p className="text-muted-foreground">
+                            Бесплатная доставка от {deliveryQuery.data.freeFrom} — добавьте ещё{" "}
+                            {(deliveryQuery.data.freeFrom - totalPrice).toFixed(2)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  <p className="text-xs text-muted-foreground px-1">
+                    Укажите зону доставки в разделе «Доставка оплата и статус», чтобы увидеть
+                    стоимость и срок доставки.
+                  </p>
+                )}
                 <div className="flex justify-between items-center">
                   <span className="text-lg">Итого</span>
                   <span className="text-2xl font-serif font-semibold">

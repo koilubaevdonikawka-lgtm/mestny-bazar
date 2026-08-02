@@ -93,9 +93,15 @@ export class CheckoutService {
         appliedCouponCode = application.coupon.code;
       }
 
-      const deliveryFee = zoneId
-        ? (await this.pricing.calculateDeliveryFee(zoneId, subtotal)).fee
-        : 0;
+      // The only place a delivery fee is computed — DeliveryPricingEngine via
+      // PricingService (docs/delivery/delivery-pricing.md) — never duplicated
+      // inline here. tariffId/eta are snapshotted onto the order itself so a
+      // future Courier Platform can read them without re-deriving (item 9,
+      // Промпт №021).
+      const deliveryQuote = zoneId
+        ? await this.pricing.calculateDeliveryFee(zoneId, subtotal)
+        : null;
+      const deliveryFee = deliveryQuote?.fee ?? 0;
       const total = this.pricing.calculateTotal(subtotal, deliveryFee, discountAmount);
       const isBlocked = userId ? await this.customerStatus.isBlocked(userId) : false;
 
@@ -120,6 +126,9 @@ export class CheckoutService {
         paymentStatus: this.paymentPolicy.getInitialPaymentStatus(request.paymentMethod),
         subtotal,
         deliveryFee,
+        deliveryTariffId: deliveryQuote?.tariffId ?? null,
+        deliveryEtaMinMinutes: deliveryQuote?.eta.minMinutes ?? null,
+        deliveryEtaMaxMinutes: deliveryQuote?.eta.maxMinutes ?? null,
         discountAmount,
         couponCode: appliedCouponCode ?? undefined,
         total,

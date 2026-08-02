@@ -4,7 +4,7 @@
 |---|---|
 | **Версия** | 0.1 |
 | **Статус** | Черновая архитектура — не реализовано (проектный документ, Single Source of Truth для модуля) |
-| **Дата последнего обновления** | 2026-08-02 |
+| **Дата последнего обновления** | 2026-08-02 (Этап 2 — см. таблицу §4 для актуального статуса реализации) |
 | **Связанные документы** | все документы `docs/delivery/`, [`docs/admin-platform/ADMIN_PLATFORM_MASTER_SPEC.md`](../admin-platform/ADMIN_PLATFORM_MASTER_SPEC.md) |
 | **Связанные ADR** | [ADR-001](../adr/ADR-001-ports-and-adapters.md) |
 | **Связанные Architecture Principles** | PL-02, PL-05, PL-09, PL-12, CD-01, CD-06 |
@@ -73,19 +73,19 @@ Delivery Management & Pricing даёт платформе то, чего сег�
 
 ## 4. Полный список сущностей
 
-| Сущность | Документ | Текущий статус в кодовой базе |
+| Сущность | Документ | Статус в кодовой базе (после Этапа 2) |
 |---|---|---|
-| City (Город) | `delivery-zones.md` | Не существует — платформа сегодня неявно однородна |
-| Store (Магазин/точка отгрузки) | `delivery-zones.md` | Не существует — нет понятия физической точки отгрузки |
-| Delivery Zone (Зона доставки) | `delivery-zones.md` | Частично существует (`delivery_zones`: id, name, price, free_from, sort_order) — плоская, без города/магазина/района |
-| District (Район) | `delivery-zones.md` | Частично существует как свободный текст (`AddressDTO.district`), не как отдельная сущность, не связан с зоной |
-| Delivery Tariff (Тариф) | `delivery-pricing.md` | Не существует — сегодня цена и порог бесплатной доставки хранятся прямо на зоне, одна цена на зону |
-| Delivery Coefficient (Коэффициент) | `delivery-pricing.md` | Не существует |
-| Delivery Pricing Engine | `delivery-pricing.md`, `delivery-rule-engine.md` | Не существует — сегодня `SupabaseDeliveryZoneRepository.calculateFee()` — один хардкод-метод без Rule Engine |
-| Delivery Calculator | `delivery-pricing.md` | Не существует — арифметика расчёта смешана с доступом к БД в `calculateFee()` |
-| Delivery Zone Policy (Rule Engine) | `delivery-rule-engine.md` | Не существует |
-| Delivery Tariff Policy (Rule Engine) | `delivery-rule-engine.md` | Не существует |
-| Delivery Event Model | `delivery-events.md` | Не существует — `MarketplaceEvent` не содержит `delivery.*` событий |
+| City (Город) | `delivery-zones.md` | Реализовано, read-only (`ICityRepository`, единственный seeded город «Бишкек»); CRUD/UI управления городами не входили в объём Этапа 2 |
+| Store (Магазин/точка отгрузки) | `delivery-zones.md` | Только схема (`stores`) — `storeId` всегда `null` на всех зонах, Repository/Service/UI не созданы |
+| Delivery Zone (Зона доставки) | `delivery-zones.md` | Полностью реализовано: `city_id`/`store_id`, `price`/`free_from` перенесены в Тариф; buyer + admin CRUD, admin UI |
+| District (Район) | `delivery-zones.md` | Только схема (`delivery_districts`) — не используется приложением; `AddressDTO.district` остаётся свободным текстом, как и было |
+| Delivery Tariff (Тариф) | `delivery-pricing.md` | Полностью реализовано: `STANDARD`/`HOLIDAY`/`CORPORATE`/`PROMOTIONAL`, `FIXED`/`BY_ZONE`/`BY_DISTANCE`, несколько тарифов на зону, admin CRUD |
+| Delivery Coefficient (Коэффициент) | `delivery-pricing.md` | Не реализовано — Этап 3 |
+| Delivery Pricing Engine | `delivery-pricing.md`, `delivery-rule-engine.md` | Реализовано (`DeliveryPricingEngine`) — единственный путь расчёта, `SupabaseDeliveryZoneRepository.calculateFee()` удалён |
+| Delivery Calculator | `delivery-pricing.md` | Реализовано (`DeliveryCalculator`, чистая функция, покрыта тестами) |
+| Delivery Zone Policy (Rule Engine) | `delivery-rule-engine.md` | Реализовано (`DeliveryZonePolicyService` + 3 правила) |
+| Delivery Tariff Policy (Rule Engine) | `delivery-rule-engine.md` | Реализовано (`DeliveryTariffPolicyService` + 4 правила) |
+| Delivery Event Model | `delivery-events.md` | Частично: `delivery.zone.*`/`delivery.tariff.created`/`.updated` реализованы; `delivery.tariff.activated`/`.expired` — Этап 3 (открытый вопрос) |
 
 ## 5. Роли и доступ
 

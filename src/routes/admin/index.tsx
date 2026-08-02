@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   Loader2,
   LogIn,
+  MapPinned,
   Package,
   Plug,
   Settings,
@@ -51,6 +52,7 @@ interface NavEntry {
     | "/admin/suppliers"
     | "/admin/users"
     | "/admin/couriers"
+    | "/admin/delivery"
     | "/admin/analytics"
     | "/admin/finance"
     | "/admin/marketing"
@@ -73,6 +75,7 @@ const NAV_ENTRIES: NavEntry[] = [
   { label: "Поставщики", to: "/admin/suppliers", icon: Truck },
   { label: "Покупатели", to: "/admin/users", icon: Users },
   { label: "Курьеры", to: "/admin/couriers", icon: Bike },
+  { label: "Доставка", to: "/admin/delivery", icon: MapPinned },
   { label: "Аналитика", to: "/admin/analytics", icon: BarChart3 },
   { label: "Финансы", to: "/admin/finance", icon: Banknote },
   { label: "Маркетинг", to: "/admin/marketing", icon: Tag },

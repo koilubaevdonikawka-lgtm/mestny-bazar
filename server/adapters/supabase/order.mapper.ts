@@ -66,6 +66,10 @@ interface DbOrderRow {
   paid_at: string | null;
   created_at: string;
   assigned_courier_id: string | null;
+  zone_id: string | null;
+  delivery_tariff_id: string | null;
+  delivery_eta_min_minutes: number | null;
+  delivery_eta_max_minutes: number | null;
 }
 
 interface DbOrderItemRow {
@@ -112,5 +116,9 @@ export function mapOrderRowToDto(
     createdAt: row.created_at,
     paidAt: row.paid_at,
     assignedCourierId: row.assigned_courier_id,
+    zoneId: row.zone_id,
+    deliveryTariffId: row.delivery_tariff_id,
+    deliveryEtaMinMinutes: row.delivery_eta_min_minutes,
+    deliveryEtaMaxMinutes: row.delivery_eta_max_minutes,
   };
 }

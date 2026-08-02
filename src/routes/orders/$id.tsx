@@ -162,6 +162,12 @@ function OrderDetailPage() {
           <div>
             <h2 className="text-sm font-medium text-muted-foreground">Адрес доставки</h2>
             <p className="mt-1">{order.addressSnapshot}</p>
+            {order.deliveryEtaMinMinutes != null && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Ожидаемое время доставки: {order.deliveryEtaMinMinutes}–
+                {order.deliveryEtaMaxMinutes} мин
+              </p>
+            )}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>

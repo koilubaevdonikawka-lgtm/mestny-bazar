@@ -4,7 +4,7 @@
 |---|---|
 | **Версия** | 0.1 |
 | **Статус** | Действующий — центральный документ |
-| **Дата последнего обновления** | 2026-08-02 (добавлен модуль «Доставка» — см. `docs/delivery/`) |
+| **Дата последнего обновления** | 2026-08-02 (модуль «Доставка» — Этап 2 закрыт, см. `docs/delivery/`) |
 | **Связанные документы** | [`README.md`](./README.md) (полный список), [`platform-lifecycle.md`](./platform-lifecycle.md), [`dependency-map.md`](./dependency-map.md), [`IMPLEMENTATION_ORDER.md`](./IMPLEMENTATION_ORDER.md), [`../delivery/DELIVERY_MASTER_SPEC.md`](../delivery/DELIVERY_MASTER_SPEC.md) |
 | **Связанные ADR** | [ADR-001](../adr/ADR-001-ports-and-adapters.md) |
 | **Связанные Architecture Principles** | PL-01…PL-14 (все — см. [`ARCHITECTURE_PRINCIPLES.md`](../architecture/ARCHITECTURE_PRINCIPLES.md)) |
@@ -133,7 +133,7 @@
 | Поставщики | `suppliers.md` | Не существует (0 совпадений в кодовой базе — подтверждено аудитом) |
 | Покупатели | `users.md` | Частично существует (`ProfileDTO`, `AddressService`); отдельного admin-инструмента для покупателей нет |
 | Курьеры | `couriers.md` | Частично существует (`CourierOrderService` — общая очередь); привязки курьера к заказу и авто-подбора — нет (см. §9, найденное расхождение) |
-| Доставка | [`../delivery/DELIVERY_MASTER_SPEC.md`](../delivery/DELIVERY_MASTER_SPEC.md) | Частично существует (`delivery_zones` — плоский список, одна цена на зону, `PricingService.calculateDeliveryFee`); зоны/тарифы/коэффициенты как конфигурируемые сущности, города, магазины — спроектированы (Этап 1 из 3, отдельный roadmap — `docs/delivery/IMPLEMENTATION_ORDER.md`), не реализованы |
+| Доставка | [`../delivery/DELIVERY_MASTER_SPEC.md`](../delivery/DELIVERY_MASTER_SPEC.md) | Ядро реализовано (Этап 2 из 3, отдельный roadmap — `docs/delivery/IMPLEMENTATION_ORDER.md`): города/зоны/районы(схема)/тарифы, два Rule Engine, `DeliveryPricingEngine`, `/admin/delivery`, интеграция с Checkout и Покупательским PWA. Расстояние/коэффициенты/реальные сезонные кампании — Этап 3, не реализовано |
 | Продавцы | `sellers.md` | Частично существует (`SellerProductService`, публикация товара); admin-обзора продавцов — нет |
 | Аналитика | `analytics.md` | Не существует |
 | Финансы | `finance.md` | Не существует |

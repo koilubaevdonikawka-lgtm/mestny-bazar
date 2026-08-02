@@ -25,6 +25,10 @@ function makeOrder(): OrderDTO {
     createdAt: new Date().toISOString(),
     paidAt: null,
     assignedCourierId: null,
+    zoneId: null,
+    deliveryTariffId: null,
+    deliveryEtaMinMinutes: null,
+    deliveryEtaMaxMinutes: null,
   };
 }
 

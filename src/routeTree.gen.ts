@@ -33,6 +33,7 @@ import { Route as AdminLogsIndexRouteImport } from './routes/admin/logs/index'
 import { Route as AdminIntegrationsIndexRouteImport } from './routes/admin/integrations/index'
 import { Route as AdminFinanceIndexRouteImport } from './routes/admin/finance/index'
 import { Route as AdminDesignIndexRouteImport } from './routes/admin/design/index'
+import { Route as AdminDeliveryIndexRouteImport } from './routes/admin/delivery/index'
 import { Route as AdminDashboardIndexRouteImport } from './routes/admin/dashboard/index'
 import { Route as AdminCouriersIndexRouteImport } from './routes/admin/couriers/index'
 import { Route as AdminCatalogIndexRouteImport } from './routes/admin/catalog/index'
@@ -164,6 +165,11 @@ const AdminDesignIndexRoute = AdminDesignIndexRouteImport.update({
   path: '/admin/design/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminDeliveryIndexRoute = AdminDeliveryIndexRouteImport.update({
+  id: '/admin/delivery/',
+  path: '/admin/delivery/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminDashboardIndexRoute = AdminDashboardIndexRouteImport.update({
   id: '/admin/dashboard/',
   path: '/admin/dashboard/',
@@ -234,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/admin/catalog/': typeof AdminCatalogIndexRoute
   '/admin/couriers/': typeof AdminCouriersIndexRoute
   '/admin/dashboard/': typeof AdminDashboardIndexRoute
+  '/admin/delivery/': typeof AdminDeliveryIndexRoute
   '/admin/design/': typeof AdminDesignIndexRoute
   '/admin/finance/': typeof AdminFinanceIndexRoute
   '/admin/integrations/': typeof AdminIntegrationsIndexRoute
@@ -270,6 +277,7 @@ export interface FileRoutesByTo {
   '/admin/catalog': typeof AdminCatalogIndexRoute
   '/admin/couriers': typeof AdminCouriersIndexRoute
   '/admin/dashboard': typeof AdminDashboardIndexRoute
+  '/admin/delivery': typeof AdminDeliveryIndexRoute
   '/admin/design': typeof AdminDesignIndexRoute
   '/admin/finance': typeof AdminFinanceIndexRoute
   '/admin/integrations': typeof AdminIntegrationsIndexRoute
@@ -307,6 +315,7 @@ export interface FileRoutesById {
   '/admin/catalog/': typeof AdminCatalogIndexRoute
   '/admin/couriers/': typeof AdminCouriersIndexRoute
   '/admin/dashboard/': typeof AdminDashboardIndexRoute
+  '/admin/delivery/': typeof AdminDeliveryIndexRoute
   '/admin/design/': typeof AdminDesignIndexRoute
   '/admin/finance/': typeof AdminFinanceIndexRoute
   '/admin/integrations/': typeof AdminIntegrationsIndexRoute
@@ -345,6 +354,7 @@ export interface FileRouteTypes {
     | '/admin/catalog/'
     | '/admin/couriers/'
     | '/admin/dashboard/'
+    | '/admin/delivery/'
     | '/admin/design/'
     | '/admin/finance/'
     | '/admin/integrations/'
@@ -381,6 +391,7 @@ export interface FileRouteTypes {
     | '/admin/catalog'
     | '/admin/couriers'
     | '/admin/dashboard'
+    | '/admin/delivery'
     | '/admin/design'
     | '/admin/finance'
     | '/admin/integrations'
@@ -417,6 +428,7 @@ export interface FileRouteTypes {
     | '/admin/catalog/'
     | '/admin/couriers/'
     | '/admin/dashboard/'
+    | '/admin/delivery/'
     | '/admin/design/'
     | '/admin/finance/'
     | '/admin/integrations/'
@@ -454,6 +466,7 @@ export interface RootRouteChildren {
   AdminCatalogIndexRoute: typeof AdminCatalogIndexRoute
   AdminCouriersIndexRoute: typeof AdminCouriersIndexRoute
   AdminDashboardIndexRoute: typeof AdminDashboardIndexRoute
+  AdminDeliveryIndexRoute: typeof AdminDeliveryIndexRoute
   AdminDesignIndexRoute: typeof AdminDesignIndexRoute
   AdminFinanceIndexRoute: typeof AdminFinanceIndexRoute
   AdminIntegrationsIndexRoute: typeof AdminIntegrationsIndexRoute
@@ -642,6 +655,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDesignIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/delivery/': {
+      id: '/admin/delivery/'
+      path: '/admin/delivery'
+      fullPath: '/admin/delivery/'
+      preLoaderRoute: typeof AdminDeliveryIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/dashboard/': {
       id: '/admin/dashboard/'
       path: '/admin/dashboard'
@@ -734,6 +754,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminCatalogIndexRoute: AdminCatalogIndexRoute,
   AdminCouriersIndexRoute: AdminCouriersIndexRoute,
   AdminDashboardIndexRoute: AdminDashboardIndexRoute,
+  AdminDeliveryIndexRoute: AdminDeliveryIndexRoute,
   AdminDesignIndexRoute: AdminDesignIndexRoute,
   AdminFinanceIndexRoute: AdminFinanceIndexRoute,
   AdminIntegrationsIndexRoute: AdminIntegrationsIndexRoute,

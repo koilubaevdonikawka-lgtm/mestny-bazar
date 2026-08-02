@@ -35,6 +35,11 @@ export interface OrderDTO {
   paymentMethod: PaymentMethod;
   subtotal: number;
   deliveryFee: number;
+  /** Snapshotted at checkout (docs/delivery/) — Courier Platform reads these without re-deriving. */
+  zoneId: string | null;
+  deliveryTariffId: string | null;
+  deliveryEtaMinMinutes: number | null;
+  deliveryEtaMaxMinutes: number | null;
   discountAmount: number;
   couponCode: string | null;
   total: number;

@@ -15,6 +15,7 @@ import {
   setDefaultAddress,
   updateAddress,
 } from "@/api/addresses";
+import { listDeliveryZones } from "@/api/delivery-zone";
 import type { AddressDTO } from "@shared/contracts/delivery";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
@@ -31,6 +32,7 @@ type AddressFormState = {
   city: string;
   district: string;
   notes: string;
+  zoneId: string;
   isDefault: boolean;
 };
 
@@ -40,6 +42,7 @@ const emptyForm = (): AddressFormState => ({
   city: "",
   district: "",
   notes: "",
+  zoneId: "",
   isDefault: false,
 });
 
@@ -61,6 +64,13 @@ function ProfileAddressesPage() {
     queryFn: listAddresses,
     enabled: isAuthenticated === true,
     retry: false,
+  });
+
+  const { data: deliveryZones } = useQuery({
+    queryKey: ["delivery", "zones"],
+    queryFn: listDeliveryZones,
+    enabled: isAuthenticated === true,
+    staleTime: 5 * 60 * 1000,
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["addresses", "list"] });
@@ -123,6 +133,7 @@ function ProfileAddressesPage() {
       city: address.city ?? "",
       district: address.district ?? "",
       notes: address.notes ?? "",
+      zoneId: address.zoneId ?? "",
       isDefault: address.isDefault,
     });
     setShowForm(true);
@@ -136,6 +147,7 @@ function ProfileAddressesPage() {
       city: form.city.trim() || undefined,
       district: form.district.trim() || undefined,
       notes: form.notes.trim() || undefined,
+      zoneId: form.zoneId || undefined,
       isDefault: form.isDefault,
     };
 
@@ -294,6 +306,25 @@ function ProfileAddressesPage() {
                 />
               </div>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="zone">Зона доставки</Label>
+              <select
+                id="zone"
+                value={form.zoneId}
+                onChange={(e) => setForm((prev) => ({ ...prev, zoneId: e.target.value }))}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Не выбрана</option>
+                {(deliveryZones ?? []).map((zone) => (
+                  <option key={zone.id} value={zone.id}>
+                    {zone.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                От зоны зависит стоимость и срок доставки при оформлении заказа.
+              </p>
+            </div>
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -343,6 +374,11 @@ function ProfileAddressesPage() {
                     {(address.city || address.district) && (
                       <p className="text-sm text-muted-foreground mt-1">
                         {[address.city, address.district].filter(Boolean).join(", ")}
+                      </p>
+                    )}
+                    {address.zoneId && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Зона: {deliveryZones?.find((z) => z.id === address.zoneId)?.name ?? "—"}
                       </p>
                     )}
                     {address.notes && (
