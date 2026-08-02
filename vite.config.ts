@@ -41,7 +41,7 @@ export default defineConfig(({ mode, command }) => {
       ],
       ignoreOutdatedRequests: true,
     },
-    server: { host: "::", port: 8080 },
+    server: { host: "::", port: 8080, strictPort: true },
     plugins: [
       tailwindcss(),
       tsConfigPaths({ projects: ["./tsconfig.json"] }),
