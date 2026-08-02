@@ -6,6 +6,7 @@ import {
 } from "@server/domain/seller-product.errors";
 import type { ISellerProductRepository } from "@server/ports/seller-product.repository";
 import type { IProductPublicationPolicy } from "@server/ports/product-publication.port";
+import type { IMarketplaceEventBus, MarketplaceEvent } from "@server/ports/marketplace-events.port";
 import type { SellerProductDTO } from "@shared/contracts/seller-product";
 
 function makeProduct(overrides: Partial<SellerProductDTO> = {}): SellerProductDTO {
@@ -47,10 +48,18 @@ function fakePolicy(overrides: Partial<IProductPublicationPolicy> = {}): IProduc
   };
 }
 
+function fakeEventBus(overrides: Partial<IMarketplaceEventBus> = {}): IMarketplaceEventBus {
+  return {
+    publish: vi.fn(async (_event: MarketplaceEvent) => {}),
+    subscribe: vi.fn(),
+    ...overrides,
+  };
+}
+
 describe("SellerProductService.listProducts / getProduct", () => {
   it("listProducts delegates to the repository for the given seller", async () => {
     const repo = fakeRepo({ listBySeller: vi.fn(async () => [makeProduct()]) });
-    const service = new SellerProductService(repo, fakePolicy());
+    const service = new SellerProductService(repo, fakePolicy(), fakeEventBus());
 
     const result = await service.listProducts("seller-1");
 
@@ -60,7 +69,7 @@ describe("SellerProductService.listProducts / getProduct", () => {
 
   it("getProduct returns the product when it exists", async () => {
     const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()) });
-    const service = new SellerProductService(repo, fakePolicy());
+    const service = new SellerProductService(repo, fakePolicy(), fakeEventBus());
 
     const result = await service.getProduct("product-1", "seller-1");
 
@@ -70,7 +79,7 @@ describe("SellerProductService.listProducts / getProduct", () => {
 
   it("getProduct throws SellerProductNotFoundError when the repository returns null", async () => {
     const repo = fakeRepo({ getById: vi.fn(async () => null) });
-    const service = new SellerProductService(repo, fakePolicy());
+    const service = new SellerProductService(repo, fakePolicy(), fakeEventBus());
 
     await expect(service.getProduct("missing", "seller-1")).rejects.toBeInstanceOf(
       SellerProductNotFoundError,
@@ -81,7 +90,7 @@ describe("SellerProductService.listProducts / getProduct", () => {
 describe("SellerProductService.createProduct", () => {
   it("rejects a name shorter than 2 characters", async () => {
     const repo = fakeRepo();
-    const service = new SellerProductService(repo, fakePolicy());
+    const service = new SellerProductService(repo, fakePolicy(), fakeEventBus());
 
     await expect(
       service.createProduct("seller-1", { name: "A", price: 10 }),
@@ -91,7 +100,7 @@ describe("SellerProductService.createProduct", () => {
 
   it("rejects a negative price", async () => {
     const repo = fakeRepo();
-    const service = new SellerProductService(repo, fakePolicy());
+    const service = new SellerProductService(repo, fakePolicy(), fakeEventBus());
 
     await expect(
       service.createProduct("seller-1", { name: "Valid Name", price: -1 }),
@@ -100,7 +109,7 @@ describe("SellerProductService.createProduct", () => {
 
   it("rejects a non-integer stock", async () => {
     const repo = fakeRepo();
-    const service = new SellerProductService(repo, fakePolicy());
+    const service = new SellerProductService(repo, fakePolicy(), fakeEventBus());
 
     await expect(
       service.createProduct("seller-1", { name: "Valid Name", price: 10, stock: 1.5 }),
@@ -109,7 +118,7 @@ describe("SellerProductService.createProduct", () => {
 
   it("falls back to a timestamp-based slug for a name that strips to nothing", async () => {
     const repo = fakeRepo();
-    const service = new SellerProductService(repo, fakePolicy());
+    const service = new SellerProductService(repo, fakePolicy(), fakeEventBus());
 
     // Cyrillic characters are not in slugify's [a-z0-9\s-] allowlist, so a
     // Cyrillic-only name strips down to nothing rather than a usable slug.
@@ -120,7 +129,7 @@ describe("SellerProductService.createProduct", () => {
 
   it("falls back to an ASCII-only slug for a Latin name", async () => {
     const repo = fakeRepo();
-    const service = new SellerProductService(repo, fakePolicy());
+    const service = new SellerProductService(repo, fakePolicy(), fakeEventBus());
 
     await service.createProduct("seller-1", { name: "Fresh Bread!!", price: 10 });
     const [, payload] = (repo.create as ReturnType<typeof vi.fn>).mock.calls[0];
@@ -131,7 +140,7 @@ describe("SellerProductService.createProduct", () => {
     const repo = fakeRepo({
       slugExists: vi.fn(async (slug: string) => slug === "fresh-bread"),
     });
-    const service = new SellerProductService(repo, fakePolicy());
+    const service = new SellerProductService(repo, fakePolicy(), fakeEventBus());
 
     await service.createProduct("seller-1", { name: "Fresh Bread", price: 10 });
     const [, payload] = (repo.create as ReturnType<typeof vi.fn>).mock.calls[0];
@@ -140,7 +149,7 @@ describe("SellerProductService.createProduct", () => {
 
   it("falls back to a timestamp-suffixed slug once all 19 numeric suffixes (2-20) are also taken", async () => {
     const repo = fakeRepo({ slugExists: vi.fn(async () => true) });
-    const service = new SellerProductService(repo, fakePolicy());
+    const service = new SellerProductService(repo, fakePolicy(), fakeEventBus());
 
     await service.createProduct("seller-1", { name: "Fresh Bread", price: 10 });
     const [, payload] = (repo.create as ReturnType<typeof vi.fn>).mock.calls[0];
@@ -155,7 +164,7 @@ describe("SellerProductService.createProduct", () => {
       }),
     });
     const repo = fakeRepo();
-    const service = new SellerProductService(repo, policy);
+    const service = new SellerProductService(repo, policy, fakeEventBus());
 
     await expect(
       service.createProduct("seller-1", { name: "Fresh Bread", price: 10 }),
@@ -167,7 +176,7 @@ describe("SellerProductService.createProduct", () => {
 describe("SellerProductService.updateProduct", () => {
   it("throws SellerProductNotFoundError for a product the seller does not own", async () => {
     const repo = fakeRepo({ getById: vi.fn(async () => null) });
-    const service = new SellerProductService(repo, fakePolicy());
+    const service = new SellerProductService(repo, fakePolicy(), fakeEventBus());
 
     await expect(
       service.updateProduct("seller-1", { id: "product-1", price: 20 }),
@@ -177,7 +186,7 @@ describe("SellerProductService.updateProduct", () => {
 
   it("validates price when it is being changed", async () => {
     const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()) });
-    const service = new SellerProductService(repo, fakePolicy());
+    const service = new SellerProductService(repo, fakePolicy(), fakeEventBus());
 
     await expect(
       service.updateProduct("seller-1", { id: "product-1", price: -5 }),
@@ -187,7 +196,7 @@ describe("SellerProductService.updateProduct", () => {
 
   it("validates name when it is being changed", async () => {
     const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()) });
-    const service = new SellerProductService(repo, fakePolicy());
+    const service = new SellerProductService(repo, fakePolicy(), fakeEventBus());
 
     await expect(
       service.updateProduct("seller-1", { id: "product-1", name: "A" }),
@@ -197,7 +206,7 @@ describe("SellerProductService.updateProduct", () => {
 
   it("validates stock when it is being changed", async () => {
     const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()) });
-    const service = new SellerProductService(repo, fakePolicy());
+    const service = new SellerProductService(repo, fakePolicy(), fakeEventBus());
 
     await expect(
       service.updateProduct("seller-1", { id: "product-1", stock: -1 }),
@@ -207,7 +216,7 @@ describe("SellerProductService.updateProduct", () => {
 
   it("leaves unspecified fields unvalidated and applies the patch when nothing changed is invalid", async () => {
     const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()) });
-    const service = new SellerProductService(repo, fakePolicy());
+    const service = new SellerProductService(repo, fakePolicy(), fakeEventBus());
 
     await service.updateProduct("seller-1", { id: "product-1", description: "New description" });
 
@@ -219,7 +228,7 @@ describe("SellerProductService.updateProduct", () => {
 
   it("resolves a fresh unique slug when the slug is being changed", async () => {
     const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()) });
-    const service = new SellerProductService(repo, fakePolicy());
+    const service = new SellerProductService(repo, fakePolicy(), fakeEventBus());
 
     await service.updateProduct("seller-1", { id: "product-1", slug: "new-slug" });
 
@@ -232,7 +241,7 @@ describe("SellerProductService.updateProduct", () => {
 
   it("rejects a blank slug on update", async () => {
     const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()) });
-    const service = new SellerProductService(repo, fakePolicy());
+    const service = new SellerProductService(repo, fakePolicy(), fakeEventBus());
 
     await expect(
       service.updateProduct("seller-1", { id: "product-1", slug: "   " }),
@@ -242,25 +251,28 @@ describe("SellerProductService.updateProduct", () => {
 });
 
 describe("SellerProductService publish/hide", () => {
-  it("publishProduct asserts seller_publish and delegates to setPublicationStatus", async () => {
+  it("publishProduct asserts seller_publish, delegates to setPublicationStatus, and publishes product.published", async () => {
     const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()) });
     const policy = fakePolicy();
-    const service = new SellerProductService(repo, policy);
+    const events = fakeEventBus();
+    const service = new SellerProductService(repo, policy, events);
 
-    await service.publishProduct("seller-1", "product-1");
+    const product = await service.publishProduct("seller-1", "product-1");
 
     expect(policy.assertCanTransition).toHaveBeenCalledWith(
       expect.objectContaining({ reason: "seller_publish", targetStatus: "PUBLISHED" }),
     );
     expect(repo.setPublicationStatus).toHaveBeenCalledWith("seller-1", "product-1", "PUBLISHED");
+    expect(events.publish).toHaveBeenCalledWith({ type: "product.published", product });
   });
 
-  it("hideProduct asserts seller_hide and delegates to setPublicationStatus", async () => {
+  it("hideProduct asserts seller_hide, delegates to setPublicationStatus, and does not publish product.published", async () => {
     const repo = fakeRepo({
       getById: vi.fn(async () => makeProduct({ publicationStatus: "PUBLISHED" })),
     });
     const policy = fakePolicy();
-    const service = new SellerProductService(repo, policy);
+    const events = fakeEventBus();
+    const service = new SellerProductService(repo, policy, events);
 
     await service.hideProduct("seller-1", "product-1");
 
@@ -268,6 +280,7 @@ describe("SellerProductService publish/hide", () => {
       expect.objectContaining({ reason: "seller_hide", targetStatus: "HIDDEN" }),
     );
     expect(repo.setPublicationStatus).toHaveBeenCalledWith("seller-1", "product-1", "HIDDEN");
+    expect(events.publish).not.toHaveBeenCalled();
   });
 
   it("does not call setPublicationStatus when the policy denies the transition", async () => {
@@ -277,7 +290,7 @@ describe("SellerProductService publish/hide", () => {
         throw new Error("denied");
       }),
     });
-    const service = new SellerProductService(repo, policy);
+    const service = new SellerProductService(repo, policy, fakeEventBus());
 
     await expect(service.publishProduct("seller-1", "product-1")).rejects.toThrow("denied");
     expect(repo.setPublicationStatus).not.toHaveBeenCalled();

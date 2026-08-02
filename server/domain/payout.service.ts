@@ -1,5 +1,6 @@
 import type { IPayoutRepository } from "@server/ports/payout.repository";
 import type { ICommissionPolicy } from "@server/ports/commission-policy.port";
+import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
 import type { SettingsService } from "@server/domain/settings.service";
 import type {
   CreatePayoutRunRequest,
@@ -26,6 +27,7 @@ export class PayoutService {
     private readonly payouts: IPayoutRepository,
     private readonly commissionPolicy: ICommissionPolicy,
     private readonly settings: SettingsService,
+    private readonly events: IMarketplaceEventBus,
   ) {}
 
   async createPayoutRun(request: CreatePayoutRunRequest): Promise<SellerPayoutDTO> {
@@ -47,7 +49,7 @@ export class PayoutService {
     const commissionAmount = round2(grossRevenue * rate);
     const payoutAmount = round2(grossRevenue - commissionAmount);
 
-    return this.payouts.create({
+    const payout = await this.payouts.create({
       sellerId: request.sellerId,
       periodStart: request.periodStart,
       periodEnd: request.periodEnd,
@@ -56,10 +58,14 @@ export class PayoutService {
       commissionAmount,
       payoutAmount,
     });
+    await this.events.publish({ type: "payout.created", payout });
+    return payout;
   }
 
   async completePayout(id: string): Promise<SellerPayoutDTO> {
-    return this.payouts.setStatus(id, "COMPLETED" satisfies PayoutStatus);
+    const payout = await this.payouts.setStatus(id, "COMPLETED" satisfies PayoutStatus);
+    await this.events.publish({ type: "payout.completed", payout });
+    return payout;
   }
 
   async listAll(): Promise<SellerPayoutDTO[]> {

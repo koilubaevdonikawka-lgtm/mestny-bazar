@@ -7,6 +7,7 @@ import type {
 import { ProductPublicationStatus as Status } from "@shared/contracts/seller-product";
 import type { ISellerProductRepository } from "@server/ports/seller-product.repository";
 import type { IProductPublicationPolicy } from "@server/ports/product-publication.port";
+import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
 import {
   SellerProductNotFoundError,
   SellerProductValidationError,
@@ -27,6 +28,7 @@ export class SellerProductService {
   constructor(
     private readonly products: ISellerProductRepository,
     private readonly publicationPolicy: IProductPublicationPolicy,
+    private readonly events: IMarketplaceEventBus,
   ) {}
 
   async listProducts(sellerId: string): Promise<SellerProductDTO[]> {
@@ -103,7 +105,16 @@ export class SellerProductService {
       reason,
     });
 
-    return this.products.setPublicationStatus(sellerId, productId, targetStatus);
+    const updated = await this.products.setPublicationStatus(sellerId, productId, targetStatus);
+
+    // ai.md — the AI quality-analysis trigger reacts to a product actually
+    // going live, not to HIDDEN (or the DRAFT bootstrap transition, which
+    // never reaches here — see createProduct).
+    if (targetStatus === Status.PUBLISHED) {
+      await this.events.publish({ type: "product.published", product: updated });
+    }
+
+    return updated;
   }
 
   private async resolveUniqueSlug(baseSlug: string, exceptId?: string): Promise<string> {

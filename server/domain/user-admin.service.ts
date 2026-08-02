@@ -35,10 +35,12 @@ export class UserAdminService {
 
   async assignScope(userId: string, scope: AdminScope): Promise<void> {
     await this.users.assignScope(userId, scope);
+    await this.events.publish({ type: "permission.changed", userId, scope, action: "assigned" });
   }
 
   async revokeScope(userId: string, scope: AdminScope): Promise<void> {
     await this.users.revokeScope(userId, scope);
+    await this.events.publish({ type: "permission.changed", userId, scope, action: "revoked" });
   }
 
   async blockCustomer(userId: string): Promise<void> {

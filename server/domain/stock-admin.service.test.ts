@@ -59,6 +59,20 @@ describe("StockAdminService.listStock", () => {
 });
 
 describe("StockAdminService.adjustStock", () => {
+  it("always publishes stock.adjusted (logs.md — Этап 5), regardless of resulting health", async () => {
+    const stock = fakeStockRepo({ adjustStock: vi.fn(async () => makeRow({ stock: 50 })) });
+    const events = fakeEventBus();
+    const service = buildService({ stock, events });
+
+    await service.adjustStock({ productId: "p1", stock: 50 });
+
+    expect(events.publish).toHaveBeenCalledWith({
+      type: "stock.adjusted",
+      productId: "p1",
+      stock: 50,
+    });
+  });
+
   it("publishes stock.low when the new stock falls at/below the threshold", async () => {
     const stock = fakeStockRepo({ adjustStock: vi.fn(async () => makeRow({ stock: 3 })) });
     const events = fakeEventBus();
@@ -84,13 +98,17 @@ describe("StockAdminService.adjustStock", () => {
     expect(events.publish).toHaveBeenCalledWith({ type: "stock.depleted", productId: "p1" });
   });
 
-  it("does not publish anything when the new stock is healthy", async () => {
+  it("publishes only stock.adjusted, not stock.low/stock.depleted, when the new stock is healthy", async () => {
     const stock = fakeStockRepo({ adjustStock: vi.fn(async () => makeRow({ stock: 50 })) });
     const events = fakeEventBus();
     const service = buildService({ stock, events });
 
     await service.adjustStock({ productId: "p1", stock: 50 });
-    expect(events.publish).not.toHaveBeenCalled();
+
+    expect(events.publish).toHaveBeenCalledTimes(1);
+    expect(events.publish).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "stock.adjusted" }),
+    );
   });
 });
 

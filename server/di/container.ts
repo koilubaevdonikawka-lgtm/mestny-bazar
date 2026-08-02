@@ -38,6 +38,13 @@ import { CouponMinOrderRule } from "@server/domain/discount-policy/rules/coupon-
 import { CouponDiscountAmountRule } from "@server/domain/discount-policy/rules/coupon-discount-amount.rule";
 import { CouponService } from "@server/domain/coupon.service";
 import { BannerService } from "@server/domain/banner.service";
+import { AutomationOverviewService } from "@server/domain/automation-overview.service";
+import {
+  IntegrationsStatusService,
+  type IntegrationSecretPresence,
+} from "@server/domain/integrations-status.service";
+import { SecurityOverviewService } from "@server/domain/security-overview.service";
+import { AuditLogQueryService } from "@server/domain/audit-log-query.service";
 import { SupabaseCouponRepository } from "@server/adapters/supabase/coupon.repository";
 import { SupabasePayoutRepository } from "@server/adapters/supabase/payout.repository";
 import { SupabaseBannerRepository } from "@server/adapters/supabase/banner.repository";
@@ -218,6 +225,10 @@ export interface ServiceContainer {
   couponService: CouponService;
   banners: IBannerRepository;
   bannerService: BannerService;
+  automationOverviewService: AutomationOverviewService;
+  integrationsStatusService: IntegrationsStatusService;
+  securityOverviewService: SecurityOverviewService;
+  auditLogQueryService: AuditLogQueryService;
 }
 
 let container: ServiceContainer | undefined;
@@ -336,7 +347,6 @@ export function createServices(env: ServerEnv): ServiceContainer {
   });
 
   const addressService = new AddressService(addresses);
-  const settingsService = new SettingsService(settings);
   // Reuses orderProducts (always Supabase, regardless of FEATURE_CATALOG_SOURCE) —
   // the same product repository CheckoutService validates against, so a cart
   // line and an order line item are validated against identical truth.
@@ -346,10 +356,26 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const marketplaceEvents: IMarketplaceEventBus = new MarketplaceEventsService();
   const auditLog: IAuditLog = new SupabaseAuditLog();
 
+  const settingsService = new SettingsService(settings, marketplaceEvents);
   const analyticsService = new AnalyticsService(orders);
-  const payoutService = new PayoutService(payouts, commissionPolicy, settingsService);
+  const payoutService = new PayoutService(
+    payouts,
+    commissionPolicy,
+    settingsService,
+    marketplaceEvents,
+  );
   const couponService = new CouponService(coupons, discountPolicy, marketplaceEvents);
   const bannerService = new BannerService(banners, marketplaceEvents);
+
+  const automationOverviewService = new AutomationOverviewService();
+  const secretPresence: IntegrationSecretPresence = {
+    finikApiKeyConfigured: !!env.FINIK_API_KEY,
+    telegramBotTokenConfigured: !!env.TELEGRAM_BOT_TOKEN,
+    whatsappApiTokenConfigured: !!env.WHATSAPP_API_TOKEN,
+  };
+  const integrationsStatusService = new IntegrationsStatusService(secretPresence);
+  const securityOverviewService = new SecurityOverviewService();
+  const auditLogQueryService = new AuditLogQueryService(auditLog);
 
   // Auto-assignment orchestrator (platform-lifecycle.md §3) — needs
   // courierStatus/orders (candidates + workload) + the policy + events.
@@ -391,7 +417,11 @@ export function createServices(env: ServerEnv): ServiceContainer {
   );
   const courierAdminService = new CourierAdminService(courierStatus, orders);
   const courierStatusService = new CourierStatusService(courierStatus, marketplaceEvents);
-  const sellerProductService = new SellerProductService(sellerProducts, productPublication);
+  const sellerProductService = new SellerProductService(
+    sellerProducts,
+    productPublication,
+    marketplaceEvents,
+  );
   const sellerProfileService = new SellerProfileService(sellerProfiles, marketplaceEvents);
   const supplierService = new SupplierService(suppliers);
   const supplyService = new SupplyService(supplies, suppliers, inventory, marketplaceEvents);
@@ -480,6 +510,10 @@ export function createServices(env: ServerEnv): ServiceContainer {
     couponService,
     banners,
     bannerService,
+    automationOverviewService,
+    integrationsStatusService,
+    securityOverviewService,
+    auditLogQueryService,
     productPublication,
     marketplaceStandards,
     marketplaceEvents,

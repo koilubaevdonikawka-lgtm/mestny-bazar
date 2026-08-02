@@ -5,6 +5,7 @@ import { CommissionPolicyService } from "@server/domain/commission-policy/commis
 import { FlatCommissionRule } from "@server/domain/commission-policy/rules/flat-commission.rule";
 import type { IPayoutRepository } from "@server/ports/payout.repository";
 import type { ISettingsRepository } from "@server/ports/settings.repository";
+import type { IMarketplaceEventBus, MarketplaceEvent } from "@server/ports/marketplace-events.port";
 import type { PlatformSettingDTO } from "@shared/contracts/settings";
 import type { SellerPayoutDTO } from "@shared/contracts/payout";
 
@@ -45,12 +46,21 @@ function fakeSettingsRepository(overrides: Partial<ISettingsRepository> = {}): I
   } as ISettingsRepository;
 }
 
+function fakeEventBus(overrides: Partial<IMarketplaceEventBus> = {}): IMarketplaceEventBus {
+  return {
+    publish: vi.fn(async (_event: MarketplaceEvent) => {}),
+    subscribe: vi.fn(),
+    ...overrides,
+  };
+}
+
 describe("PayoutService.createPayoutRun", () => {
   it("computes commission and payout amounts from seller revenue and the platform default rate", async () => {
     const payouts = fakePayoutRepository({ sumSellerRevenue: vi.fn(async () => 1000) });
-    const settings = new SettingsService(fakeSettingsRepository());
+    const settings = new SettingsService(fakeSettingsRepository(), fakeEventBus());
     const commissionPolicy = new CommissionPolicyService([new FlatCommissionRule()]);
-    const service = new PayoutService(payouts, commissionPolicy, settings);
+    const events = fakeEventBus();
+    const service = new PayoutService(payouts, commissionPolicy, settings, events);
 
     await service.createPayoutRun({
       sellerId: "seller-1",
@@ -67,6 +77,9 @@ describe("PayoutService.createPayoutRun", () => {
         payoutAmount: 900,
       }),
     );
+    expect(events.publish).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "payout.created" }),
+    );
   });
 
   it("uses the admin-configured commission rate from Settings when one exists", async () => {
@@ -80,9 +93,10 @@ describe("PayoutService.createPayoutRun", () => {
     };
     const settings = new SettingsService(
       fakeSettingsRepository({ get: vi.fn(async () => settingRow) }),
+      fakeEventBus(),
     );
     const commissionPolicy = new CommissionPolicyService([new FlatCommissionRule()]);
-    const service = new PayoutService(payouts, commissionPolicy, settings);
+    const service = new PayoutService(payouts, commissionPolicy, settings, fakeEventBus());
 
     await service.createPayoutRun({
       sellerId: "seller-1",
@@ -93,6 +107,23 @@ describe("PayoutService.createPayoutRun", () => {
     expect(payouts.create).toHaveBeenCalledWith(
       expect.objectContaining({ commissionRate: 0.2, commissionAmount: 200, payoutAmount: 800 }),
     );
+  });
+});
+
+describe("PayoutService.completePayout", () => {
+  it("marks the payout completed and publishes payout.completed", async () => {
+    const payout = makePayout({ status: "COMPLETED" });
+    const payouts = fakePayoutRepository({ setStatus: vi.fn(async () => payout) });
+    const settings = new SettingsService(fakeSettingsRepository(), fakeEventBus());
+    const commissionPolicy = new CommissionPolicyService([new FlatCommissionRule()]);
+    const events = fakeEventBus();
+    const service = new PayoutService(payouts, commissionPolicy, settings, events);
+
+    const result = await service.completePayout("payout-1");
+
+    expect(payouts.setStatus).toHaveBeenCalledWith("payout-1", "COMPLETED");
+    expect(result).toBe(payout);
+    expect(events.publish).toHaveBeenCalledWith({ type: "payout.completed", payout });
   });
 });
 
@@ -114,9 +145,9 @@ describe("PayoutService.getOverview", () => {
         }),
       ]),
     });
-    const settings = new SettingsService(fakeSettingsRepository());
+    const settings = new SettingsService(fakeSettingsRepository(), fakeEventBus());
     const commissionPolicy = new CommissionPolicyService([new FlatCommissionRule()]);
-    const service = new PayoutService(payouts, commissionPolicy, settings);
+    const service = new PayoutService(payouts, commissionPolicy, settings, fakeEventBus());
 
     const overview = await service.getOverview();
 

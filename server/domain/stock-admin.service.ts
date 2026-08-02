@@ -22,6 +22,11 @@ export class StockAdminService {
 
   async adjustStock(request: AdjustStockRequest): Promise<StockItemDTO> {
     const row = await this.stock.adjustStock(request.productId, request.stock);
+    await this.events.publish({
+      type: "stock.adjusted",
+      productId: row.productId,
+      stock: row.stock,
+    });
     return this.evaluateAndNotify(row);
   }
 

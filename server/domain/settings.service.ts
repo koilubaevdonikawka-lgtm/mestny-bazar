@@ -1,4 +1,5 @@
 import type { ISettingsRepository } from "@server/ports/settings.repository";
+import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
 import type { PlatformSettingDTO, UpdateSettingRequest } from "@shared/contracts/settings";
 
 /**
@@ -11,7 +12,10 @@ import type { PlatformSettingDTO, UpdateSettingRequest } from "@shared/contracts
  * IPermissionPolicy) — this service assumes the actor is already authorized.
  */
 export class SettingsService {
-  constructor(private readonly settings: ISettingsRepository) {}
+  constructor(
+    private readonly settings: ISettingsRepository,
+    private readonly events: IMarketplaceEventBus,
+  ) {}
 
   async list(): Promise<PlatformSettingDTO[]> {
     return this.settings.list();
@@ -22,6 +26,13 @@ export class SettingsService {
   }
 
   async update(userId: string, request: UpdateSettingRequest): Promise<PlatformSettingDTO> {
-    return this.settings.set(request.key, request.value, request.category, userId);
+    const setting = await this.settings.set(request.key, request.value, request.category, userId);
+    await this.events.publish({
+      type: "settings.changed",
+      key: setting.key,
+      category: setting.category,
+      updatedBy: userId,
+    });
+    return setting;
   }
 }

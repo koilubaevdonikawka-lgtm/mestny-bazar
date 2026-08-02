@@ -317,4 +317,52 @@ export function subscribeAuditLog(bus: IMarketplaceEventBus, auditLog: IAuditLog
       payload: { title: event.banner.title, isActive: event.banner.isActive },
     });
   });
+
+  bus.subscribe("product.published", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "product.published",
+      occurredAt: new Date().toISOString(),
+      entityType: "product",
+      entityId: event.product.id,
+      actorId: null,
+      payload: { name: event.product.name, slug: event.product.slug },
+    });
+  });
+
+  bus.subscribe("stock.adjusted", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "stock.adjusted",
+      occurredAt: new Date().toISOString(),
+      entityType: "product",
+      entityId: event.productId,
+      actorId: null,
+      payload: { stock: event.stock },
+    });
+  });
+
+  bus.subscribe("settings.changed", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "settings.changed",
+      occurredAt: new Date().toISOString(),
+      entityType: "setting",
+      entityId: event.key,
+      actorId: event.updatedBy,
+      payload: { category: event.category },
+    });
+  });
+
+  bus.subscribe("permission.changed", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "permission.changed",
+      occurredAt: new Date().toISOString(),
+      entityType: "user",
+      entityId: event.userId,
+      actorId: null,
+      payload: { scope: event.scope, action: event.action },
+    });
+  });
 }

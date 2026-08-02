@@ -1,3 +1,5 @@
+import type { AuditLogPayloadValue } from "@shared/contracts/audit-log";
+
 /** Marketplace actions recorded by the audit log. */
 export type AuditAction =
   | "order.created"
@@ -28,7 +30,11 @@ export type AuditAction =
   | "coupon.redeemed"
   | "payout.created"
   | "payout.completed"
-  | "content.published";
+  | "content.published"
+  | "product.published"
+  | "stock.adjusted"
+  | "settings.changed"
+  | "permission.changed";
 
 export interface AuditRecord {
   id: string;
@@ -37,9 +43,30 @@ export interface AuditRecord {
   entityType: string;
   entityId: string;
   actorId: string | null;
-  payload: Record<string, unknown>;
+  payload: Record<string, AuditLogPayloadValue>;
+}
+
+export interface AuditRecordListParams {
+  action?: string;
+  entityType?: string;
+  entityId?: string;
+  actorId?: string;
+  periodStart?: string;
+  periodEnd?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AuditRecordListResult {
+  items: AuditRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
 }
 
 export interface IAuditLog {
   append(record: AuditRecord): Promise<void>;
+  /** logs.md — filterable, paginated read path for the "Лента событий" screen. */
+  list(params: AuditRecordListParams): Promise<AuditRecordListResult>;
 }

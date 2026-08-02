@@ -37,6 +37,13 @@ function fakeAuditLog(): IAuditLog & { records: AuditRecord[] } {
     append: vi.fn(async (record: AuditRecord) => {
       records.push(record);
     }),
+    list: vi.fn(async () => ({
+      items: records,
+      total: records.length,
+      page: 1,
+      pageSize: 50,
+      hasMore: false,
+    })),
   };
 }
 
@@ -153,5 +160,85 @@ describe("subscribeAuditLog", () => {
       payload: { stock: 3, threshold: 5 },
     });
     expect(auditLog.records[1]).toMatchObject({ action: "stock.depleted", entityId: "p2" });
+  });
+
+  it("appends a product.published record (ai.md — Этап 5 retargeting)", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+    const product = {
+      id: "prod-1",
+      name: "Apples",
+      slug: "apples",
+      description: null,
+      price: 100,
+      currency: "KGS",
+      unit: null,
+      imageUrl: null,
+      stock: 10,
+      publicationStatus: "PUBLISHED" as const,
+      categoryId: null,
+    };
+
+    await bus.publish({ type: "product.published", product });
+
+    expect(auditLog.records).toHaveLength(1);
+    expect(auditLog.records[0]).toMatchObject({ action: "product.published", entityId: "prod-1" });
+  });
+
+  it("appends a stock.adjusted record (warehouse.md — Этап 5)", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+
+    await bus.publish({ type: "stock.adjusted", productId: "p1", stock: 42 });
+
+    expect(auditLog.records).toHaveLength(1);
+    expect(auditLog.records[0]).toMatchObject({
+      action: "stock.adjusted",
+      entityId: "p1",
+      payload: { stock: 42 },
+    });
+  });
+
+  it("appends a settings.changed record (settings.md — Этап 5)", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+
+    await bus.publish({
+      type: "settings.changed",
+      key: "finance.commission_rate",
+      category: "finance",
+      updatedBy: "admin-1",
+    });
+
+    expect(auditLog.records).toHaveLength(1);
+    expect(auditLog.records[0]).toMatchObject({
+      action: "settings.changed",
+      entityId: "finance.commission_rate",
+      actorId: "admin-1",
+      payload: { category: "finance" },
+    });
+  });
+
+  it("appends a permission.changed record (permissions.md — Этап 5)", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+
+    await bus.publish({
+      type: "permission.changed",
+      userId: "user-1",
+      scope: "finance",
+      action: "assigned",
+    });
+
+    expect(auditLog.records).toHaveLength(1);
+    expect(auditLog.records[0]).toMatchObject({
+      action: "permission.changed",
+      entityId: "user-1",
+      payload: { scope: "finance", action: "assigned" },
+    });
   });
 });

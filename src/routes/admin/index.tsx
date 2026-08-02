@@ -7,18 +7,23 @@ import {
   Banknote,
   BarChart3,
   Bike,
+  Bot,
+  FileText,
   Image as ImageIcon,
   LayoutDashboard,
   Loader2,
   LogIn,
   Package,
+  Plug,
   Settings,
+  Shield,
   Store,
   Tag,
   Tags,
   Truck,
   Users,
   Warehouse,
+  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -50,7 +55,12 @@ interface NavEntry {
     | "/admin/finance"
     | "/admin/marketing"
     | "/admin/design"
-    | "/admin/settings";
+    | "/admin/settings"
+    | "/admin/automation"
+    | "/admin/integrations"
+    | "/admin/ai"
+    | "/admin/security"
+    | "/admin/logs";
   icon: LucideIcon;
 }
 
@@ -66,14 +76,14 @@ const NAV_ENTRIES: NavEntry[] = [
   { label: "Аналитика", to: "/admin/analytics", icon: BarChart3 },
   { label: "Финансы", to: "/admin/finance", icon: Banknote },
   { label: "Маркетинг", to: "/admin/marketing", icon: Tag },
-  { label: "ИИ-инструменты", icon: Package },
-  { label: "Интеграции", icon: Package },
-  { label: "Автоматизация", icon: Package },
+  { label: "ИИ-инструменты", to: "/admin/ai", icon: Bot },
+  { label: "Интеграции", to: "/admin/integrations", icon: Plug },
+  { label: "Автоматизация", to: "/admin/automation", icon: Zap },
   { label: "Оформление", to: "/admin/design", icon: ImageIcon },
   { label: "Настройки", to: "/admin/settings", icon: Settings },
   { label: "Права доступа", icon: Package },
-  { label: "Журналы событий", icon: Package },
-  { label: "Безопасность", icon: Package },
+  { label: "Журналы событий", to: "/admin/logs", icon: FileText },
+  { label: "Безопасность", to: "/admin/security", icon: Shield },
 ];
 
 function AdminPlatformHome() {

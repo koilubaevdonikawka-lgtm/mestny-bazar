@@ -31,10 +31,11 @@ export class AIOrchestrator {
   /**
    * Runs every worker in the plan concurrently — each worker only reads from
    * the triggering event (see IAIWorker.process), so there is no ordering or
-   * data dependency between them, and this event is on the checkout request's
-   * critical path (CheckoutService awaits events.publish("order.created"),
-   * which this orchestrator is subscribed to). Running workers one at a time
-   * only added latency to that request with no correctness benefit.
+   * data dependency between them, and this event is on the seller's publish
+   * request's critical path (SellerProductService awaits
+   * events.publish("product.published"), which this orchestrator is
+   * subscribed to — Этап 5 retargeting, see ai.md). Running workers one at a
+   * time only added latency to that request with no correctness benefit.
    *
    * A worker throwing must not stop the plan: every other worker still runs,
    * and the job still completes (with a "failed" entry for that worker) —

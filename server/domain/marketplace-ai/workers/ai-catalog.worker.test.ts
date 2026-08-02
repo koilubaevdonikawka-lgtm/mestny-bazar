@@ -6,8 +6,8 @@ import type {
 } from "@server/ports/marketplace-ai/catalog-analysis.port";
 import type { IMarketplaceEventBus, MarketplaceEvent } from "@server/ports/marketplace-events.port";
 import type { AIJob } from "@server/ports/marketplace-ai.port";
-import type { OrderDTO, OrderItemDTO } from "@shared/contracts/order";
-import { OrderStatus } from "@shared/contracts/order";
+import type { SellerProductDTO } from "@shared/contracts/seller-product";
+import { ProductPublicationStatus } from "@shared/contracts/seller-product";
 
 function fakeAnalysis(overrides: Partial<CatalogAnalysisResult> = {}): CatalogAnalysisResult {
   return {
@@ -44,49 +44,28 @@ function fakeJob(event: MarketplaceEvent): AIJob {
   return { id: "job-1", event, createdAt: new Date().toISOString() };
 }
 
-function orderItem(overrides: Partial<OrderItemDTO> = {}): OrderItemDTO {
+function fakeProduct(overrides: Partial<SellerProductDTO> = {}): SellerProductDTO {
   return {
-    id: "item-1",
-    productId: "prod-1",
-    productName: "Apples",
-    productImageUrl: null,
-    quantity: 1,
-    unitPrice: 100,
-    lineTotal: 100,
-    ...overrides,
-  };
-}
-
-function fakeOrder(items: OrderItemDTO[]): OrderDTO {
-  return {
-    id: "order-1",
-    orderNumber: 1,
-    status: OrderStatus.CREATED,
-    paymentStatus: "unpaid",
-    paymentMethod: "CASH",
-    subtotal: 100,
-    deliveryFee: 0,
-    discountAmount: 0,
-    couponCode: null,
-    total: 100,
+    id: "prod-1",
+    name: "Apples",
+    slug: "apples",
+    description: null,
+    price: 100,
     currency: "KGS",
-    customerName: "Buyer",
-    customerPhone: "996700000000",
-    addressSnapshot: "addr",
-    notes: null,
-    paymentUrl: null,
-    items,
-    createdAt: new Date().toISOString(),
-    paidAt: null,
-    assignedCourierId: null,
+    unit: null,
+    imageUrl: null,
+    stock: 10,
+    publicationStatus: ProductPublicationStatus.PUBLISHED,
+    categoryId: null,
+    ...overrides,
   };
 }
 
 describe("AICatalogWorker", () => {
   describe("canHandle", () => {
-    it("handles order.created and product.catalog.analysis.requested", () => {
+    it("handles product.published and product.catalog.analysis.requested", () => {
       const worker = new AICatalogWorker(fakeAnalyzer(), fakeEventBus());
-      expect(worker.canHandle({ type: "order.created", order: fakeOrder([]) })).toBe(true);
+      expect(worker.canHandle({ type: "product.published", product: fakeProduct() })).toBe(true);
       expect(
         worker.canHandle({
           type: "product.catalog.analysis.requested",
@@ -132,55 +111,25 @@ describe("AICatalogWorker", () => {
       );
     });
 
-    it("analyzes only the first product from an order and skips duplicate line items", async () => {
-      const analyzer = fakeAnalyzer();
-      const worker = new AICatalogWorker(analyzer, fakeEventBus());
-
-      await worker.process(
-        fakeJob({
-          type: "order.created",
-          order: fakeOrder([
-            orderItem({ productId: "prod-1", productName: "Apples" }),
-            orderItem({ productId: "prod-1", productName: "Apples" }),
-            orderItem({ productId: "prod-2", productName: "Bananas" }),
-          ]),
-        }),
-      );
-
-      expect(analyzer.analyze).toHaveBeenCalledTimes(1);
-      expect(analyzer.analyze).toHaveBeenCalledWith(
-        expect.objectContaining({ productId: "prod-1" }),
-      );
-    });
-
-    it("falls back to deduping by product name when productId is null", async () => {
-      const analyzer = fakeAnalyzer();
-      const worker = new AICatalogWorker(analyzer, fakeEventBus());
-
-      await worker.process(
-        fakeJob({
-          type: "order.created",
-          order: fakeOrder([
-            orderItem({ productId: null, productName: "Apples" }),
-            orderItem({ productId: null, productName: "Apples" }),
-          ]),
-        }),
-      );
-
-      expect(analyzer.analyze).toHaveBeenCalledTimes(1);
-    });
-
-    it("returns a skipped result and analyzes nothing when the order has no items", async () => {
+    it("analyzes the published product", async () => {
       const analyzer = fakeAnalyzer();
       const events = fakeEventBus();
       const worker = new AICatalogWorker(analyzer, events);
 
-      const result = await worker.process(fakeJob({ type: "order.created", order: fakeOrder([]) }));
+      const result = await worker.process(
+        fakeJob({
+          type: "product.published",
+          product: fakeProduct({ id: "prod-1", name: "Apples", price: 150, currency: "KGS" }),
+        }),
+      );
 
-      expect(result.status).toBe("skipped");
-      expect(analyzer.analyze).toHaveBeenCalledWith({ productId: null, product: { name: "" } });
+      expect(analyzer.analyze).toHaveBeenCalledWith({
+        productId: "prod-1",
+        product: { name: "Apples", imageUrl: null, price: 150, currency: "KGS" },
+      });
+      expect(result.status).toBe("completed");
       expect(events.publish).toHaveBeenCalledWith(
-        expect.objectContaining({ type: "catalog.analysis.completed", productId: null }),
+        expect.objectContaining({ type: "catalog.analysis.completed", productId: "prod-1" }),
       );
     });
 

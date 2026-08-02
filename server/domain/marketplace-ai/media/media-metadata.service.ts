@@ -7,10 +7,10 @@ import type {
 } from "@server/ports/marketplace-ai/media-analysis.port";
 
 const MAX_FETCH_BYTES = 10 * 1024 * 1024;
-// This runs synchronously inside the checkout request (AIMediaWorker is
-// subscribed to "order.created", which CheckoutService awaits) — an
-// unreachable or deliberately slow image host must not be able to hang the
-// customer's checkout response indefinitely.
+// This runs synchronously inside the seller's publish request (AIMediaWorker
+// is subscribed to "product.published", which SellerProductService awaits) —
+// an unreachable or deliberately slow image host must not be able to hang
+// that response indefinitely.
 const FETCH_TIMEOUT_MS = 5000;
 
 /** Resolves media metadata from provided fields or remote URLs (no vision API). */

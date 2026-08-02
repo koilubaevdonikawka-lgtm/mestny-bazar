@@ -9,8 +9,8 @@ import type {
 } from "@server/ports/marketplace-ai/media-analysis.port";
 import type { IMarketplaceEventBus, MarketplaceEvent } from "@server/ports/marketplace-events.port";
 import type { AIJob } from "@server/ports/marketplace-ai.port";
-import { OrderStatus } from "@shared/contracts/order";
-import type { OrderDTO, OrderItemDTO } from "@shared/contracts/order";
+import type { SellerProductDTO } from "@shared/contracts/seller-product";
+import { ProductPublicationStatus } from "@shared/contracts/seller-product";
 
 function fakeAnalysisResult(overrides: Partial<MediaAnalysisResult> = {}): MediaAnalysisResult {
   return {
@@ -60,49 +60,28 @@ function fakeJob(event: MarketplaceEvent): AIJob {
   return { id: "job-1", event, createdAt: new Date().toISOString() };
 }
 
-function orderItem(overrides: Partial<OrderItemDTO> = {}): OrderItemDTO {
+function fakeProduct(overrides: Partial<SellerProductDTO> = {}): SellerProductDTO {
   return {
-    id: "item-1",
-    productId: "prod-1",
-    productName: "Apples",
-    productImageUrl: "https://example.com/apples.jpg",
-    quantity: 1,
-    unitPrice: 100,
-    lineTotal: 100,
-    ...overrides,
-  };
-}
-
-function fakeOrder(items: OrderItemDTO[]): OrderDTO {
-  return {
-    id: "order-1",
-    orderNumber: 1,
-    status: OrderStatus.CREATED,
-    paymentStatus: "unpaid",
-    paymentMethod: "CASH",
-    subtotal: 100,
-    deliveryFee: 0,
-    discountAmount: 0,
-    couponCode: null,
-    total: 100,
+    id: "prod-1",
+    name: "Apples",
+    slug: "apples",
+    description: null,
+    price: 100,
     currency: "KGS",
-    customerName: "Buyer",
-    customerPhone: "996700000000",
-    addressSnapshot: "addr",
-    notes: null,
-    paymentUrl: null,
-    items,
-    createdAt: new Date().toISOString(),
-    paidAt: null,
-    assignedCourierId: null,
+    unit: null,
+    imageUrl: "https://example.com/apples.jpg",
+    stock: 10,
+    publicationStatus: ProductPublicationStatus.PUBLISHED,
+    categoryId: null,
+    ...overrides,
   };
 }
 
 describe("AIMediaWorker", () => {
   describe("canHandle", () => {
-    it("handles order.created and product.media.analysis.requested", () => {
+    it("handles product.published and product.media.analysis.requested", () => {
       const worker = new AIMediaWorker(fakeMetadataService(), fakeAnalyzer(), fakeEventBus());
-      expect(worker.canHandle({ type: "order.created", order: fakeOrder([]) })).toBe(true);
+      expect(worker.canHandle({ type: "product.published", product: fakeProduct() })).toBe(true);
       expect(
         worker.canHandle({ type: "product.media.analysis.requested", productId: "p1", photos: [] }),
       ).toBe(true);
@@ -147,35 +126,30 @@ describe("AIMediaWorker", () => {
       );
     });
 
-    it("extracts unique photo URLs from order line items, using productId as the photo id", async () => {
+    it("extracts the published product's single image, using productId as the photo id", async () => {
       const metadata = fakeMetadataService();
       const worker = new AIMediaWorker(metadata, fakeAnalyzer(), fakeEventBus());
 
       await worker.process(
         fakeJob({
-          type: "order.created",
-          order: fakeOrder([
-            orderItem({ productId: "prod-1", productImageUrl: "https://example.com/a.jpg" }),
-            orderItem({ productId: "prod-1", productImageUrl: "https://example.com/a.jpg" }),
-            orderItem({ productId: "prod-2", productImageUrl: "https://example.com/b.jpg" }),
-          ]),
+          type: "product.published",
+          product: fakeProduct({ id: "prod-1", imageUrl: "https://example.com/a.jpg" }),
         }),
       );
 
       expect(metadata.resolveAssets).toHaveBeenCalledWith([
         { id: "prod-1", url: "https://example.com/a.jpg" },
-        { id: "prod-2", url: "https://example.com/b.jpg" },
       ]);
     });
 
-    it("skips line items with no product image, ending in the no-photos skip path", async () => {
+    it("skips a published product with no image, ending in the no-photos skip path", async () => {
       const metadata = fakeMetadataService();
       const worker = new AIMediaWorker(metadata, fakeAnalyzer(), fakeEventBus());
 
       const result = await worker.process(
         fakeJob({
-          type: "order.created",
-          order: fakeOrder([orderItem({ productImageUrl: null })]),
+          type: "product.published",
+          product: fakeProduct({ imageUrl: null }),
         }),
       );
 
@@ -183,33 +157,18 @@ describe("AIMediaWorker", () => {
       expect(metadata.resolveAssets).not.toHaveBeenCalled();
     });
 
-    it("derives a deterministic fallback id from the image URL when productId is null", async () => {
-      const metadata = fakeMetadataService();
-      const worker = new AIMediaWorker(metadata, fakeAnalyzer(), fakeEventBus());
-
-      await worker.process(
-        fakeJob({
-          type: "order.created",
-          order: fakeOrder([
-            orderItem({ productId: null, productImageUrl: "https://example.com/a.jpg" }),
-          ]),
-        }),
-      );
-
-      const [photos] = (metadata.resolveAssets as ReturnType<typeof vi.fn>).mock.calls[0] as [
-        Array<{ id: string; url: string }>,
-      ];
-      expect(photos).toHaveLength(1);
-      expect(photos[0]!.id).toMatch(/^[a-f0-9]{16}$/);
-      expect(photos[0]!.url).toBe("https://example.com/a.jpg");
-    });
-
-    it("returns a skipped result without calling resolveAssets when there are no photos", async () => {
+    it("returns a skipped result without calling resolveAssets for an unrelated event type", async () => {
       const metadata = fakeMetadataService();
       const analyzer = fakeAnalyzer();
       const worker = new AIMediaWorker(metadata, analyzer, fakeEventBus());
 
-      const result = await worker.process(fakeJob({ type: "order.created", order: fakeOrder([]) }));
+      const result = await worker.process(
+        fakeJob({
+          type: "product.catalog.analysis.requested",
+          productId: "p1",
+          product: { name: "x" },
+        }),
+      );
 
       expect(result.status).toBe("skipped");
       expect(metadata.resolveAssets).not.toHaveBeenCalled();

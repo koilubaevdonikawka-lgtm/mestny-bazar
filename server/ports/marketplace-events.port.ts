@@ -4,6 +4,8 @@ import type { SupplyDTO } from "@shared/contracts/supplier";
 import type { CouponDTO } from "@shared/contracts/coupon";
 import type { SellerPayoutDTO } from "@shared/contracts/payout";
 import type { BannerDTO } from "@shared/contracts/banner";
+import type { SellerProductDTO } from "@shared/contracts/seller-product";
+import type { AdminScope } from "@shared/contracts/user-admin";
 import type { AggregatedAIJobResult, AIJob } from "@server/ports/marketplace-ai.port";
 import type {
   CatalogAnalysisResult,
@@ -54,6 +56,20 @@ export type MarketplaceEvent =
   | { type: "payout.created"; payout: SellerPayoutDTO }
   | { type: "payout.completed"; payout: SellerPayoutDTO }
   | { type: "content.published"; banner: BannerDTO }
+  /**
+   * ai.md — the retargeted AI trigger (Этап 5): analysis runs when a seller
+   * publishes a product, not on every order.created. Replaces the previous
+   * order.created subscription in server/domain/marketplace-ai/marketplace-events.subscriber.ts.
+   */
+  | { type: "product.published"; product: SellerProductDTO }
+  | { type: "stock.adjusted"; productId: string; stock: number }
+  | { type: "settings.changed"; key: string; category: string; updatedBy: string }
+  | {
+      type: "permission.changed";
+      userId: string;
+      scope: AdminScope;
+      action: "assigned" | "revoked";
+    }
   | { type: "product.media.analysis.requested"; productId: string; photos: MediaAssetInput[] }
   | { type: "product.catalog.analysis.requested"; productId: string; product: CatalogProductInput }
   | { type: "ai.job.completed"; job: AIJob; result: AggregatedAIJobResult }

@@ -69,17 +69,36 @@ describe("UserAdminService", () => {
     });
   });
 
-  it("assignScope/revokeScope delegate without publishing an event", async () => {
+  it("assignScope delegates to the repository and publishes permission.changed (Этап 5)", async () => {
     const repo = fakeRepo();
     const events = fakeEventBus();
     const service = new UserAdminService(repo, events);
 
     await service.assignScope("user-1", "finance");
-    await service.revokeScope("user-1", "finance");
 
     expect(repo.assignScope).toHaveBeenCalledWith("user-1", "finance");
+    expect(events.publish).toHaveBeenCalledWith({
+      type: "permission.changed",
+      userId: "user-1",
+      scope: "finance",
+      action: "assigned",
+    });
+  });
+
+  it("revokeScope delegates to the repository and publishes permission.changed (Этап 5)", async () => {
+    const repo = fakeRepo();
+    const events = fakeEventBus();
+    const service = new UserAdminService(repo, events);
+
+    await service.revokeScope("user-1", "finance");
+
     expect(repo.revokeScope).toHaveBeenCalledWith("user-1", "finance");
-    expect(events.publish).not.toHaveBeenCalled();
+    expect(events.publish).toHaveBeenCalledWith({
+      type: "permission.changed",
+      userId: "user-1",
+      scope: "finance",
+      action: "revoked",
+    });
   });
 
   it("blockCustomer sets blocked=true and publishes customer.blocked", async () => {

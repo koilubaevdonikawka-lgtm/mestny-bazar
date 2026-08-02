@@ -5,10 +5,15 @@ import type {
   ICatalogQualityAnalyzer,
 } from "@server/ports/marketplace-ai/catalog-analysis.port";
 import type { IMarketplaceEventBus, MarketplaceEvent } from "@server/ports/marketplace-events.port";
-import type { OrderDTO } from "@shared/contracts/order";
 import { AIWorker } from "@server/domain/marketplace-ai/ai-worker";
 
-/** Analyzes catalog listing quality and publishes catalog.analysis.completed. */
+/**
+ * Analyzes catalog listing quality and publishes catalog.analysis.completed.
+ * Triggered by a seller actually publishing a product (product.published),
+ * not by every order.created — analysis of a product's own listing quality
+ * belongs to the product's lifecycle, not the customer's purchase (ai.md,
+ * platform-lifecycle.md §5, the retargeting closed in Этап 5).
+ */
 export class AICatalogWorker extends AIWorker {
   readonly id = "ai-catalog-worker";
 
@@ -20,7 +25,9 @@ export class AICatalogWorker extends AIWorker {
   }
 
   canHandle(event: MarketplaceEvent): boolean {
-    return event.type === "order.created" || event.type === "product.catalog.analysis.requested";
+    return (
+      event.type === "product.published" || event.type === "product.catalog.analysis.requested"
+    );
   }
 
   async process(job: AIJob): Promise<AIJobResult> {
@@ -53,39 +60,22 @@ export class AICatalogWorker extends AIWorker {
       return [{ productId: event.productId, product: event.product }];
     }
 
-    if (event.type === "order.created") {
-      return this.extractProductsFromOrder(event.order);
+    if (event.type === "product.published") {
+      const product = event.product;
+      return [
+        {
+          productId: product.id,
+          product: {
+            name: product.name,
+            imageUrl: product.imageUrl,
+            price: product.price,
+            currency: product.currency,
+          },
+        },
+      ];
     }
 
     return [];
-  }
-
-  private extractProductsFromOrder(order: OrderDTO): Array<{
-    productId: string | null;
-    product: CatalogProductInput;
-  }> {
-    const seen = new Set<string>();
-    const items: Array<{ productId: string | null; product: CatalogProductInput }> = [];
-
-    for (const lineItem of order.items) {
-      const key = lineItem.productId ?? lineItem.productName;
-      if (seen.has(key)) {
-        continue;
-      }
-      seen.add(key);
-
-      items.push({
-        productId: lineItem.productId,
-        product: {
-          name: lineItem.productName,
-          imageUrl: lineItem.productImageUrl,
-          price: lineItem.unitPrice,
-          currency: order.currency,
-        },
-      });
-    }
-
-    return items;
   }
 
   private async publishCompleted(
