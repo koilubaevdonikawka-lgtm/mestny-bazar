@@ -68,7 +68,7 @@ function OrderDetailPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + `/orders/${id}`);
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {

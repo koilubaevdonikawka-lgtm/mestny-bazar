@@ -41,7 +41,7 @@ function AdminLogsPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin/logs");
+    await signInWithGoogle();
   };
 
   const handleFilterChange = () => setPage(1);

@@ -82,7 +82,7 @@ function AdminFinancePage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin/finance");
+    await signInWithGoogle();
   };
 
   const handleSubmit = (e: React.FormEvent) => {

@@ -194,7 +194,7 @@ function AdminDeliveryPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin/delivery");
+    await signInWithGoogle();
   };
 
   const openEditZone = (zone: DeliveryZoneDTO) => {

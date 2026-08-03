@@ -17,7 +17,7 @@ export function AccountMenu() {
   const { isAuthenticated } = useSupabaseSession();
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin);
+    await signInWithGoogle();
   };
 
   const handleSignOut = async () => {

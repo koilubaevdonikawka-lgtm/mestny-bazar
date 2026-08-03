@@ -73,7 +73,7 @@ function AdminUsersPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin/users");
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {

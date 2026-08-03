@@ -62,7 +62,7 @@ function AdminWarehousePage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin/warehouse");
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {

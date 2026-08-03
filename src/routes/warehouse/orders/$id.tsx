@@ -65,7 +65,7 @@ function WarehouseOrderDetailPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + `/warehouse/orders/${id}`);
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {

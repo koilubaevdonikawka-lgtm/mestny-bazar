@@ -62,7 +62,7 @@ function AdminDesignPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin/design");
+    await signInWithGoogle();
   };
 
   const handleSubmit = (e: React.FormEvent) => {

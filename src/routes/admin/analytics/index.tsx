@@ -32,7 +32,7 @@ function AdminAnalyticsPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin/analytics");
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {

@@ -164,7 +164,7 @@ function ProfileAddressesPage() {
   };
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/profile/addresses");
+    await signInWithGoogle();
   };
 
   const isSaving = createMutation.isPending || updateMutation.isPending;

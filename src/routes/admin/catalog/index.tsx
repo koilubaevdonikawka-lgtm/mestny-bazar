@@ -90,7 +90,7 @@ function AdminCatalogPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin/catalog");
+    await signInWithGoogle();
   };
 
   const handleSubmit = (e: React.FormEvent) => {

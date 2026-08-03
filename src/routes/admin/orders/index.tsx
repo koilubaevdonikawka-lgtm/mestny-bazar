@@ -37,7 +37,7 @@ function AdminOrdersPage() {
   const orders = data?.items ?? [];
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin/orders");
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {

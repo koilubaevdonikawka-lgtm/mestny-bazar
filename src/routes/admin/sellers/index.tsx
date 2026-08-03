@@ -58,7 +58,7 @@ function AdminSellersPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin/sellers");
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {

@@ -35,7 +35,7 @@ function AdminIntegrationsPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin/integrations");
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {

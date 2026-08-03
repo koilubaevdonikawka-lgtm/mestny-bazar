@@ -29,7 +29,7 @@ function AdminSecurityPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin/security");
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {

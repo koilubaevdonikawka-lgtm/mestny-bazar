@@ -93,7 +93,7 @@ function AdminPlatformHome() {
   const { isAuthenticated } = useSupabaseSession();
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin");
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {

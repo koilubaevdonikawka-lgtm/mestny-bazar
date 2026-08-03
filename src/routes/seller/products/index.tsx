@@ -83,7 +83,7 @@ function SellerProductsPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/seller/products");
+    await signInWithGoogle();
   };
 
   const handleSubmit = (event: React.FormEvent) => {

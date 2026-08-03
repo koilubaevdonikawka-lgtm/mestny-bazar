@@ -36,7 +36,7 @@ function OrdersPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/orders");
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {

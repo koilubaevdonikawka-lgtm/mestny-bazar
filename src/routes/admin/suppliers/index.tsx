@@ -112,7 +112,7 @@ function AdminSuppliersPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin/suppliers");
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {

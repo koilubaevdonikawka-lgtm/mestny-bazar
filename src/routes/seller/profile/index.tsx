@@ -61,7 +61,7 @@ function SellerProfilePage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/seller/profile");
+    await signInWithGoogle();
   };
 
   const handleSubmit = (e: React.FormEvent) => {

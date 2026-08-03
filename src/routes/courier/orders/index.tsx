@@ -53,7 +53,7 @@ function CourierOrdersPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/courier/orders");
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {

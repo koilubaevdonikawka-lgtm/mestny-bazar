@@ -63,7 +63,7 @@ function AdminOrderDetailPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + `/admin/orders/${id}`);
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {

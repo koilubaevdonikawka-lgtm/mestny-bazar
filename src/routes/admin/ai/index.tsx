@@ -29,7 +29,7 @@ function AdminAIPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin/ai");
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {

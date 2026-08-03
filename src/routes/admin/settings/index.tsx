@@ -51,7 +51,7 @@ function AdminSettingsPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin/settings");
+    await signInWithGoogle();
   };
 
   const handleSubmit = (e: React.FormEvent) => {

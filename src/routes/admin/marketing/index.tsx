@@ -62,7 +62,7 @@ function AdminMarketingPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin/marketing");
+    await signInWithGoogle();
   };
 
   const handleSubmit = (e: React.FormEvent) => {

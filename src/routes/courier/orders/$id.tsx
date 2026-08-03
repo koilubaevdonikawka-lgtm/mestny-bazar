@@ -90,7 +90,7 @@ function CourierOrderDetailPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + `/courier/orders/${id}`);
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {

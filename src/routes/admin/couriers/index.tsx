@@ -29,7 +29,7 @@ function AdminCouriersPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin/couriers");
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {

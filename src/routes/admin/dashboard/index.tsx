@@ -27,7 +27,7 @@ function AdminDashboardPage() {
   });
 
   const handleSignIn = async () => {
-    await signInWithGoogle(window.location.origin + "/admin/dashboard");
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null || (isAuthenticated && isLoading)) {
