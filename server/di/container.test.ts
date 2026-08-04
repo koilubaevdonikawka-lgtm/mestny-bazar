@@ -54,6 +54,12 @@ const EXPECTED_KEYS: Array<keyof ServiceContainer> = [
   "aiOrchestrator",
   "notifications",
   "orderEvents",
+  "platformOwnership",
+  "platformOwnershipService",
+  "bootstrapRepo",
+  "bootstrapService",
+  "ownershipTransferService",
+  "roleResolutionService",
 ];
 
 describe("createServices", () => {

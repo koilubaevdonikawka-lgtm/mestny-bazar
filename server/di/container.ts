@@ -41,6 +41,10 @@ import { LowStockThresholdRule } from "@server/domain/stock-policy/rules/low-sto
 import { SupplierService } from "@server/domain/supplier.service";
 import { SupplyService } from "@server/domain/supply.service";
 import { UserAdminService } from "@server/domain/user-admin.service";
+import { PlatformOwnershipService } from "@server/domain/platform-ownership.service";
+import { BootstrapService } from "@server/domain/bootstrap.service";
+import { OwnershipTransferService } from "@server/domain/ownership-transfer.service";
+import { RoleResolutionService } from "@server/domain/role-resolution.service";
 import { CourierAssignmentPolicyService } from "@server/domain/courier-assignment/courier-assignment.service";
 import { LeastLoadedAvailableCourierRule } from "@server/domain/courier-assignment/rules/least-loaded-available-courier.rule";
 import { AnalyticsService } from "@server/domain/analytics.service";
@@ -98,6 +102,8 @@ import { SupabaseStockRepository } from "@server/adapters/supabase/stock.reposit
 import { SupabaseSupplierRepository } from "@server/adapters/supabase/supplier.repository";
 import { SupabaseSupplyRepository } from "@server/adapters/supabase/supply.repository";
 import { SupabaseUserAdminRepository } from "@server/adapters/supabase/user-admin.repository";
+import { SupabasePlatformOwnershipRepository } from "@server/adapters/supabase/platform-ownership.repository";
+import { SupabaseBootstrapRepository } from "@server/adapters/supabase/bootstrap.repository";
 import type { IAddressRepository } from "@server/ports/address.repository";
 import type { ICartRepository } from "@server/ports/cart.repository";
 import type { ICategoryRepository } from "@server/ports/category.repository";
@@ -119,6 +125,8 @@ import type { IStockPolicy } from "@server/ports/stock-policy.port";
 import type { ISupplierRepository } from "@server/ports/supplier.repository";
 import type { ISupplyRepository } from "@server/ports/supply.repository";
 import type { IUserAdminRepository } from "@server/ports/user-admin.repository";
+import type { IPlatformOwnershipRepository } from "@server/ports/platform-ownership.repository";
+import type { IBootstrapRepository } from "@server/ports/bootstrap.repository";
 import type { INotificationProvider } from "@server/ports/notification.provider";
 import type { INotificationCenter } from "@server/ports/notification-center.port";
 import type { IProductRepository } from "@server/ports/product.repository";
@@ -208,6 +216,12 @@ export interface ServiceContainer {
   supplyService: SupplyService;
   userAdmin: IUserAdminRepository;
   userAdminService: UserAdminService;
+  platformOwnership: IPlatformOwnershipRepository;
+  platformOwnershipService: PlatformOwnershipService;
+  bootstrapRepo: IBootstrapRepository;
+  bootstrapService: BootstrapService;
+  ownershipTransferService: OwnershipTransferService;
+  roleResolutionService: RoleResolutionService;
   addressService: AddressService;
   notificationService: NotificationService;
   notificationCenter: INotificationCenter;
@@ -279,6 +293,8 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const courierStatus: ICourierStatusRepository = new SupabaseCourierStatusRepository();
   const customerStatus: ICustomerStatusRepository = new SupabaseCustomerStatusRepository();
   const userAdmin: IUserAdminRepository = new SupabaseUserAdminRepository();
+  const platformOwnership: IPlatformOwnershipRepository = new SupabasePlatformOwnershipRepository();
+  const bootstrapRepo: IBootstrapRepository = new SupabaseBootstrapRepository();
   const addresses = new SupabaseAddressRepository();
   const carts = new SupabaseCartRepository();
   const settings: ISettingsRepository = new SupabaseSettingsRepository();
@@ -485,6 +501,13 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const supplierService = new SupplierService(suppliers);
   const supplyService = new SupplyService(supplies, suppliers, inventory, marketplaceEvents);
   const userAdminService = new UserAdminService(userAdmin, marketplaceEvents);
+  const platformOwnershipService = new PlatformOwnershipService(platformOwnership);
+  const bootstrapService = new BootstrapService(platformOwnershipService, bootstrapRepo);
+  const ownershipTransferService = new OwnershipTransferService(
+    platformOwnership,
+    marketplaceEvents,
+  );
+  const roleResolutionService = new RoleResolutionService(platformOwnershipService);
   const categoryAdminService = new CategoryAdminService(adminCategories, marketplaceEvents);
   const stockAdminService = new StockAdminService(stock, stockPolicy, marketplaceEvents);
   const dashboardService = new DashboardService(orders, stockAdminService);
@@ -543,6 +566,12 @@ export function createServices(env: ServerEnv): ServiceContainer {
     supplyService,
     userAdmin,
     userAdminService,
+    platformOwnership,
+    platformOwnershipService,
+    bootstrapRepo,
+    bootstrapService,
+    ownershipTransferService,
+    roleResolutionService,
     addresses,
     carts,
     cities,

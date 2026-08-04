@@ -87,6 +87,27 @@
 
 ---
 
+## 8. Bootstrap — инициализация владения платформой
+
+**Проверяет:** атомарность `claim_root_owner` (Bootstrap Architecture v2.0), переход `ELIGIBLE → COMPLETED`, редирект `/` → `/bootstrap` при ELIGIBLE, экраны Bootstrap Initialization / Bootstrap Completed / Bootstrap Already Completed (`src/routes/bootstrap.tsx`). Нет автоматизированного UI/E2E-покрытия — в проекте не установлен ни один компонентный/браузерный тестовый фреймворк (`@testing-library/react`, Playwright, Cypress); добавление нового тестового инструментария вышло бы за рамки задачи по реализации UI. Логика домена/API-слоя уже покрыта Vitest (`server/domain/bootstrap.service*.test.ts`, `server/functions/bootstrap.executor.test.ts`).
+
+1. Открыть `/` на чистой БД (ни одной записи `platform_ownership` с `role = 'ROOT_OWNER'`)
+   - **Ожидается:** автоматический редирект на `/bootstrap`, экран «Инициализация платформы»
+2. На `/bootstrap`, не будучи авторизованным — нажать «Войти через Google», авторизоваться, вернуться на `/bootstrap`
+   - **Ожидается:** экран показывает кнопку «Стать Root Owner» вместо «Войти через Google»
+3. Нажать «Стать Root Owner»
+   - **Ожидается:** экран «Готово», в `platform_ownership` появилась ровно одна строка с `role = 'ROOT_OWNER'` для этого пользователя
+4. Открыть `/` повторно
+   - **Ожидается:** редиректа на `/bootstrap` больше не происходит — открывается обычная главная страница
+5. Открыть `/bootstrap` напрямую после того, как Root Owner уже назначен
+   - **Ожидается:** экран «Bootstrap уже завершён», кнопки «Стать Root Owner» нет
+6. Два браузера/вкладки одновременно нажимают «Стать Root Owner» на чистой БД (гонка)
+   - **Ожидается:** ровно один получает экран «Готово», второй — экран «Bootstrap уже завершён» (не сообщение об ошибке); в БД остаётся ровно одна строка `ROOT_OWNER`
+7. Отключить сеть/испортить `SUPABASE_URL` и открыть `/bootstrap`
+   - **Ожидается:** экран «Не удалось проверить состояние платформы» с кнопкой «Повторить», а не бесконечный спиннер или падение всего приложения
+
+---
+
 ## Список потоков, которые невозможно проверить без рабочего SUPABASE_SERVICE_ROLE_KEY
 
 Все перечисленные ниже используют `supabaseAdmin` безусловно (см. `server/di/container.ts`) — без реального ключа они либо не работают вовсе, либо не проверены дальше уровня статического анализа/unit-тестов с фейковыми репозиториями:
@@ -99,5 +120,6 @@
 6. **Разрешение ролей и авторизация** (`resolveRolesForUser`) — используется всеми admin/warehouse/courier/seller-guard'ами
 7. **Каталог платформы** — `SupabaseProductRepository`, только если `FEATURE_CATALOG_SOURCE=platform` (в текущей dev-среде `shopify`, поэтому каталог **проверяем** без ключа)
 8. **Реальное применение и порядок миграций** на живой БД — включая CHECK-constraint и UNIQUE-index миграции, которые теоретически могли не примениться при наличии унаследованных данных, нарушающих ограничения (см. `20260725060000_non_negative_constraints.sql`, `20260725080000_atomic_default_address.sql`)
+9. **Bootstrap** (claim Root Owner, редирект `/bootstrap`) — `SupabasePlatformOwnershipRepository`, `SupabaseBootstrapRepository`, `claim_root_owner` (см. сценарий 8 выше)
 
 Что удалось проверить без ключа в этой сессии: статический анализ (TypeScript, ESLint, `npm audit`), полный набор unit/integration-тестов на фейковых репозиториях (183/183), production build, синтаксическая корректность всех 19 файлов миграций, конфигурация (`tsconfig.json`, `server/config/env.ts`, `.env.example`), Shopify-обслуживаемая часть витрины (каталог, поиск, пагинация) через реальный dev-сервер.

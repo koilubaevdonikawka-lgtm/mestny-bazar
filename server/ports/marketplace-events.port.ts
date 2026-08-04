@@ -7,6 +7,7 @@ import type { BannerDTO } from "@shared/contracts/banner";
 import type { SellerProductDTO } from "@shared/contracts/seller-product";
 import type { AdminScope } from "@shared/contracts/user-admin";
 import type { DeliveryTariffDTO, DeliveryZoneDTO } from "@shared/contracts/delivery";
+import type { OwnershipTransferDTO } from "@shared/contracts/ownership-transfer";
 import type { AggregatedAIJobResult, AIJob } from "@server/ports/marketplace-ai.port";
 import type {
   CatalogAnalysisResult,
@@ -91,7 +92,11 @@ export type MarketplaceEvent =
   | { type: "delivery.zone.updated"; zone: DeliveryZoneDTO }
   | { type: "delivery.zone.deactivated"; zoneId: string }
   | { type: "delivery.tariff.created"; tariff: DeliveryTariffDTO }
-  | { type: "delivery.tariff.updated"; tariff: DeliveryTariffDTO };
+  | { type: "delivery.tariff.updated"; tariff: DeliveryTariffDTO }
+  | { type: "ownership.transfer.initiated"; transfer: OwnershipTransferDTO }
+  | { type: "ownership.transfer.accepted"; transfer: OwnershipTransferDTO }
+  | { type: "ownership.transfer.completed"; transfer: OwnershipTransferDTO }
+  | { type: "ownership.transfer.cancelled"; transfer: OwnershipTransferDTO };
 
 export type MarketplaceEventType = MarketplaceEvent["type"];
 

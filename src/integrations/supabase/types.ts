@@ -926,6 +926,63 @@ export type Database = {
         };
         Relationships: [];
       };
+      platform_ownership: {
+        Row: {
+          created_at: string;
+          role: Database["public"]["Enums"]["platform_ownership_role"];
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          role: Database["public"]["Enums"]["platform_ownership_role"];
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          role?: Database["public"]["Enums"]["platform_ownership_role"];
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      ownership_transfers: {
+        Row: {
+          accepted_at: string | null;
+          cancelled_at: string | null;
+          completed_at: string | null;
+          created_at: string;
+          full_handover: boolean;
+          id: string;
+          initiator_user_id: string;
+          status: Database["public"]["Enums"]["ownership_transfer_status"];
+          target_user_id: string;
+        };
+        Insert: {
+          accepted_at?: string | null;
+          cancelled_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          full_handover?: boolean;
+          id?: string;
+          initiator_user_id: string;
+          status?: Database["public"]["Enums"]["ownership_transfer_status"];
+          target_user_id: string;
+        };
+        Update: {
+          accepted_at?: string | null;
+          cancelled_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          full_handover?: boolean;
+          id?: string;
+          initiator_user_id?: string;
+          status?: Database["public"]["Enums"]["ownership_transfer_status"];
+          target_user_id?: string;
+        };
+        Relationships: [];
+      };
       suppliers: {
         Row: {
           contact_person: string | null;
@@ -1056,6 +1113,14 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      claim_root_owner: {
+        Args: { p_user_id: string };
+        Returns: undefined;
+      };
+      complete_ownership_transfer: {
+        Args: { p_transfer_id: string };
+        Returns: undefined;
+      };
       reserve_product_stock: {
         Args: { items: Json };
         Returns: undefined;
@@ -1092,6 +1157,8 @@ export type Database = {
     Enums: {
       app_role: "admin" | "customer" | "seller" | "warehouse" | "courier";
       admin_scope: "finance" | "marketing";
+      platform_ownership_role: "ROOT_OWNER" | "OWNER";
+      ownership_transfer_status: "PENDING" | "ACCEPTED" | "COMPLETED" | "CANCELLED";
       order_status:
         | "pending"
         | "paid"
@@ -1233,6 +1300,8 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "customer", "seller", "warehouse", "courier"],
       admin_scope: ["finance", "marketing"],
+      platform_ownership_role: ["ROOT_OWNER", "OWNER"],
+      ownership_transfer_status: ["PENDING", "ACCEPTED", "COMPLETED", "CANCELLED"],
       order_status: [
         "pending",
         "paid",

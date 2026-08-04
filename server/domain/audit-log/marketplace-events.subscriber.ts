@@ -425,4 +425,61 @@ export function subscribeAuditLog(bus: IMarketplaceEventBus, auditLog: IAuditLog
       payload: { name: event.tariff.name, isActive: event.tariff.isActive },
     });
   });
+
+  bus.subscribe("ownership.transfer.initiated", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "ownership.transfer.initiated",
+      occurredAt: new Date().toISOString(),
+      entityType: "ownership_transfer",
+      entityId: event.transfer.id,
+      actorId: event.transfer.initiatorUserId,
+      payload: {
+        targetUserId: event.transfer.targetUserId,
+        fullHandover: event.transfer.fullHandover,
+      },
+    });
+  });
+
+  bus.subscribe("ownership.transfer.accepted", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "ownership.transfer.accepted",
+      occurredAt: new Date().toISOString(),
+      entityType: "ownership_transfer",
+      entityId: event.transfer.id,
+      actorId: event.transfer.targetUserId,
+      payload: { initiatorUserId: event.transfer.initiatorUserId },
+    });
+  });
+
+  bus.subscribe("ownership.transfer.completed", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "ownership.transfer.completed",
+      occurredAt: new Date().toISOString(),
+      entityType: "ownership_transfer",
+      entityId: event.transfer.id,
+      actorId: event.transfer.targetUserId,
+      payload: {
+        initiatorUserId: event.transfer.initiatorUserId,
+        fullHandover: event.transfer.fullHandover,
+      },
+    });
+  });
+
+  bus.subscribe("ownership.transfer.cancelled", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "ownership.transfer.cancelled",
+      occurredAt: new Date().toISOString(),
+      entityType: "ownership_transfer",
+      entityId: event.transfer.id,
+      actorId: null,
+      payload: {
+        initiatorUserId: event.transfer.initiatorUserId,
+        targetUserId: event.transfer.targetUserId,
+      },
+    });
+  });
 }

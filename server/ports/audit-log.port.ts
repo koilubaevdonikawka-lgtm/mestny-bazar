@@ -39,7 +39,11 @@ export type AuditAction =
   | "delivery.zone.updated"
   | "delivery.zone.deactivated"
   | "delivery.tariff.created"
-  | "delivery.tariff.updated";
+  | "delivery.tariff.updated"
+  | "ownership.transfer.initiated"
+  | "ownership.transfer.accepted"
+  | "ownership.transfer.completed"
+  | "ownership.transfer.cancelled";
 
 export interface AuditRecord {
   id: string;

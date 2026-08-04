@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { BRAND } from "@/config/brand";
 import { useCartSync } from "@/hooks/useCartSync";
 import { useAuthErrorToast } from "@/hooks/useAuthErrorToast";
+import { usePlatformNavigationGate } from "@/hooks/usePlatformNavigationGate";
 
 function NotFoundComponent() {
   return (
@@ -129,6 +130,7 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   useCartSync();
   useAuthErrorToast();
+  usePlatformNavigationGate();
 
   return (
     <QueryClientProvider client={queryClient}>

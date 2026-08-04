@@ -9,8 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WorkspaceRouteImport } from './routes/workspace'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as OrderSuccessRouteImport } from './routes/order-success'
+import { Route as BootstrapRouteImport } from './routes/bootstrap'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OrdersIndexRouteImport } from './routes/orders/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
@@ -45,6 +47,11 @@ import { Route as SellerProductsIdRouteImport } from './routes/seller/products/$
 import { Route as CourierOrdersIdRouteImport } from './routes/courier/orders/$id'
 import { Route as AdminOrdersIdRouteImport } from './routes/admin/orders/$id'
 
+const WorkspaceRoute = WorkspaceRouteImport.update({
+  id: '/workspace',
+  path: '/workspace',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -53,6 +60,11 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
 const OrderSuccessRoute = OrderSuccessRouteImport.update({
   id: '/order-success',
   path: '/order-success',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BootstrapRoute = BootstrapRouteImport.update({
+  id: '/bootstrap',
+  path: '/bootstrap',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -223,8 +235,10 @@ const AdminOrdersIdRoute = AdminOrdersIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/bootstrap': typeof BootstrapRoute
   '/order-success': typeof OrderSuccessRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/workspace': typeof WorkspaceRoute
   '/orders/$id': typeof OrdersIdRoute
   '/product/$handle': typeof ProductHandleRoute
   '/profile/addresses': typeof ProfileAddressesRoute
@@ -260,8 +274,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/bootstrap': typeof BootstrapRoute
   '/order-success': typeof OrderSuccessRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/workspace': typeof WorkspaceRoute
   '/orders/$id': typeof OrdersIdRoute
   '/product/$handle': typeof ProductHandleRoute
   '/profile/addresses': typeof ProfileAddressesRoute
@@ -298,8 +314,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/bootstrap': typeof BootstrapRoute
   '/order-success': typeof OrderSuccessRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/workspace': typeof WorkspaceRoute
   '/orders/$id': typeof OrdersIdRoute
   '/product/$handle': typeof ProductHandleRoute
   '/profile/addresses': typeof ProfileAddressesRoute
@@ -337,8 +355,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/bootstrap'
     | '/order-success'
     | '/sitemap.xml'
+    | '/workspace'
     | '/orders/$id'
     | '/product/$handle'
     | '/profile/addresses'
@@ -374,8 +394,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/bootstrap'
     | '/order-success'
     | '/sitemap.xml'
+    | '/workspace'
     | '/orders/$id'
     | '/product/$handle'
     | '/profile/addresses'
@@ -411,8 +433,10 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/bootstrap'
     | '/order-success'
     | '/sitemap.xml'
+    | '/workspace'
     | '/orders/$id'
     | '/product/$handle'
     | '/profile/addresses'
@@ -449,8 +473,10 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BootstrapRoute: typeof BootstrapRoute
   OrderSuccessRoute: typeof OrderSuccessRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  WorkspaceRoute: typeof WorkspaceRoute
   OrdersIdRoute: typeof OrdersIdRoute
   ProductHandleRoute: typeof ProductHandleRoute
   ProfileAddressesRoute: typeof ProfileAddressesRoute
@@ -487,6 +513,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/workspace': {
+      id: '/workspace'
+      path: '/workspace'
+      fullPath: '/workspace'
+      preLoaderRoute: typeof WorkspaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -499,6 +532,13 @@ declare module '@tanstack/react-router' {
       path: '/order-success'
       fullPath: '/order-success'
       preLoaderRoute: typeof OrderSuccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bootstrap': {
+      id: '/bootstrap'
+      path: '/bootstrap'
+      fullPath: '/bootstrap'
+      preLoaderRoute: typeof BootstrapRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -737,8 +777,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BootstrapRoute: BootstrapRoute,
   OrderSuccessRoute: OrderSuccessRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  WorkspaceRoute: WorkspaceRoute,
   OrdersIdRoute: OrdersIdRoute,
   ProductHandleRoute: ProductHandleRoute,
   ProfileAddressesRoute: ProfileAddressesRoute,
