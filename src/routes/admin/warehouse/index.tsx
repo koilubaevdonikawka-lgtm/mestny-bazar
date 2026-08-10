@@ -453,6 +453,12 @@ function AdminWarehousePage() {
     setCategoryPath((prev) => prev.slice(0, index + 1));
     setSelectedProductId(null);
   };
+  // Задача этапа №5 — явная кнопка «Назад» на уровнях
+  // Категория/Подкатегория, в дополнение к уже существующим
+  // хлебным крошкам. Тот же механизм (goToBreadcrumbIndex),
+  // просто вызванный с индексом на один уровень выше —
+  // никакой новой логики навигации.
+  const goBackOneLevel = () => goToBreadcrumbIndex(categoryPath.length - 2);
   const openProduct = (productId: string) => {
     setReceiptProductId(null);
     setReturnProductId(null);
@@ -992,77 +998,85 @@ function AdminWarehousePage() {
             // Добавить подкатегорию" affordance in its corner (Задача этапа
             // №1). The parent is never a visible/editable field — it's fixed
             // to whichever tile's "+" was pressed.
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {childCategories.map((c) => (
-                <div
-                  key={c.id}
-                  className="relative rounded-xl border border-border/60 bg-secondary/40 p-4 text-center transition-colors hover:border-primary/40"
-                >
-                  <button
-                    type="button"
-                    onClick={() => enterCategory(c.id)}
-                    className="flex w-full flex-col items-center gap-2"
+            <>
+              {categoryPath.length > 0 && (
+                <Button variant="ghost" size="sm" className="mb-4 -ml-2" onClick={goBackOneLevel}>
+                  <ArrowLeft className="h-4 w-4 mr-1.5" />
+                  {t("common.back")}
+                </Button>
+              )}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {childCategories.map((c) => (
+                  <div
+                    key={c.id}
+                    className="relative rounded-xl border border-border/60 bg-secondary/40 p-4 text-center transition-colors hover:border-primary/40"
                   >
-                    <Folder className="h-6 w-6 text-primary" />
-                    <span className="text-sm font-medium">{c.name}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      subcategoryFormParentId === c.id
-                        ? cancelAddSubcategory()
-                        : startAddSubcategory(c.id)
-                    }
-                    aria-label={t("admin.warehouse.addSubcategoryButton")}
-                    className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-background text-primary shadow-sm transition-colors hover:bg-primary hover:text-primary-foreground"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-                  {/* Задача этапа №2 — "➕ Добавить товар", только на
+                    <button
+                      type="button"
+                      onClick={() => enterCategory(c.id)}
+                      className="flex w-full flex-col items-center gap-2"
+                    >
+                      <Folder className="h-6 w-6 text-primary" />
+                      <span className="text-sm font-medium">{c.name}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        subcategoryFormParentId === c.id
+                          ? cancelAddSubcategory()
+                          : startAddSubcategory(c.id)
+                      }
+                      aria-label={t("admin.warehouse.addSubcategoryButton")}
+                      className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-background text-primary shadow-sm transition-colors hover:bg-primary hover:text-primary-foreground"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                    {/* Задача этапа №2 — "➕ Добавить товар", только на
                       подкатегориях (c.parentId !== null), не на корневых
                       категориях: иерархия Категория → Подкатегория → Товар.
                       Клик сразу открывает эту подкатегорию и форму товара
                       внутри неё — там же, где новый товар появится. */}
-                  {c.parentId !== null && (
-                    <button
-                      type="button"
-                      onClick={() => startAddProduct(c.id)}
-                      aria-label={t("admin.warehouse.addProductButton")}
-                      className="absolute left-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-background text-primary shadow-sm transition-colors hover:bg-primary hover:text-primary-foreground"
-                    >
-                      <PackagePlus className="h-4 w-4" />
-                    </button>
-                  )}
-                  {subcategoryFormParentId === c.id && (
-                    <div className="mt-3 flex items-center gap-1.5">
-                      <Input
-                        autoFocus
-                        value={newSubcategoryName}
-                        onChange={(e) => setNewSubcategoryName(e.target.value)}
-                        placeholder={t("admin.catalog.namePlaceholder")}
-                        className="h-9 text-sm"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") submitAddSubcategory(c.id);
-                        }}
-                      />
-                      <Button
+                    {c.parentId !== null && (
+                      <button
                         type="button"
-                        size="sm"
-                        className="h-9 shrink-0 px-2.5"
-                        disabled={createCategoryMutation.isPending}
-                        onClick={() => submitAddSubcategory(c.id)}
+                        onClick={() => startAddProduct(c.id)}
+                        aria-label={t("admin.warehouse.addProductButton")}
+                        className="absolute left-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-background text-primary shadow-sm transition-colors hover:bg-primary hover:text-primary-foreground"
                       >
-                        {createCategoryMutation.isPending ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          t("admin.catalog.createButton")
-                        )}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                        <PackagePlus className="h-4 w-4" />
+                      </button>
+                    )}
+                    {subcategoryFormParentId === c.id && (
+                      <div className="mt-3 flex items-center gap-1.5">
+                        <Input
+                          autoFocus
+                          value={newSubcategoryName}
+                          onChange={(e) => setNewSubcategoryName(e.target.value)}
+                          placeholder={t("admin.catalog.namePlaceholder")}
+                          className="h-9 text-sm"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") submitAddSubcategory(c.id);
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="h-9 shrink-0 px-2.5"
+                          disabled={createCategoryMutation.isPending}
+                          onClick={() => submitAddSubcategory(c.id)}
+                        >
+                          {createCategoryMutation.isPending ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            t("admin.catalog.createButton")
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
           ) : currentParentId === null ? (
             <div className="py-8 text-center">
               <WarehouseIcon className="h-6 w-6 text-primary mx-auto mb-4" />
@@ -1070,6 +1084,13 @@ function AdminWarehousePage() {
             </div>
           ) : (
             <>
+              {/* Задача этапа №5 — явная «Назад» на листовом уровне
+                  (список товаров подкатегории), тем же goBackOneLevel. */}
+              <Button variant="ghost" size="sm" className="mb-4 -ml-2" onClick={goBackOneLevel}>
+                <ArrowLeft className="h-4 w-4 mr-1.5" />
+                {t("common.back")}
+              </Button>
+
               {/* Leaf category (no subcategories/products form open yet) —
                   same "➕" affordances as on tiles, here as regular buttons
                   since there's no tile representing "the current category"
