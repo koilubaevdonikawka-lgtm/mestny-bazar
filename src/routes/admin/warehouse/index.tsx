@@ -129,12 +129,21 @@ function AdminWarehousePage() {
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editProductForm, setEditProductForm] = useState<ProductFormState | null>(null);
 
+  // Задача этапа №7 — фильтр по статусу публикации над списком товаров
+  // подкатегории. Использует уже существующий слот `filters` компонента
+  // AdminDataTable (RULE-002: сначала проверено, что такой слот уже есть,
+  // прежде чем добавлять что-то новое) — чисто клиентская фильтрация уже
+  // загруженных данных, как и поиск/сортировка из Задачи этапа №6.
+  const [productStatusFilter, setProductStatusFilter] = useState<ProductPublicationStatus | "all">(
+    "all",
+  );
+
   const {
     data: items,
-    isLoading,
-    isError,
-    error,
-    refetch,
+    isLoading: isStockLoading,
+    isError: isStockError,
+    error: stockError,
+    refetch: refetchStock,
   } = useQuery({
     queryKey: ["admin", "warehouse", "stock"],
     queryFn: listStock,
@@ -153,19 +162,49 @@ function AdminWarehousePage() {
   // reused here purely to build the browsing structure, not to duplicate
   // their CRUD (category/product management stays exclusively in
   // admin/catalog, per this stage's own scope).
-  const { data: adminCategories = [] } = useQuery({
+  //
+  // Задача этапа №7 — раньше эти два запроса не отдавали
+  // isLoading/isError/refetch наружу вообще: если остатки (items)
+  // успевали загрузиться, а категории или товары — ещё грузились
+  // или упали с ошибкой, экран молча показывал пустые
+  // категории/товары без единого индикатора. Ниже — тот же самый
+  // существующий паттерн загрузки/ошибки/повтора, что уже
+  // применён к items, просто распространён на все три запроса,
+  // от которых зависит список товаров.
+  const {
+    data: adminCategories = [],
+    isLoading: isCategoriesLoading,
+    isError: isCategoriesError,
+    error: categoriesError,
+    refetch: refetchCategories,
+  } = useQuery({
     queryKey: ["admin", "categories"],
     queryFn: listAdminCategories,
     enabled: isAuthenticated === true,
     retry: false,
   });
 
-  const { data: adminProductsResult } = useQuery({
+  const {
+    data: adminProductsResult,
+    isLoading: isProductsLoading,
+    isError: isProductsError,
+    error: productsError,
+    refetch: refetchProducts,
+  } = useQuery({
     queryKey: ["admin", "products", "warehouse-browse"],
     queryFn: () => listAdminProducts({ pageSize: ADMIN_PRODUCTS_PAGE_SIZE }),
     enabled: isAuthenticated === true,
     retry: false,
   });
+
+  const isLoading = isStockLoading || isCategoriesLoading || isProductsLoading;
+  const isError = isStockError || isCategoriesError || isProductsError;
+  const error = stockError ?? categoriesError ?? productsError;
+  const refetch = () => {
+    void refetchStock();
+    void refetchCategories();
+    void refetchProducts();
+  };
   const adminProducts = useMemo(() => adminProductsResult?.items ?? [], [adminProductsResult]);
 
   const stockByProductId = useMemo(
@@ -189,6 +228,16 @@ function AdminWarehousePage() {
     () =>
       currentParentId === null ? [] : adminProducts.filter((p) => p.categoryId === currentParentId),
     [adminProducts, currentParentId],
+  );
+  // Задача этапа №7 — статус-фильтр применяется поверх productsInCurrentCategory,
+  // перед тем как список уходит в AdminDataTable (которая сама уже
+  // делает поиск/сортировку над тем, что ей передали).
+  const productsForList = useMemo(
+    () =>
+      productStatusFilter === "all"
+        ? productsInCurrentCategory
+        : productsInCurrentCategory.filter((p) => p.publicationStatus === productStatusFilter),
+    [productsInCurrentCategory, productStatusFilter],
   );
 
   const invalidate = () =>
@@ -1195,19 +1244,56 @@ function AdminWarehousePage() {
                   /admin/permissions): даёт поиск и сортировку по
                   клику на заголовок «бесплатно», без новой
                   бизнес-логики поиска/сортировки. */}
+              {/* Задача этапа №7 — общее количество товаров в
+                  подкатегории (до поиска/фильтра), тем же
+                  One/Many-паттерном, что уже применён на
+                  customer category.$slug.tsx (resultsCountOne/Many). */}
+              <p className="mb-2 text-sm text-muted-foreground">
+                {t(
+                  productsInCurrentCategory.length === 1
+                    ? "admin.warehouse.productsCountOne"
+                    : "admin.warehouse.productsCountMany",
+                  { count: productsInCurrentCategory.length },
+                )}
+              </p>
               <AdminDataTable
-                rows={productsInCurrentCategory}
+                rows={productsForList}
                 getRowId={(p) => p.id}
                 searchFn={(p, q) =>
                   p.name.toLowerCase().includes(q) || (p.sku ?? "").toLowerCase().includes(q)
                 }
                 searchPlaceholder={t("admin.warehouse.productSearchPlaceholder")}
-                emptyState={
+                filters={
+                  <select
+                    value={productStatusFilter}
+                    onChange={(e) =>
+                      setProductStatusFilter(e.target.value as ProductPublicationStatus | "all")
+                    }
+                    aria-label={t("admin.warehouse.statusFilterLabel")}
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  >
+                    <option value="all">{t("admin.warehouse.allStatusesOption")}</option>
+                    <option value={ProductPublicationStatus.PUBLISHED}>
+                      {t(publicationStatusKey(ProductPublicationStatus.PUBLISHED))}
+                    </option>
+                    <option value={ProductPublicationStatus.DRAFT}>
+                      {t(publicationStatusKey(ProductPublicationStatus.DRAFT))}
+                    </option>
+                    <option value={ProductPublicationStatus.HIDDEN}>
+                      {t(publicationStatusKey(ProductPublicationStatus.HIDDEN))}
+                    </option>
+                  </select>
+                }
+                emptyState={({ query }) => (
                   <>
                     <Package className="h-6 w-6 text-primary mx-auto mb-4" />
-                    <p>{t("admin.warehouse.noProductsInCategory")}</p>
+                    <p>
+                      {query
+                        ? t("admin.warehouse.noSearchResults", { query })
+                        : t("admin.warehouse.noProductsInCategory")}
+                    </p>
                   </>
-                }
+                )}
                 columns={[
                   {
                     key: "name",
