@@ -654,56 +654,91 @@ function AdminWarehousePage() {
           </div>
         </div>
       ) : (
-        <div className="mt-3 flex flex-wrap items-start justify-between gap-2 border-t border-border/60 pt-3">
-          <div className="min-w-0">
-            <p className="font-semibold">
-              {product.price.toFixed(2)} {product.currency}
-            </p>
-            {product.description && (
-              <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-                {product.description}
-              </p>
+        <div className="mt-3 flex gap-3 border-t border-border/60 pt-3">
+          {/* Задача этапа №10 — карточка товара в Складе раньше нигде
+              не показывала фото товара в режиме просмотра, хотя
+              карточка товара в Каталоге (ProductCard) уже показывает
+              его для тех же самых данных (product.imageUrl/imageUrls,
+              уже приходят в этом же SellerProductDTO — новых данных
+              не потребовалось). Тот же самый блок, что и в Каталоге,
+              один в один: миниатюра + иконка-заглушка + "+N" бейдж
+              для нескольких изображений. Во время редактирования
+              отдельная статичная миниатюра не нужна — там уже есть
+              MultiImageUploadField внутри ProductFormFields. */}
+          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-secondary/40">
+            {product.imageUrl ? (
+              <img
+                src={product.imageUrl}
+                alt={product.name}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                <Package className="h-6 w-6" />
+              </div>
             )}
-            <p className="mt-1 text-xs text-muted-foreground">
-              {[
-                product.unit && t("admin.catalog.unitCharacteristic", { unit: product.unit }),
-                product.manufacturer &&
-                  t("admin.catalog.manufacturerCharacteristic", { value: product.manufacturer }),
-                product.countryOfOrigin &&
-                  t("admin.catalog.countryCharacteristic", { value: product.countryOfOrigin }),
-                product.sku && t("admin.catalog.skuCharacteristic", { value: product.sku }),
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
+            {product.imageUrls.length > 1 && (
+              <span
+                aria-hidden="true"
+                className="absolute bottom-0 right-0 rounded-tl bg-background/90 px-1 text-[10px] font-medium text-muted-foreground"
+              >
+                +{product.imageUrls.length - 1}
+              </span>
+            )}
           </div>
-          <div className="flex shrink-0 items-center gap-1">
-            {product.publicationStatus === ProductPublicationStatus.PUBLISHED && (
+          <div className="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-semibold">
+                {product.price.toFixed(2)} {product.currency}
+              </p>
+              {product.description && (
+                <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                  {product.description}
+                </p>
+              )}
+              <p className="mt-1 text-xs text-muted-foreground">
+                {[
+                  product.unit && t("admin.catalog.unitCharacteristic", { unit: product.unit }),
+                  product.manufacturer &&
+                    t("admin.catalog.manufacturerCharacteristic", {
+                      value: product.manufacturer,
+                    }),
+                  product.countryOfOrigin &&
+                    t("admin.catalog.countryCharacteristic", { value: product.countryOfOrigin }),
+                  product.sku && t("admin.catalog.skuCharacteristic", { value: product.sku }),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              {product.publicationStatus === ProductPublicationStatus.PUBLISHED && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  aria-label={t("admin.catalog.viewOnStorefrontButton")}
+                >
+                  <Link
+                    to="/product/$handle"
+                    params={{ handle: product.slug }}
+                    search={{ from: "admin" }}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Link>
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                asChild
-                aria-label={t("admin.catalog.viewOnStorefrontButton")}
+                onClick={() => startEditProduct(product)}
+                aria-label={t("admin.catalog.editButton")}
               >
-                <Link
-                  to="/product/$handle"
-                  params={{ handle: product.slug }}
-                  search={{ from: "admin" }}
-                >
-                  <ExternalLink className="h-4 w-4" />
-                </Link>
+                <Pencil className="h-4 w-4" />
               </Button>
-            )}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => startEditProduct(product)}
-              aria-label={t("admin.catalog.editButton")}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
+            </div>
           </div>
         </div>
       )}
