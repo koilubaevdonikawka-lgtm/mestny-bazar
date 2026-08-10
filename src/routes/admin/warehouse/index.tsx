@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminDataTable } from "@/components/admin/AdminDataTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1188,54 +1189,145 @@ function AdminWarehousePage() {
                 </div>
               )}
 
-              {productsInCurrentCategory.length === 0 ? (
-                <div className="py-8 text-center">
-                  <Package className="h-6 w-6 text-primary mx-auto mb-4" />
-                  <p className="text-muted-foreground">
-                    {t("admin.warehouse.noProductsInCategory")}
-                  </p>
-                </div>
-              ) : (
-                // Товар list for the current (leaf) category.
-                <ul className="space-y-2">
-                  {productsInCurrentCategory.map((p) => {
-                    const stockItem = stockByProductId.get(p.id);
-                    return (
-                      <li key={p.id}>
-                        <button
-                          type="button"
-                          onClick={() => openProduct(p.id)}
-                          className="flex w-full items-center justify-between gap-2 rounded-xl bg-secondary/40 px-4 py-3 text-left transition-colors hover:bg-secondary/70"
-                        >
-                          <span className="flex items-center gap-3 min-w-0">
-                            <Package className="h-4 w-4 shrink-0 text-primary" />
-                            <span className="truncate font-medium">{p.name}</span>
+              {/* Задача этапа №6 — список товаров подкатегории теперь
+                  через уже существующий переиспользуемый AdminDataTable
+                  (тот же компонент, что и /admin/couriers,
+                  /admin/permissions): даёт поиск и сортировку по
+                  клику на заголовок «бесплатно», без новой
+                  бизнес-логики поиска/сортировки. */}
+              <AdminDataTable
+                rows={productsInCurrentCategory}
+                getRowId={(p) => p.id}
+                searchFn={(p, q) =>
+                  p.name.toLowerCase().includes(q) || (p.sku ?? "").toLowerCase().includes(q)
+                }
+                searchPlaceholder={t("admin.warehouse.productSearchPlaceholder")}
+                emptyState={
+                  <>
+                    <Package className="h-6 w-6 text-primary mx-auto mb-4" />
+                    <p>{t("admin.warehouse.noProductsInCategory")}</p>
+                  </>
+                }
+                columns={[
+                  {
+                    key: "name",
+                    header: t("admin.warehouse.productColumnName"),
+                    sortable: true,
+                    sortValue: (p) => p.name,
+                    render: (p) => (
+                      <span className="flex min-w-0 items-center gap-3">
+                        <Package className="h-4 w-4 shrink-0 text-primary" />
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">{p.name}</span>
+                          {p.sku && (
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {p.sku}
+                            </span>
+                          )}
+                        </span>
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "status",
+                    header: t("admin.warehouse.productColumnStatus"),
+                    className: "w-28 shrink-0",
+                    sortable: true,
+                    sortValue: (p) => p.publicationStatus,
+                    render: (p) => (
+                      <Badge
+                        variant={
+                          p.publicationStatus === ProductPublicationStatus.PUBLISHED
+                            ? "secondary"
+                            : "outline"
+                        }
+                      >
+                        {t(publicationStatusKey(p.publicationStatus))}
+                      </Badge>
+                    ),
+                  },
+                  {
+                    key: "price",
+                    header: t("admin.warehouse.productColumnPrice"),
+                    className: "w-28 shrink-0",
+                    sortable: true,
+                    sortValue: (p) => p.price,
+                    render: (p) => (
+                      <span className="text-sm font-medium tabular-nums">
+                        {p.price.toFixed(2)} {p.currency}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "unit",
+                    header: t("admin.warehouse.productColumnUnit"),
+                    className: "w-20 shrink-0",
+                    sortable: true,
+                    sortValue: (p) => p.unit ?? "",
+                    render: (p) => (
+                      <span className="text-sm text-muted-foreground">{p.unit || "—"}</span>
+                    ),
+                  },
+                  {
+                    key: "stock",
+                    header: t("admin.warehouse.productColumnStock"),
+                    className: "w-32 shrink-0",
+                    sortable: true,
+                    sortValue: (p) => stockByProductId.get(p.id)?.stock ?? 0,
+                    render: (p) => {
+                      const stockItem = stockByProductId.get(p.id);
+                      return stockItem ? (
+                        <span className="flex items-center gap-2">
+                          <span className="text-sm font-medium tabular-nums">
+                            {stockItem.stock}
                           </span>
-                          <span className="flex shrink-0 items-center gap-2">
-                            {stockItem && (
-                              <>
-                                <span className="text-sm font-medium tabular-nums text-muted-foreground">
-                                  {stockItem.stock}
-                                </span>
-                                <Badge
-                                  variant={stockItem.status === "ok" ? "secondary" : "destructive"}
-                                >
-                                  {t(
-                                    STATUS_LABEL_KEY[
-                                      stockItem.status as keyof typeof STATUS_LABEL_KEY
-                                    ],
-                                  )}
-                                </Badge>
-                              </>
-                            )}
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+                          <Badge variant={stockItem.status === "ok" ? "secondary" : "destructive"}>
+                            {t(STATUS_LABEL_KEY[stockItem.status as keyof typeof STATUS_LABEL_KEY])}
+                          </Badge>
+                        </span>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      );
+                    },
+                  },
+                ]}
+                rowActions={(p) => (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openProduct(p.id)}
+                    >
+                      {t("admin.warehouse.openProductButton")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-label={t("admin.warehouse.receiptButton")}
+                      onClick={() => {
+                        openProduct(p.id);
+                        startReceipt(p.id);
+                      }}
+                    >
+                      <PackagePlus className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-label={t("admin.warehouse.returnButton")}
+                      onClick={() => {
+                        openProduct(p.id);
+                        startReturn(p.id);
+                      }}
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+              />
             </>
           )}
         </section>
