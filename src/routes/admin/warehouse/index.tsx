@@ -267,7 +267,13 @@ function AdminWarehousePage() {
       toast.error(e instanceof Error ? e.message : t("admin.catalog.categoryCreateError")),
   });
 
+  // Задача этапа №9 — аудит нашёл, что форма "Добавить подкатегорию"
+  // и форма "Добавить товар" могли быть открыты одновременно (ничто
+  // не закрывало одну при открытии другой) — не тупик, но нарушение
+  // "одно чёткое действие за раз". Каждый start* теперь закрывает
+  // другую форму, тем же уже существующим cancel-состоянием.
   const startAddSubcategory = (parentId: string) => {
+    setAddingProductCategoryId(null);
     setSubcategoryFormParentId(parentId);
     setNewSubcategoryName("");
   };
@@ -304,6 +310,7 @@ function AdminWarehousePage() {
 
   const startAddProduct = (categoryId: string) => {
     setSelectedProductId(null);
+    setSubcategoryFormParentId(null);
     setAddingProductCategoryId(categoryId);
     setNewProductForm(emptyProductForm());
     setCategoryPath((prev) =>
@@ -965,260 +972,286 @@ function AdminWarehousePage() {
   // ветки рендера. Вынесен в отдельную функцию и вызывается из ОБЕИХ
   // веток (плитки и лист), а не продублирован — RULE-002,
   // "отсутствие дублирования функций" из чек-листа этого этапа.
-  const renderCategoryWorkspace = (showHeading: boolean) => (
-    <>
-      {showHeading && (
-        <h2 className="mb-3 mt-6 border-t border-border/60 pt-6 text-sm font-medium text-muted-foreground">
-          {t("admin.warehouse.categoryOwnSectionHeading")}
-        </h2>
-      )}
+  const renderCategoryWorkspace = (showHeading: boolean) => {
+    // Задача этапа №9 — "Просмотр на витрине" для текущей категории,
+    // та же кнопка/ссылка, что уже есть у товара на карточке движения
+    // (Задача этапа №4), только для /category/$slug вместо
+    // /product/$handle и по isActive категории вместо
+    // publicationStatus товара. Ни нового маршрута, ни новой логики.
+    const currentCategory = currentParentId ? categoriesById.get(currentParentId) : undefined;
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        {subcategoryFormParentId !== currentParentId && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => startAddSubcategory(currentParentId!)}
-          >
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            {t("admin.warehouse.addSubcategoryButton")}
-          </Button>
+    return (
+      <>
+        {showHeading && (
+          <h2 className="mb-3 mt-6 border-t border-border/60 pt-6 text-sm font-medium text-muted-foreground">
+            {t("admin.warehouse.categoryOwnSectionHeading")}
+          </h2>
         )}
-        {addingProductCategoryId !== currentParentId && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => startAddProduct(currentParentId!)}
-          >
-            <PackagePlus className="h-3.5 w-3.5 mr-1.5" />
-            {t("admin.warehouse.addProductButton")}
-          </Button>
-        )}
-      </div>
 
-      {subcategoryFormParentId === currentParentId && (
-        <div className="mb-4 flex items-center gap-1.5">
-          <Input
-            autoFocus
-            value={newSubcategoryName}
-            onChange={(e) => setNewSubcategoryName(e.target.value)}
-            placeholder={t("admin.catalog.namePlaceholder")}
-            className="h-9 text-sm"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") submitAddSubcategory(currentParentId!);
-            }}
-          />
-          <Button
-            type="button"
-            size="sm"
-            className="h-9 shrink-0 px-2.5"
-            disabled={createCategoryMutation.isPending}
-            onClick={() => submitAddSubcategory(currentParentId!)}
-          >
-            {createCategoryMutation.isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              t("admin.catalog.createButton")
-            )}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-9 shrink-0"
-            onClick={cancelAddSubcategory}
-          >
-            {t("common.cancel")}
-          </Button>
+        {currentCategory?.isActive && (
+          <div className="mb-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 -ml-2 text-muted-foreground"
+              asChild
+            >
+              <Link to="/category/$slug" params={{ slug: currentCategory.slug }}>
+                <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                {t("admin.catalog.viewOnStorefrontButton")}
+              </Link>
+            </Button>
+          </div>
+        )}
+
+        <div className="mb-4 flex flex-wrap gap-2">
+          {subcategoryFormParentId !== currentParentId && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => startAddSubcategory(currentParentId!)}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              {t("admin.warehouse.addSubcategoryButton")}
+            </Button>
+          )}
+          {addingProductCategoryId !== currentParentId && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => startAddProduct(currentParentId!)}
+            >
+              <PackagePlus className="h-3.5 w-3.5 mr-1.5" />
+              {t("admin.warehouse.addProductButton")}
+            </Button>
+          )}
         </div>
-      )}
 
-      {addingProductCategoryId === currentParentId && (
-        <div className="mb-4 rounded-xl border border-dashed border-primary/40 bg-background/60 p-4">
-          <ProductFormFields
-            form={newProductForm}
-            setForm={setNewProductForm}
-            idPrefix="wh-new-product"
-          />
-          <div className="mt-3 flex gap-2">
+        {subcategoryFormParentId === currentParentId && (
+          <div className="mb-4 flex items-center gap-1.5">
+            <Input
+              autoFocus
+              value={newSubcategoryName}
+              onChange={(e) => setNewSubcategoryName(e.target.value)}
+              placeholder={t("admin.catalog.namePlaceholder")}
+              className="h-9 text-sm"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitAddSubcategory(currentParentId!);
+              }}
+            />
             <Button
               type="button"
               size="sm"
-              disabled={createProductMutation.isPending}
-              onClick={() => submitAddProduct(currentParentId!)}
+              className="h-9 shrink-0 px-2.5"
+              disabled={createCategoryMutation.isPending}
+              onClick={() => submitAddSubcategory(currentParentId!)}
             >
-              {createProductMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+              {createCategoryMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 t("admin.catalog.createButton")
               )}
             </Button>
-            <Button type="button" size="sm" variant="ghost" onClick={cancelAddProduct}>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-9 shrink-0"
+              onClick={cancelAddSubcategory}
+            >
               {t("common.cancel")}
             </Button>
           </div>
-        </div>
-      )}
+        )}
 
-      <p className="mb-2 text-sm text-muted-foreground">
-        {t(
-          productsInCurrentCategory.length === 1
-            ? "admin.warehouse.productsCountOne"
-            : "admin.warehouse.productsCountMany",
-          { count: productsInCurrentCategory.length },
-        )}
-      </p>
-      <AdminDataTable
-        rows={productsForList}
-        getRowId={(p) => p.id}
-        searchFn={(p, q) =>
-          p.name.toLowerCase().includes(q) || (p.sku ?? "").toLowerCase().includes(q)
-        }
-        searchPlaceholder={t("admin.warehouse.productSearchPlaceholder")}
-        filters={
-          <select
-            value={productStatusFilter}
-            onChange={(e) =>
-              setProductStatusFilter(e.target.value as ProductPublicationStatus | "all")
-            }
-            aria-label={t("admin.warehouse.statusFilterLabel")}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-          >
-            <option value="all">{t("admin.warehouse.allStatusesOption")}</option>
-            <option value={ProductPublicationStatus.PUBLISHED}>
-              {t(publicationStatusKey(ProductPublicationStatus.PUBLISHED))}
-            </option>
-            <option value={ProductPublicationStatus.DRAFT}>
-              {t(publicationStatusKey(ProductPublicationStatus.DRAFT))}
-            </option>
-            <option value={ProductPublicationStatus.HIDDEN}>
-              {t(publicationStatusKey(ProductPublicationStatus.HIDDEN))}
-            </option>
-          </select>
-        }
-        emptyState={({ query }) => (
-          <>
-            <Package className="h-6 w-6 text-primary mx-auto mb-4" />
-            <p>
-              {query
-                ? t("admin.warehouse.noSearchResults", { query })
-                : t("admin.warehouse.noProductsInCategory")}
-            </p>
-          </>
-        )}
-        columns={[
-          {
-            key: "name",
-            header: t("admin.warehouse.productColumnName"),
-            sortable: true,
-            sortValue: (p) => p.name,
-            render: (p) => (
-              <span className="flex min-w-0 items-center gap-3">
-                <Package className="h-4 w-4 shrink-0 text-primary" />
-                <span className="min-w-0">
-                  <span className="block truncate font-medium">{p.name}</span>
-                  {p.sku && (
-                    <span className="block truncate text-xs text-muted-foreground">{p.sku}</span>
-                  )}
-                </span>
-              </span>
-            ),
-          },
-          {
-            key: "status",
-            header: t("admin.warehouse.productColumnStatus"),
-            className: "w-28 shrink-0",
-            sortable: true,
-            sortValue: (p) => p.publicationStatus,
-            render: (p) => (
-              <Badge
-                variant={
-                  p.publicationStatus === ProductPublicationStatus.PUBLISHED
-                    ? "secondary"
-                    : "outline"
-                }
+        {addingProductCategoryId === currentParentId && (
+          <div className="mb-4 rounded-xl border border-dashed border-primary/40 bg-background/60 p-4">
+            <ProductFormFields
+              form={newProductForm}
+              setForm={setNewProductForm}
+              idPrefix="wh-new-product"
+            />
+            <div className="mt-3 flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={createProductMutation.isPending}
+                onClick={() => submitAddProduct(currentParentId!)}
               >
-                {t(publicationStatusKey(p.publicationStatus))}
-              </Badge>
-            ),
-          },
-          {
-            key: "price",
-            header: t("admin.warehouse.productColumnPrice"),
-            className: "w-28 shrink-0",
-            sortable: true,
-            sortValue: (p) => p.price,
-            render: (p) => (
-              <span className="text-sm font-medium tabular-nums">
-                {p.price.toFixed(2)} {p.currency}
-              </span>
-            ),
-          },
-          {
-            key: "unit",
-            header: t("admin.warehouse.productColumnUnit"),
-            className: "w-20 shrink-0",
-            sortable: true,
-            sortValue: (p) => p.unit ?? "",
-            render: (p) => <span className="text-sm text-muted-foreground">{p.unit || "—"}</span>,
-          },
-          {
-            key: "stock",
-            header: t("admin.warehouse.productColumnStock"),
-            className: "w-32 shrink-0",
-            sortable: true,
-            sortValue: (p) => stockByProductId.get(p.id)?.stock ?? 0,
-            render: (p) => {
-              const stockItem = stockByProductId.get(p.id);
-              return stockItem ? (
-                <span className="flex items-center gap-2">
-                  <span className="text-sm font-medium tabular-nums">{stockItem.stock}</span>
-                  <Badge variant={stockItem.status === "ok" ? "secondary" : "destructive"}>
-                    {t(STATUS_LABEL_KEY[stockItem.status as keyof typeof STATUS_LABEL_KEY])}
-                  </Badge>
-                </span>
-              ) : (
-                <span className="text-sm text-muted-foreground">—</span>
-              );
-            },
-          },
-        ]}
-        rowActions={(p) => (
-          <>
-            <Button type="button" variant="outline" size="sm" onClick={() => openProduct(p.id)}>
-              {t("admin.warehouse.openProductButton")}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              aria-label={t("admin.warehouse.receiptButton")}
-              onClick={() => {
-                openProduct(p.id);
-                startReceipt(p.id);
-              }}
-            >
-              <PackagePlus className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              aria-label={t("admin.warehouse.returnButton")}
-              onClick={() => {
-                openProduct(p.id);
-                startReturn(p.id);
-              }}
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-          </>
+                {createProductMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  t("admin.catalog.createButton")
+                )}
+              </Button>
+              <Button type="button" size="sm" variant="ghost" onClick={cancelAddProduct}>
+                {t("common.cancel")}
+              </Button>
+            </div>
+          </div>
         )}
-      />
-    </>
-  );
+
+        <p className="mb-2 text-sm text-muted-foreground">
+          {t(
+            productsInCurrentCategory.length === 1
+              ? "admin.warehouse.productsCountOne"
+              : "admin.warehouse.productsCountMany",
+            { count: productsInCurrentCategory.length },
+          )}
+        </p>
+        <AdminDataTable
+          rows={productsForList}
+          getRowId={(p) => p.id}
+          searchFn={(p, q) =>
+            p.name.toLowerCase().includes(q) || (p.sku ?? "").toLowerCase().includes(q)
+          }
+          searchPlaceholder={t("admin.warehouse.productSearchPlaceholder")}
+          filters={
+            <select
+              value={productStatusFilter}
+              onChange={(e) =>
+                setProductStatusFilter(e.target.value as ProductPublicationStatus | "all")
+              }
+              aria-label={t("admin.warehouse.statusFilterLabel")}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="all">{t("admin.warehouse.allStatusesOption")}</option>
+              <option value={ProductPublicationStatus.PUBLISHED}>
+                {t(publicationStatusKey(ProductPublicationStatus.PUBLISHED))}
+              </option>
+              <option value={ProductPublicationStatus.DRAFT}>
+                {t(publicationStatusKey(ProductPublicationStatus.DRAFT))}
+              </option>
+              <option value={ProductPublicationStatus.HIDDEN}>
+                {t(publicationStatusKey(ProductPublicationStatus.HIDDEN))}
+              </option>
+            </select>
+          }
+          emptyState={({ query }) => (
+            <>
+              <Package className="h-6 w-6 text-primary mx-auto mb-4" />
+              <p>
+                {query
+                  ? t("admin.warehouse.noSearchResults", { query })
+                  : t("admin.warehouse.noProductsInCategory")}
+              </p>
+            </>
+          )}
+          columns={[
+            {
+              key: "name",
+              header: t("admin.warehouse.productColumnName"),
+              sortable: true,
+              sortValue: (p) => p.name,
+              render: (p) => (
+                <span className="flex min-w-0 items-center gap-3">
+                  <Package className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{p.name}</span>
+                    {p.sku && (
+                      <span className="block truncate text-xs text-muted-foreground">{p.sku}</span>
+                    )}
+                  </span>
+                </span>
+              ),
+            },
+            {
+              key: "status",
+              header: t("admin.warehouse.productColumnStatus"),
+              className: "w-28 shrink-0",
+              sortable: true,
+              sortValue: (p) => p.publicationStatus,
+              render: (p) => (
+                <Badge
+                  variant={
+                    p.publicationStatus === ProductPublicationStatus.PUBLISHED
+                      ? "secondary"
+                      : "outline"
+                  }
+                >
+                  {t(publicationStatusKey(p.publicationStatus))}
+                </Badge>
+              ),
+            },
+            {
+              key: "price",
+              header: t("admin.warehouse.productColumnPrice"),
+              className: "w-28 shrink-0",
+              sortable: true,
+              sortValue: (p) => p.price,
+              render: (p) => (
+                <span className="text-sm font-medium tabular-nums">
+                  {p.price.toFixed(2)} {p.currency}
+                </span>
+              ),
+            },
+            {
+              key: "unit",
+              header: t("admin.warehouse.productColumnUnit"),
+              className: "w-20 shrink-0",
+              sortable: true,
+              sortValue: (p) => p.unit ?? "",
+              render: (p) => <span className="text-sm text-muted-foreground">{p.unit || "—"}</span>,
+            },
+            {
+              key: "stock",
+              header: t("admin.warehouse.productColumnStock"),
+              className: "w-32 shrink-0",
+              sortable: true,
+              sortValue: (p) => stockByProductId.get(p.id)?.stock ?? 0,
+              render: (p) => {
+                const stockItem = stockByProductId.get(p.id);
+                return stockItem ? (
+                  <span className="flex items-center gap-2">
+                    <span className="text-sm font-medium tabular-nums">{stockItem.stock}</span>
+                    <Badge variant={stockItem.status === "ok" ? "secondary" : "destructive"}>
+                      {t(STATUS_LABEL_KEY[stockItem.status as keyof typeof STATUS_LABEL_KEY])}
+                    </Badge>
+                  </span>
+                ) : (
+                  <span className="text-sm text-muted-foreground">—</span>
+                );
+              },
+            },
+          ]}
+          rowActions={(p) => (
+            <>
+              <Button type="button" variant="outline" size="sm" onClick={() => openProduct(p.id)}>
+                {t("admin.warehouse.openProductButton")}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label={t("admin.warehouse.receiptButton")}
+                onClick={() => {
+                  openProduct(p.id);
+                  startReceipt(p.id);
+                }}
+              >
+                <PackagePlus className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label={t("admin.warehouse.returnButton")}
+                onClick={() => {
+                  openProduct(p.id);
+                  startReturn(p.id);
+                }}
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+        />
+      </>
+    );
+  };
 
   const selectedProduct = selectedProductId
     ? adminProducts.find((p) => p.id === selectedProductId)
@@ -1340,7 +1373,26 @@ function AdminWarehousePage() {
                       className="flex w-full flex-col items-center gap-2"
                     >
                       <Folder className="h-6 w-6 text-primary" />
-                      <span className="text-sm font-medium">{c.name}</span>
+                      {/* Задача этапа №9 — очень длинное название раньше
+                          ничем не ограничивалось и растягивало высоту
+                          плитки, ломая ровную сетку (UI_UX.md, §7,
+                          "очень длинное название не должно ломать
+                          раскладку"); line-clamp-2 — тот же приём, что
+                          уже используется для описаний товара. */}
+                      <span className="line-clamp-2 text-sm font-medium">{c.name}</span>
+                      {/* Задача этапа №9 — раньше нигде в Складе не было
+                          видно, что категория деактивирована в Каталоге
+                          (isActive уже приходит в составе
+                          AdminCategoryDTO, новый запрос не нужен) —
+                          сотрудник склада мог работать с остатками
+                          товара, невидимого покупателям, не зная об
+                          этом. Тот же Badge/те же ключи перевода, что
+                          и в admin/catalog. */}
+                      {!c.isActive && (
+                        <Badge variant="outline" className="text-[10px]">
+                          {t("admin.catalog.statusHidden")}
+                        </Badge>
+                      )}
                     </button>
                     <button
                       type="button"
