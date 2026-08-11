@@ -1,5 +1,7 @@
 import type {
   AdjustStockRequest,
+  RecordStockReceiptRequest,
+  RecordStockReturnRequest,
   SetStockThresholdRequest,
   StockItemDTO,
 } from "@shared/contracts/stock";
@@ -26,4 +28,20 @@ export async function executeSetStockThreshold(
 ): Promise<StockItemDTO> {
   await requireAdminFromRequest();
   return getServices().stockAdminService.setThreshold(data);
+}
+
+// recordStockReceipt/recordStockReturn: Warehouse role, same convention as
+// listStock/adjustStock above — движение товара (Промпт №4).
+export async function executeRecordStockReceipt(
+  data: RecordStockReceiptRequest,
+): Promise<StockItemDTO> {
+  const { userId } = await requireWarehouseFromRequest();
+  return getServices().stockAdminService.recordReceipt(userId, data);
+}
+
+export async function executeRecordStockReturn(
+  data: RecordStockReturnRequest,
+): Promise<StockItemDTO> {
+  const { userId } = await requireWarehouseFromRequest();
+  return getServices().stockAdminService.recordReturn(userId, data);
 }

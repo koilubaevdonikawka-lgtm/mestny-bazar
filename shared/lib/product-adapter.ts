@@ -38,6 +38,15 @@ export interface CatalogProductNode {
       }>;
     };
     options: Array<{ name: string; values: string[] }>;
+    /** Platform-native fields with no Shopify-shape equivalent — added for
+     * the product detail page (Stage 5). Absent/unset source data maps to
+     * `null`, never a fabricated value. */
+    unit: string | null;
+    manufacturer: string | null;
+    countryOfOrigin: string | null;
+    stock: number;
+    inStock: boolean;
+    category: { id: string; name: string; slug: string } | null;
   };
 }
 
@@ -45,6 +54,10 @@ export interface CatalogProductNode {
 export function toCatalogProductNode(product: ProductDTO): CatalogProductNode {
   const variantId = `${PLATFORM_VARIANT_PREFIX}${product.id}`;
   const price = { amount: product.price.toFixed(2), currencyCode: product.currency };
+  // Full gallery when available; falls back to the single legacy image_url
+  // column so products saved before image_urls existed still render.
+  const galleryUrls =
+    product.imageUrls.length > 0 ? product.imageUrls : product.imageUrl ? [product.imageUrl] : [];
 
   return {
     node: {
@@ -54,7 +67,7 @@ export function toCatalogProductNode(product: ProductDTO): CatalogProductNode {
       handle: product.slug,
       priceRange: { minVariantPrice: price },
       images: {
-        edges: product.imageUrl ? [{ node: { url: product.imageUrl, altText: product.name } }] : [],
+        edges: galleryUrls.map((url) => ({ node: { url, altText: product.name } })),
       },
       variants: {
         edges: [
@@ -70,6 +83,12 @@ export function toCatalogProductNode(product: ProductDTO): CatalogProductNode {
         ],
       },
       options: [],
+      unit: product.unit,
+      manufacturer: product.manufacturer,
+      countryOfOrigin: product.countryOfOrigin,
+      stock: product.stock,
+      inStock: product.inStock,
+      category: product.category ?? null,
     },
   };
 }

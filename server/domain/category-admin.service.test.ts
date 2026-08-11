@@ -18,6 +18,7 @@ function makeCategory(overrides: Partial<AdminCategoryDTO> = {}): AdminCategoryD
     sortOrder: 0,
     isActive: true,
     nameKg: null,
+    parentId: null,
     ...overrides,
   };
 }
@@ -91,6 +92,34 @@ describe("CategoryAdminService.createCategory", () => {
     await service.createCategory({ name: "Dairy" });
     expect(events.publish).toHaveBeenCalledWith({ type: "category.created", category: created });
   });
+
+  it("accepts an explicit null parentId (top-level) without checking for a parent", async () => {
+    const repo = fakeRepo();
+    const service = new CategoryAdminService(repo, fakeEventBus());
+
+    await service.createCategory({ name: "Dairy", parentId: null });
+    expect(repo.getById).not.toHaveBeenCalled();
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ parentId: null }));
+  });
+
+  it("rejects a parentId that does not resolve to an existing category", async () => {
+    const repo = fakeRepo({ getById: vi.fn(async () => null) });
+    const service = new CategoryAdminService(repo, fakeEventBus());
+
+    await expect(
+      service.createCategory({ name: "Dairy", parentId: "missing-parent" }),
+    ).rejects.toBeInstanceOf(CategoryValidationError);
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  it("creates successfully with a valid existing parentId", async () => {
+    const parent = makeCategory({ id: "parent-1" });
+    const repo = fakeRepo({ getById: vi.fn(async () => parent) });
+    const service = new CategoryAdminService(repo, fakeEventBus());
+
+    await service.createCategory({ name: "Dairy", parentId: "parent-1" });
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ parentId: "parent-1" }));
+  });
 });
 
 describe("CategoryAdminService.updateCategory", () => {
@@ -122,5 +151,27 @@ describe("CategoryAdminService.updateCategory", () => {
 
     await service.updateCategory({ id: "cat-1", isActive: false });
     expect(events.publish).toHaveBeenCalledWith({ type: "category.updated", category: updated });
+  });
+
+  it("rejects a category being set as its own parent", async () => {
+    const repo = fakeRepo();
+    const service = new CategoryAdminService(repo, fakeEventBus());
+
+    await expect(service.updateCategory({ id: "cat-1", parentId: "cat-1" })).rejects.toBeInstanceOf(
+      CategoryValidationError,
+    );
+    expect(repo.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects a parentId that does not resolve to an existing category", async () => {
+    const repo = fakeRepo({
+      getById: vi.fn(async (id: string) => (id === "cat-1" ? makeCategory() : null)),
+    });
+    const service = new CategoryAdminService(repo, fakeEventBus());
+
+    await expect(
+      service.updateCategory({ id: "cat-1", parentId: "missing-parent" }),
+    ).rejects.toBeInstanceOf(CategoryValidationError);
+    expect(repo.update).not.toHaveBeenCalled();
   });
 });

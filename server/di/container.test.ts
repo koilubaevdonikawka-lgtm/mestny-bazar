@@ -60,6 +60,13 @@ const EXPECTED_KEYS: Array<keyof ServiceContainer> = [
   "bootstrapService",
   "ownershipTransferService",
   "roleResolutionService",
+  "categoryImageStorage",
+  "mediaStorage",
+  "mediaUploadService",
+  "courierProfiles",
+  "courierProfileService",
+  "rbacRepository",
+  "rbacService",
 ];
 
 describe("createServices", () => {

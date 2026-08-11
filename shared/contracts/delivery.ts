@@ -16,6 +16,35 @@ export type DeliveryZoneDTO = {
   isActive: boolean;
 };
 
+/**
+ * Подэтап 0 (delivery-future-roadmap.md) — origin point for BY_DISTANCE.
+ * lat/lng nullable: coordinates aren't required to create a Store record,
+ * only to use it as a distance-calculation origin later (geocoding provider
+ * ADR, not part of this sub-stage).
+ */
+export interface StoreDTO {
+  id: string;
+  cityId: string;
+  name: string;
+  address: string;
+  lat: number | null;
+  lng: number | null;
+  isActive: boolean;
+}
+
+export interface CreateStoreRequest {
+  cityId: string;
+  name: string;
+  address: string;
+  lat?: number | null;
+  lng?: number | null;
+  isActive?: boolean;
+}
+
+export interface UpdateStoreRequest extends Partial<CreateStoreRequest> {
+  id: string;
+}
+
 export interface AddressDTO {
   id: string;
   label: string | null;

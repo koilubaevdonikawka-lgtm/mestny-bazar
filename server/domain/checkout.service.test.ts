@@ -9,6 +9,8 @@ import { CouponValidityRule } from "@server/domain/discount-policy/rules/coupon-
 import { CouponMinOrderRule } from "@server/domain/discount-policy/rules/coupon-min-order.rule";
 import { CouponDiscountAmountRule } from "@server/domain/discount-policy/rules/coupon-discount-amount.rule";
 import { InsufficientStockError } from "@server/domain/checkout.errors";
+import { ProductVariantService } from "@server/domain/product-variant.service";
+import { VariantStockService } from "@server/domain/variant-stock.service";
 import type { CreateOrderData, IOrderRepository } from "@server/ports/order.repository";
 import type { IProductRepository, StockReservationItem } from "@server/ports/product.repository";
 import type { IAddressRepository } from "@server/ports/address.repository";
@@ -20,9 +22,17 @@ import type { IPaymentPolicy, PaymentPolicyContext } from "@server/ports/payment
 import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
 import type { ICustomerStatusRepository } from "@server/ports/customer-status.repository";
 import type { ICouponRepository } from "@server/ports/coupon.repository";
+import type { IProductVariantRepository } from "@server/ports/product-variant.repository";
+import type {
+  IVariantStockRepository,
+  VariantStockRow,
+} from "@server/ports/variant-stock.repository";
+import type { ISellerProductRepository } from "@server/ports/seller-product.repository";
+import type { IStockPolicy, StockPolicyResult } from "@server/ports/stock-policy.port";
 import type { CreateOrderRequest, OrderDTO } from "@shared/contracts/order";
 import type { ProductDTO } from "@shared/contracts/catalog";
 import type { CouponDTO } from "@shared/contracts/coupon";
+import type { ProductVariantDTO } from "@shared/contracts/product-variant";
 
 const PRODUCT_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -36,9 +46,12 @@ function makeProduct(overrides: Partial<ProductDTO> = {}): ProductDTO {
     currency: "KGS",
     unit: null,
     imageUrl: null,
+    imageUrls: [],
     stock: 10,
     inStock: true,
     categoryId: null,
+    manufacturer: null,
+    countryOfOrigin: null,
     ...overrides,
   };
 }
@@ -112,6 +125,13 @@ function fakeOrderRepository(overrides: Partial<IOrderRepository> = {}): IOrderR
     countActiveDeliveriesByCourier: vi.fn(async () => 0),
 
     listByStatusesForCourier: vi.fn(async () => []),
+    listByCourier: vi.fn(async () => ({
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 50,
+      hasMore: false,
+    })),
     listInPeriod: vi.fn(async () => []),
     ...overrides,
   };
@@ -226,6 +246,83 @@ function fakeCouponRepository(overrides: Partial<ICouponRepository> = {}): ICoup
   };
 }
 
+const VARIANT_ID = "22222222-2222-2222-2222-222222222222";
+
+function makeVariant(overrides: Partial<ProductVariantDTO> = {}): ProductVariantDTO {
+  return {
+    id: VARIANT_ID,
+    productId: PRODUCT_ID,
+    sku: "SKU-VARIANT-1",
+    price: null,
+    imageUrl: null,
+    publicationStatus: "PUBLISHED",
+    sortOrder: 0,
+    ...overrides,
+  };
+}
+
+function fakeProductVariantRepository(
+  overrides: Partial<IProductVariantRepository> = {},
+): IProductVariantRepository {
+  return {
+    listForProduct: vi.fn(async () => []),
+    getById: vi.fn(async (id: string) => (id === VARIANT_ID ? makeVariant() : null)),
+    create: vi.fn(async () => makeVariant()),
+    update: vi.fn(async () => makeVariant()),
+    skuExists: vi.fn(async () => false),
+    ...overrides,
+  };
+}
+
+function fakeVariantStockRepository(
+  overrides: Partial<IVariantStockRepository> = {},
+): IVariantStockRepository {
+  return {
+    listForProduct: vi.fn(async () => []),
+    getByVariantId: vi.fn(async () => null),
+    create: vi.fn(async (variantId: string, stock: number, lowStockThreshold: number | null) => ({
+      variantId,
+      stock,
+      lowStockThreshold,
+    })),
+    adjustStock: vi.fn(async (variantId: string, stock: number) => ({
+      variantId,
+      stock,
+      lowStockThreshold: null,
+    })),
+    setLowStockThreshold: vi.fn(
+      async (variantId: string, threshold: number | null): Promise<VariantStockRow> => ({
+        variantId,
+        stock: 0,
+        lowStockThreshold: threshold,
+      }),
+    ),
+    reserveStock: vi.fn(async () => {}),
+    releaseStock: vi.fn(async () => {}),
+    ...overrides,
+  };
+}
+
+function fakeSellerProductRepository(
+  overrides: Partial<ISellerProductRepository> = {},
+): ISellerProductRepository {
+  return {
+    listBySeller: vi.fn(async () => []),
+    listAll: vi.fn(async () => ({ items: [], total: 0, page: 1, pageSize: 20, hasMore: false })),
+    getById: vi.fn(async () => null),
+    create: vi.fn(),
+    update: vi.fn(),
+    setPublicationStatus: vi.fn(),
+    slugExists: vi.fn(async () => false),
+    ...overrides,
+  } as ISellerProductRepository;
+}
+
+function fakeStockPolicy(overrides: Partial<IStockPolicy> = {}): IStockPolicy {
+  const evaluateStock = vi.fn((): StockPolicyResult => ({ allowed: true, effectiveThreshold: 5 }));
+  return { evaluateStock, assertStockOk: vi.fn(), ...overrides };
+}
+
 function buildCheckoutService(deps: {
   orderRepo?: IOrderRepository;
   productRepo?: IProductRepository;
@@ -238,6 +335,8 @@ function buildCheckoutService(deps: {
   orderLifecycle?: IOrderLifecyclePolicy;
   customerStatus?: ICustomerStatusRepository;
   couponRepo?: ICouponRepository;
+  productVariantRepo?: IProductVariantRepository;
+  variantStockRepo?: IVariantStockRepository;
 }) {
   const orderRepo = deps.orderRepo ?? fakeOrderRepository();
   const productRepo = deps.productRepo ?? fakeProductRepository();
@@ -258,6 +357,18 @@ function buildCheckoutService(deps: {
     eventBus,
   );
 
+  const productVariantRepo = deps.productVariantRepo ?? fakeProductVariantRepository();
+  const variantStockRepo = deps.variantStockRepo ?? fakeVariantStockRepository();
+  const productVariants = new ProductVariantService(
+    productVariantRepo,
+    fakeSellerProductRepository(),
+  );
+  const variantStock = new VariantStockService(
+    variantStockRepo,
+    productVariantRepo,
+    fakeStockPolicy(),
+  );
+
   const checkout = new CheckoutService(
     orderService,
     productRepo,
@@ -271,9 +382,11 @@ function buildCheckoutService(deps: {
     orderLifecycle,
     deps.customerStatus ?? fakeCustomerStatusRepository(),
     coupons,
+    productVariants,
+    variantStock,
   );
 
-  return { checkout, orderRepo, productRepo };
+  return { checkout, orderRepo, productRepo, productVariantRepo, variantStockRepo };
 }
 
 describe("CheckoutService.checkout", () => {
@@ -653,5 +766,259 @@ describe("CheckoutService.checkout — line item resolution", () => {
     await expect(checkout.checkout(null, makeRequest())).rejects.toMatchObject({
       name: "CheckoutValidationError",
     });
+  });
+});
+
+describe("CheckoutService.checkout — variantId (Stage 18)", () => {
+  it("checks out normally with no variantId — full backward compatibility", async () => {
+    const productVariantRepo = fakeProductVariantRepository();
+    const { checkout, orderRepo } = buildCheckoutService({ productVariantRepo });
+
+    const result = await checkout.checkout(null, makeRequest());
+
+    expect(result.order.total).toBeGreaterThan(0);
+    expect(productVariantRepo.getById).not.toHaveBeenCalled();
+    expect(orderRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ items: [expect.objectContaining({ variantId: null })] }),
+    );
+  });
+
+  it("persists variantId on the order line when the variant exists, matches the product, and is published", async () => {
+    const variantStockRepo = fakeVariantStockRepository({
+      getByVariantId: vi.fn(async () => ({
+        variantId: VARIANT_ID,
+        stock: 10,
+        lowStockThreshold: null,
+      })),
+    });
+    const { checkout, orderRepo } = buildCheckoutService({ variantStockRepo });
+
+    await checkout.checkout(
+      null,
+      makeRequest({ items: [{ productId: PRODUCT_ID, variantId: VARIANT_ID, quantity: 2 }] }),
+    );
+
+    expect(orderRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [expect.objectContaining({ productId: PRODUCT_ID, variantId: VARIANT_ID })],
+      }),
+    );
+  });
+
+  it("rejects an unknown variantId", async () => {
+    const productVariantRepo = fakeProductVariantRepository({ getById: vi.fn(async () => null) });
+    const { checkout, orderRepo } = buildCheckoutService({ productVariantRepo });
+
+    await expect(
+      checkout.checkout(
+        null,
+        makeRequest({ items: [{ productId: PRODUCT_ID, variantId: VARIANT_ID, quantity: 1 }] }),
+      ),
+    ).rejects.toMatchObject({ name: "CheckoutValidationError" });
+    expect(orderRepo.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a variant that belongs to a different product", async () => {
+    const productVariantRepo = fakeProductVariantRepository({
+      getById: vi.fn(async () => makeVariant({ productId: "some-other-product" })),
+    });
+    const { checkout, orderRepo } = buildCheckoutService({ productVariantRepo });
+
+    await expect(
+      checkout.checkout(
+        null,
+        makeRequest({ items: [{ productId: PRODUCT_ID, variantId: VARIANT_ID, quantity: 1 }] }),
+      ),
+    ).rejects.toMatchObject({ name: "CheckoutValidationError" });
+    expect(orderRepo.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a DRAFT (unpublished) variant", async () => {
+    const productVariantRepo = fakeProductVariantRepository({
+      getById: vi.fn(async () => makeVariant({ publicationStatus: "DRAFT" })),
+    });
+    const { checkout, orderRepo } = buildCheckoutService({ productVariantRepo });
+
+    await expect(
+      checkout.checkout(
+        null,
+        makeRequest({ items: [{ productId: PRODUCT_ID, variantId: VARIANT_ID, quantity: 1 }] }),
+      ),
+    ).rejects.toMatchObject({ name: "CheckoutValidationError" });
+    expect(orderRepo.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a HIDDEN (archived) variant", async () => {
+    const productVariantRepo = fakeProductVariantRepository({
+      getById: vi.fn(async () => makeVariant({ publicationStatus: "HIDDEN" })),
+    });
+    const { checkout, orderRepo } = buildCheckoutService({ productVariantRepo });
+
+    await expect(
+      checkout.checkout(
+        null,
+        makeRequest({ items: [{ productId: PRODUCT_ID, variantId: VARIANT_ID, quantity: 1 }] }),
+      ),
+    ).rejects.toMatchObject({ name: "CheckoutValidationError" });
+    expect(orderRepo.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a variant with insufficient tracked stock (VariantStockService, not products.stock)", async () => {
+    const variantStockRepo = fakeVariantStockRepository({
+      getByVariantId: vi.fn(async () => ({
+        variantId: VARIANT_ID,
+        stock: 1,
+        lowStockThreshold: null,
+      })),
+    });
+    const { checkout, orderRepo } = buildCheckoutService({ variantStockRepo });
+
+    await expect(
+      checkout.checkout(
+        null,
+        makeRequest({ items: [{ productId: PRODUCT_ID, variantId: VARIANT_ID, quantity: 5 }] }),
+      ),
+    ).rejects.toMatchObject({ name: "CheckoutValidationError" });
+    expect(orderRepo.create).not.toHaveBeenCalled();
+  });
+
+  it("allows a variant whose stock is not yet tracked (opt-in tracking — no row is not a failure)", async () => {
+    const variantStockRepo = fakeVariantStockRepository({
+      getByVariantId: vi.fn(async () => null),
+    });
+    const { checkout, orderRepo } = buildCheckoutService({ variantStockRepo });
+
+    await checkout.checkout(
+      null,
+      makeRequest({ items: [{ productId: PRODUCT_ID, variantId: VARIANT_ID, quantity: 5 }] }),
+    );
+
+    expect(orderRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [expect.objectContaining({ variantId: VARIANT_ID })],
+      }),
+    );
+  });
+
+  it("reserves product stock regardless of variantId", async () => {
+    const variantStockRepo = fakeVariantStockRepository({
+      getByVariantId: vi.fn(async () => ({
+        variantId: VARIANT_ID,
+        stock: 10,
+        lowStockThreshold: null,
+      })),
+    });
+    const { checkout, productRepo } = buildCheckoutService({ variantStockRepo });
+
+    await checkout.checkout(
+      null,
+      makeRequest({ items: [{ productId: PRODUCT_ID, variantId: VARIANT_ID, quantity: 2 }] }),
+    );
+
+    expect(productRepo.reserveStock).toHaveBeenCalledWith([{ productId: PRODUCT_ID, quantity: 2 }]);
+  });
+});
+
+describe("CheckoutService.checkout — variant stock reservation (Stage 19)", () => {
+  it("reserves variant stock alongside product stock when variantId is present", async () => {
+    const variantStockRepo = fakeVariantStockRepository({
+      getByVariantId: vi.fn(async () => ({
+        variantId: VARIANT_ID,
+        stock: 10,
+        lowStockThreshold: null,
+      })),
+    });
+    const { checkout, productRepo } = buildCheckoutService({ variantStockRepo });
+
+    await checkout.checkout(
+      null,
+      makeRequest({ items: [{ productId: PRODUCT_ID, variantId: VARIANT_ID, quantity: 3 }] }),
+    );
+
+    expect(productRepo.reserveStock).toHaveBeenCalledWith([{ productId: PRODUCT_ID, quantity: 3 }]);
+    expect(variantStockRepo.reserveStock).toHaveBeenCalledWith([
+      { variantId: VARIANT_ID, quantity: 3 },
+    ]);
+  });
+
+  it("never calls variantStock.reserveStock/releaseStock when no item has a variantId — full backward compatibility", async () => {
+    const variantStockRepo = fakeVariantStockRepository();
+    const { checkout } = buildCheckoutService({ variantStockRepo });
+
+    await checkout.checkout(null, makeRequest());
+
+    expect(variantStockRepo.reserveStock).not.toHaveBeenCalled();
+    expect(variantStockRepo.releaseStock).not.toHaveBeenCalled();
+  });
+
+  it("releases the just-reserved product stock when variant stock reservation fails, and does not create an order", async () => {
+    const variantStockRepo = fakeVariantStockRepository({
+      getByVariantId: vi.fn(async () => ({
+        variantId: VARIANT_ID,
+        stock: 10,
+        lowStockThreshold: null,
+      })),
+      reserveStock: vi.fn(async () => {
+        throw new Error("INSUFFICIENT_VARIANT_STOCK:" + VARIANT_ID);
+      }),
+    });
+    const { checkout, productRepo, orderRepo } = buildCheckoutService({ variantStockRepo });
+
+    await expect(
+      checkout.checkout(
+        null,
+        makeRequest({ items: [{ productId: PRODUCT_ID, variantId: VARIANT_ID, quantity: 3 }] }),
+      ),
+    ).rejects.toThrow();
+
+    expect(productRepo.reserveStock).toHaveBeenCalledWith([{ productId: PRODUCT_ID, quantity: 3 }]);
+    expect(productRepo.releaseStock).toHaveBeenCalledWith([{ productId: PRODUCT_ID, quantity: 3 }]);
+    expect(orderRepo.create).not.toHaveBeenCalled();
+  });
+
+  it("releases both product and variant stock when a later checkout step fails (mirrors InventoryService's existing rollback)", async () => {
+    const variantStockRepo = fakeVariantStockRepository({
+      getByVariantId: vi.fn(async () => ({
+        variantId: VARIANT_ID,
+        stock: 10,
+        lowStockThreshold: null,
+      })),
+    });
+    const paymentPolicy = fakePaymentPolicy({
+      assertCanUsePaymentMethod: vi.fn(() => {
+        throw new Error("POLICY_DENIED");
+      }),
+    });
+    const { checkout, productRepo } = buildCheckoutService({ variantStockRepo, paymentPolicy });
+
+    await expect(
+      checkout.checkout(
+        null,
+        makeRequest({ items: [{ productId: PRODUCT_ID, variantId: VARIANT_ID, quantity: 2 }] }),
+      ),
+    ).rejects.toThrow("POLICY_DENIED");
+
+    expect(productRepo.releaseStock).toHaveBeenCalledWith([{ productId: PRODUCT_ID, quantity: 2 }]);
+    expect(variantStockRepo.releaseStock).toHaveBeenCalledWith([
+      { variantId: VARIANT_ID, quantity: 2 },
+    ]);
+  });
+
+  it("does not release variant stock after a successful checkout", async () => {
+    const variantStockRepo = fakeVariantStockRepository({
+      getByVariantId: vi.fn(async () => ({
+        variantId: VARIANT_ID,
+        stock: 10,
+        lowStockThreshold: null,
+      })),
+    });
+    const { checkout } = buildCheckoutService({ variantStockRepo });
+
+    await checkout.checkout(
+      null,
+      makeRequest({ items: [{ productId: PRODUCT_ID, variantId: VARIANT_ID, quantity: 2 }] }),
+    );
+
+    expect(variantStockRepo.releaseStock).not.toHaveBeenCalled();
   });
 });

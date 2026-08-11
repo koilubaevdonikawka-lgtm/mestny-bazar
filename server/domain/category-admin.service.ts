@@ -9,17 +9,7 @@ import {
   CategoryNotFoundError,
   CategoryValidationError,
 } from "@server/domain/category-admin.errors";
-
-function slugify(name: string): string {
-  const base = name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/[\s_]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-  return base.slice(0, 80) || `category-${Date.now()}`;
-}
+import { slugify } from "@shared/lib/slugify";
 
 /** Category CRUD — new for the Admin Platform (catalog.md); mirrors SellerProductService's shape. */
 export class CategoryAdminService {
@@ -34,7 +24,10 @@ export class CategoryAdminService {
 
   async createCategory(data: CreateCategoryRequest): Promise<AdminCategoryDTO> {
     this.validateName(data.name);
-    const slug = await this.resolveUniqueSlug(data.slug?.trim() || slugify(data.name));
+    if (data.parentId !== undefined) {
+      await this.assertValidParent(data.parentId, undefined);
+    }
+    const slug = await this.resolveUniqueSlug(data.slug?.trim() || slugify(data.name, "category"));
 
     const category = await this.categories.create({ ...data, slug });
     await this.events.publish({ type: "category.created", category });
@@ -46,6 +39,9 @@ export class CategoryAdminService {
     if (!existing) throw new CategoryNotFoundError();
 
     if (data.name !== undefined) this.validateName(data.name);
+    if (data.parentId !== undefined) {
+      await this.assertValidParent(data.parentId, data.id);
+    }
 
     let patch = { ...data };
     if (data.slug !== undefined) {
@@ -73,6 +69,28 @@ export class CategoryAdminService {
   private validateName(name: string): void {
     if (!name?.trim() || name.trim().length < 2) {
       throw new CategoryValidationError("Name must be at least 2 characters", "name");
+    }
+  }
+
+  /**
+   * Direct self-parenting and a nonexistent parent are rejected here with a
+   * friendly error instead of surfacing as a raw FK-violation from Postgres
+   * (mirrors SellerProductService.assertCategoryExists for products).
+   * Multi-hop cycles (A -> B -> A) are not checked here — see the migration
+   * comment; buildCategoryTree/getCategoryAncestry handle that defensively
+   * on read instead of paying for a full ancestry walk on every write.
+   */
+  private async assertValidParent(
+    parentId: string | null,
+    selfId: string | undefined,
+  ): Promise<void> {
+    if (parentId === null) return;
+    if (parentId === selfId) {
+      throw new CategoryValidationError("A category cannot be its own parent", "parentId");
+    }
+    const parent = await this.categories.getById(parentId);
+    if (!parent) {
+      throw new CategoryValidationError("Parent category not found", "parentId");
     }
   }
 }

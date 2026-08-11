@@ -65,8 +65,35 @@ function fromCartItemDTO(dto: CartItemDTO): CartItem {
         images: {
           edges: dto.imageUrl ? [{ node: { url: dto.imageUrl, altText: dto.name } }] : [],
         },
-        variants: { edges: [] },
+        // Этап №5 — mirrors toCatalogProductNode's single synthetic variant
+        // shape exactly (id = variantId, availableForSale = true) rather
+        // than leaving this empty: CartQuantityControl (reused inside
+        // CartDrawer to render the [-] qty [+] stepper) reads
+        // product.node.variants.edges[0] the same way for every caller — an
+        // empty array here would silently make it fall back to the "Add to
+        // cart" state for every authenticated-user cart line.
+        variants: {
+          edges: [
+            {
+              node: {
+                id: variantId,
+                title: dto.name,
+                price: { amount: dto.price.toFixed(2), currencyCode: dto.currency },
+                availableForSale: true,
+                selectedOptions: [],
+              },
+            },
+          ],
+        },
         options: [],
+        // The cart snapshot (CartItemDTO) never carried these — live stock is
+        // re-checked separately by validateCart, not read off this node.
+        unit: null,
+        manufacturer: null,
+        countryOfOrigin: null,
+        stock: 0,
+        inStock: true,
+        category: null,
       },
     },
     variantId,

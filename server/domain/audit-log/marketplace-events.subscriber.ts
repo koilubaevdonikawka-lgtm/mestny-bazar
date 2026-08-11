@@ -85,6 +85,59 @@ export function subscribeAuditLog(bus: IMarketplaceEventBus, auditLog: IAuditLog
     logOrderEvent("order.delivered", () => ({})),
   );
 
+  bus.subscribe(
+    "order.paid",
+    logOrderEvent("order.paid", () => ({})),
+  );
+
+  bus.subscribe("payment.initiated", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "payment.initiated",
+      occurredAt: new Date().toISOString(),
+      entityType: "order",
+      entityId: event.order.id,
+      actorId: null,
+      payload: orderPayload(event.order, { paymentId: event.paymentId }),
+    });
+  });
+
+  bus.subscribe("payment.confirmed", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "payment.confirmed",
+      occurredAt: new Date().toISOString(),
+      entityType: "order",
+      entityId: event.order.id,
+      actorId: null,
+      payload: orderPayload(event.order, { paymentId: event.paymentId }),
+    });
+  });
+
+  bus.subscribe("payment.failed", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "payment.failed",
+      occurredAt: new Date().toISOString(),
+      entityType: "order",
+      entityId: event.order.id,
+      actorId: null,
+      payload: orderPayload(event.order, { paymentId: event.paymentId, reason: event.reason }),
+    });
+  });
+
+  bus.subscribe("payment.expired", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "payment.expired",
+      occurredAt: new Date().toISOString(),
+      entityType: "order",
+      entityId: event.order.id,
+      actorId: null,
+      payload: orderPayload(event.order, { paymentId: event.paymentId }),
+    });
+  });
+
   bus.subscribe("category.created", async (event) => {
     await auditLog.append({
       id: randomUUID(),
@@ -130,6 +183,39 @@ export function subscribeAuditLog(bus: IMarketplaceEventBus, auditLog: IAuditLog
       entityId: event.productId,
       actorId: null,
       payload: {},
+    });
+  });
+
+  bus.subscribe("stock.received", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "stock.received",
+      occurredAt: new Date().toISOString(),
+      entityType: "product",
+      entityId: event.productId,
+      actorId: event.actorId,
+      payload: {
+        quantity: event.quantity,
+        movementDate: event.movementDate,
+        purchasePrice: event.purchasePrice,
+        supplierId: event.supplierId,
+      },
+    });
+  });
+
+  bus.subscribe("stock.returned", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "stock.returned",
+      occurredAt: new Date().toISOString(),
+      entityType: "product",
+      entityId: event.productId,
+      actorId: event.actorId,
+      payload: {
+        quantity: event.quantity,
+        movementDate: event.movementDate,
+        note: event.note,
+      },
     });
   });
 
@@ -390,6 +476,30 @@ export function subscribeAuditLog(bus: IMarketplaceEventBus, auditLog: IAuditLog
     });
   });
 
+  bus.subscribe("delivery.store.created", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "delivery.store.created",
+      occurredAt: new Date().toISOString(),
+      entityType: "store",
+      entityId: event.store.id,
+      actorId: null,
+      payload: { name: event.store.name, cityId: event.store.cityId },
+    });
+  });
+
+  bus.subscribe("delivery.store.updated", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "delivery.store.updated",
+      occurredAt: new Date().toISOString(),
+      entityType: "store",
+      entityId: event.store.id,
+      actorId: null,
+      payload: { name: event.store.name, isActive: event.store.isActive },
+    });
+  });
+
   bus.subscribe("delivery.zone.deactivated", async (event) => {
     await auditLog.append({
       id: randomUUID(),
@@ -480,6 +590,138 @@ export function subscribeAuditLog(bus: IMarketplaceEventBus, auditLog: IAuditLog
         initiatorUserId: event.transfer.initiatorUserId,
         targetUserId: event.transfer.targetUserId,
       },
+    });
+  });
+
+  bus.subscribe("courier.created", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "courier.created",
+      occurredAt: new Date().toISOString(),
+      entityType: "courier",
+      entityId: event.userId,
+      actorId: null,
+      payload: {},
+    });
+  });
+
+  bus.subscribe("courier.blocked", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "courier.blocked",
+      occurredAt: new Date().toISOString(),
+      entityType: "courier",
+      entityId: event.userId,
+      actorId: null,
+      payload: {},
+    });
+  });
+
+  bus.subscribe("courier.unblocked", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "courier.unblocked",
+      occurredAt: new Date().toISOString(),
+      entityType: "courier",
+      entityId: event.userId,
+      actorId: null,
+      payload: {},
+    });
+  });
+
+  bus.subscribe("rbac.role.created", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "rbac.role.created",
+      occurredAt: new Date().toISOString(),
+      entityType: "rbac_role",
+      entityId: event.roleId,
+      actorId: null,
+      payload: { name: event.name },
+    });
+  });
+
+  bus.subscribe("rbac.role.updated", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "rbac.role.updated",
+      occurredAt: new Date().toISOString(),
+      entityType: "rbac_role",
+      entityId: event.roleId,
+      actorId: null,
+      payload: { name: event.name },
+    });
+  });
+
+  bus.subscribe("rbac.role.deleted", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "rbac.role.deleted",
+      occurredAt: new Date().toISOString(),
+      entityType: "rbac_role",
+      entityId: event.roleId,
+      actorId: null,
+      payload: { name: event.name },
+    });
+  });
+
+  bus.subscribe("rbac.permission.created", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "rbac.permission.created",
+      occurredAt: new Date().toISOString(),
+      entityType: "rbac_permission",
+      entityId: event.permissionId,
+      actorId: null,
+      payload: { module: event.module, action: event.action },
+    });
+  });
+
+  bus.subscribe("rbac.permission.updated", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "rbac.permission.updated",
+      occurredAt: new Date().toISOString(),
+      entityType: "rbac_permission",
+      entityId: event.permissionId,
+      actorId: null,
+      payload: { module: event.module, action: event.action },
+    });
+  });
+
+  bus.subscribe("rbac.permission.deleted", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "rbac.permission.deleted",
+      occurredAt: new Date().toISOString(),
+      entityType: "rbac_permission",
+      entityId: event.permissionId,
+      actorId: null,
+      payload: { module: event.module, action: event.action },
+    });
+  });
+
+  bus.subscribe("rbac.role.assigned", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "rbac.role.assigned",
+      occurredAt: new Date().toISOString(),
+      entityType: "user",
+      entityId: event.userId,
+      actorId: null,
+      payload: { roleId: event.roleId },
+    });
+  });
+
+  bus.subscribe("rbac.role.revoked", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "rbac.role.revoked",
+      occurredAt: new Date().toISOString(),
+      entityType: "user",
+      entityId: event.userId,
+      actorId: null,
+      payload: { roleId: event.roleId },
     });
   });
 }

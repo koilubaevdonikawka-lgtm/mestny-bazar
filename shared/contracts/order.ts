@@ -20,6 +20,8 @@ export type PaymentMethod = "ONLINE" | "CASH";
 export interface OrderItemDTO {
   id: string;
   productId: string | null;
+  /** Stage 17 — which product_variants row this line was ordered as, if any. Not yet validated/resolved anywhere (no variant-aware pricing/stock check exists yet); a plain persisted identifier for a future stage to build on. */
+  variantId: string | null;
   productName: string;
   productImageUrl: string | null;
   quantity: number;
@@ -62,6 +64,14 @@ export interface CreateOrderItemRequest {
   productId?: string;
   /** Product's platform slug. */
   productSlug?: string;
+  /**
+   * Stage 17 — optional product_variants UUID. Persisted as-is on the order
+   * line (order_items.variant_id) once the item resolves; not validated
+   * against the resolved product or checked for stock here — no variant-
+   * aware pricing/reservation exists yet (a future stage's job, using the
+   * already-built ProductVariantService/VariantStockService).
+   */
+  variantId?: string;
   /** Used to provision a platform product when slug is not in DB yet. */
   snapshot?: {
     name: string;

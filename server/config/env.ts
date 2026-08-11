@@ -13,14 +13,27 @@ export const serverEnvSchema = z.object({
   // Supabase is the sole data source for the whole platform (ADR-002).
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
 
+  // All optional — the payment provider factory (payment-provider.factory.ts)
+  // falls back to a safe non-throwing stub when any of these is missing, so
+  // the app boots and cash checkout works with zero Finik configuration.
+  // RSA key pair per official Finik documentation (Промпт №077) — supersedes
+  // the Промпт №075 HMAC-secret assumption.
   FINIK_API_KEY: z.string().optional(),
-  FINIK_WEBHOOK_SECRET: z.string().optional(),
+  FINIK_RSA_PRIVATE_KEY: z.string().optional(),
+  FINIK_WEBHOOK_PUBLIC_KEY: z.string().optional(),
+  FINIK_MERCHANT_ID: z.string().optional(),
+  FINIK_ENVIRONMENT: z.enum(["beta", "production"]).optional(),
 
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_ADMIN_CHAT_ID: z.string().optional(),
   TELEGRAM_WAREHOUSE_CHAT_ID: z.string().optional(),
   TELEGRAM_COURIER_CHAT_ID: z.string().optional(),
   WHATSAPP_API_TOKEN: z.string().optional(),
+
+  // Optional — ai-provider.factory.ts falls back to the safe StubAiProvider
+  // when this is missing, so the app boots with zero AI configuration
+  // (Промпт №088/089).
+  GOOGLE_AI_API_KEY: z.string().optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

@@ -10,6 +10,7 @@ describe("mapStockRow", () => {
         stock: 12,
         low_stock_threshold: 10,
         category_id: "cat-1",
+        unit: "л",
       }),
     ).toEqual({
       productId: "p1",
@@ -17,6 +18,7 @@ describe("mapStockRow", () => {
       stock: 12,
       lowStockThreshold: 10,
       categoryId: "cat-1",
+      unit: "л",
     });
   });
 
@@ -27,6 +29,7 @@ describe("mapStockRow", () => {
       stock: 0,
       low_stock_threshold: null,
       category_id: null,
+      unit: null,
     });
 
     expect(mapped.lowStockThreshold).toBeNull();

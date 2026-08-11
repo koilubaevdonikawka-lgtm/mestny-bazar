@@ -13,6 +13,7 @@ function makeOrderItem(overrides: Partial<OrderItemDTO> = {}): OrderItemDTO {
   return {
     id: "item-1",
     productId: "product-1",
+    variantId: null,
     productName: "Молоко",
     productImageUrl: null,
     quantity: 2,
@@ -70,6 +71,13 @@ function fakeRepo(overrides: Partial<IOrderRepository> = {}): IOrderRepository {
     countActiveDeliveriesByCourier: vi.fn(async () => 0),
 
     listByStatusesForCourier: vi.fn(async () => []),
+    listByCourier: vi.fn(async () => ({
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 50,
+      hasMore: false,
+    })),
     listInPeriod: vi.fn(async () => []),
     ...overrides,
   };
@@ -290,6 +298,80 @@ describe("OrderService", () => {
       });
 
       await expect(service.cancelOrder("order-1", userId)).resolves.toEqual(cancelled);
+    });
+  });
+
+  describe("confirmPayment (Промпт №075)", () => {
+    it("throws OrderNotFoundError when the order does not exist", async () => {
+      const { service } = buildService({ repo: fakeRepo({ getById: vi.fn(async () => null) }) });
+
+      await expect(service.confirmPayment("missing")).rejects.toBeInstanceOf(OrderNotFoundError);
+    });
+
+    it("is idempotent — a no-op returning the order as-is when already paid", async () => {
+      const { service, repo, events } = buildService({
+        repo: fakeRepo({ getById: vi.fn(async () => makeOrder({ paymentStatus: "paid" })) }),
+      });
+
+      await service.confirmPayment("order-1");
+
+      expect(repo.updateStatus).not.toHaveBeenCalled();
+      expect(events.publish).not.toHaveBeenCalled();
+    });
+
+    it("asserts the payment_confirmed CREATED -> PAID transition before updating anything", async () => {
+      const { service, lifecycle } = buildService({
+        repo: fakeRepo({ getById: vi.fn(async () => makeOrder({ status: OrderStatus.CREATED })) }),
+      });
+
+      await service.confirmPayment("order-1");
+
+      expect(lifecycle.assertCanTransition).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderId: "order-1",
+          currentStatus: OrderStatus.CREATED,
+          targetStatus: OrderStatus.PAID,
+          reason: "payment_confirmed",
+        }),
+      );
+    });
+
+    it("updates both order status and payment status, then publishes order.paid", async () => {
+      const paid = makeOrder({ status: OrderStatus.PAID, paymentStatus: "paid" });
+      const { service, repo, events } = buildService({
+        repo: fakeRepo({
+          getById: vi.fn(async () => makeOrder({ status: OrderStatus.CREATED })),
+          updatePaymentStatus: vi.fn(async () => paid),
+        }),
+      });
+
+      const result = await service.confirmPayment("order-1");
+
+      expect(repo.updateStatus).toHaveBeenCalledWith(
+        "order-1",
+        OrderStatus.CREATED,
+        OrderStatus.PAID,
+      );
+      expect(repo.updatePaymentStatus).toHaveBeenCalledWith("order-1", "paid");
+      expect(events.publish).toHaveBeenCalledWith({ type: "order.paid", order: paid });
+      expect(result).toEqual(paid);
+    });
+
+    it("does not update anything when the lifecycle policy denies the transition", async () => {
+      const { service, repo, events } = buildService({
+        repo: fakeRepo({
+          getById: vi.fn(async () => makeOrder({ status: OrderStatus.DELIVERED })),
+        }),
+        lifecycle: fakeLifecycle({
+          assertCanTransition: vi.fn(() => {
+            throw new Error("denied");
+          }),
+        }),
+      });
+
+      await expect(service.confirmPayment("order-1")).rejects.toThrow("denied");
+      expect(repo.updateStatus).not.toHaveBeenCalled();
+      expect(events.publish).not.toHaveBeenCalled();
     });
   });
 });

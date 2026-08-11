@@ -13,6 +13,7 @@ import { CourierAcceptOrderRule } from "@server/domain/order-lifecycle/rules/cou
 import { CourierStartDeliveryRule } from "@server/domain/order-lifecycle/rules/courier-start-delivery.rule";
 import { CourierArriveRule } from "@server/domain/order-lifecycle/rules/courier-arrive.rule";
 import { CourierCompleteDeliveryRule } from "@server/domain/order-lifecycle/rules/courier-complete-delivery.rule";
+import { PaymentConfirmedRule } from "@server/domain/order-lifecycle/rules/payment-confirmed.rule";
 
 function ctx(overrides: Partial<OrderLifecycleContext>): OrderLifecycleContext {
   return {
@@ -55,6 +56,37 @@ describe("BootstrapCreatedRule", () => {
 
   it("always allows", () => {
     expect(rule.evaluate(ctx({})).allowed).toBe(true);
+  });
+});
+
+describe("PaymentConfirmedRule", () => {
+  const rule = new PaymentConfirmedRule();
+
+  it("applies only to payment_confirmed -> PAID", () => {
+    expect(rule.applies(ctx({ reason: "payment_confirmed", targetStatus: OrderStatus.PAID }))).toBe(
+      true,
+    );
+    expect(rule.applies(ctx({ reason: "admin_confirm", targetStatus: OrderStatus.PAID }))).toBe(
+      false,
+    );
+    expect(
+      rule.applies(ctx({ reason: "payment_confirmed", targetStatus: OrderStatus.CONFIRMED })),
+    ).toBe(false);
+  });
+
+  it("allows only from CREATED", () => {
+    expect(
+      rule.evaluate(ctx({ reason: "payment_confirmed", currentStatus: OrderStatus.CREATED }))
+        .allowed,
+    ).toBe(true);
+    expect(
+      rule.evaluate(ctx({ reason: "payment_confirmed", currentStatus: OrderStatus.CONFIRMED }))
+        .allowed,
+    ).toBe(false);
+    expect(
+      rule.evaluate(ctx({ reason: "payment_confirmed", currentStatus: OrderStatus.CANCELLED }))
+        .allowed,
+    ).toBe(false);
   });
 });
 

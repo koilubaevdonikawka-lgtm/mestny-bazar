@@ -7,21 +7,23 @@ import {
   ORDER_TIMELINE_SEQUENCE,
 } from "@shared/lib/order-display";
 import { Check, Circle, X } from "lucide-react";
+import { useTranslation } from "@/i18n/LanguageProvider";
 
 interface OrderTimelineProps {
   order: OrderDTO;
 }
 
 export function OrderTimeline({ order }: OrderTimelineProps) {
+  const { t } = useTranslation();
   const isCancelled = order.status === OrderStatus.CANCELLED;
 
   return (
     <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">
-      <h2 className="font-serif text-2xl mb-6">Статус заказа</h2>
+      <h2 className="font-serif text-2xl mb-6">{t("orders.timelineTitle")}</h2>
 
       {isCancelled && (
         <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-          Заказ отменён
+          {t("orders.cancelledLabel")}
         </div>
       )}
 
@@ -71,7 +73,9 @@ export function OrderTimeline({ order }: OrderTimelineProps) {
                   {formatOrderStatus(step)}
                 </p>
                 {state === "current" && !isCancelled && (
-                  <p className="mt-1 text-sm text-muted-foreground">Текущий этап</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {t("orders.currentStepLabel")}
+                  </p>
                 )}
               </div>
             </li>

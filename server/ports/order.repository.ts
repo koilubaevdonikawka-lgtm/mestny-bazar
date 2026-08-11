@@ -9,6 +9,8 @@ import type {
 
 export interface OrderLineItemInput {
   productId: string;
+  /** Stage 17 — see CreateOrderItemRequest.variantId; a plain pass-through identifier. */
+  variantId: string | null;
   productName: string;
   productImageUrl: string | null;
   quantity: number;
@@ -65,6 +67,8 @@ export interface IOrderRepository {
   countActiveDeliveriesByCourier(courierId: string): Promise<number>;
   /** Filters at the query level to only orders assigned to this courier — closes the shared-queue gap (couriers.md). */
   listByStatusesForCourier(statuses: OrderStatus[], courierId: string): Promise<OrderDTO[]>;
+  /** Paginated order history for a specific courier — Couriers admin detail card (Промпт №068). */
+  listByCourier(courierId: string, params?: OrderListParams): Promise<OrderListResult>;
   /** analytics.md — orders created within [periodStart, periodEnd], for sales aggregation. Not paginated: callers are internal aggregators, not staff-facing lists. */
   listInPeriod(periodStart: string, periodEnd: string): Promise<OrderDTO[]>;
 }

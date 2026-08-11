@@ -5,6 +5,7 @@ import type { IOrderCascadeRepository } from "@server/ports/order-cascade.reposi
 import type { IOrderRepository } from "@server/ports/order.repository";
 import type { ICourierStatusRepository } from "@server/ports/courier-status.repository";
 import type { ICourierAssignmentPolicy } from "@server/ports/courier-assignment.port";
+import type { ICourierProfileRepository } from "@server/ports/courier-profile.repository";
 import type { IMarketplaceEventBus, MarketplaceEvent } from "@server/ports/marketplace-events.port";
 import type { OrderDTO } from "@shared/contracts/order";
 import { OrderStatus } from "@shared/contracts/order";
@@ -93,6 +94,21 @@ function fakeAssignmentPolicy(
   return { selectCourier: vi.fn(() => ({ courierId: null })), ...overrides };
 }
 
+function fakeCourierProfileRepo(
+  overrides: Partial<ICourierProfileRepository> = {},
+): ICourierProfileRepository {
+  return {
+    list: vi.fn(async () => []),
+    getByUserId: vi.fn(async () => null),
+    create: vi.fn(),
+    update: vi.fn(),
+    setStatus: vi.fn(),
+    bulkSetStatus: vi.fn(),
+    listBlockedCourierIds: vi.fn(async () => []),
+    ...overrides,
+  } as ICourierProfileRepository;
+}
+
 /** No available couriers by default — checkAndTrigger's assignment attempt is then a safe no-op for tests focused purely on the buffer-cascade behavior. */
 function buildService(deps: {
   cascadeRepo?: IOrderCascadeRepository;
@@ -107,6 +123,7 @@ function buildService(deps: {
     deps.orderRepo ?? fakeOrderRepo(),
     deps.assignmentPolicy ?? fakeAssignmentPolicy(),
     events,
+    fakeCourierProfileRepo(),
   );
   return new OrderLifecycleCascadeService(
     deps.cascadeRepo ?? fakeCascadeRepo(),

@@ -11,6 +11,7 @@ interface CategoryRow {
   sort_order: number;
   is_active: boolean;
   name_kg: string | null;
+  parent_id: string | null;
 }
 
 export function mapAdminCategoryRow(row: CategoryRow): AdminCategoryDTO {
@@ -23,10 +24,12 @@ export function mapAdminCategoryRow(row: CategoryRow): AdminCategoryDTO {
     sortOrder: row.sort_order,
     isActive: row.is_active,
     nameKg: row.name_kg,
+    parentId: row.parent_id,
   };
 }
 
-const CATEGORY_SELECT = "id, name, slug, description, image_url, sort_order, is_active, name_kg";
+const CATEGORY_SELECT =
+  "id, name, slug, description, image_url, sort_order, is_active, name_kg, parent_id";
 
 /** Admin-facing category repository — sees active and inactive categories, unlike SupabaseCategoryRepository. */
 export class SupabaseAdminCategoryRepository implements IAdminCategoryRepository {
@@ -62,6 +65,7 @@ export class SupabaseAdminCategoryRepository implements IAdminCategoryRepository
         sort_order: data.sortOrder ?? 0,
         is_active: data.isActive ?? true,
         name_kg: data.nameKg ?? null,
+        parent_id: data.parentId ?? null,
       })
       .select(CATEGORY_SELECT)
       .single();
@@ -79,6 +83,7 @@ export class SupabaseAdminCategoryRepository implements IAdminCategoryRepository
       sort_order?: number;
       is_active?: boolean;
       name_kg?: string | null;
+      parent_id?: string | null;
     } = {};
     if (data.name !== undefined) patch.name = data.name;
     if (data.slug !== undefined) patch.slug = data.slug;
@@ -87,6 +92,7 @@ export class SupabaseAdminCategoryRepository implements IAdminCategoryRepository
     if (data.sortOrder !== undefined) patch.sort_order = data.sortOrder;
     if (data.isActive !== undefined) patch.is_active = data.isActive;
     if (data.nameKg !== undefined) patch.name_kg = data.nameKg;
+    if (data.parentId !== undefined) patch.parent_id = data.parentId;
 
     const { data: row, error } = await supabaseAdmin
       .from("categories")

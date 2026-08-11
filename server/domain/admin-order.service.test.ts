@@ -3,13 +3,19 @@ import { AdminOrderService } from "@server/domain/admin-order.service";
 import { OrderLifecycleCascadeService } from "@server/domain/order-lifecycle-cascade.service";
 import { CourierAssignmentService } from "@server/domain/courier-assignment.service";
 import { InventoryService } from "@server/domain/inventory.service";
+import { VariantStockService } from "@server/domain/variant-stock.service";
 import { OrderNotFoundError } from "@server/domain/orders.errors";
 import type { IOrderRepository } from "@server/ports/order.repository";
 import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
 import type { IOrderCascadeRepository } from "@server/ports/order-cascade.repository";
 import type { ICourierStatusRepository } from "@server/ports/courier-status.repository";
+import type { ICourierProfileRepository } from "@server/ports/courier-profile.repository";
 import type { IMarketplaceEventBus, MarketplaceEvent } from "@server/ports/marketplace-events.port";
 import type { IProductRepository, StockReservationItem } from "@server/ports/product.repository";
+import type { IProductVariantRepository } from "@server/ports/product-variant.repository";
+import type { IVariantStockRepository } from "@server/ports/variant-stock.repository";
+import type { IStockPolicy, StockPolicyResult } from "@server/ports/stock-policy.port";
+import type { ProductVariantDTO } from "@shared/contracts/product-variant";
 import type { OrderDTO } from "@shared/contracts/order";
 import { OrderStatus } from "@shared/contracts/order";
 
@@ -63,6 +69,13 @@ function fakeRepo(overrides: Partial<IOrderRepository> = {}): IOrderRepository {
     countActiveDeliveriesByCourier: vi.fn(async () => 0),
 
     listByStatusesForCourier: vi.fn(async () => []),
+    listByCourier: vi.fn(async () => ({
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 50,
+      hasMore: false,
+    })),
     listInPeriod: vi.fn(async () => []),
     ...overrides,
   };
@@ -93,6 +106,21 @@ function fakeEventBus(overrides: Partial<IMarketplaceEventBus> = {}): IMarketpla
   };
 }
 
+function fakeCourierProfileRepo(
+  overrides: Partial<ICourierProfileRepository> = {},
+): ICourierProfileRepository {
+  return {
+    list: vi.fn(async () => []),
+    getByUserId: vi.fn(async () => null),
+    create: vi.fn(),
+    update: vi.fn(),
+    setStatus: vi.fn(),
+    bulkSetStatus: vi.fn(),
+    listBlockedCourierIds: vi.fn(async () => []),
+    ...overrides,
+  } as ICourierProfileRepository;
+}
+
 function fakeCourierStatusRepo(
   overrides: Partial<ICourierStatusRepository> = {},
 ): ICourierStatusRepository {
@@ -121,6 +149,59 @@ function fakeProductRepository(overrides: Partial<IProductRepository> = {}): IPr
   };
 }
 
+function fakeProductVariantRepository(
+  overrides: Partial<IProductVariantRepository> = {},
+): IProductVariantRepository {
+  return {
+    listForProduct: vi.fn(async () => []),
+    getById: vi.fn(async (id: string): Promise<ProductVariantDTO | null> => ({
+      id,
+      productId: "product-1",
+      sku: "SKU-1",
+      price: null,
+      imageUrl: null,
+      publicationStatus: "PUBLISHED",
+      sortOrder: 0,
+    })),
+    create: vi.fn(),
+    update: vi.fn(),
+    skuExists: vi.fn(async () => false),
+    ...overrides,
+  };
+}
+
+function fakeVariantStockRepository(
+  overrides: Partial<IVariantStockRepository> = {},
+): IVariantStockRepository {
+  return {
+    listForProduct: vi.fn(async () => []),
+    getByVariantId: vi.fn(async () => null),
+    create: vi.fn(async (variantId: string, stock: number, lowStockThreshold: number | null) => ({
+      variantId,
+      stock,
+      lowStockThreshold,
+    })),
+    adjustStock: vi.fn(async (variantId: string, stock: number) => ({
+      variantId,
+      stock,
+      lowStockThreshold: null,
+    })),
+    setLowStockThreshold: vi.fn(async (variantId: string, threshold: number | null) => ({
+      variantId,
+      stock: 0,
+      lowStockThreshold: threshold,
+    })),
+    reserveStock: vi.fn(async () => {}),
+    releaseStock: vi.fn(async () => {}),
+    ...overrides,
+  };
+}
+
+function fakeStockPolicy(overrides: Partial<IStockPolicy> = {}): IStockPolicy {
+  const evaluateStock = vi.fn((): StockPolicyResult => ({ allowed: true, effectiveThreshold: 5 }));
+  return { evaluateStock, assertStockOk: vi.fn(), ...overrides };
+}
+
 const admin = { id: "admin-1", roles: ["admin" as const] };
 
 function buildService(deps: {
@@ -129,6 +210,7 @@ function buildService(deps: {
   cascadeRepo?: IOrderCascadeRepository;
   events?: IMarketplaceEventBus;
   productRepo?: IProductRepository;
+  variantStockRepo?: IVariantStockRepository;
 }) {
   const repo = deps.repo ?? fakeRepo();
   const lifecycle = deps.lifecycle ?? fakeLifecycle();
@@ -138,6 +220,7 @@ function buildService(deps: {
     repo,
     { selectCourier: vi.fn(() => ({ courierId: null })) },
     events,
+    fakeCourierProfileRepo(),
   );
   const cascade = new OrderLifecycleCascadeService(
     deps.cascadeRepo ?? fakeCascadeRepo(),
@@ -145,7 +228,13 @@ function buildService(deps: {
     courierAssignment,
   );
   const inventory = new InventoryService(deps.productRepo ?? fakeProductRepository());
-  return new AdminOrderService(repo, lifecycle, cascade, inventory, events);
+  const variantStockRepo = deps.variantStockRepo ?? fakeVariantStockRepository();
+  const variantStock = new VariantStockService(
+    variantStockRepo,
+    fakeProductVariantRepository(),
+    fakeStockPolicy(),
+  );
+  return new AdminOrderService(repo, lifecycle, cascade, inventory, events, variantStock);
 }
 
 describe("AdminOrderService", () => {
@@ -202,6 +291,7 @@ describe("AdminOrderService", () => {
         {
           id: "item-1",
           productId: "product-1",
+          variantId: null,
           productName: "Молоко",
           productImageUrl: null,
           quantity: 2,
@@ -225,6 +315,104 @@ describe("AdminOrderService", () => {
       order: cancelledOrder,
       reason: "admin_cancel",
     });
+  });
+
+  it("cancelOrder releases reserved variant stock alongside product stock (Stage 21)", async () => {
+    const cancelledOrder = makeOrder({
+      status: OrderStatus.CANCELLED,
+      items: [
+        {
+          id: "item-1",
+          productId: "product-1",
+          variantId: "variant-1",
+          productName: "Молоко (вариант)",
+          productImageUrl: null,
+          quantity: 3,
+          unitPrice: 100,
+          lineTotal: 300,
+        },
+      ],
+    });
+    const repo = fakeRepo({ updateStatus: vi.fn(async () => cancelledOrder) });
+    const productRepo = fakeProductRepository();
+    const variantStockRepo = fakeVariantStockRepository();
+    const service = buildService({ repo, productRepo, variantStockRepo });
+
+    await service.cancelOrder("order-1", admin);
+
+    expect(productRepo.releaseStock).toHaveBeenCalledWith([
+      { productId: "product-1", quantity: 3 },
+    ]);
+    expect(variantStockRepo.releaseStock).toHaveBeenCalledWith([
+      { variantId: "variant-1", quantity: 3 },
+    ]);
+  });
+
+  it("cancelOrder never calls variantStock.releaseStock when no item has a variantId — full backward compatibility", async () => {
+    const cancelledOrder = makeOrder({
+      status: OrderStatus.CANCELLED,
+      items: [
+        {
+          id: "item-1",
+          productId: "product-1",
+          variantId: null,
+          productName: "Молоко",
+          productImageUrl: null,
+          quantity: 2,
+          unitPrice: 100,
+          lineTotal: 200,
+        },
+      ],
+    });
+    const repo = fakeRepo({ updateStatus: vi.fn(async () => cancelledOrder) });
+    const variantStockRepo = fakeVariantStockRepository();
+    const service = buildService({ repo, variantStockRepo });
+
+    await service.cancelOrder("order-1", admin);
+
+    expect(variantStockRepo.releaseStock).not.toHaveBeenCalled();
+  });
+
+  it("cancelOrder releases variant stock only for line items that have a variantId, in a mixed order", async () => {
+    const cancelledOrder = makeOrder({
+      status: OrderStatus.CANCELLED,
+      items: [
+        {
+          id: "item-1",
+          productId: "product-1",
+          variantId: "variant-1",
+          productName: "Товар с вариантом",
+          productImageUrl: null,
+          quantity: 1,
+          unitPrice: 100,
+          lineTotal: 100,
+        },
+        {
+          id: "item-2",
+          productId: "product-2",
+          variantId: null,
+          productName: "Обычный товар",
+          productImageUrl: null,
+          quantity: 5,
+          unitPrice: 50,
+          lineTotal: 250,
+        },
+      ],
+    });
+    const repo = fakeRepo({ updateStatus: vi.fn(async () => cancelledOrder) });
+    const productRepo = fakeProductRepository();
+    const variantStockRepo = fakeVariantStockRepository();
+    const service = buildService({ repo, productRepo, variantStockRepo });
+
+    await service.cancelOrder("order-1", admin);
+
+    expect(productRepo.releaseStock).toHaveBeenCalledWith([
+      { productId: "product-1", quantity: 1 },
+      { productId: "product-2", quantity: 5 },
+    ]);
+    expect(variantStockRepo.releaseStock).toHaveBeenCalledWith([
+      { variantId: "variant-1", quantity: 1 },
+    ]);
   });
 
   it("listOrders delegates to the repository with pagination params", async () => {

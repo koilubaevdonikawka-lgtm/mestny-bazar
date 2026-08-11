@@ -90,6 +90,7 @@ describe("AnalyticsService.getSalesAnalytics", () => {
             {
               id: "i1",
               productId: "p1",
+              variantId: null,
               productName: "Apples",
               productImageUrl: null,
               quantity: 2,
@@ -99,6 +100,7 @@ describe("AnalyticsService.getSalesAnalytics", () => {
             {
               id: "i2",
               productId: null,
+              variantId: null,
               productName: "Custom",
               productImageUrl: null,
               quantity: 1,
@@ -113,6 +115,7 @@ describe("AnalyticsService.getSalesAnalytics", () => {
             {
               id: "i3",
               productId: "p1",
+              variantId: null,
               productName: "Apples",
               productImageUrl: null,
               quantity: 1,

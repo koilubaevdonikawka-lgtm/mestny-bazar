@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { listCities } from "@/api/city";
+import { createStore, listAdminStores, updateStore } from "@/api/store";
 import {
   createDeliveryZone,
   deactivateDeliveryZone,
@@ -24,6 +25,7 @@ import type {
   DeliveryTariffDTO,
   DeliveryTariffType,
   DeliveryZoneDTO,
+  StoreDTO,
 } from "@shared/contracts/delivery";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
@@ -35,6 +37,7 @@ import {
   MapPinned,
   Pencil,
   ShieldAlert,
+  Store as StoreIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -77,6 +80,13 @@ function AdminDeliveryPage() {
   const { isAuthenticated } = useSupabaseSession();
   const queryClient = useQueryClient();
 
+  const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
+  const [storeName, setStoreName] = useState("");
+  const [storeCityId, setStoreCityId] = useState("");
+  const [storeAddress, setStoreAddress] = useState("");
+  const [storeLat, setStoreLat] = useState("");
+  const [storeLng, setStoreLng] = useState("");
+
   const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
   const [zoneName, setZoneName] = useState("");
   const [zoneCityId, setZoneCityId] = useState("");
@@ -102,6 +112,13 @@ function AdminDeliveryPage() {
     retry: false,
   });
 
+  const storesQuery = useQuery({
+    queryKey: ["admin", "delivery", "stores"],
+    queryFn: listAdminStores,
+    enabled: isAuthenticated === true,
+    retry: false,
+  });
+
   const zonesQuery = useQuery({
     queryKey: ["admin", "delivery", "zones"],
     queryFn: listAdminDeliveryZones,
@@ -116,10 +133,41 @@ function AdminDeliveryPage() {
     retry: false,
   });
 
+  const invalidateStores = () =>
+    queryClient.invalidateQueries({ queryKey: ["admin", "delivery", "stores"] });
   const invalidateZones = () =>
     queryClient.invalidateQueries({ queryKey: ["admin", "delivery", "zones"] });
   const invalidateTariffs = () =>
     queryClient.invalidateQueries({ queryKey: ["admin", "delivery", "tariffs"] });
+
+  const resetStoreForm = () => {
+    setEditingStoreId(null);
+    setStoreName("");
+    setStoreCityId("");
+    setStoreAddress("");
+    setStoreLat("");
+    setStoreLng("");
+  };
+
+  const createStoreMutation = useMutation({
+    mutationFn: createStore,
+    onSuccess: () => {
+      invalidateStores();
+      toast.success("Магазин создан");
+      resetStoreForm();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось создать магазин"),
+  });
+
+  const updateStoreMutation = useMutation({
+    mutationFn: updateStore,
+    onSuccess: () => {
+      invalidateStores();
+      toast.success("Магазин обновлён");
+      resetStoreForm();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось обновить магазин"),
+  });
 
   const resetZoneForm = () => {
     setEditingZoneId(null);
@@ -195,6 +243,49 @@ function AdminDeliveryPage() {
 
   const handleSignIn = async () => {
     await signInWithGoogle();
+  };
+
+  const openEditStore = (store: StoreDTO) => {
+    setEditingStoreId(store.id);
+    setStoreName(store.name);
+    setStoreCityId(store.cityId);
+    setStoreAddress(store.address);
+    setStoreLat(store.lat != null ? String(store.lat) : "");
+    setStoreLng(store.lng != null ? String(store.lng) : "");
+  };
+
+  const handleStoreSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!storeName.trim() || storeName.trim().length < 2) {
+      toast.error("Название магазина должно содержать минимум 2 символа");
+      return;
+    }
+    if (!storeCityId) {
+      toast.error("Выберите город");
+      return;
+    }
+    if (!storeAddress.trim()) {
+      toast.error("Укажите адрес");
+      return;
+    }
+    const lat = storeLat.trim() ? Number(storeLat) : null;
+    const lng = storeLng.trim() ? Number(storeLng) : null;
+    if ((storeLat.trim() && !Number.isFinite(lat)) || (storeLng.trim() && !Number.isFinite(lng))) {
+      toast.error("Координаты должны быть числами");
+      return;
+    }
+    const payload = {
+      cityId: storeCityId,
+      name: storeName.trim(),
+      address: storeAddress.trim(),
+      lat,
+      lng,
+    };
+    if (editingStoreId) {
+      updateStoreMutation.mutate({ id: editingStoreId, ...payload });
+      return;
+    }
+    createStoreMutation.mutate(payload);
   };
 
   const openEditZone = (zone: DeliveryZoneDTO) => {
@@ -305,8 +396,13 @@ function AdminDeliveryPage() {
     );
   }
 
-  const isLoading = zonesQuery.isLoading || tariffsQuery.isLoading || citiesQuery.isLoading;
-  const queryError = zonesQuery.error ?? tariffsQuery.error ?? citiesQuery.error;
+  const isLoading =
+    zonesQuery.isLoading ||
+    tariffsQuery.isLoading ||
+    citiesQuery.isLoading ||
+    storesQuery.isLoading;
+  const queryError =
+    zonesQuery.error ?? tariffsQuery.error ?? citiesQuery.error ?? storesQuery.error;
 
   if (isLoading) {
     return (
@@ -344,6 +440,7 @@ function AdminDeliveryPage() {
   }
 
   const cities = citiesQuery.data ?? [];
+  const stores = storesQuery.data ?? [];
   const zones = zonesQuery.data ?? [];
   const tariffs = tariffsQuery.data ?? [];
   const cityName = (id: string) => cities.find((c) => c.id === id)?.name ?? id;
@@ -367,8 +464,142 @@ function AdminDeliveryPage() {
           не может задать цену напрямую.
         </p>
 
-        {/* Zones */}
+        {/* Stores — Подэтап 0 (delivery-future-roadmap.md): origin point for
+            BY_DISTANCE. Координаты не используются в расчёте стоимости пока
+            не подключён провайдер геокодирования — это только хранение. */}
         <section className="mt-8 rounded-2xl border border-border/60 bg-card p-6">
+          <h2 className="font-serif text-2xl mb-4">Магазины (точки отправления)</h2>
+          {stores.length === 0 ? (
+            <div className="py-6 text-center">
+              <StoreIcon className="h-6 w-6 text-primary mx-auto mb-3" />
+              <p className="text-muted-foreground">Магазинов пока нет.</p>
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {stores.map((store) => (
+                <li
+                  key={store.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-secondary/40 px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{store.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {cityName(store.cityId)} · {store.address}
+                      {store.lat != null && store.lng != null && ` · ${store.lat}, ${store.lng}`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => openEditStore(store)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={updateStoreMutation.isPending}
+                      onClick={() =>
+                        updateStoreMutation.mutate({ id: store.id, isActive: !store.isActive })
+                      }
+                    >
+                      <Badge variant={store.isActive ? "secondary" : "outline"}>
+                        {store.isActive ? "Активен" : "Выключен"}
+                      </Badge>
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <form onSubmit={handleStoreSubmit} className="mt-6 grid gap-4 sm:grid-cols-3">
+            {editingStoreId && (
+              <p className="sm:col-span-3 text-sm text-muted-foreground">Редактирование магазина</p>
+            )}
+            <div className="grid gap-2">
+              <Label htmlFor="store-name">Название</Label>
+              <Input
+                id="store-name"
+                value={storeName}
+                onChange={(e) => setStoreName(e.target.value)}
+                placeholder="Склад на Токтогула"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="store-city">Город</Label>
+              <select
+                id="store-city"
+                value={storeCityId}
+                onChange={(e) => setStoreCityId(e.target.value)}
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Выберите город</option>
+                {cities.map((city) => (
+                  <option key={city.id} value={city.id}>
+                    {city.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="store-address">Адрес</Label>
+              <Input
+                id="store-address"
+                value={storeAddress}
+                onChange={(e) => setStoreAddress(e.target.value)}
+                placeholder="ул. Токтогула, 1"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="store-lat">Широта (необязательно)</Label>
+              <Input
+                id="store-lat"
+                type="number"
+                step="0.000001"
+                value={storeLat}
+                onChange={(e) => setStoreLat(e.target.value)}
+                placeholder="42.874621"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="store-lng">Долгота (необязательно)</Label>
+              <Input
+                id="store-lng"
+                type="number"
+                step="0.000001"
+                value={storeLng}
+                onChange={(e) => setStoreLng(e.target.value)}
+                placeholder="74.596824"
+              />
+            </div>
+            <div className="flex gap-2 sm:items-end">
+              <Button
+                type="submit"
+                className="h-12 rounded-full"
+                disabled={createStoreMutation.isPending || updateStoreMutation.isPending}
+              >
+                {createStoreMutation.isPending || updateStoreMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : editingStoreId ? (
+                  "Сохранить изменения"
+                ) : (
+                  "Создать магазин"
+                )}
+              </Button>
+              {editingStoreId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 rounded-full"
+                  onClick={resetStoreForm}
+                >
+                  Отмена
+                </Button>
+              )}
+            </div>
+          </form>
+        </section>
+
+        {/* Zones */}
+        <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">
           <h2 className="font-serif text-2xl mb-4">Зоны доставки</h2>
           {zones.length === 0 ? (
             <div className="py-6 text-center">

@@ -3,6 +3,8 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { signInWithGoogle } from "@/lib/auth";
+import { useTranslation } from "@/i18n/LanguageProvider";
+import type { TranslationKey } from "@/i18n/t";
 import {
   Banknote,
   BarChart3,
@@ -13,6 +15,7 @@ import {
   LayoutDashboard,
   Loader2,
   LogIn,
+  Lock,
   MapPinned,
   Package,
   Plug,
@@ -42,7 +45,7 @@ export const Route = createFileRoute("/admin/")({
  * docs/admin-platform/IMPLEMENTATION_ORDER.md, Этап 3.
  */
 interface NavEntry {
-  label: string;
+  labelKey: TranslationKey;
   to?:
     | "/admin/dashboard"
     | "/admin/orders"
@@ -62,35 +65,37 @@ interface NavEntry {
     | "/admin/integrations"
     | "/admin/ai"
     | "/admin/security"
-    | "/admin/logs";
+    | "/admin/logs"
+    | "/admin/permissions";
   icon: LucideIcon;
 }
 
 const NAV_ENTRIES: NavEntry[] = [
-  { label: "Dashboard", to: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Заказы", to: "/admin/orders", icon: Package },
-  { label: "Каталог", to: "/admin/catalog", icon: Tags },
-  { label: "Склад", to: "/admin/warehouse", icon: Warehouse },
-  { label: "Продавцы", to: "/admin/sellers", icon: Store },
-  { label: "Поставщики", to: "/admin/suppliers", icon: Truck },
-  { label: "Покупатели", to: "/admin/users", icon: Users },
-  { label: "Курьеры", to: "/admin/couriers", icon: Bike },
-  { label: "Доставка", to: "/admin/delivery", icon: MapPinned },
-  { label: "Аналитика", to: "/admin/analytics", icon: BarChart3 },
-  { label: "Финансы", to: "/admin/finance", icon: Banknote },
-  { label: "Маркетинг", to: "/admin/marketing", icon: Tag },
-  { label: "ИИ-инструменты", to: "/admin/ai", icon: Bot },
-  { label: "Интеграции", to: "/admin/integrations", icon: Plug },
-  { label: "Автоматизация", to: "/admin/automation", icon: Zap },
-  { label: "Оформление", to: "/admin/design", icon: ImageIcon },
-  { label: "Настройки", to: "/admin/settings", icon: Settings },
-  { label: "Права доступа", icon: Package },
-  { label: "Журналы событий", to: "/admin/logs", icon: FileText },
-  { label: "Безопасность", to: "/admin/security", icon: Shield },
+  { labelKey: "admin.hub.navDashboard", to: "/admin/dashboard", icon: LayoutDashboard },
+  { labelKey: "admin.hub.navOrders", to: "/admin/orders", icon: Package },
+  { labelKey: "admin.hub.navCatalog", to: "/admin/catalog", icon: Tags },
+  { labelKey: "admin.hub.navWarehouse", to: "/admin/warehouse", icon: Warehouse },
+  { labelKey: "admin.hub.navSellers", to: "/admin/sellers", icon: Store },
+  { labelKey: "admin.hub.navSuppliers", to: "/admin/suppliers", icon: Truck },
+  { labelKey: "admin.hub.navUsers", to: "/admin/users", icon: Users },
+  { labelKey: "admin.hub.navCouriers", to: "/admin/couriers", icon: Bike },
+  { labelKey: "admin.hub.navDelivery", to: "/admin/delivery", icon: MapPinned },
+  { labelKey: "admin.hub.navAnalytics", to: "/admin/analytics", icon: BarChart3 },
+  { labelKey: "admin.hub.navFinance", to: "/admin/finance", icon: Banknote },
+  { labelKey: "admin.hub.navMarketing", to: "/admin/marketing", icon: Tag },
+  { labelKey: "admin.hub.navAi", to: "/admin/ai", icon: Bot },
+  { labelKey: "admin.hub.navIntegrations", to: "/admin/integrations", icon: Plug },
+  { labelKey: "admin.hub.navAutomation", to: "/admin/automation", icon: Zap },
+  { labelKey: "admin.hub.navDesign", to: "/admin/design", icon: ImageIcon },
+  { labelKey: "admin.hub.navSettings", to: "/admin/settings", icon: Settings },
+  { labelKey: "admin.hub.navPermissions", to: "/admin/permissions", icon: Lock },
+  { labelKey: "admin.hub.navLogs", to: "/admin/logs", icon: FileText },
+  { labelKey: "admin.hub.navSecurity", to: "/admin/security", icon: Shield },
 ];
 
 function AdminPlatformHome() {
   const { isAuthenticated } = useSupabaseSession();
+  const { t } = useTranslation();
 
   const handleSignIn = async () => {
     await signInWithGoogle();
@@ -113,10 +118,10 @@ function AdminPlatformHome() {
           <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
             <LogIn className="h-6 w-6 text-primary" />
           </div>
-          <h1 className="font-serif text-3xl tracking-tight">Административная платформа</h1>
-          <p className="mt-3 text-muted-foreground">Войдите с учётной записью администратора.</p>
+          <h1 className="font-serif text-3xl tracking-tight">{t("admin.hub.title")}</h1>
+          <p className="mt-3 text-muted-foreground">{t("admin.common.signInPrompt")}</p>
           <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
-            Войти
+            {t("common.signIn")}
           </Button>
         </div>
       </AdminLayout>
@@ -126,29 +131,31 @@ function AdminPlatformHome() {
   return (
     <AdminLayout>
       <div className="mx-auto max-w-5xl px-6 py-12">
-        <h1 className="font-serif text-4xl tracking-tight">Административная платформа</h1>
+        <h1 className="font-serif text-4xl tracking-tight">{t("admin.hub.title")}</h1>
         <p className="mt-2 text-muted-foreground">
-          «Местный Базар» — единая точка управления. Модули без ссылки ещё не реализованы, см.{" "}
-          <code className="text-sm">docs/admin-platform/</code>.
+          {t("admin.hub.subtitlePrefix")} <code className="text-sm">docs/admin-platform/</code>.
         </p>
 
         <div className="mt-8 grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
           {NAV_ENTRIES.map((entry) => {
             const Icon = entry.icon;
+            const label = t(entry.labelKey);
             const content = (
               <>
                 <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
                   <Icon className="h-5 w-5" />
                 </div>
-                <p className="mt-4 font-serif text-lg">{entry.label}</p>
-                {!entry.to && <p className="mt-1 text-xs text-muted-foreground">Скоро</p>}
+                <p className="mt-4 font-serif text-lg">{label}</p>
+                {!entry.to && (
+                  <p className="mt-1 text-xs text-muted-foreground">{t("admin.hub.comingSoon")}</p>
+                )}
               </>
             );
 
             if (entry.to) {
               return (
                 <Link
-                  key={entry.label}
+                  key={entry.labelKey}
                   to={entry.to}
                   className="rounded-2xl border border-border/60 bg-card p-6 transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-card)] hover:border-primary/40"
                 >
@@ -159,7 +166,7 @@ function AdminPlatformHome() {
 
             return (
               <div
-                key={entry.label}
+                key={entry.labelKey}
                 aria-disabled="true"
                 className="rounded-2xl border border-dashed border-border/60 bg-card/50 p-6 opacity-60 cursor-not-allowed"
               >

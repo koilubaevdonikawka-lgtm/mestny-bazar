@@ -16,9 +16,12 @@ function fakeProduct(overrides: Partial<ProductDTO> = {}): ProductDTO {
     currency: "KGS",
     unit: "kg",
     imageUrl: "https://example.com/apple.jpg",
+    imageUrls: [],
     stock: 10,
     inStock: true,
     categoryId: null,
+    manufacturer: null,
+    countryOfOrigin: null,
     ...overrides,
   };
 }
@@ -89,5 +92,46 @@ describe("toCatalogProductNode", () => {
     expect(node.node.variants.edges).toHaveLength(1);
     expect(node.node.variants.edges[0]?.node.selectedOptions).toEqual([]);
     expect(node.node.options).toEqual([]);
+  });
+
+  it("uses the full imageUrls gallery when present", () => {
+    const node = toCatalogProductNode(
+      fakeProduct({ imageUrls: ["https://example.com/a.jpg", "https://example.com/b.jpg"] }),
+    );
+    expect(node.node.images.edges).toEqual([
+      { node: { url: "https://example.com/a.jpg", altText: "Fresh Apples" } },
+      { node: { url: "https://example.com/b.jpg", altText: "Fresh Apples" } },
+    ]);
+  });
+
+  it("falls back to the single legacy imageUrl when imageUrls is empty", () => {
+    const node = toCatalogProductNode(
+      fakeProduct({ imageUrls: [], imageUrl: "https://example.com/legacy.jpg" }),
+    );
+    expect(node.node.images.edges).toEqual([
+      { node: { url: "https://example.com/legacy.jpg", altText: "Fresh Apples" } },
+    ]);
+  });
+
+  it("passes through unit, manufacturer, countryOfOrigin, stock and category as-is", () => {
+    const node = toCatalogProductNode(
+      fakeProduct({
+        unit: "kg",
+        manufacturer: "Acme",
+        countryOfOrigin: "Kyrgyzstan",
+        stock: 7,
+        category: { id: "cat-1", name: "Fruits", slug: "fruits" },
+      }),
+    );
+    expect(node.node.unit).toBe("kg");
+    expect(node.node.manufacturer).toBe("Acme");
+    expect(node.node.countryOfOrigin).toBe("Kyrgyzstan");
+    expect(node.node.stock).toBe(7);
+    expect(node.node.category).toEqual({ id: "cat-1", name: "Fruits", slug: "fruits" });
+  });
+
+  it("maps a missing category to null rather than leaving it undefined", () => {
+    const node = toCatalogProductNode(fakeProduct({ category: undefined }));
+    expect(node.node.category).toBeNull();
   });
 });

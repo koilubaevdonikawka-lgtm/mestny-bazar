@@ -15,9 +15,12 @@ function makeProduct(overrides: Partial<ProductDTO> = {}): ProductDTO {
     currency: "KGS",
     unit: null,
     imageUrl: null,
+    imageUrls: [],
     stock: 10,
     inStock: true,
     categoryId: null,
+    manufacturer: null,
+    countryOfOrigin: null,
     ...overrides,
   };
 }

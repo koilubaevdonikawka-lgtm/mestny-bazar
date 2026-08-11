@@ -59,6 +59,7 @@ describe("DashboardService.getSummary", () => {
         lowStockThreshold: null,
         effectiveThreshold: 5,
         status: "ok",
+        unit: null,
       },
       {
         productId: "p2",
@@ -67,6 +68,7 @@ describe("DashboardService.getSummary", () => {
         lowStockThreshold: null,
         effectiveThreshold: 5,
         status: "low",
+        unit: null,
       },
     ];
     const service = new DashboardService(fakeOrderRepo(), fakeStockAdmin(items));

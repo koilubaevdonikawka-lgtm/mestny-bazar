@@ -23,3 +23,11 @@ export class InsufficientStockError extends Error {
     this.name = "InsufficientStockError";
   }
 }
+
+/** Stage 19 — variant stock reservation failed atomically. Mirrors InsufficientStockError exactly, scoped to a variant. */
+export class InsufficientVariantStockError extends Error {
+  constructor(public readonly variantId: string) {
+    super(`Insufficient stock for product variant ${variantId}`);
+    this.name = "InsufficientVariantStockError";
+  }
+}

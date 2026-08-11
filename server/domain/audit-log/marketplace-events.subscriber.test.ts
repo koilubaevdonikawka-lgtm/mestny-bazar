@@ -126,6 +126,37 @@ describe("subscribeAuditLog", () => {
     ]);
   });
 
+  it("appends records for order.paid and every payment.* event (Промпт №075)", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+    const order = makeOrder({ status: "PAID", paymentStatus: "paid" });
+
+    await bus.publish({ type: "order.paid", order });
+    await bus.publish({ type: "payment.initiated", order, paymentId: "payment-1" });
+    await bus.publish({ type: "payment.confirmed", order, paymentId: "payment-1" });
+    await bus.publish({
+      type: "payment.failed",
+      order,
+      paymentId: "payment-1",
+      reason: "provider_reported_failure",
+    });
+    await bus.publish({ type: "payment.expired", order, paymentId: "payment-1" });
+
+    expect(auditLog.records.map((r) => r.action)).toEqual([
+      "order.paid",
+      "payment.initiated",
+      "payment.confirmed",
+      "payment.failed",
+      "payment.expired",
+    ]);
+    expect(auditLog.records[1].payload).toMatchObject({ paymentId: "payment-1" });
+    expect(auditLog.records[3].payload).toMatchObject({
+      paymentId: "payment-1",
+      reason: "provider_reported_failure",
+    });
+  });
+
   it("appends category.created/category.updated records (catalog.md)", async () => {
     const bus = new MarketplaceEventsService();
     const auditLog = fakeAuditLog();
@@ -139,6 +170,7 @@ describe("subscribeAuditLog", () => {
       sortOrder: 0,
       isActive: true,
       nameKg: null,
+      parentId: null,
     };
 
     await bus.publish({ type: "category.created", category });
@@ -179,6 +211,10 @@ describe("subscribeAuditLog", () => {
       currency: "KGS",
       unit: null,
       imageUrl: null,
+      imageUrls: [],
+      manufacturer: null,
+      countryOfOrigin: null,
+      sku: null,
       stock: 10,
       publicationStatus: "PUBLISHED" as const,
       categoryId: null,
@@ -243,6 +279,180 @@ describe("subscribeAuditLog", () => {
       action: "permission.changed",
       entityId: "user-1",
       payload: { scope: "finance", action: "assigned" },
+    });
+  });
+
+  it("appends a courier.created record (Промпт №068)", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+
+    await bus.publish({ type: "courier.created", userId: "courier-1" });
+
+    expect(auditLog.records).toHaveLength(1);
+    expect(auditLog.records[0]).toMatchObject({
+      action: "courier.created",
+      entityType: "courier",
+      entityId: "courier-1",
+    });
+  });
+
+  it("appends a courier.blocked record", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+
+    await bus.publish({ type: "courier.blocked", userId: "courier-1" });
+
+    expect(auditLog.records).toHaveLength(1);
+    expect(auditLog.records[0]).toMatchObject({
+      action: "courier.blocked",
+      entityType: "courier",
+      entityId: "courier-1",
+    });
+  });
+
+  it("appends a courier.unblocked record", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+
+    await bus.publish({ type: "courier.unblocked", userId: "courier-1" });
+
+    expect(auditLog.records).toHaveLength(1);
+    expect(auditLog.records[0]).toMatchObject({
+      action: "courier.unblocked",
+      entityType: "courier",
+      entityId: "courier-1",
+    });
+  });
+
+  it("appends an rbac.role.created record (Промпт №068 — industrial RBAC)", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+
+    await bus.publish({ type: "rbac.role.created", roleId: "role-1", name: "Менеджер" });
+
+    expect(auditLog.records).toHaveLength(1);
+    expect(auditLog.records[0]).toMatchObject({
+      action: "rbac.role.created",
+      entityType: "rbac_role",
+      entityId: "role-1",
+      payload: { name: "Менеджер" },
+    });
+  });
+
+  it("appends an rbac.role.updated record", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+
+    await bus.publish({ type: "rbac.role.updated", roleId: "role-1", name: "Менеджер 2" });
+
+    expect(auditLog.records).toHaveLength(1);
+    expect(auditLog.records[0]).toMatchObject({ action: "rbac.role.updated", entityId: "role-1" });
+  });
+
+  it("appends an rbac.role.deleted record", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+
+    await bus.publish({ type: "rbac.role.deleted", roleId: "role-1", name: "Менеджер" });
+
+    expect(auditLog.records).toHaveLength(1);
+    expect(auditLog.records[0]).toMatchObject({ action: "rbac.role.deleted", entityId: "role-1" });
+  });
+
+  it("appends an rbac.permission.created record", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+
+    await bus.publish({
+      type: "rbac.permission.created",
+      permissionId: "perm-1",
+      module: "couriers",
+      action: "view",
+    });
+
+    expect(auditLog.records).toHaveLength(1);
+    expect(auditLog.records[0]).toMatchObject({
+      action: "rbac.permission.created",
+      entityType: "rbac_permission",
+      entityId: "perm-1",
+      payload: { module: "couriers", action: "view" },
+    });
+  });
+
+  it("appends an rbac.permission.updated record", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+
+    await bus.publish({
+      type: "rbac.permission.updated",
+      permissionId: "perm-1",
+      module: "couriers",
+      action: "edit",
+    });
+
+    expect(auditLog.records).toHaveLength(1);
+    expect(auditLog.records[0]).toMatchObject({
+      action: "rbac.permission.updated",
+      entityId: "perm-1",
+    });
+  });
+
+  it("appends an rbac.permission.deleted record", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+
+    await bus.publish({
+      type: "rbac.permission.deleted",
+      permissionId: "perm-1",
+      module: "couriers",
+      action: "edit",
+    });
+
+    expect(auditLog.records).toHaveLength(1);
+    expect(auditLog.records[0]).toMatchObject({
+      action: "rbac.permission.deleted",
+      entityId: "perm-1",
+    });
+  });
+
+  it("appends an rbac.role.assigned record", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+
+    await bus.publish({ type: "rbac.role.assigned", userId: "user-1", roleId: "role-1" });
+
+    expect(auditLog.records).toHaveLength(1);
+    expect(auditLog.records[0]).toMatchObject({
+      action: "rbac.role.assigned",
+      entityType: "user",
+      entityId: "user-1",
+      payload: { roleId: "role-1" },
+    });
+  });
+
+  it("appends an rbac.role.revoked record", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+
+    await bus.publish({ type: "rbac.role.revoked", userId: "user-1", roleId: "role-1" });
+
+    expect(auditLog.records).toHaveLength(1);
+    expect(auditLog.records[0]).toMatchObject({
+      action: "rbac.role.revoked",
+      entityType: "user",
+      entityId: "user-1",
+      payload: { roleId: "role-1" },
     });
   });
 });

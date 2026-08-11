@@ -18,6 +18,9 @@ import { InventoryService } from "@server/domain/inventory.service";
 import { OrderService } from "@server/domain/order.service";
 import { PricingService } from "@server/domain/pricing.service";
 import { CouponService } from "@server/domain/coupon.service";
+import { ProductVariantService } from "@server/domain/product-variant.service";
+import { VariantStockService } from "@server/domain/variant-stock.service";
+import type { ProductVariantDTO } from "@shared/contracts/product-variant";
 import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
 import { isUuid } from "@server/domain/shared/uuid";
 import { logger } from "@shared/observability/logger";
@@ -36,6 +39,10 @@ export class CheckoutService {
     private readonly orderLifecycle: IOrderLifecyclePolicy,
     private readonly customerStatus: ICustomerStatusRepository,
     private readonly coupons: CouponService,
+    /** Stage 18 — existence/ownership/availability checks for a requested variant. Not modified, only composed here. */
+    private readonly productVariants: ProductVariantService,
+    /** Stage 18 — stock-sufficiency check for a requested variant. Not modified, only composed here. */
+    private readonly variantStock: VariantStockService,
   ) {}
 
   async checkout(userId: string | null, request: CreateOrderRequest): Promise<CreateOrderResponse> {
@@ -59,6 +66,13 @@ export class CheckoutService {
       productId: item.productId,
       quantity: item.quantity,
     }));
+    // Stage 19 — only line items with a variantId reserve variant stock;
+    // an order with no variantId anywhere produces an empty array, and
+    // variantStock.reserveStock/releaseStock are never called for it below —
+    // full behavioral parity with a pre-Stage-19 checkout.
+    const variantStockItems = lineItems
+      .filter((item): item is OrderLineItemInput & { variantId: string } => !!item.variantId)
+      .map((item) => ({ variantId: item.variantId, quantity: item.quantity }));
 
     // Note: the idempotency short-circuit above and this reservation are not one
     // atomic transaction, so two requests with the same key racing past it
@@ -66,6 +80,27 @@ export class CheckoutService {
     // an accepted, narrow-window residual (the request-level idempotency check
     // above closes the far more common sequential-retry case entirely).
     await this.inventory.reserveStock(stockItems);
+
+    // Same reservation step, same principle, for variant stock — if this
+    // fails, the product stock just reserved above must be released before
+    // rethrowing (mirrors the release-on-error the outer try/catch already
+    // does, applied to this narrower window).
+    if (variantStockItems.length > 0) {
+      try {
+        await this.variantStock.reserveStock(variantStockItems);
+      } catch (error) {
+        await this.inventory.releaseStock(stockItems).catch(() => {
+          logger.error(
+            "Failed to release reserved product stock after a failed variant stock reservation",
+            {
+              idempotencyKey: request.idempotencyKey,
+              note: "Manual reconciliation may be required.",
+            },
+          );
+        });
+        throw error;
+      }
+    }
 
     // Everything up to and including createOrder() may still fail for reasons
     // that mean no order was ever persisted (pricing/policy checks, a DB error
@@ -150,12 +185,28 @@ export class CheckoutService {
         });
       }
     } catch (error) {
-      await this.inventory.releaseStock(stockItems).catch(() => {
-        logger.error("Failed to release reserved stock after a failed checkout", {
-          idempotencyKey: request.idempotencyKey,
-          note: "Manual reconciliation may be required.",
-        });
-      });
+      // Same release-on-error principle as InventoryService, extended to
+      // variant stock — by this point both reservations (product, and
+      // variant if any) have already succeeded, so both must be released.
+      const releases = [
+        this.inventory.releaseStock(stockItems).catch(() => {
+          logger.error("Failed to release reserved stock after a failed checkout", {
+            idempotencyKey: request.idempotencyKey,
+            note: "Manual reconciliation may be required.",
+          });
+        }),
+      ];
+      if (variantStockItems.length > 0) {
+        releases.push(
+          this.variantStock.releaseStock(variantStockItems).catch(() => {
+            logger.error("Failed to release reserved variant stock after a failed checkout", {
+              idempotencyKey: request.idempotencyKey,
+              note: "Manual reconciliation may be required.",
+            });
+          }),
+        );
+      }
+      await Promise.all(releases);
       throw error;
     }
 
@@ -341,6 +392,21 @@ export class CheckoutService {
     const idMap = new Map(byId.map((product) => [product.id, product]));
     const slugMap = new Map(bySlug.map((product) => [product.slug, product]));
 
+    // Stage 18 — batch-resolve every distinct variantId in the request via
+    // the existing ProductVariantService, same N+1-avoidance shape as the
+    // product lookup above. Neither ProductVariantService nor
+    // VariantStockService exposes a batch-by-ids method (and this stage must
+    // not add one — item 1/"не изменять архитектуру вариантов товаров"), so
+    // Promise.all over the existing single-item getById() is the closest
+    // equivalent without touching either service/port.
+    const variantIds = Array.from(
+      new Set(items.map((item) => item.variantId?.trim()).filter((id): id is string => !!id)),
+    );
+    const variantEntries = await Promise.all(
+      variantIds.map(async (id) => [id, await this.productVariants.getById(id)] as const),
+    );
+    const variantMap = new Map(variantEntries);
+
     const resolved: OrderLineItemInput[] = [];
     let currency: string | undefined;
 
@@ -365,9 +431,15 @@ export class CheckoutService {
         });
       }
 
+      const variantId = item.variantId?.trim() || null;
+      if (variantId) {
+        this.assertVariantMatchesProduct(variantId, product.id, variantMap.get(variantId));
+      }
+
       currency ??= product.currency;
       resolved.push({
         productId: product.id,
+        variantId,
         productName: product.name,
         productImageUrl: product.imageUrl,
         quantity: item.quantity,
@@ -376,7 +448,60 @@ export class CheckoutService {
       });
     }
 
+    // Stage 18 — stock-sufficiency check via the existing VariantStockService,
+    // only for line items that already passed the existence/ownership/
+    // availability check above. getByVariantId() returning null means stock
+    // is not yet tracked for that variant (opt-in tracking, Stage 14) — not
+    // a failure, just "no stock constraint applies yet". This is a read-only
+    // check: no reservation/deduction is performed here (item 5 — a future
+    // stage's job, using this same VariantStockService unmodified).
+    const stockChecks: Promise<void>[] = [];
+    for (const item of resolved) {
+      if (item.variantId) {
+        stockChecks.push(this.assertVariantStockAvailable(item.variantId, item.quantity));
+      }
+    }
+    await Promise.all(stockChecks);
+
     return { lineItems: resolved, currency: currency ?? "KGS" };
+  }
+
+  /**
+   * Existence, product-ownership, and availability — mirrors item 2's list
+   * ("существует ли / принадлежит ли / доступен ли / не архивирован ли / не
+   * удалён ли"). ProductVariantDTO has no separate archived/deleted flag
+   * (Stage 13 never added one): a null getById() result already means
+   * "doesn't exist" (covers "удалён"), and publicationStatus !== PUBLISHED
+   * covers both "not available" and "archived" (HIDDEN is the existing
+   * analog — same field the parent product itself already uses).
+   */
+  private assertVariantMatchesProduct(
+    variantId: string,
+    productId: string,
+    variant: ProductVariantDTO | null | undefined,
+  ): void {
+    if (!variant) {
+      throw new CheckoutValidationError({ items: [`Product variant not found: ${variantId}`] });
+    }
+    if (variant.productId !== productId) {
+      throw new CheckoutValidationError({
+        items: [`Product variant does not belong to the requested product: ${variantId}`],
+      });
+    }
+    if (variant.publicationStatus !== "PUBLISHED") {
+      throw new CheckoutValidationError({
+        items: [`Product variant is not available: ${variantId}`],
+      });
+    }
+  }
+
+  private async assertVariantStockAvailable(variantId: string, quantity: number): Promise<void> {
+    const stock = await this.variantStock.getByVariantId(variantId);
+    if (stock && stock.stock < quantity) {
+      throw new CheckoutValidationError({
+        items: [`Insufficient stock for variant: ${variantId}`],
+      });
+    }
   }
 
   private normalizePhone(raw: string): string {

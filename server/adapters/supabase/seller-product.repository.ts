@@ -2,6 +2,8 @@ import type {
   CreateSellerProductRequest,
   ProductPublicationStatus,
   SellerProductDTO,
+  SellerProductListParams,
+  SellerProductListResult,
   UpdateSellerProductRequest,
 } from "@shared/contracts/seller-product";
 import { ProductPublicationStatus as Status } from "@shared/contracts/seller-product";
@@ -10,7 +12,7 @@ import { supabaseAdmin } from "@server/adapters/supabase/client";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 
 const PRODUCT_SELECT =
-  "id, name, slug, description, price, currency, unit, image_url, stock, publication_status, category_id, seller_id";
+  "id, name, slug, description, price, currency, unit, image_url, image_urls, manufacturer, country_of_origin, sku, stock, publication_status, category_id";
 
 function mapRow(row: {
   id: string;
@@ -21,6 +23,10 @@ function mapRow(row: {
   currency: string;
   unit: string | null;
   image_url: string | null;
+  image_urls: string[] | null;
+  manufacturer: string | null;
+  country_of_origin: string | null;
+  sku: string | null;
   stock: number;
   publication_status: ProductPublicationStatus;
   category_id: string | null;
@@ -34,6 +40,10 @@ function mapRow(row: {
     currency: row.currency,
     unit: row.unit,
     imageUrl: row.image_url,
+    imageUrls: row.image_urls ?? [],
+    manufacturer: row.manufacturer,
+    countryOfOrigin: row.country_of_origin,
+    sku: row.sku,
     stock: Number(row.stock),
     publicationStatus: row.publication_status,
     categoryId: row.category_id,
@@ -56,13 +66,37 @@ export class SupabaseSellerProductRepository implements ISellerProductRepository
     return (data ?? []).map(mapRow);
   }
 
-  async getById(id: string, sellerId: string): Promise<SellerProductDTO | null> {
-    const { data, error } = await supabaseAdmin
+  async listAll(params: SellerProductListParams): Promise<SellerProductListResult> {
+    const page = params.page ?? 1;
+    const pageSize = params.pageSize ?? 50;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    const { data, error, count } = await supabaseAdmin
       .from("products")
-      .select(PRODUCT_SELECT)
-      .eq("id", id)
-      .eq("seller_id", sellerId)
-      .maybeSingle();
+      .select(PRODUCT_SELECT, { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    if (error) throw new Error(`Failed to list products: ${error.message}`);
+
+    const items = (data ?? []).map(mapRow);
+    const total = count ?? items.length;
+
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      hasMore: from + items.length < total,
+    };
+  }
+
+  async getById(id: string, sellerId: string | null): Promise<SellerProductDTO | null> {
+    let query = supabaseAdmin.from("products").select(PRODUCT_SELECT).eq("id", id);
+    if (sellerId !== null) query = query.eq("seller_id", sellerId);
+
+    const { data, error } = await query.maybeSingle();
 
     if (error) throw new Error(`Failed to fetch seller product: ${error.message}`);
     return data ? mapRow(data) : null;
@@ -76,8 +110,11 @@ export class SupabaseSellerProductRepository implements ISellerProductRepository
     return !!data;
   }
 
-  async create(sellerId: string, data: CreateSellerProductRequest): Promise<SellerProductDTO> {
-    const status = Status.DRAFT;
+  async create(
+    sellerId: string | null,
+    data: CreateSellerProductRequest,
+  ): Promise<SellerProductDTO> {
+    const status = data.publicationStatus ?? Status.DRAFT;
     const { data: row, error } = await supabaseAdmin
       .from("products")
       .insert({
@@ -88,7 +125,11 @@ export class SupabaseSellerProductRepository implements ISellerProductRepository
         price: data.price,
         currency: data.currency ?? "KGS",
         unit: data.unit ?? null,
-        image_url: data.imageUrl ?? null,
+        image_url: data.imageUrl ?? data.imageUrls?.[0] ?? null,
+        image_urls: data.imageUrls ?? [],
+        manufacturer: data.manufacturer ?? null,
+        country_of_origin: data.countryOfOrigin ?? null,
+        sku: data.sku ?? null,
         stock: data.stock ?? 0,
         publication_status: status,
         is_active: isActiveForCatalog(status),
@@ -103,7 +144,10 @@ export class SupabaseSellerProductRepository implements ISellerProductRepository
     return mapRow(row);
   }
 
-  async update(sellerId: string, data: UpdateSellerProductRequest): Promise<SellerProductDTO> {
+  async update(
+    sellerId: string | null,
+    data: UpdateSellerProductRequest,
+  ): Promise<SellerProductDTO> {
     const patch: TablesUpdate<"products"> = {};
     if (data.name !== undefined) patch.name = data.name;
     if (data.slug !== undefined) patch.slug = data.slug;
@@ -112,16 +156,24 @@ export class SupabaseSellerProductRepository implements ISellerProductRepository
     if (data.currency !== undefined) patch.currency = data.currency;
     if (data.unit !== undefined) patch.unit = data.unit;
     if (data.imageUrl !== undefined) patch.image_url = data.imageUrl;
+    if (data.imageUrls !== undefined) {
+      patch.image_urls = data.imageUrls;
+      patch.image_url = data.imageUrls[0] ?? null;
+    }
+    if (data.manufacturer !== undefined) patch.manufacturer = data.manufacturer;
+    if (data.countryOfOrigin !== undefined) patch.country_of_origin = data.countryOfOrigin;
+    if (data.sku !== undefined) patch.sku = data.sku;
     if (data.stock !== undefined) patch.stock = data.stock;
     if (data.categoryId !== undefined) patch.category_id = data.categoryId;
+    if (data.publicationStatus !== undefined) {
+      patch.publication_status = data.publicationStatus;
+      patch.is_active = isActiveForCatalog(data.publicationStatus);
+    }
 
-    const { data: row, error } = await supabaseAdmin
-      .from("products")
-      .update(patch)
-      .eq("id", data.id)
-      .eq("seller_id", sellerId)
-      .select(PRODUCT_SELECT)
-      .single();
+    let query = supabaseAdmin.from("products").update(patch).eq("id", data.id);
+    if (sellerId !== null) query = query.eq("seller_id", sellerId);
+
+    const { data: row, error } = await query.select(PRODUCT_SELECT).single();
 
     if (error || !row) {
       throw new Error(`Failed to update product: ${error?.message ?? "unknown"}`);
@@ -130,20 +182,20 @@ export class SupabaseSellerProductRepository implements ISellerProductRepository
   }
 
   async setPublicationStatus(
-    sellerId: string,
+    sellerId: string | null,
     id: string,
     status: ProductPublicationStatus,
   ): Promise<SellerProductDTO> {
-    const { data: row, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("products")
       .update({
         publication_status: status,
         is_active: isActiveForCatalog(status),
       })
-      .eq("id", id)
-      .eq("seller_id", sellerId)
-      .select(PRODUCT_SELECT)
-      .single();
+      .eq("id", id);
+    if (sellerId !== null) query = query.eq("seller_id", sellerId);
+
+    const { data: row, error } = await query.select(PRODUCT_SELECT).single();
 
     if (error || !row) {
       throw new Error(`Failed to update publication status: ${error?.message ?? "unknown"}`);

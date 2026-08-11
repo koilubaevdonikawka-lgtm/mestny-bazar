@@ -12,8 +12,10 @@ import { signInWithGoogle } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { LogOut, MapPin, Package, User } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "@/i18n/LanguageProvider";
 
 export function AccountMenu() {
+  const { t } = useTranslation();
   const { isAuthenticated } = useSupabaseSession();
 
   const handleSignIn = async () => {
@@ -22,7 +24,7 @@ export function AccountMenu() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    toast.success("Вы вышли из аккаунта");
+    toast.success(t("account.signedOutToast"));
   };
 
   if (isAuthenticated === null) {
@@ -40,7 +42,7 @@ export function AccountMenu() {
         className="h-11 rounded-full px-4"
         onClick={() => void handleSignIn()}
       >
-        Войти
+        {t("common.signIn")}
       </Button>
     );
   }
@@ -48,7 +50,12 @@ export function AccountMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-11 w-11 rounded-full" aria-label="Аккаунт">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-11 w-11 rounded-full"
+          aria-label={t("account.menuAriaLabel")}
+        >
           <User className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
@@ -56,19 +63,19 @@ export function AccountMenu() {
         <DropdownMenuItem asChild>
           <Link to="/orders" className="cursor-pointer">
             <Package className="h-4 w-4" />
-            Мои заказы
+            {t("orders.title")}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link to="/profile/addresses" className="cursor-pointer">
             <MapPin className="h-4 w-4" />
-            Адреса доставки
+            {t("addresses.title")}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => void handleSignOut()} className="cursor-pointer">
           <LogOut className="h-4 w-4" />
-          Выйти
+          {t("common.signOut")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

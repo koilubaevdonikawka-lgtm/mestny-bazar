@@ -14,6 +14,19 @@ export const updateDeliveryZoneRequestSchema = createDeliveryZoneRequestSchema
   .partial()
   .extend({ id: z.string().uuid() });
 
+export const createStoreRequestSchema = z.object({
+  cityId: z.string().uuid(),
+  name: z.string().trim().min(1).max(200),
+  address: z.string().trim().min(1).max(500),
+  lat: z.number().min(-90).max(90).nullable().optional(),
+  lng: z.number().min(-180).max(180).nullable().optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const updateStoreRequestSchema = createStoreRequestSchema
+  .partial()
+  .extend({ id: z.string().uuid() });
+
 const tariffTypeSchema = z.enum([
   DeliveryTariffType.STANDARD,
   DeliveryTariffType.HOLIDAY,

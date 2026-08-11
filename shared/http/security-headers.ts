@@ -50,5 +50,12 @@ export function applySecurityHeaders(headers: Headers): void {
   headers.set("X-Frame-Options", "DENY");
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  // geolocation=(self): the app's own Geolocation capability
+  // (src/lib/capabilities/web/geolocation.ts) calls navigator.geolocation
+  // directly, which Permissions-Policy gates — geolocation=() would silently
+  // break it the moment it's wired into a component. Camera/microphone stay
+  // fully blocked: photo capture goes through <input type="file" capture>
+  // (an OS picker, ungoverned by this policy, see web/image-picker.ts), and
+  // nothing uses getUserMedia. Third-party iframes still get nothing either way.
+  headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)");
 }

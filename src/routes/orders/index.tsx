@@ -14,12 +14,14 @@ import {
   formatPaymentStatus,
 } from "@shared/lib/order-display";
 import { Loader2, Package, LogIn } from "lucide-react";
+import { useTranslation } from "@/i18n/LanguageProvider";
 
 export const Route = createFileRoute("/orders/")({
   component: OrdersPage,
 });
 
 function OrdersPage() {
+  const { t } = useTranslation();
   const { isAuthenticated } = useSupabaseSession();
 
   const {
@@ -56,10 +58,10 @@ function OrdersPage() {
           <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
             <LogIn className="h-6 w-6 text-primary" />
           </div>
-          <h1 className="font-serif text-3xl tracking-tight">Мои заказы</h1>
-          <p className="mt-3 text-muted-foreground">Войдите, чтобы видеть историю ваших заказов.</p>
+          <h1 className="font-serif text-3xl tracking-tight">{t("orders.title")}</h1>
+          <p className="mt-3 text-muted-foreground">{t("orders.signInToViewHistory")}</p>
           <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
-            Войти
+            {t("common.signIn")}
           </Button>
         </div>
       </PageShell>
@@ -77,7 +79,7 @@ function OrdersPage() {
   }
 
   if (isError) {
-    const message = error instanceof Error ? error.message : "Не удалось загрузить заказы";
+    const message = error instanceof Error ? error.message : t("orders.loadError");
     const isAuthError =
       message.toLowerCase().includes("authentication") || message.includes("Unauthorized");
     return (
@@ -90,11 +92,11 @@ function OrdersPage() {
               className="mt-6 h-12 rounded-full"
               onClick={() => void handleSignIn()}
             >
-              Войти снова
+              {t("common.signInAgain")}
             </Button>
           ) : (
             <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void refetch()}>
-              Повторить
+              {t("common.retry")}
             </Button>
           )}
         </div>
@@ -105,18 +107,18 @@ function OrdersPage() {
   return (
     <PageShell>
       <div className="mx-auto max-w-3xl px-6 py-12">
-        <h1 className="font-serif text-4xl tracking-tight">Мои заказы</h1>
-        <p className="mt-2 text-muted-foreground">Только ваши заказы в «Местном Базаре».</p>
+        <h1 className="font-serif text-4xl tracking-tight">{t("orders.title")}</h1>
+        <p className="mt-2 text-muted-foreground">{t("orders.subtitle")}</p>
 
         {orders.length === 0 ? (
           <div className="mt-12 rounded-3xl border border-dashed border-border py-16 text-center">
             <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
               <Package className="h-6 w-6 text-primary" />
             </div>
-            <h2 className="font-serif text-2xl">Заказов пока нет</h2>
-            <p className="mt-2 text-muted-foreground">Оформите первый заказ в каталоге.</p>
+            <h2 className="font-serif text-2xl">{t("orders.empty")}</h2>
+            <p className="mt-2 text-muted-foreground">{t("orders.emptyDescription")}</p>
             <Button asChild size="lg" className="mt-6 h-12 rounded-full">
-              <Link to="/">Перейти в каталог</Link>
+              <Link to="/">{t("orders.goToCatalog")}</Link>
             </Button>
           </div>
         ) : (
@@ -130,7 +132,9 @@ function OrdersPage() {
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="font-serif text-xl">Заказ №{order.orderNumber}</p>
+                      <p className="font-serif text-xl">
+                        {t("orders.orderNumber", { number: order.orderNumber })}
+                      </p>
                       <p className="text-sm text-muted-foreground mt-1">
                         {formatOrderDate(order.createdAt)}
                       </p>
@@ -144,7 +148,9 @@ function OrdersPage() {
                     {formatMoney(order.total, order.currency)}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {order.items.length} {order.items.length === 1 ? "товар" : "товаров"}
+                    {t(order.items.length === 1 ? "orders.itemCountOne" : "orders.itemCountMany", {
+                      count: order.items.length,
+                    })}
                   </p>
                 </Link>
               </li>
@@ -159,7 +165,7 @@ function OrdersPage() {
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader />
+      <SiteHeader showLanguageSwitcher safeAreaTop />
       <main className="flex-1">{children}</main>
       <SiteFooter />
     </div>

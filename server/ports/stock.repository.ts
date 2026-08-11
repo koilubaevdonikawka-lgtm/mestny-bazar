@@ -4,6 +4,8 @@ export interface StockRow {
   stock: number;
   lowStockThreshold: number | null;
   categoryId: string | null;
+  /** Уже существующее поле товара (products.unit) — для отображения рядом с количеством в формах движения товара. */
+  unit: string | null;
 }
 
 export interface IStockRepository {

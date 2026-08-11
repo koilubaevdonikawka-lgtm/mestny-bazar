@@ -5,6 +5,7 @@ import { ProductPublicationStatus } from "@shared/contracts/seller-product";
 import { BootstrapDraftRule } from "@server/domain/product-publication/rules/bootstrap-draft.rule";
 import { SellerPublishRule } from "@server/domain/product-publication/rules/seller-publish.rule";
 import { SellerHideRule } from "@server/domain/product-publication/rules/seller-hide.rule";
+import { AdminFullControlRule } from "@server/domain/product-publication/rules/admin-full-control.rule";
 
 function ctx(overrides: Partial<ProductPublicationContext>): ProductPublicationContext {
   return {
@@ -77,6 +78,28 @@ describe("SellerHideRule", () => {
     for (const status of [ProductPublicationStatus.DRAFT, ProductPublicationStatus.HIDDEN]) {
       const result = rule.evaluate(ctx({ ...applyCtx, currentStatus: status }));
       expect(result).toMatchObject({ allowed: false, denialCode: "INVALID_HIDE_TRANSITION" });
+    }
+  });
+});
+
+describe("AdminFullControlRule", () => {
+  const rule = new AdminFullControlRule();
+
+  it("applies to admin_create and admin_update, but not seller reasons", () => {
+    expect(rule.applies(ctx({ reason: "admin_create" }))).toBe(true);
+    expect(rule.applies(ctx({ reason: "admin_update" }))).toBe(true);
+    expect(rule.applies(ctx({ reason: "seller_create" }))).toBe(false);
+  });
+
+  it("always allows, for any target status", () => {
+    for (const status of [
+      ProductPublicationStatus.DRAFT,
+      ProductPublicationStatus.PUBLISHED,
+      ProductPublicationStatus.HIDDEN,
+    ]) {
+      expect(rule.evaluate(ctx({ reason: "admin_create", targetStatus: status })).allowed).toBe(
+        true,
+      );
     }
   });
 });

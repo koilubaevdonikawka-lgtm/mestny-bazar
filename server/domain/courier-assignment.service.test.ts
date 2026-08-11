@@ -4,6 +4,7 @@ import type { ICourierStatusRepository } from "@server/ports/courier-status.repo
 import type { IOrderRepository } from "@server/ports/order.repository";
 import type { ICourierAssignmentPolicy } from "@server/ports/courier-assignment.port";
 import type { IMarketplaceEventBus, MarketplaceEvent } from "@server/ports/marketplace-events.port";
+import type { ICourierProfileRepository } from "@server/ports/courier-profile.repository";
 import type { OrderDTO } from "@shared/contracts/order";
 
 function makeOrder(overrides: Partial<OrderDTO> = {}): OrderDTO {
@@ -64,6 +65,13 @@ function fakeOrderRepo(overrides: Partial<IOrderRepository> = {}): IOrderReposit
     assignCourier: vi.fn(async (_id, courierId) => makeOrder({ assignedCourierId: courierId })),
     countActiveDeliveriesByCourier: vi.fn(async () => 0),
     listByStatusesForCourier: vi.fn(async () => []),
+    listByCourier: vi.fn(async () => ({
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 50,
+      hasMore: false,
+    })),
     listInPeriod: vi.fn(async () => []),
     ...overrides,
   } as IOrderRepository;
@@ -81,6 +89,21 @@ function fakeEventBus(overrides: Partial<IMarketplaceEventBus> = {}): IMarketpla
   };
 }
 
+function fakeCourierProfileRepo(
+  overrides: Partial<ICourierProfileRepository> = {},
+): ICourierProfileRepository {
+  return {
+    list: vi.fn(async () => []),
+    getByUserId: vi.fn(async () => null),
+    create: vi.fn(),
+    update: vi.fn(),
+    setStatus: vi.fn(),
+    bulkSetStatus: vi.fn(),
+    listBlockedCourierIds: vi.fn(async () => []),
+    ...overrides,
+  } as ICourierProfileRepository;
+}
+
 describe("CourierAssignmentService.assignCourier", () => {
   it("returns the order unchanged when it already has a courier", async () => {
     const orderRepo = fakeOrderRepo();
@@ -89,6 +112,7 @@ describe("CourierAssignmentService.assignCourier", () => {
       orderRepo,
       fakePolicy(),
       fakeEventBus(),
+      fakeCourierProfileRepo(),
     );
     const order = makeOrder({ assignedCourierId: "courier-1" });
 
@@ -105,6 +129,7 @@ describe("CourierAssignmentService.assignCourier", () => {
       fakeOrderRepo(),
       fakePolicy(),
       fakeEventBus(),
+      fakeCourierProfileRepo(),
     );
 
     expect(await service.assignCourier(makeOrder())).toBeNull();
@@ -120,6 +145,7 @@ describe("CourierAssignmentService.assignCourier", () => {
       fakeOrderRepo(),
       policy,
       fakeEventBus(),
+      fakeCourierProfileRepo(),
     );
 
     expect(await service.assignCourier(makeOrder())).toBeNull();
@@ -132,7 +158,13 @@ describe("CourierAssignmentService.assignCourier", () => {
     const orderRepo = fakeOrderRepo();
     const policy = fakePolicy({ selectCourier: vi.fn(() => ({ courierId: "c1" })) });
     const events = fakeEventBus();
-    const service = new CourierAssignmentService(courierStatus, orderRepo, policy, events);
+    const service = new CourierAssignmentService(
+      courierStatus,
+      orderRepo,
+      policy,
+      events,
+      fakeCourierProfileRepo(),
+    );
     const order = makeOrder();
 
     const result = await service.assignCourier(order);
@@ -156,7 +188,13 @@ describe("CourierAssignmentService.assignCourier", () => {
     });
     const policy = fakePolicy({ selectCourier: vi.fn(() => ({ courierId: "c1" })) });
     const events = fakeEventBus();
-    const service = new CourierAssignmentService(courierStatus, orderRepo, policy, events);
+    const service = new CourierAssignmentService(
+      courierStatus,
+      orderRepo,
+      policy,
+      events,
+      fakeCourierProfileRepo(),
+    );
 
     const result = await service.assignCourier(makeOrder());
 
@@ -177,7 +215,13 @@ describe("CourierAssignmentService.assignCourier", () => {
       ),
     });
     const policy = fakePolicy();
-    const service = new CourierAssignmentService(courierStatus, orderRepo, policy, fakeEventBus());
+    const service = new CourierAssignmentService(
+      courierStatus,
+      orderRepo,
+      policy,
+      fakeEventBus(),
+      fakeCourierProfileRepo(),
+    );
 
     await service.assignCourier(makeOrder());
 
@@ -189,5 +233,52 @@ describe("CourierAssignmentService.assignCourier", () => {
         ]),
       }),
     );
+  });
+
+  it("excludes a blocked courier from candidates even when marked available", async () => {
+    const courierStatus = fakeCourierStatusRepo({
+      listAvailable: vi.fn(async () => [
+        { courierId: "c1", isAvailable: true, lastSeenAt: "" },
+        { courierId: "c2", isAvailable: true, lastSeenAt: "" },
+      ]),
+    });
+    const orderRepo = fakeOrderRepo();
+    const policy = fakePolicy({ selectCourier: vi.fn(() => ({ courierId: "c2" })) });
+    const courierProfiles = fakeCourierProfileRepo({
+      listBlockedCourierIds: vi.fn(async () => ["c1"]),
+    });
+    const service = new CourierAssignmentService(
+      courierStatus,
+      orderRepo,
+      policy,
+      fakeEventBus(),
+      courierProfiles,
+    );
+
+    await service.assignCourier(makeOrder());
+
+    expect(policy.selectCourier).toHaveBeenCalledWith(
+      expect.objectContaining({
+        candidates: [{ courierId: "c2", activeDeliveries: 0 }],
+      }),
+    );
+  });
+
+  it("returns null when every available courier is blocked", async () => {
+    const courierStatus = fakeCourierStatusRepo({
+      listAvailable: vi.fn(async () => [{ courierId: "c1", isAvailable: true, lastSeenAt: "" }]),
+    });
+    const courierProfiles = fakeCourierProfileRepo({
+      listBlockedCourierIds: vi.fn(async () => ["c1"]),
+    });
+    const service = new CourierAssignmentService(
+      courierStatus,
+      fakeOrderRepo(),
+      fakePolicy(),
+      fakeEventBus(),
+      courierProfiles,
+    );
+
+    expect(await service.assignCourier(makeOrder())).toBeNull();
   });
 });

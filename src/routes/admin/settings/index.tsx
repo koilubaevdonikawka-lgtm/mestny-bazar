@@ -10,6 +10,7 @@ import { listSettings, updateSetting } from "@/api/settings";
 import type { SettingValue } from "@shared/contracts/settings";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
+import { useTranslation } from "@/i18n/LanguageProvider";
 import { ArrowLeft, Loader2, LogIn, Settings as SettingsIcon, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/admin/settings/")({
 
 function AdminSettingsPage() {
   const { isAuthenticated } = useSupabaseSession();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [key, setKey] = useState("");
   const [category, setCategory] = useState("");
@@ -42,12 +44,12 @@ function AdminSettingsPage() {
     mutationFn: updateSetting,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "settings", "list"] });
-      toast.success("Настройка сохранена");
+      toast.success(t("admin.settings.savedToast"));
       setKey("");
       setCategory("");
       setValueText("");
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось сохранить настройку"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : t("admin.settings.saveError")),
   });
 
   const handleSignIn = async () => {
@@ -58,14 +60,14 @@ function AdminSettingsPage() {
     e.preventDefault();
     setFormError(null);
     if (!key.trim() || !category.trim()) {
-      setFormError("Укажите ключ и категорию");
+      setFormError(t("admin.settings.missingKeyCategoryError"));
       return;
     }
     let value: SettingValue;
     try {
       value = valueText.trim() ? (JSON.parse(valueText) as SettingValue) : null;
     } catch {
-      setFormError('Значение должно быть корректным JSON (например: "текст", 123, true, {"a":1})');
+      setFormError(t("admin.settings.invalidJsonError"));
       return;
     }
     updateMutation.mutate({ key: key.trim(), category: category.trim(), value });
@@ -88,10 +90,10 @@ function AdminSettingsPage() {
           <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
             <LogIn className="h-6 w-6 text-primary" />
           </div>
-          <h1 className="font-serif text-3xl tracking-tight">Настройки</h1>
-          <p className="mt-3 text-muted-foreground">Войдите с учётной записью администратора.</p>
+          <h1 className="font-serif text-3xl tracking-tight">{t("admin.settings.title")}</h1>
+          <p className="mt-3 text-muted-foreground">{t("admin.common.signInPrompt")}</p>
           <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
-            Войти
+            {t("common.signIn")}
           </Button>
         </div>
       </AdminLayout>
@@ -109,7 +111,7 @@ function AdminSettingsPage() {
   }
 
   if (isError) {
-    const message = error instanceof Error ? error.message : "Не удалось загрузить настройки";
+    const message = error instanceof Error ? error.message : t("admin.settings.loadError");
     const isForbidden =
       message.toLowerCase().includes("access denied") ||
       message.toLowerCase().includes("admin role") ||
@@ -123,10 +125,10 @@ function AdminSettingsPage() {
           {isForbidden ? (
             <>
               <ShieldAlert className="h-10 w-10 text-primary mx-auto mb-4" />
-              <h1 className="font-serif text-3xl tracking-tight">Доступ запрещён</h1>
-              <p className="mt-3 text-muted-foreground">
-                Эта страница доступна только администраторам.
-              </p>
+              <h1 className="font-serif text-3xl tracking-tight">
+                {t("admin.common.accessDeniedTitle")}
+              </h1>
+              <p className="mt-3 text-muted-foreground">{t("admin.common.adminOnlyMessage")}</p>
             </>
           ) : (
             <>
@@ -137,11 +139,11 @@ function AdminSettingsPage() {
                   className="mt-6 h-12 rounded-full"
                   onClick={() => void handleSignIn()}
                 >
-                  Войти снова
+                  {t("common.signInAgain")}
                 </Button>
               ) : (
                 <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void refetch()}>
-                  Повторить
+                  {t("common.retry")}
                 </Button>
               )}
             </>
@@ -157,14 +159,13 @@ function AdminSettingsPage() {
         <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
           <Link to="/admin">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Административная платформа
+            {t("admin.common.backToHub")}
           </Link>
         </Button>
 
-        <h1 className="font-serif text-4xl tracking-tight">Настройки</h1>
+        <h1 className="font-serif text-4xl tracking-tight">{t("admin.settings.title")}</h1>
         <p className="mt-2 text-muted-foreground">
-          Бизнес-настройки платформы — хранятся в базе данных, читаются через сервисный слой, не
-          через переменные окружения (см.{" "}
+          {t("admin.settings.descriptionPrefix")}{" "}
           <code className="text-sm">docs/admin-platform/settings.md</code>).
         </p>
 
@@ -174,7 +175,7 @@ function AdminSettingsPage() {
               <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
                 <SettingsIcon className="h-6 w-6 text-primary" />
               </div>
-              <p className="text-muted-foreground">Настроек пока нет.</p>
+              <p className="text-muted-foreground">{t("admin.settings.emptyState")}</p>
             </div>
           ) : (
             <ul className="space-y-3">
@@ -197,37 +198,37 @@ function AdminSettingsPage() {
         </section>
 
         <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">
-          <h2 className="font-serif text-2xl mb-4">Добавить / изменить настройку</h2>
+          <h2 className="font-serif text-2xl mb-4">{t("admin.settings.addUpdateHeading")}</h2>
           <form onSubmit={handleSubmit} className="grid gap-4">
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="grid gap-2">
-                <Label htmlFor="setting-key">Ключ</Label>
+                <Label htmlFor="setting-key">{t("admin.settings.keyLabel")}</Label>
                 <Input
                   id="setting-key"
                   value={key}
                   onChange={(e) => setKey(e.target.value)}
-                  placeholder="например: store.name"
+                  placeholder={t("admin.settings.keyPlaceholder")}
                   maxLength={200}
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="setting-category">Категория</Label>
+                <Label htmlFor="setting-category">{t("admin.settings.categoryLabel")}</Label>
                 <Input
                   id="setting-category"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  placeholder="например: general"
+                  placeholder={t("admin.settings.categoryPlaceholder")}
                   maxLength={100}
                 />
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="setting-value">Значение (JSON)</Label>
+              <Label htmlFor="setting-value">{t("admin.settings.valueLabel")}</Label>
               <Input
                 id="setting-value"
                 value={valueText}
                 onChange={(e) => setValueText(e.target.value)}
-                placeholder='"Местный Базар" или 123 или true или {"a":1}'
+                placeholder={t("admin.settings.valuePlaceholder")}
               />
             </div>
             {formError && <p className="text-sm text-destructive">{formError}</p>}
@@ -235,7 +236,7 @@ function AdminSettingsPage() {
               {updateMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                "Сохранить"
+                t("common.save")
               )}
             </Button>
           </form>

@@ -1,10 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { CourierAdminSummaryDTO } from "@shared/contracts/courier-status";
+import type { CourierListItemDTO } from "@shared/contracts/courier-profile";
 import type { OrderDTO } from "@shared/contracts/order";
 import { uuidParamSchema } from "@shared/validation/common.schema";
 
 export const listCouriersFn = createServerFn({ method: "GET" }).handler(
-  async (): Promise<CourierAdminSummaryDTO[]> => {
+  async (): Promise<CourierListItemDTO[]> => {
     const { executeListCouriers } = await import("@server/functions/courier-admin.executor");
     return executeListCouriers();
   },

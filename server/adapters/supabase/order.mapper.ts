@@ -75,6 +75,7 @@ interface DbOrderRow {
 interface DbOrderItemRow {
   id: string;
   product_id: string | null;
+  variant_id: string | null;
   product_name: string;
   product_image_url: string | null;
   quantity: number;
@@ -107,6 +108,7 @@ export function mapOrderRowToDto(
     items: items.map((item) => ({
       id: item.id,
       productId: item.product_id,
+      variantId: item.variant_id,
       productName: item.product_name,
       productImageUrl: item.product_image_url,
       quantity: item.quantity,

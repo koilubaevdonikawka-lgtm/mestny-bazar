@@ -121,7 +121,14 @@ function read(p) {
 // ADR-002 — that file, and the Shopify catalog it hardcoded a token for, no
 // longer exist.)
 {
-  const SERVER_ONLY_NAMES = ["SUPABASE_SERVICE_ROLE_KEY", "FINIK_API_KEY", "TELEGRAM_BOT_TOKEN"];
+  const SERVER_ONLY_NAMES = [
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "FINIK_API_KEY",
+    "FINIK_RSA_PRIVATE_KEY",
+    "FINIK_WEBHOOK_PUBLIC_KEY",
+    "TELEGRAM_BOT_TOKEN",
+    "GOOGLE_AI_API_KEY",
+  ];
   const srcFiles = walk(join(ROOT, "src")).filter((f) => !f.endsWith(".server.ts"));
   for (const file of srcFiles) {
     const content = read(file);

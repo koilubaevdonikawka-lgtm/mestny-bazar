@@ -8,6 +8,7 @@ interface ProductStockRow {
   stock: number;
   low_stock_threshold: number | null;
   category_id: string | null;
+  unit: string | null;
 }
 
 export function mapStockRow(row: ProductStockRow): StockRow {
@@ -17,10 +18,11 @@ export function mapStockRow(row: ProductStockRow): StockRow {
     stock: Number(row.stock),
     lowStockThreshold: row.low_stock_threshold,
     categoryId: row.category_id,
+    unit: row.unit,
   };
 }
 
-const STOCK_SELECT = "id, name, stock, low_stock_threshold, category_id";
+const STOCK_SELECT = "id, name, stock, low_stock_threshold, category_id, unit";
 
 /** Warehouse stock repository — all products regardless of publication status. */
 export class SupabaseStockRepository implements IStockRepository {

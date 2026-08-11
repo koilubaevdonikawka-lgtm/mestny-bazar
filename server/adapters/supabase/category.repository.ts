@@ -10,6 +10,7 @@ function mapCategory(row: {
   image_url: string | null;
   sort_order: number;
   name_kg: string | null;
+  parent_id: string | null;
 }): CategoryDTO {
   return {
     id: row.id,
@@ -19,10 +20,11 @@ function mapCategory(row: {
     imageUrl: row.image_url,
     sortOrder: row.sort_order,
     nameKg: row.name_kg,
+    parentId: row.parent_id,
   };
 }
 
-const CATEGORY_SELECT = "id, name, slug, description, image_url, sort_order, name_kg";
+const CATEGORY_SELECT = "id, name, slug, description, image_url, sort_order, name_kg, parent_id";
 
 /** Supabase category repository — buyers see active categories only. */
 export class SupabaseCategoryRepository implements ICategoryRepository {
@@ -35,5 +37,17 @@ export class SupabaseCategoryRepository implements ICategoryRepository {
 
     if (error) throw new Error(`Failed to list categories: ${error.message}`);
     return (data ?? []).map(mapCategory);
+  }
+
+  async getBySlug(slug: string): Promise<CategoryDTO | null> {
+    const { data, error } = await supabaseAdmin
+      .from("categories")
+      .select(CATEGORY_SELECT)
+      .eq("slug", slug)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (error) throw new Error(`Failed to fetch category by slug: ${error.message}`);
+    return data ? mapCategory(data) : null;
   }
 }

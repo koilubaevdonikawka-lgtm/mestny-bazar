@@ -183,7 +183,8 @@ function AdminFinancePage() {
         <p className="mt-2 text-muted-foreground">
           Выплаты продавцам и комиссия платформы (см.{" "}
           <code className="text-sm">docs/admin-platform/finance.md</code>). Сверка с платёжным
-          провайдером заблокирована до завершения интеграции Finik.
+          провайдером заблокирована до предоставления реальных ключей провайдера (Public Key, Secret
+          Key, Merchant ID, API URL, Webhook Secret).
         </p>
 
         {!overviewLoading && overview && (

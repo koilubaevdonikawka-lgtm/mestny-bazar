@@ -181,6 +181,7 @@ export type Database = {
           is_active: boolean;
           name: string;
           name_kg: string | null;
+          parent_id: string | null;
           slug: string;
           sort_order: number;
           updated_at: string;
@@ -193,6 +194,7 @@ export type Database = {
           is_active?: boolean;
           name: string;
           name_kg?: string | null;
+          parent_id?: string | null;
           slug: string;
           sort_order?: number;
           updated_at?: string;
@@ -205,11 +207,20 @@ export type Database = {
           is_active?: boolean;
           name?: string;
           name_kg?: string | null;
+          parent_id?: string | null;
           slug?: string;
           sort_order?: number;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "categories_parent_id_fkey";
+            columns: ["parent_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       coupons: {
         Row: {
@@ -576,6 +587,7 @@ export type Database = {
           product_name: string;
           quantity: number;
           unit_price: number;
+          variant_id: string | null;
         };
         Insert: {
           created_at?: string;
@@ -587,6 +599,7 @@ export type Database = {
           product_name: string;
           quantity: number;
           unit_price: number;
+          variant_id?: string | null;
         };
         Update: {
           created_at?: string;
@@ -598,6 +611,7 @@ export type Database = {
           product_name?: string;
           quantity?: number;
           unit_price?: number;
+          variant_id?: string | null;
         };
         Relationships: [
           {
@@ -612,6 +626,13 @@ export type Database = {
             columns: ["product_id"];
             isOneToOne: false;
             referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_items_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
             referencedColumns: ["id"];
           },
         ];
@@ -768,17 +789,21 @@ export type Database = {
       products: {
         Row: {
           category_id: string | null;
+          country_of_origin: string | null;
           created_at: string;
           currency: string;
           description: string | null;
           id: string;
           image_url: string | null;
+          image_urls: string[];
           is_active: boolean;
           low_stock_threshold: number | null;
+          manufacturer: string | null;
           name: string;
           price: number;
           publication_status: Database["public"]["Enums"]["product_publication_status"];
           seller_id: string | null;
+          sku: string | null;
           slug: string;
           stock: number;
           unit: string | null;
@@ -786,17 +811,21 @@ export type Database = {
         };
         Insert: {
           category_id?: string | null;
+          country_of_origin?: string | null;
           created_at?: string;
           currency?: string;
           description?: string | null;
           id?: string;
           image_url?: string | null;
+          image_urls?: string[];
           is_active?: boolean;
           low_stock_threshold?: number | null;
+          manufacturer?: string | null;
           name: string;
           price: number;
           publication_status?: Database["public"]["Enums"]["product_publication_status"];
           seller_id?: string | null;
+          sku?: string | null;
           slug: string;
           stock?: number;
           unit?: string | null;
@@ -804,17 +833,21 @@ export type Database = {
         };
         Update: {
           category_id?: string | null;
+          country_of_origin?: string | null;
           created_at?: string;
           currency?: string;
           description?: string | null;
           id?: string;
           image_url?: string | null;
+          image_urls?: string[];
           is_active?: boolean;
           low_stock_threshold?: number | null;
+          manufacturer?: string | null;
           name?: string;
           price?: number;
           publication_status?: Database["public"]["Enums"]["product_publication_status"];
           seller_id?: string | null;
+          sku?: string | null;
           slug?: string;
           stock?: number;
           unit?: string | null;
@@ -1108,6 +1141,639 @@ export type Database = {
         };
         Relationships: [];
       };
+      payments: {
+        Row: {
+          amount: number;
+          created_at: string;
+          currency: string;
+          expires_at: string | null;
+          failure_reason: string | null;
+          id: string;
+          idempotency_key: string;
+          order_id: string;
+          payment_url: string | null;
+          provider: string;
+          provider_payment_id: string | null;
+          status: Database["public"]["Enums"]["payment_record_status"];
+          updated_at: string;
+        };
+        Insert: {
+          amount: number;
+          created_at?: string;
+          currency: string;
+          expires_at?: string | null;
+          failure_reason?: string | null;
+          id?: string;
+          idempotency_key: string;
+          order_id: string;
+          payment_url?: string | null;
+          provider?: string;
+          provider_payment_id?: string | null;
+          status?: Database["public"]["Enums"]["payment_record_status"];
+          updated_at?: string;
+        };
+        Update: {
+          amount?: number;
+          created_at?: string;
+          currency?: string;
+          expires_at?: string | null;
+          failure_reason?: string | null;
+          id?: string;
+          idempotency_key?: string;
+          order_id?: string;
+          payment_url?: string | null;
+          provider?: string;
+          provider_payment_id?: string | null;
+          status?: Database["public"]["Enums"]["payment_record_status"];
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payments_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      payment_events: {
+        Row: {
+          created_at: string;
+          event_type: Database["public"]["Enums"]["payment_event_type"];
+          id: string;
+          metadata: Json | null;
+          payment_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          event_type: Database["public"]["Enums"]["payment_event_type"];
+          id?: string;
+          metadata?: Json | null;
+          payment_id: string;
+        };
+        Update: {
+          created_at?: string;
+          event_type?: Database["public"]["Enums"]["payment_event_type"];
+          id?: string;
+          metadata?: Json | null;
+          payment_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payment_events_payment_id_fkey";
+            columns: ["payment_id"];
+            isOneToOne: false;
+            referencedRelation: "payments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      translation_cache: {
+        Row: {
+          created_at: string;
+          id: string;
+          source_language: string;
+          source_text: string;
+          source_text_hash: string;
+          target_language: string;
+          translated_text: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          source_language: string;
+          source_text: string;
+          source_text_hash: string;
+          target_language: string;
+          translated_text: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          source_language?: string;
+          source_text?: string;
+          source_text_hash?: string;
+          target_language?: string;
+          translated_text?: string;
+        };
+        Relationships: [];
+      };
+      courier_profiles: {
+        Row: {
+          admin_comment: string | null;
+          created_at: string;
+          created_by: string | null;
+          first_name: string;
+          hired_at: string | null;
+          last_name: string;
+          middle_name: string | null;
+          phone: string;
+          photo_url: string | null;
+          plate_number: string | null;
+          service_zone_id: string | null;
+          status: Database["public"]["Enums"]["courier_profile_status"];
+          updated_at: string;
+          user_id: string;
+          vehicle_type: Database["public"]["Enums"]["courier_vehicle_type"];
+        };
+        Insert: {
+          admin_comment?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          first_name: string;
+          hired_at?: string | null;
+          last_name: string;
+          middle_name?: string | null;
+          phone: string;
+          photo_url?: string | null;
+          plate_number?: string | null;
+          service_zone_id?: string | null;
+          status?: Database["public"]["Enums"]["courier_profile_status"];
+          updated_at?: string;
+          user_id: string;
+          vehicle_type?: Database["public"]["Enums"]["courier_vehicle_type"];
+        };
+        Update: {
+          admin_comment?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          first_name?: string;
+          hired_at?: string | null;
+          last_name?: string;
+          middle_name?: string | null;
+          phone?: string;
+          photo_url?: string | null;
+          plate_number?: string | null;
+          service_zone_id?: string | null;
+          status?: Database["public"]["Enums"]["courier_profile_status"];
+          updated_at?: string;
+          user_id?: string;
+          vehicle_type?: Database["public"]["Enums"]["courier_vehicle_type"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "courier_profiles_service_zone_id_fkey";
+            columns: ["service_zone_id"];
+            isOneToOne: false;
+            referencedRelation: "delivery_zones";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      rbac_roles: {
+        Row: {
+          created_at: string;
+          description: string | null;
+          id: string;
+          is_system: boolean;
+          name: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          is_system?: boolean;
+          name: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          is_system?: boolean;
+          name?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      rbac_permissions: {
+        Row: {
+          action: string;
+          created_at: string;
+          description: string | null;
+          id: string;
+          is_system: boolean;
+          module: string;
+        };
+        Insert: {
+          action: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          is_system?: boolean;
+          module: string;
+        };
+        Update: {
+          action?: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          is_system?: boolean;
+          module?: string;
+        };
+        Relationships: [];
+      };
+      rbac_role_permissions: {
+        Row: {
+          permission_id: string;
+          role_id: string;
+        };
+        Insert: {
+          permission_id: string;
+          role_id: string;
+        };
+        Update: {
+          permission_id?: string;
+          role_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "rbac_role_permissions_permission_id_fkey";
+            columns: ["permission_id"];
+            isOneToOne: false;
+            referencedRelation: "rbac_permissions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "rbac_role_permissions_role_id_fkey";
+            columns: ["role_id"];
+            isOneToOne: false;
+            referencedRelation: "rbac_roles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      rbac_user_roles: {
+        Row: {
+          assigned_at: string;
+          assigned_by: string | null;
+          role_id: string;
+          user_id: string;
+        };
+        Insert: {
+          assigned_at?: string;
+          assigned_by?: string | null;
+          role_id: string;
+          user_id: string;
+        };
+        Update: {
+          assigned_at?: string;
+          assigned_by?: string | null;
+          role_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "rbac_user_roles_role_id_fkey";
+            columns: ["role_id"];
+            isOneToOne: false;
+            referencedRelation: "rbac_roles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      attribute_groups: {
+        Row: {
+          created_at: string;
+          id: string;
+          is_active: boolean;
+          name: string;
+          slug: string;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          is_active?: boolean;
+          name: string;
+          slug: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          is_active?: boolean;
+          name?: string;
+          slug?: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      attributes: {
+        Row: {
+          created_at: string;
+          group_id: string | null;
+          id: string;
+          is_active: boolean;
+          is_filterable: boolean;
+          name: string;
+          slug: string;
+          sort_order: number;
+          unit: string | null;
+          updated_at: string;
+          value_type: Database["public"]["Enums"]["attribute_value_type"];
+        };
+        Insert: {
+          created_at?: string;
+          group_id?: string | null;
+          id?: string;
+          is_active?: boolean;
+          is_filterable?: boolean;
+          name: string;
+          slug: string;
+          sort_order?: number;
+          unit?: string | null;
+          updated_at?: string;
+          value_type: Database["public"]["Enums"]["attribute_value_type"];
+        };
+        Update: {
+          created_at?: string;
+          group_id?: string | null;
+          id?: string;
+          is_active?: boolean;
+          is_filterable?: boolean;
+          name?: string;
+          slug?: string;
+          sort_order?: number;
+          unit?: string | null;
+          updated_at?: string;
+          value_type?: Database["public"]["Enums"]["attribute_value_type"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "attributes_group_id_fkey";
+            columns: ["group_id"];
+            isOneToOne: false;
+            referencedRelation: "attribute_groups";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      attribute_values: {
+        Row: {
+          attribute_id: string;
+          created_at: string;
+          id: string;
+          sort_order: number;
+          value: string;
+        };
+        Insert: {
+          attribute_id: string;
+          created_at?: string;
+          id?: string;
+          sort_order?: number;
+          value: string;
+        };
+        Update: {
+          attribute_id?: string;
+          created_at?: string;
+          id?: string;
+          sort_order?: number;
+          value?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "attribute_values_attribute_id_fkey";
+            columns: ["attribute_id"];
+            isOneToOne: false;
+            referencedRelation: "attributes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      category_attributes: {
+        Row: {
+          attribute_id: string;
+          category_id: string;
+          is_required: boolean;
+          sort_order: number;
+        };
+        Insert: {
+          attribute_id: string;
+          category_id: string;
+          is_required?: boolean;
+          sort_order?: number;
+        };
+        Update: {
+          attribute_id?: string;
+          category_id?: string;
+          is_required?: boolean;
+          sort_order?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "category_attributes_attribute_id_fkey";
+            columns: ["attribute_id"];
+            isOneToOne: false;
+            referencedRelation: "attributes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "category_attributes_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_attribute_values: {
+        Row: {
+          attribute_id: string;
+          attribute_value_id: string | null;
+          created_at: string;
+          id: string;
+          product_id: string;
+          updated_at: string;
+          value_boolean: boolean | null;
+          value_number: number | null;
+          value_text: string | null;
+        };
+        Insert: {
+          attribute_id: string;
+          attribute_value_id?: string | null;
+          created_at?: string;
+          id?: string;
+          product_id: string;
+          updated_at?: string;
+          value_boolean?: boolean | null;
+          value_number?: number | null;
+          value_text?: string | null;
+        };
+        Update: {
+          attribute_id?: string;
+          attribute_value_id?: string | null;
+          created_at?: string;
+          id?: string;
+          product_id?: string;
+          updated_at?: string;
+          value_boolean?: boolean | null;
+          value_number?: number | null;
+          value_text?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_attribute_values_attribute_id_fkey";
+            columns: ["attribute_id"];
+            isOneToOne: false;
+            referencedRelation: "attributes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_attribute_values_attribute_value_id_fkey";
+            columns: ["attribute_value_id"];
+            isOneToOne: false;
+            referencedRelation: "attribute_values";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_attribute_values_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_variants: {
+        Row: {
+          created_at: string;
+          id: string;
+          image_url: string | null;
+          price: number | null;
+          product_id: string;
+          publication_status: Database["public"]["Enums"]["product_publication_status"];
+          sku: string;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          image_url?: string | null;
+          price?: number | null;
+          product_id: string;
+          publication_status?: Database["public"]["Enums"]["product_publication_status"];
+          sku: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          image_url?: string | null;
+          price?: number | null;
+          product_id?: string;
+          publication_status?: Database["public"]["Enums"]["product_publication_status"];
+          sku?: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_variant_attribute_values: {
+        Row: {
+          attribute_id: string;
+          attribute_value_id: string | null;
+          created_at: string;
+          id: string;
+          updated_at: string;
+          value_boolean: boolean | null;
+          value_number: number | null;
+          value_text: string | null;
+          variant_id: string;
+        };
+        Insert: {
+          attribute_id: string;
+          attribute_value_id?: string | null;
+          created_at?: string;
+          id?: string;
+          updated_at?: string;
+          value_boolean?: boolean | null;
+          value_number?: number | null;
+          value_text?: string | null;
+          variant_id: string;
+        };
+        Update: {
+          attribute_id?: string;
+          attribute_value_id?: string | null;
+          created_at?: string;
+          id?: string;
+          updated_at?: string;
+          value_boolean?: boolean | null;
+          value_number?: number | null;
+          value_text?: string | null;
+          variant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_variant_attribute_values_attribute_id_fkey";
+            columns: ["attribute_id"];
+            isOneToOne: false;
+            referencedRelation: "attributes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_variant_attribute_values_attribute_value_id_fkey";
+            columns: ["attribute_value_id"];
+            isOneToOne: false;
+            referencedRelation: "attribute_values";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_variant_attribute_values_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_variant_stock: {
+        Row: {
+          created_at: string;
+          low_stock_threshold: number | null;
+          stock: number;
+          updated_at: string;
+          variant_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          low_stock_threshold?: number | null;
+          stock?: number;
+          updated_at?: string;
+          variant_id: string;
+        };
+        Update: {
+          created_at?: string;
+          low_stock_threshold?: number | null;
+          stock?: number;
+          updated_at?: string;
+          variant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_variant_stock_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: true;
+            referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -1126,6 +1792,14 @@ export type Database = {
         Returns: undefined;
       };
       release_product_stock: {
+        Args: { items: Json };
+        Returns: undefined;
+      };
+      reserve_variant_stock: {
+        Args: { items: Json };
+        Returns: undefined;
+      };
+      release_variant_stock: {
         Args: { items: Json };
         Returns: undefined;
       };
@@ -1177,6 +1851,20 @@ export type Database = {
       payout_status: "PENDING" | "COMPLETED";
       delivery_tariff_type: "STANDARD" | "HOLIDAY" | "CORPORATE" | "PROMOTIONAL";
       delivery_pricing_model: "FIXED" | "BY_ZONE" | "BY_DISTANCE";
+      courier_vehicle_type: "ON_FOOT" | "BICYCLE" | "MOTORCYCLE" | "CAR" | "OTHER";
+      courier_profile_status: "ACTIVE" | "BLOCKED";
+      payment_record_status: "pending" | "awaiting" | "paid" | "failed" | "expired" | "refunded";
+      payment_event_type:
+        | "created"
+        | "redirect_issued"
+        | "webhook_received"
+        | "signature_invalid"
+        | "confirmed"
+        | "failed"
+        | "expired"
+        | "status_rechecked"
+        | "rollback";
+      attribute_value_type: "TEXT" | "NUMBER" | "BOOLEAN" | "LIST";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -1319,6 +2007,21 @@ export const Constants = {
       supply_status: ["DRAFT", "SENT", "CONFIRMED", "RECEIVED", "CANCELLED"],
       delivery_tariff_type: ["STANDARD", "HOLIDAY", "CORPORATE", "PROMOTIONAL"],
       delivery_pricing_model: ["FIXED", "BY_ZONE", "BY_DISTANCE"],
+      courier_vehicle_type: ["ON_FOOT", "BICYCLE", "MOTORCYCLE", "CAR", "OTHER"],
+      courier_profile_status: ["ACTIVE", "BLOCKED"],
+      payment_record_status: ["pending", "awaiting", "paid", "failed", "expired", "refunded"],
+      payment_event_type: [
+        "created",
+        "redirect_issued",
+        "webhook_received",
+        "signature_invalid",
+        "confirmed",
+        "failed",
+        "expired",
+        "status_rechecked",
+        "rollback",
+      ],
+      attribute_value_type: ["TEXT", "NUMBER", "BOOLEAN", "LIST"],
     },
   },
 } as const;

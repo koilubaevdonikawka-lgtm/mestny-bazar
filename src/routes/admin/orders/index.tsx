@@ -9,6 +9,7 @@ import { CancellationWindowBadge } from "@/components/admin/CancellationWindowBa
 import { listAdminOrders } from "@/api/admin";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
+import { useTranslation } from "@/i18n/LanguageProvider";
 import {
   formatMoney,
   formatOrderDate,
@@ -26,6 +27,7 @@ export const Route = createFileRoute("/admin/orders/")({
 
 function AdminOrdersPage() {
   const { isAuthenticated } = useSupabaseSession();
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
@@ -57,10 +59,10 @@ function AdminOrdersPage() {
           <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
             <LogIn className="h-6 w-6 text-primary" />
           </div>
-          <h1 className="font-serif text-3xl tracking-tight">Заказы (админ)</h1>
-          <p className="mt-3 text-muted-foreground">Войдите с учётной записью администратора.</p>
+          <h1 className="font-serif text-3xl tracking-tight">{t("admin.orders.title")}</h1>
+          <p className="mt-3 text-muted-foreground">{t("admin.common.signInPrompt")}</p>
           <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
-            Войти
+            {t("common.signIn")}
           </Button>
         </div>
       </PageShell>
@@ -78,7 +80,7 @@ function AdminOrdersPage() {
   }
 
   if (isError) {
-    const message = error instanceof Error ? error.message : "Не удалось загрузить заказы";
+    const message = error instanceof Error ? error.message : t("admin.orders.loadListError");
     const isForbidden =
       message.toLowerCase().includes("access denied") ||
       message.toLowerCase().includes("admin role");
@@ -91,10 +93,10 @@ function AdminOrdersPage() {
           {isForbidden ? (
             <>
               <ShieldAlert className="h-10 w-10 text-primary mx-auto mb-4" />
-              <h1 className="font-serif text-3xl tracking-tight">Доступ запрещён</h1>
-              <p className="mt-3 text-muted-foreground">
-                Эта страница доступна только администраторам.
-              </p>
+              <h1 className="font-serif text-3xl tracking-tight">
+                {t("admin.common.accessDeniedTitle")}
+              </h1>
+              <p className="mt-3 text-muted-foreground">{t("admin.common.adminOnlyMessage")}</p>
             </>
           ) : (
             <>
@@ -105,11 +107,11 @@ function AdminOrdersPage() {
                   className="mt-6 h-12 rounded-full"
                   onClick={() => void handleSignIn()}
                 >
-                  Войти снова
+                  {t("common.signInAgain")}
                 </Button>
               ) : (
                 <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void refetch()}>
-                  Повторить
+                  {t("common.retry")}
                 </Button>
               )}
             </>
@@ -125,9 +127,12 @@ function AdminOrdersPage() {
   return (
     <PageShell>
       <div className="mx-auto max-w-3xl px-6 py-12">
-        <h1 className="font-serif text-4xl tracking-tight">Заказы (админ)</h1>
+        <h1 className="font-serif text-4xl tracking-tight">{t("admin.orders.title")}</h1>
         <p className="mt-2 text-muted-foreground">
-          Управление заказами. Всего: {total} · Новых на странице: {newOnPage.length}
+          {t("admin.orders.summaryLine", {
+            total: String(total),
+            newCount: String(newOnPage.length),
+          })}
         </p>
 
         {orders.length === 0 ? (
@@ -135,7 +140,7 @@ function AdminOrdersPage() {
             <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
               <Package className="h-6 w-6 text-primary" />
             </div>
-            <h2 className="font-serif text-2xl">Заказов пока нет</h2>
+            <h2 className="font-serif text-2xl">{t("admin.orders.emptyState")}</h2>
           </div>
         ) : (
           <ul className="mt-8 space-y-4">
@@ -148,7 +153,9 @@ function AdminOrdersPage() {
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="font-serif text-xl">Заказ №{order.orderNumber}</p>
+                      <p className="font-serif text-xl">
+                        {t("admin.orders.orderNumberPrefix", { number: String(order.orderNumber) })}
+                      </p>
                       <p className="text-sm text-muted-foreground mt-1">
                         {formatOrderDate(order.createdAt)} · {order.customerName}
                       </p>
@@ -177,16 +184,18 @@ function AdminOrdersPage() {
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
-              Назад
+              {t("common.back")}
             </Button>
-            <span className="text-sm text-muted-foreground">Страница {page}</span>
+            <span className="text-sm text-muted-foreground">
+              {t("admin.orders.pageLabel", { page: String(page) })}
+            </span>
             <Button
               variant="outline"
               size="sm"
               disabled={!data?.hasMore}
               onClick={() => setPage((p) => p + 1)}
             >
-              Далее
+              {t("common.next")}
               <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
@@ -199,7 +208,7 @@ function AdminOrdersPage() {
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader />
+      <SiteHeader showSearch={false} showCart={false} showLanguageSwitcher />
       <main className="flex-1">{children}</main>
       <SiteFooter />
     </div>

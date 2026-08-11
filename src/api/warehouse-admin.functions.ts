@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import type { StockItemDTO } from "@shared/contracts/stock";
 import {
   adjustStockRequestSchema,
+  recordStockReceiptRequestSchema,
+  recordStockReturnRequestSchema,
   setStockThresholdRequestSchema,
 } from "@shared/validation/stock.schema";
 
@@ -24,4 +26,19 @@ export const setStockThresholdFn = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<StockItemDTO> => {
     const { executeSetStockThreshold } = await import("@server/functions/warehouse-admin.executor");
     return executeSetStockThreshold(data);
+  });
+
+export const recordStockReceiptFn = createServerFn({ method: "POST" })
+  .validator((data: unknown) => recordStockReceiptRequestSchema.parse(data))
+  .handler(async ({ data }): Promise<StockItemDTO> => {
+    const { executeRecordStockReceipt } =
+      await import("@server/functions/warehouse-admin.executor");
+    return executeRecordStockReceipt(data);
+  });
+
+export const recordStockReturnFn = createServerFn({ method: "POST" })
+  .validator((data: unknown) => recordStockReturnRequestSchema.parse(data))
+  .handler(async ({ data }): Promise<StockItemDTO> => {
+    const { executeRecordStockReturn } = await import("@server/functions/warehouse-admin.executor");
+    return executeRecordStockReturn(data);
   });

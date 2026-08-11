@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { getSecurityOverview } from "@/api/security-overview";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
+import { useTranslation } from "@/i18n/LanguageProvider";
 import { ArrowLeft, Loader2, LogIn, ShieldAlert, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/admin/security/")({
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/admin/security/")({
 
 function AdminSecurityPage() {
   const { isAuthenticated } = useSupabaseSession();
+  const { t } = useTranslation();
 
   const {
     data: overview,
@@ -47,10 +49,10 @@ function AdminSecurityPage() {
       <AdminLayout>
         <div className="max-w-md mx-auto text-center py-24">
           <LogIn className="h-10 w-10 text-primary mx-auto mb-4" />
-          <h1 className="font-serif text-3xl tracking-tight">Безопасность</h1>
-          <p className="mt-3 text-muted-foreground">Войдите с учётной записью администратора.</p>
+          <h1 className="font-serif text-3xl tracking-tight">{t("admin.security.title")}</h1>
+          <p className="mt-3 text-muted-foreground">{t("admin.common.signInPrompt")}</p>
           <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
-            Войти
+            {t("common.signIn")}
           </Button>
         </div>
       </AdminLayout>
@@ -68,7 +70,7 @@ function AdminSecurityPage() {
   }
 
   if (isError || !overview) {
-    const message = error instanceof Error ? error.message : "Не удалось загрузить безопасность";
+    const message = error instanceof Error ? error.message : t("admin.security.loadError");
     const isForbidden =
       message.toLowerCase().includes("access denied") ||
       message.toLowerCase().includes("admin role");
@@ -79,16 +81,16 @@ function AdminSecurityPage() {
           {isForbidden ? (
             <>
               <ShieldAlert className="h-10 w-10 text-primary mx-auto mb-4" />
-              <h1 className="font-serif text-3xl tracking-tight">Доступ запрещён</h1>
-              <p className="mt-3 text-muted-foreground">
-                Эта страница доступна только администраторам.
-              </p>
+              <h1 className="font-serif text-3xl tracking-tight">
+                {t("admin.common.accessDeniedTitle")}
+              </h1>
+              <p className="mt-3 text-muted-foreground">{t("admin.common.adminOnlyMessage")}</p>
             </>
           ) : (
             <>
               <p className="text-muted-foreground">{message}</p>
               <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void refetch()}>
-                Повторить
+                {t("common.retry")}
               </Button>
             </>
           )}
@@ -103,19 +105,19 @@ function AdminSecurityPage() {
         <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
           <Link to="/admin">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Административная платформа
+            {t("admin.common.backToHub")}
           </Link>
         </Button>
 
-        <h1 className="font-serif text-4xl tracking-tight">Безопасность</h1>
+        <h1 className="font-serif text-4xl tracking-tight">{t("admin.security.title")}</h1>
         <p className="mt-2 text-muted-foreground">
-          Периметр безопасности платформы (см.{" "}
+          {t("admin.security.descriptionPrefix")}{" "}
           <code className="text-sm">docs/admin-platform/security.md</code>
           ).
         </p>
 
         <section className="mt-8 rounded-2xl border border-border/60 bg-card p-6">
-          <h2 className="font-serif text-2xl mb-4">Периметр</h2>
+          <h2 className="font-serif text-2xl mb-4">{t("admin.security.perimeterHeading")}</h2>
           <ul className="space-y-3">
             {overview.perimeter.map((item) => (
               <li
@@ -129,10 +131,10 @@ function AdminSecurityPage() {
                 <Badge variant={item.status === "IMPLEMENTED" ? "secondary" : "outline"}>
                   {item.status === "IMPLEMENTED" ? (
                     <span className="flex items-center gap-1">
-                      <ShieldCheck className="h-3 w-3" /> В норме
+                      <ShieldCheck className="h-3 w-3" /> {t("admin.security.statusOk")}
                     </span>
                   ) : (
-                    "Требует внимания"
+                    t("admin.security.statusAttention")
                   )}
                 </Badge>
               </li>
@@ -141,7 +143,7 @@ function AdminSecurityPage() {
         </section>
 
         <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">
-          <h2 className="font-serif text-2xl mb-4">Известные пробелы</h2>
+          <h2 className="font-serif text-2xl mb-4">{t("admin.security.gapsHeading")}</h2>
           <ul className="space-y-3">
             {overview.gaps.map((gap) => (
               <li key={gap.name} className="rounded-xl bg-secondary/40 px-4 py-3">

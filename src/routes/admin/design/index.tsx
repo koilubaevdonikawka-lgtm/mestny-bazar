@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { ImageUploadField } from "@/components/shared/ImageUploadField";
 import { createBanner, listBanners, updateBanner } from "@/api/design";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
@@ -216,12 +217,10 @@ function AdminDesignPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="banner-image">Ссылка на изображение</Label>
-              <Input
-                id="banner-image"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://..."
+              <ImageUploadField
+                value={imageUrl || null}
+                onChange={(url) => setImageUrl(url ?? "")}
+                context="banner"
               />
             </div>
             <div className="grid gap-2">

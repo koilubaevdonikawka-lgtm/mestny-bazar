@@ -18,6 +18,8 @@ const createOrderItemRequestSchema = z.object({
   quantity: z.number().int().min(1).max(999),
   productId: z.string().trim().min(1).max(200).optional(),
   productSlug: z.string().trim().min(1).max(200).optional(),
+  /** Stage 17 — persisted as-is, not yet resolved/validated (see CreateOrderItemRequest). */
+  variantId: z.string().uuid().optional(),
   snapshot: createOrderItemSnapshotSchema.optional(),
 });
 

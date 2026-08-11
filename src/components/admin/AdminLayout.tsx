@@ -12,11 +12,18 @@ interface AdminLayoutProps {
  * stage (/admin/orders/*) keep their own local shell unchanged, per Этап 1's
  * "ни один уже существующий admin-путь не изменён" criterion — this Layout
  * is used by routes introduced in Этап 1 (/admin, /admin/settings) only.
+ *
+ * showSearch/showCart: false — buyer search and checkout cart have no
+ * meaning inside the admin panel (см. отчёт по аудиту административной
+ * панели). showLanguageSwitcher: true (Промпт №6) — same existing opt-in
+ * mechanism customer pages already use (LanguageProvider is mounted once at
+ * __root.tsx, shared by the whole app including /admin/*; only the visible
+ * control was previously not rendered here).
  */
 export function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader />
+      <SiteHeader showSearch={false} showCart={false} showLanguageSwitcher />
       <main className="flex-1">{children}</main>
       <SiteFooter />
     </div>

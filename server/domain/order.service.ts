@@ -70,4 +70,27 @@ export class OrderService {
 
     return cancelled;
   }
+
+  /** Webhook-confirmed online payment (Промпт №075). Idempotent — a redelivered webhook for an already-paid order is a no-op. */
+  async confirmPayment(orderId: string): Promise<OrderDTO> {
+    const order = await this.orders.getById(orderId);
+    if (!order) throw new OrderNotFoundError();
+    if (order.paymentStatus === "paid") return order;
+
+    this.orderLifecycle.assertCanTransition({
+      orderId,
+      currentStatus: order.status,
+      targetStatus: OrderStatus.PAID,
+      actor: { id: null },
+      reason: "payment_confirmed",
+      orderCreatedAt: order.createdAt,
+    });
+
+    await this.orders.updateStatus(orderId, order.status, OrderStatus.PAID);
+    const paid = await this.orders.updatePaymentStatus(orderId, "paid");
+
+    await this.events.publish({ type: "order.paid", order: paid });
+
+    return paid;
+  }
 }

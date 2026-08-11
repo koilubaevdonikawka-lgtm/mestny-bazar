@@ -84,6 +84,7 @@ export class SupabaseOrderRepository implements IOrderRepository {
       },
       items: data.items.map((item) => ({
         product_id: isUuid(item.productId) ? item.productId : null,
+        variant_id: item.variantId && isUuid(item.variantId) ? item.variantId : null,
         product_name: item.productName,
         product_image_url: item.productImageUrl,
         unit_price: item.unitPrice,
@@ -119,7 +120,9 @@ export class SupabaseOrderRepository implements IOrderRepository {
 
     const { data: items, error: itemsError } = await supabaseAdmin
       .from("order_items")
-      .select("id, product_id, product_name, product_image_url, quantity, unit_price, line_total")
+      .select(
+        "id, product_id, variant_id, product_name, product_image_url, quantity, unit_price, line_total",
+      )
       .eq("order_id", orderRow.id);
 
     if (itemsError) throw new Error(`Failed to fetch order items: ${itemsError.message}`);
@@ -140,7 +143,9 @@ export class SupabaseOrderRepository implements IOrderRepository {
 
     const { data: items, error: itemsError } = await supabaseAdmin
       .from("order_items")
-      .select("id, product_id, product_name, product_image_url, quantity, unit_price, line_total")
+      .select(
+        "id, product_id, variant_id, product_name, product_image_url, quantity, unit_price, line_total",
+      )
       .eq("order_id", id);
 
     if (itemsError) throw new Error(`Failed to fetch order items: ${itemsError.message}`);
@@ -228,6 +233,37 @@ export class SupabaseOrderRepository implements IOrderRepository {
     return this.mapOrdersWithItems(orders ?? []);
   }
 
+  async listByCourier(courierId: string, params: OrderListParams = {}): Promise<OrderListResult> {
+    const page = params.page ?? 1;
+    const pageSize = params.pageSize ?? 50;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    const {
+      data: orders,
+      error,
+      count,
+    } = await supabaseAdmin
+      .from("orders")
+      .select(ORDER_COLUMNS, { count: "exact" })
+      .eq("assigned_courier_id", courierId)
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    if (error) throw new Error(`Failed to list courier order history: ${error.message}`);
+
+    const items = await this.mapOrdersWithItems(orders ?? []);
+    const total = count ?? items.length;
+
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      hasMore: from + items.length < total,
+    };
+  }
+
   private async mapOrdersWithItems(
     orders: Array<{
       id: string;
@@ -260,7 +296,7 @@ export class SupabaseOrderRepository implements IOrderRepository {
     const { data: allItems, error: itemsError } = await supabaseAdmin
       .from("order_items")
       .select(
-        "id, order_id, product_id, product_name, product_image_url, quantity, unit_price, line_total",
+        "id, order_id, product_id, variant_id, product_name, product_image_url, quantity, unit_price, line_total",
       )
       .in("order_id", orderIds);
 
@@ -314,10 +350,15 @@ export class SupabaseOrderRepository implements IOrderRepository {
   }
 
   async updatePaymentStatus(id: string, paymentStatus: PaymentStatus): Promise<OrderDTO> {
-    const { error } = await supabaseAdmin
-      .from("orders")
-      .update({ payment_status: paymentStatus })
-      .eq("id", id);
+    // paid_at was previously never written anywhere (Промпт №075) — set it
+    // the moment payment is actually confirmed, matching OrderDTO.paidAt's
+    // existing contract meaning.
+    const patch: { payment_status: PaymentStatus; paid_at?: string } =
+      paymentStatus === "paid"
+        ? { payment_status: paymentStatus, paid_at: new Date().toISOString() }
+        : { payment_status: paymentStatus };
+
+    const { error } = await supabaseAdmin.from("orders").update(patch).eq("id", id);
 
     if (error) throw new Error(`Failed to update payment status: ${error.message}`);
 

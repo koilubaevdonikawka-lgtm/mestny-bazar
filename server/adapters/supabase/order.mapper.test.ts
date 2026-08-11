@@ -87,6 +87,7 @@ describe("mapOrderRowToDto", () => {
         {
           id: "item-1",
           product_id: "prod-1",
+          variant_id: "var-1",
           product_name: "Apples",
           product_image_url: "https://example.com/a.jpg",
           quantity: 2,
@@ -101,6 +102,7 @@ describe("mapOrderRowToDto", () => {
       {
         id: "item-1",
         productId: "prod-1",
+        variantId: "var-1",
         productName: "Apples",
         productImageUrl: "https://example.com/a.jpg",
         quantity: 2,
@@ -117,6 +119,7 @@ describe("mapOrderRowToDto", () => {
         {
           id: "item-1",
           product_id: null,
+          variant_id: null,
           product_name: "Custom item",
           product_image_url: null,
           quantity: 1,

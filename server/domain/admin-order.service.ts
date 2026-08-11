@@ -6,6 +6,7 @@ import { OrderStatus } from "@shared/contracts/order";
 import type { UserRole } from "@shared/contracts/user";
 import { OrderNotFoundError } from "@server/domain/orders.errors";
 import { InventoryService } from "@server/domain/inventory.service";
+import { VariantStockService } from "@server/domain/variant-stock.service";
 import { OrderLifecycleCascadeService } from "@server/domain/order-lifecycle-cascade.service";
 import { logger } from "@shared/observability/logger";
 
@@ -21,10 +22,19 @@ export class AdminOrderService {
     private readonly cascade: OrderLifecycleCascadeService,
     private readonly inventory: InventoryService,
     private readonly events: IMarketplaceEventBus,
+    /** Stage 21 — same release-on-cancel step as `inventory`, extended to variant stock. Not modified, only composed here. */
+    private readonly variantStock: VariantStockService,
   ) {}
 
   async listOrders(params?: OrderListParams): Promise<OrderListResult> {
     const result = await this.orders.listAll(params);
+    await this.cascade.sweep(result.items);
+    return result;
+  }
+
+  /** Paginated order history for a specific courier — Couriers admin detail card (Промпт №068). */
+  async listOrdersByCourier(courierId: string, params?: OrderListParams): Promise<OrderListResult> {
+    const result = await this.orders.listByCourier(courierId, params);
     await this.cascade.sweep(result.items);
     return result;
   }
@@ -65,6 +75,22 @@ export class AdminOrderService {
     if (stockItems.length > 0) {
       await this.inventory.releaseStock(stockItems).catch(() => {
         logger.error("Failed to release reserved stock after an admin order cancellation", {
+          orderId,
+        });
+      });
+    }
+
+    // Stage 21 — same compensation, same principle, for variant stock. Only
+    // items ordered with a variantId participate; an order with none
+    // produces an empty array and variantStock.releaseStock is never called
+    // — identical to the pre-Stage-21 behavior.
+    const variantStockItems = cancelled.items
+      .filter((item): item is typeof item & { variantId: string } => item.variantId !== null)
+      .map((item) => ({ variantId: item.variantId, quantity: item.quantity }));
+
+    if (variantStockItems.length > 0) {
+      await this.variantStock.releaseStock(variantStockItems).catch(() => {
+        logger.error("Failed to release reserved variant stock after an admin order cancellation", {
           orderId,
         });
       });

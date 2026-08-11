@@ -13,6 +13,7 @@ describe("mapAdminCategoryRow", () => {
         sort_order: 1,
         is_active: true,
         name_kg: "Сүт азыктар",
+        parent_id: null,
       }),
     ).toEqual({
       id: "cat-1",
@@ -23,6 +24,7 @@ describe("mapAdminCategoryRow", () => {
       sortOrder: 1,
       isActive: true,
       nameKg: "Сүт азыктар",
+      parentId: null,
     });
   });
 
@@ -36,6 +38,7 @@ describe("mapAdminCategoryRow", () => {
       sort_order: 0,
       is_active: false,
       name_kg: null,
+      parent_id: null,
     });
 
     expect(mapped.isActive).toBe(false);

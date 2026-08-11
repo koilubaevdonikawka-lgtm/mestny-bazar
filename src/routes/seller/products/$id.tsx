@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ImageUploadField } from "@/components/shared/ImageUploadField";
 import {
   getSellerProduct,
   hideSellerProduct,
@@ -322,11 +323,10 @@ function SellerProductDetailPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="imageUrl">URL изображения</Label>
-              <Input
-                id="imageUrl"
-                value={form.imageUrl}
-                onChange={(e) => setForm((prev) => ({ ...prev, imageUrl: e.target.value }))}
+              <ImageUploadField
+                value={form.imageUrl || null}
+                onChange={(url) => setForm((prev) => ({ ...prev, imageUrl: url ?? "" }))}
+                context="product"
               />
             </div>
           </div>

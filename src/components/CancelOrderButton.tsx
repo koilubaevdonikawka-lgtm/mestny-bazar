@@ -15,6 +15,7 @@ import { Loader2 } from "lucide-react";
 import type { OrderDTO } from "@shared/contracts/order";
 import { OrderStatus } from "@shared/contracts/order";
 import { formatCountdown, getCancellationRemainingMs } from "@shared/lib/order-cancellation";
+import { useTranslation } from "@/i18n/LanguageProvider";
 
 const CANCELLABLE_STATUSES: OrderStatus[] = [OrderStatus.CREATED, OrderStatus.PAID];
 
@@ -30,6 +31,7 @@ interface CancelOrderButtonProps {
  * own clock on every cancel request (never trusts this timer).
  */
 export function CancelOrderButton({ order, isPending, onConfirm }: CancelOrderButtonProps) {
+  const { t } = useTranslation();
   const [remainingMs, setRemainingMs] = useState(() => getCancellationRemainingMs(order.createdAt));
 
   useEffect(() => {
@@ -50,20 +52,20 @@ export function CancelOrderButton({ order, isPending, onConfirm }: CancelOrderBu
           {isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            `Отменить заказ · ${formatCountdown(remainingMs)}`
+            t("orders.cancelButtonWithCountdown", { countdown: formatCountdown(remainingMs) })
           )}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Отменить заказ?</AlertDialogTitle>
+          <AlertDialogTitle>{t("orders.cancelConfirmTitle")}</AlertDialogTitle>
           <AlertDialogDescription>
-            Заказ №{order.orderNumber} будет отменён. Это действие нельзя отменить.
+            {t("orders.cancelConfirmDescription", { number: order.orderNumber })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Не отменять</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>Да, отменить заказ</AlertDialogAction>
+          <AlertDialogCancel>{t("orders.cancelDeny")}</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>{t("orders.cancelConfirm")}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
