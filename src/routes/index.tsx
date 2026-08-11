@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -62,6 +62,7 @@ const FALLBACK_IMAGE_BY_SLUG: Record<string, string> = {
 
 function Home() {
   const { t, language } = useTranslation();
+  const navigate = useNavigate();
   const search = useSearchStore((s) => s.search);
   // Search runs server-side (the full catalog, not just the loaded page) —
   // debounce so typing doesn't fire a request per keystroke.
@@ -86,15 +87,53 @@ function Home() {
     queryFn: listCategories,
     staleTime: 5 * 60 * 1000,
   });
-  // Stage 11: the home grid shows only top-level categories — subcategories
-  // (parentId set) are reached by drilling into their parent's own page, the
-  // same hierarchy that's already flat/unfiltered here for every category
-  // that has no parent (today's entire real dataset), so this is a no-op
-  // until a subcategory actually exists.
+  // Stage 11: the home grid further down shows only top-level categories —
+  // the nav strip below additionally surfaces subcategories inline (see the
+  // two-level nav further down this component).
   const topLevelCategories = useMemo(
     () => (categories ?? []).filter((c) => c.parentId === null),
     [categories],
   );
+
+  // Задача: двухуровневая навигация категорий на главном экране — верхняя
+  // панель выбирает основную категорию (не переходя со страницы), нижняя
+  // показывает её подкатегории. null falls back to a default top-level
+  // category (so the second row has something to show immediately, instead
+  // of requiring a click first) rather than needing an effect to seed it.
+  //
+  // There is no category literally named «Продукты» in the real catalog
+  // today (9 flat top-level categories, checked directly against
+  // production before implementing this) — per the task's own fallback
+  // ("«Продукты» или фактическая существующая категория, которая
+  // соответствует продуктовому разделу"), "Мука и крупы" is the preferred
+  // default. Falls back to the first top-level category by sort order if
+  // that slug is ever renamed/removed, rather than defaulting to nothing.
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const defaultCategoryId =
+    topLevelCategories.find((c) => c.slug === "muka-krupy")?.id ??
+    topLevelCategories[0]?.id ??
+    null;
+  const activeCategoryId = selectedCategoryId ?? defaultCategoryId;
+  const activeSubcategories = useMemo(
+    () => (categories ?? []).filter((c) => c.parentId === activeCategoryId),
+    [categories, activeCategoryId],
+  );
+  // Of today's 9 real top-level categories, only one ("Электро
+  // матетериалы") actually has a subcategory — the rest are flat. If a top
+  // category's click only ever selected it (never navigated), those 8
+  // categories' own products would become unreachable through this nav —
+  // there'd be nothing to drill into. So a category with zero subcategories
+  // still goes straight to its own product page on click, exactly like
+  // before this navigation existed; only a category that actually has
+  // subcategories switches the row below instead of navigating away.
+  const subcategoryCountByParentId = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const c of categories ?? []) {
+      if (!c.parentId) continue;
+      counts.set(c.parentId, (counts.get(c.parentId) ?? 0) + 1);
+    }
+    return counts;
+  }, [categories]);
 
   // design.md — purely additive: the Hero below only changes if an admin
   // actually publishes an active banner; an empty result renders nothing.
@@ -111,7 +150,10 @@ function Home() {
   const pageTranslations = useTranslatedTexts(
     [
       BRAND.name,
-      ...topLevelCategories.map((c) => c.name),
+      // All categories (not just top-level) — the second nav row below
+      // shows whichever category's subcategories are active, so their names
+      // need to already be translated, not just the first-selected one's.
+      ...(categories ?? []).map((c) => c.name),
       ...(banner ? [banner.title, ...(banner.subtitle ? [banner.subtitle] : [])] : []),
     ],
     language,
@@ -179,33 +221,72 @@ function Home() {
     <div className="min-h-screen flex flex-col">
       <SiteHeader showLanguageSwitcher safeAreaTop />
 
-      {/* Задача №2 — quick-access horizontal category strip, above the Hero
-          so it's reachable with zero scrolling. Reuses the exact same
-          topLevelCategories list (same categories table, same sort_order,
-          same admin CRUD in admin/catalog) as the visual grid further down
-          — a second, compact presentation of identical data, not a new
-          data source. Not sticky: a permanently-pinned second bar under the
-          header would permanently shrink the content viewport, working
-          against this whole initiative's "minimize vertical chrome"
-          direction from earlier stages. */}
+      {/* Двухуровневая навигация категорий, над Hero — доступна без
+          прокрутки. Клик по основной категории с подкатегориями ВЫБИРАЕТ
+          её (кнопка, не ссылка — не уходит со страницы) и заменяет нижнюю
+          панель; клик по категории без подкатегорий ведёт сразу на её
+          страницу (см. subcategoryCountByParentId выше — иначе товары
+          таких категорий стали бы недостижимы через эту панель). Нижняя
+          панель и прямой переход у категорий без подкатегорий ведут на
+          уже существующую страницу категории (/category/$slug), которая
+          сама умеет отображать товары, фильтры и дальнейшие подкатегории
+          — переиспользована как есть, не продублирована. Реюзает тот же
+          список categories (та же таблица, тот же sort_order, тот же
+          admin CRUD), что и грид ниже. Не sticky — по той же причине, что
+          и раньше: постоянно закреплённая вторая панель уменьшила бы
+          видимую область контента. */}
       {topLevelCategories.length > 0 && (
         <nav aria-label={t("nav.categories")} className="border-b border-border/60 bg-background">
-          <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-3 sm:px-6">
+          <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 pt-3 sm:px-6">
             {topLevelCategories.map((c) => {
               const displayName =
                 language === DEFAULT_LANGUAGE ? c.name : (pageTranslations[c.name] ?? c.name);
+              const isActive = c.id === activeCategoryId;
+              const hasSubcategories = (subcategoryCountByParentId.get(c.id) ?? 0) > 0;
               return (
-                <Link
+                <button
                   key={c.id}
-                  to="/category/$slug"
-                  params={{ slug: c.slug }}
-                  className="flex h-11 shrink-0 items-center whitespace-nowrap rounded-full border border-border/60 bg-card px-4 text-sm font-medium transition-colors hover:border-primary/40 hover:text-primary"
+                  type="button"
+                  aria-pressed={isActive}
+                  onClick={() => {
+                    if (hasSubcategories) {
+                      setSelectedCategoryId(c.id);
+                    } else {
+                      void navigate({ to: "/category/$slug", params: { slug: c.slug } });
+                    }
+                  }}
+                  className={
+                    isActive
+                      ? "flex h-11 shrink-0 items-center whitespace-nowrap rounded-full border-2 border-primary bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors"
+                      : "flex h-11 shrink-0 items-center whitespace-nowrap rounded-full border-2 border-primary bg-card px-4 text-sm font-medium text-foreground transition-colors hover:bg-primary/10"
+                  }
                 >
                   {displayName}
-                </Link>
+                </button>
               );
             })}
           </div>
+
+          {activeSubcategories.length > 0 && (
+            <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-3 sm:px-6">
+              {activeSubcategories.map((sub) => {
+                const subDisplayName =
+                  language === DEFAULT_LANGUAGE
+                    ? sub.name
+                    : (pageTranslations[sub.name] ?? sub.name);
+                return (
+                  <Link
+                    key={sub.id}
+                    to="/category/$slug"
+                    params={{ slug: sub.slug }}
+                    className="flex h-9 shrink-0 items-center whitespace-nowrap rounded-full border border-border/60 bg-card px-3 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                  >
+                    {subDisplayName}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </nav>
       )}
 
@@ -219,15 +300,6 @@ function Home() {
             <h1 className="font-serif text-3xl leading-[1.02] tracking-tight text-primary-foreground sm:text-5xl md:text-7xl">
               «{displayBrandName}»
             </h1>
-          </div>
-
-          <div className="mt-6 flex flex-wrap gap-3 justify-center sm:mt-8">
-            <Button asChild size="lg" className="h-12 px-6 text-base rounded-full">
-              <a href="#categories">{t("nav.categories")}</a>
-            </Button>
-            <Button asChild size="lg" className="h-12 px-6 text-base rounded-full">
-              <a href="#delivery">{t("home.deliverySectionLink")}</a>
-            </Button>
           </div>
         </div>
 
