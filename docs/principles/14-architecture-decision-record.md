@@ -48,6 +48,7 @@ ADR — обязательный артефакт перед внедрение�
 |-----|---------|--------|
 | [ADR-001](../adr/ADR-001-ports-and-adapters.md) | Ports & Adapters Platform Layer | Accepted |
 | [ADR-002](../architecture/adr/ADR-002-complete-shopify-catalog-migration.md) | Завершение миграции каталога — Supabase единственный источник | Accepted |
+| [ADR-003](../architecture/adr/ADR-003-geocoding-provider.md) | Провайдер геокодирования для BY_DISTANCE — 2GIS Geocoder API | Accepted |
 
 ## Связь с принципами
 

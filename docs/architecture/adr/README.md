@@ -7,3 +7,5 @@
 Формат нового ADR и правила нумерации — `docs/principles/14-architecture-decision-record.md`. Индекс всех ADR — [`../ADR_INDEX.md`](../ADR_INDEX.md).
 
 Первый ADR в этой папке — [`ADR-002-complete-shopify-catalog-migration.md`](./ADR-002-complete-shopify-catalog-migration.md) (завершение миграции каталога, Supabase — единственный источник).
+
+Второй — [`ADR-003-geocoding-provider.md`](./ADR-003-geocoding-provider.md) (выбор провайдера геокодирования для BY_DISTANCE — 2GIS Geocoder API).
