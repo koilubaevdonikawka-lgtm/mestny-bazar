@@ -40,7 +40,11 @@ import {
 import { toast } from "sonner";
 import type { TranslationKey } from "@/i18n/t";
 import type { StockItemDTO } from "@shared/contracts/stock";
-import { ProductPublicationStatus, type SellerProductDTO } from "@shared/contracts/seller-product";
+import {
+  ProductPublicationStatus,
+  type SellerProductDTO,
+  type SellerProductListResult,
+} from "@shared/contracts/seller-product";
 // Задача этапа №2/№4 — та же форма товара, что и в admin/catalog. Импорт
 // напрямую из существующего маршрута, без копирования полей/JSX.
 import {
@@ -51,10 +55,31 @@ import {
   type ProductFormState,
 } from "@/routes/admin/catalog/index";
 
-/** Products-per-fetch cap for the admin product list — same "candidate cap"
- * idiom already used elsewhere in the project (e.g. product page's sibling
- * fetch), large enough to cover any real catalog without pagination UI. */
-const ADMIN_PRODUCTS_PAGE_SIZE = 500;
+/** Per-request page size — the API's shared, system-wide ceiling
+ * (`pageSizeSchema`, `shared/validation/common.schema.ts`), not a
+ * per-screen choice. Склад still wants the full catalog in one client-side
+ * array (no pagination UI, see stage-6-warehouse-product-list-report.md) —
+ * `fetchAllAdminProducts` below fetches as many pages of this size as
+ * needed and concatenates them, instead of requesting one oversized page. */
+const ADMIN_PRODUCTS_PAGE_SIZE = 200;
+
+/** Safety bound on the number of pages fetched — generously above any
+ * realistic catalog size, exists only to guarantee termination if `hasMore`
+ * were ever wrong, not a real expected limit on product count. */
+const ADMIN_PRODUCTS_MAX_PAGES = 50;
+
+async function fetchAllAdminProducts(): Promise<SellerProductListResult> {
+  const items: SellerProductDTO[] = [];
+  let page = 1;
+  let total = 0;
+  for (; page <= ADMIN_PRODUCTS_MAX_PAGES; page++) {
+    const result = await listAdminProducts({ page, pageSize: ADMIN_PRODUCTS_PAGE_SIZE });
+    items.push(...result.items);
+    total = result.total;
+    if (!result.hasMore) break;
+  }
+  return { items, total, page: 1, pageSize: items.length, hasMore: false };
+}
 
 function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
@@ -192,7 +217,7 @@ function AdminWarehousePage() {
     refetch: refetchProducts,
   } = useQuery({
     queryKey: ["admin", "products", "warehouse-browse"],
-    queryFn: () => listAdminProducts({ pageSize: ADMIN_PRODUCTS_PAGE_SIZE }),
+    queryFn: fetchAllAdminProducts,
     enabled: isAuthenticated === true,
     retry: false,
   });
