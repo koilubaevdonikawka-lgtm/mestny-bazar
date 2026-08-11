@@ -101,6 +101,7 @@ function fakeAdminCategoryRepo(
     getById: vi.fn(async () => makeCategory()),
     create: vi.fn(async () => makeCategory()),
     update: vi.fn(async () => makeCategory()),
+    delete: vi.fn(async () => {}),
     slugExists: vi.fn(async () => false),
     ...overrides,
   };

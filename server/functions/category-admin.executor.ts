@@ -24,3 +24,8 @@ export async function executeUpdateCategory(
   await requireAdminFromRequest();
   return getServices().categoryAdminService.updateCategory(data);
 }
+
+export async function executeDeleteCategory(id: string): Promise<void> {
+  await requireAdminFromRequest();
+  return getServices().categoryAdminService.deleteCategory(id);
+}

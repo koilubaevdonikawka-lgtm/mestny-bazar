@@ -14,3 +14,13 @@ export class CategoryValidationError extends Error {
     this.name = "CategoryValidationError";
   }
 }
+
+/** Thrown by deleteCategory when the category still has subcategories —
+ * deleting it would silently promote them to top-level (parent_id ON DELETE
+ * SET NULL), collapsing the hierarchy without confirmation. */
+export class CategoryHasChildrenError extends Error {
+  constructor() {
+    super("Cannot delete a category that still has subcategories");
+    this.name = "CategoryHasChildrenError";
+  }
+}

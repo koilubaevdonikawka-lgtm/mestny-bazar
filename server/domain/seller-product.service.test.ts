@@ -57,6 +57,7 @@ function fakeRepo(overrides: Partial<ISellerProductRepository> = {}): ISellerPro
     setPublicationStatus: vi.fn(async (_sellerId, _id, status) =>
       makeProduct({ publicationStatus: status }),
     ),
+    delete: vi.fn(async () => {}),
     slugExists: vi.fn(async () => false),
     ...overrides,
   };
@@ -70,6 +71,7 @@ function fakeCategories(
     getById: vi.fn(async () => makeCategory()),
     create: vi.fn(async () => makeCategory()),
     update: vi.fn(async () => makeCategory()),
+    delete: vi.fn(async () => {}),
     slugExists: vi.fn(async () => false),
     ...overrides,
   };
@@ -442,6 +444,91 @@ describe("SellerProductService.updateProduct", () => {
     await service.updateProduct(null, { id: "product-1", price: 150 });
 
     expect(policy.assertCanTransition).not.toHaveBeenCalled();
+  });
+
+  it("an admin can hide a published product (publicationStatus: HIDDEN) without publishing product.published", async () => {
+    const repo = fakeRepo({
+      getById: vi.fn(async () => makeProduct({ publicationStatus: "PUBLISHED" })),
+      update: vi.fn(async () => makeProduct({ publicationStatus: "HIDDEN" })),
+    });
+    const policy = fakePolicy();
+    const events = fakeEventBus();
+    const service = new SellerProductService(repo, fakeCategories(), policy, events);
+
+    const result = await service.updateProduct(null, {
+      id: "product-1",
+      publicationStatus: "HIDDEN",
+    });
+
+    expect(policy.assertCanTransition).toHaveBeenCalledWith(
+      expect.objectContaining({ targetStatus: "HIDDEN", reason: "admin_update" }),
+    );
+    expect(result.publicationStatus).toBe("HIDDEN");
+    expect(events.publish).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: "product.published" }),
+    );
+  });
+});
+
+describe("SellerProductService.deleteProduct", () => {
+  it("throws SellerProductNotFoundError when the product does not exist", async () => {
+    const repo = fakeRepo({ getById: vi.fn(async () => null) });
+    const service = new SellerProductService(repo, fakeCategories(), fakePolicy(), fakeEventBus());
+
+    await expect(service.deleteProduct(null, "missing")).rejects.toBeInstanceOf(
+      SellerProductNotFoundError,
+    );
+    expect(repo.delete).not.toHaveBeenCalled();
+  });
+
+  it("deletes a product as admin (sellerId: null) and publishes product.deleted", async () => {
+    const product = makeProduct({ id: "product-1", name: "Молоко" });
+    const repo = fakeRepo({ getById: vi.fn(async () => product) });
+    const events = fakeEventBus();
+    const service = new SellerProductService(repo, fakeCategories(), fakePolicy(), events);
+
+    await service.deleteProduct(null, "product-1");
+
+    expect(repo.delete).toHaveBeenCalledWith("product-1", null);
+    expect(events.publish).toHaveBeenCalledWith({
+      type: "product.deleted",
+      productId: "product-1",
+      name: "Молоко",
+    });
+  });
+
+  it("scopes deletion to the owning seller when sellerId is provided", async () => {
+    const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()) });
+    const service = new SellerProductService(repo, fakeCategories(), fakePolicy(), fakeEventBus());
+
+    await service.deleteProduct("seller-1", "product-1");
+
+    expect(repo.getById).toHaveBeenCalledWith("product-1", "seller-1");
+    expect(repo.delete).toHaveBeenCalledWith("product-1", "seller-1");
+  });
+});
+
+describe("SellerProductService — product can be assigned to a subcategory", () => {
+  it("createProduct accepts a categoryId that itself has a parentId (a subcategory), same as any other category", async () => {
+    const subcategory = makeCategory({ id: "sub-1", parentId: "parent-1" });
+    const categories = fakeCategories({
+      getById: vi.fn(async (id: string) => (id === "sub-1" ? subcategory : null)),
+    });
+    const repo = fakeRepo();
+    const policy = fakePolicy();
+    const service = new SellerProductService(repo, categories, policy, fakeEventBus());
+
+    await service.createProduct(null, {
+      name: "Мука пшеничная",
+      price: 100,
+      categoryId: "sub-1",
+    });
+
+    expect(categories.getById).toHaveBeenCalledWith("sub-1");
+    expect(repo.create).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({ categoryId: "sub-1" }),
+    );
   });
 });
 

@@ -34,3 +34,8 @@ export async function executeUpdateAdminProduct(
   await requireAdminFromRequest();
   return getServices().sellerProductService.updateProduct(null, data);
 }
+
+export async function executeDeleteAdminProduct(id: string): Promise<void> {
+  await requireAdminFromRequest();
+  return getServices().sellerProductService.deleteProduct(null, id);
+}

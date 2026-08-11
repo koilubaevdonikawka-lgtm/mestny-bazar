@@ -46,6 +46,7 @@ export type MarketplaceEvent =
   | { type: "order.delivered"; order: OrderDTO }
   | { type: "category.created"; category: AdminCategoryDTO }
   | { type: "category.updated"; category: AdminCategoryDTO }
+  | { type: "category.deleted"; categoryId: string; name: string }
   | { type: "stock.low"; productId: string; stock: number; threshold: number }
   | { type: "stock.depleted"; productId: string }
   /** Движение товара (Промпт №4) — журнал ведётся через существующий audit_log, не новую сущность. */
@@ -94,6 +95,8 @@ export type MarketplaceEvent =
    * product.updated events — same trigger, same AI pipeline, same audit log.
    */
   | { type: "product.published"; product: SellerProductDTO }
+  /** Deletion is destructive/irreversible (unlike hide, which is not) — audited, unlike create/update above. */
+  | { type: "product.deleted"; productId: string; name: string }
   | { type: "stock.adjusted"; productId: string; stock: number }
   | { type: "settings.changed"; key: string; category: string; updatedBy: string }
   | {

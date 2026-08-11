@@ -162,6 +162,18 @@ export function subscribeAuditLog(bus: IMarketplaceEventBus, auditLog: IAuditLog
     });
   });
 
+  bus.subscribe("category.deleted", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "category.deleted",
+      occurredAt: new Date().toISOString(),
+      entityType: "category",
+      entityId: event.categoryId,
+      actorId: null,
+      payload: { name: event.name },
+    });
+  });
+
   bus.subscribe("stock.low", async (event) => {
     await auditLog.append({
       id: randomUUID(),
@@ -413,6 +425,18 @@ export function subscribeAuditLog(bus: IMarketplaceEventBus, auditLog: IAuditLog
       entityId: event.product.id,
       actorId: null,
       payload: { name: event.product.name, slug: event.product.slug },
+    });
+  });
+
+  bus.subscribe("product.deleted", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "product.deleted",
+      occurredAt: new Date().toISOString(),
+      entityType: "product",
+      entityId: event.productId,
+      actorId: null,
+      payload: { name: event.name },
     });
   });
 

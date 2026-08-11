@@ -20,5 +20,7 @@ export interface ISellerProductRepository {
     id: string,
     status: ProductPublicationStatus,
   ): Promise<SellerProductDTO>;
+  /** sellerId: null means no ownership scoping — admin may delete any product. */
+  delete(id: string, sellerId: string | null): Promise<void>;
   slugExists(slug: string, exceptId?: string): Promise<boolean>;
 }

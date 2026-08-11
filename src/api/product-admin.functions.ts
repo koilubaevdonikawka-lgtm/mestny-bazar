@@ -5,6 +5,7 @@ import {
   createAdminProductRequestSchema,
   listAdminProductsParamsSchema,
 } from "@shared/validation/product-admin.schema";
+import { uuidParamSchema } from "@shared/validation/common.schema";
 
 export const listAdminProductsFn = createServerFn({ method: "GET" })
   .validator((data: unknown) => listAdminProductsParamsSchema.parse(data))
@@ -25,4 +26,11 @@ export const updateAdminProductFn = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<SellerProductDTO> => {
     const { executeUpdateAdminProduct } = await import("@server/functions/product-admin.executor");
     return executeUpdateAdminProduct(data);
+  });
+
+export const deleteAdminProductFn = createServerFn({ method: "POST" })
+  .validator((data: unknown) => uuidParamSchema.parse(data))
+  .handler(async ({ data }): Promise<void> => {
+    const { executeDeleteAdminProduct } = await import("@server/functions/product-admin.executor");
+    return executeDeleteAdminProduct(data.id);
   });

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { CategoryAdminService } from "@server/domain/category-admin.service";
 import {
+  CategoryHasChildrenError,
   CategoryNotFoundError,
   CategoryValidationError,
 } from "@server/domain/category-admin.errors";
@@ -29,6 +30,7 @@ function fakeRepo(overrides: Partial<IAdminCategoryRepository> = {}): IAdminCate
     getById: vi.fn(async () => makeCategory()),
     create: vi.fn(async () => makeCategory()),
     update: vi.fn(async () => makeCategory()),
+    delete: vi.fn(async () => {}),
     slugExists: vi.fn(async () => false),
     ...overrides,
   };
@@ -173,5 +175,86 @@ describe("CategoryAdminService.updateCategory", () => {
       service.updateCategory({ id: "cat-1", parentId: "missing-parent" }),
     ).rejects.toBeInstanceOf(CategoryValidationError);
     expect(repo.update).not.toHaveBeenCalled();
+  });
+
+  it("re-activates a hidden category (isActive: true)", async () => {
+    const reactivated = makeCategory({ isActive: true });
+    const repo = fakeRepo({
+      getById: vi.fn(async () => makeCategory({ isActive: false })),
+      update: vi.fn(async () => reactivated),
+    });
+    const events = fakeEventBus();
+    const service = new CategoryAdminService(repo, events);
+
+    const result = await service.updateCategory({ id: "cat-1", isActive: true });
+
+    expect(repo.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "cat-1", isActive: true }),
+    );
+    expect(result.isActive).toBe(true);
+    expect(events.publish).toHaveBeenCalledWith({
+      type: "category.updated",
+      category: reactivated,
+    });
+  });
+});
+
+describe("CategoryAdminService.deleteCategory", () => {
+  it("throws CategoryNotFoundError when the category does not exist", async () => {
+    const repo = fakeRepo({ getById: vi.fn(async () => null) });
+    const service = new CategoryAdminService(repo, fakeEventBus());
+
+    await expect(service.deleteCategory("missing")).rejects.toBeInstanceOf(CategoryNotFoundError);
+    expect(repo.delete).not.toHaveBeenCalled();
+  });
+
+  it("rejects deleting a category that still has subcategories", async () => {
+    const parent = makeCategory({ id: "parent-1" });
+    const child = makeCategory({ id: "child-1", parentId: "parent-1" });
+    const repo = fakeRepo({
+      getById: vi.fn(async (id: string) => (id === "parent-1" ? parent : null)),
+      listAll: vi.fn(async () => [parent, child]),
+    });
+    const service = new CategoryAdminService(repo, fakeEventBus());
+
+    await expect(service.deleteCategory("parent-1")).rejects.toBeInstanceOf(
+      CategoryHasChildrenError,
+    );
+    expect(repo.delete).not.toHaveBeenCalled();
+  });
+
+  it("deletes a category with no subcategories and publishes category.deleted", async () => {
+    const category = makeCategory({ id: "cat-1", name: "Dairy" });
+    const repo = fakeRepo({
+      getById: vi.fn(async () => category),
+      listAll: vi.fn(async () => [category]),
+    });
+    const events = fakeEventBus();
+    const service = new CategoryAdminService(repo, events);
+
+    await service.deleteCategory("cat-1");
+
+    expect(repo.delete).toHaveBeenCalledWith("cat-1");
+    expect(events.publish).toHaveBeenCalledWith({
+      type: "category.deleted",
+      categoryId: "cat-1",
+      name: "Dairy",
+    });
+  });
+
+  it("allows deleting a category that still has products referencing it (FK sets category_id to null, not blocked)", async () => {
+    // No products repository is involved in CategoryAdminService at all —
+    // this documents the deliberate design choice (see category-admin.service.ts
+    // deleteCategory doc comment): only children are checked, products are
+    // intentionally left to the database's own ON DELETE SET NULL behavior.
+    const category = makeCategory({ id: "cat-1" });
+    const repo = fakeRepo({
+      getById: vi.fn(async () => category),
+      listAll: vi.fn(async () => [category]),
+    });
+    const service = new CategoryAdminService(repo, fakeEventBus());
+
+    await expect(service.deleteCategory("cat-1")).resolves.toBeUndefined();
+    expect(repo.delete).toHaveBeenCalledWith("cat-1");
   });
 });

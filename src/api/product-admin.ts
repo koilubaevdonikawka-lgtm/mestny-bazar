@@ -7,6 +7,7 @@ import type {
 } from "@shared/contracts/seller-product";
 import {
   createAdminProductFn,
+  deleteAdminProductFn,
   listAdminProductsFn,
   updateAdminProductFn,
 } from "@/api/product-admin.functions";
@@ -27,4 +28,8 @@ export async function updateAdminProduct(
   request: UpdateSellerProductRequest,
 ): Promise<SellerProductDTO> {
   return updateAdminProductFn({ data: request });
+}
+
+export async function deleteAdminProduct(id: string): Promise<void> {
+  return deleteAdminProductFn({ data: { id } });
 }

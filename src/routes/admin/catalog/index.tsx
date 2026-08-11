@@ -7,10 +7,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { ImageUploadField } from "@/components/shared/ImageUploadField";
 import { MultiImageUploadField } from "@/components/shared/MultiImageUploadField";
-import { createCategory, listAdminCategories, updateCategory } from "@/api/category-admin";
-import { createAdminProduct, listAdminProducts, updateAdminProduct } from "@/api/product-admin";
+import {
+  createCategory,
+  deleteCategory,
+  listAdminCategories,
+  updateCategory,
+} from "@/api/category-admin";
+import {
+  createAdminProduct,
+  deleteAdminProduct,
+  listAdminProducts,
+  updateAdminProduct,
+} from "@/api/product-admin";
 import type { AdminCategoryDTO } from "@shared/contracts/category-admin";
 import type { SellerProductDTO } from "@shared/contracts/seller-product";
 import { ProductPublicationStatus } from "@shared/contracts/seller-product";
@@ -20,6 +41,9 @@ import { useTranslation } from "@/i18n/LanguageProvider";
 import type { TranslationKey } from "@/i18n/t";
 import {
   ArrowLeft,
+  ChevronRight,
+  Eye,
+  EyeOff,
   ExternalLink,
   Loader2,
   LogIn,
@@ -27,6 +51,7 @@ import {
   Pencil,
   ShieldAlert,
   Tags,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -126,6 +151,15 @@ function AdminCatalogPage() {
   // never in JSX, so it doesn't need to trigger a re-render when set.
   const createAndEditRef = useRef(false);
 
+  // Каталог → Категории → Подкатегории → Товары — строгая последовательная
+  // навигация (Этап №2 подкатегорий). null/null = список основных категорий;
+  // viewCategoryId set = подкатегории этой категории; viewSubcategoryId set =
+  // товары этой подкатегории. Один и тот же экран/компонент для категорий и
+  // подкатегорий — это одна и та же сущность (categories.parent_id), не две
+  // параллельные системы.
+  const [viewCategoryId, setViewCategoryId] = useState<string | null>(null);
+  const [viewSubcategoryId, setViewSubcategoryId] = useState<string | null>(null);
+
   const {
     data: categories,
     isLoading,
@@ -169,6 +203,34 @@ function AdminCatalogPage() {
     return map;
   }, [products]);
 
+  const topLevelCategories = useMemo(
+    () => (categories ?? []).filter((c) => c.parentId === null),
+    [categories],
+  );
+  const viewCategory = useMemo(
+    () => categories?.find((c) => c.id === viewCategoryId) ?? null,
+    [categories, viewCategoryId],
+  );
+  const subcategoriesOfViewCategory = useMemo(
+    () => (categories ?? []).filter((c) => c.parentId === viewCategoryId),
+    [categories, viewCategoryId],
+  );
+  const viewSubcategory = useMemo(
+    () => categories?.find((c) => c.id === viewSubcategoryId) ?? null,
+    [categories, viewSubcategoryId],
+  );
+
+  const drillIntoCategory = (id: string) => {
+    setViewCategoryId(id);
+    setViewSubcategoryId(null);
+  };
+  const drillIntoSubcategory = (id: string) => setViewSubcategoryId(id);
+  const goBackToCategories = () => {
+    setViewCategoryId(null);
+    setViewSubcategoryId(null);
+  };
+  const goBackToSubcategories = () => setViewSubcategoryId(null);
+
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ["admin", "categories", "list"] });
 
@@ -208,6 +270,20 @@ function AdminCatalogPage() {
       toast.error(e instanceof Error ? e.message : t("admin.catalog.categoryUpdateError")),
   });
 
+  const deleteCategoryMutation = useMutation({
+    mutationFn: deleteCategory,
+    onSuccess: (_void, deletedId) => {
+      invalidate();
+      toast.success(t("admin.catalog.categoryDeletedToast"));
+      // Если удалили именно то, что сейчас просматриваем — подняться на
+      // уровень выше, а не остаться на экране только что удалённой записи.
+      if (deletedId === viewSubcategoryId) setViewSubcategoryId(null);
+      else if (deletedId === viewCategoryId) goBackToCategories();
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : t("admin.catalog.categoryDeleteError")),
+  });
+
   const createProductMutation = useMutation({
     mutationFn: createAdminProduct,
     onSuccess: (product) => {
@@ -244,6 +320,30 @@ function AdminCatalogPage() {
       toast.error(e instanceof Error ? e.message : t("admin.catalog.productUpdateError")),
   });
 
+  // Тот же updateAdminProduct, что и полное редактирование — только меняет
+  // publicationStatus, без открытия формы (быстрое действие, п.7 задачи).
+  const toggleProductStatusMutation = useMutation({
+    mutationFn: updateAdminProduct,
+    onSuccess: (product) => {
+      setProducts((prev) => prev.map((p) => (p.id === product.id ? product : p)));
+      invalidateProducts();
+      toast.success(t("admin.catalog.productUpdatedToast"));
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : t("admin.catalog.productUpdateError")),
+  });
+
+  const deleteProductMutation = useMutation({
+    mutationFn: deleteAdminProduct,
+    onSuccess: (_void, deletedId) => {
+      setProducts((prev) => prev.filter((p) => p.id !== deletedId));
+      invalidateProducts();
+      toast.success(t("admin.catalog.productDeletedToast"));
+    },
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : t("admin.catalog.productDeleteError")),
+  });
+
   const handleSignIn = async () => {
     await signInWithGoogle();
   };
@@ -255,7 +355,10 @@ function AdminCatalogPage() {
       setFormError(t("admin.catalog.nameMinLengthError"));
       return;
     }
-    createMutation.mutate({ name: name.trim() });
+    // viewCategoryId — null на экране основных категорий (создаётся
+    // категория верхнего уровня), либо id просматриваемой категории на
+    // экране подкатегорий (создаётся подкатегория с этим parentId).
+    createMutation.mutate({ name: name.trim(), parentId: viewCategoryId });
   };
 
   const startEdit = (category: AdminCategoryDTO) => {
@@ -415,6 +518,358 @@ function AdminCatalogPage() {
     );
   }
 
+  // Общая строка списка — используется и для основных категорий, и для
+  // подкатегорий (одна и та же сущность categories, различается только
+  // тем, что передано в onDrillIn/drillLabel/products). Не дублирует JSX
+  // между двумя уровнями.
+  const renderCategoryRow = (
+    category: AdminCategoryDTO,
+    options: { onDrillIn: () => void; drillLabel: string; directProducts: SellerProductDTO[] },
+  ) => (
+    <li key={category.id} className="rounded-xl bg-secondary/40 px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-medium truncate">{category.name}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {category.slug}
+            {category.nameKg ? ` · ${category.nameKg}` : ""}
+          </p>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => (editingId === category.id ? setEditingId(null) : startEdit(category))}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={toggleActiveMutation.isPending}
+            onClick={() =>
+              toggleActiveMutation.mutate({ id: category.id, isActive: !category.isActive })
+            }
+          >
+            <Badge variant={category.isActive ? "secondary" : "outline"}>
+              {category.isActive
+                ? t("admin.catalog.statusActive")
+                : t("admin.catalog.statusHidden")}
+            </Badge>
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                aria-label={t("common.delete")}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t("admin.catalog.deleteCategoryConfirmTitle")}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t("admin.catalog.deleteCategoryConfirmDescription", { name: category.name })}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                <AlertDialogAction onClick={() => deleteCategoryMutation.mutate(category.id)}>
+                  {t("common.delete")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <Button variant="ghost" size="sm" onClick={options.onDrillIn}>
+            {options.drillLabel}
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
+      </div>
+
+      {editingId === category.id && editForm && (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 border-t border-border/60 pt-4">
+          <div className="grid gap-2">
+            <Label htmlFor={`edit-name-${category.id}`}>{t("admin.catalog.nameLabel")}</Label>
+            <Input
+              id={`edit-name-${category.id}`}
+              value={editForm.name}
+              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+              maxLength={200}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor={`edit-namekg-${category.id}`}>{t("admin.catalog.nameKgLabel")}</Label>
+            <Input
+              id={`edit-namekg-${category.id}`}
+              value={editForm.nameKg}
+              onChange={(e) => setEditForm({ ...editForm, nameKg: e.target.value })}
+              maxLength={200}
+            />
+          </div>
+          <div className="grid gap-2 sm:col-span-2">
+            <Label htmlFor={`edit-desc-${category.id}`}>
+              {t("admin.catalog.descriptionLabel")}
+            </Label>
+            <Input
+              id={`edit-desc-${category.id}`}
+              value={editForm.description}
+              onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+              maxLength={2000}
+            />
+          </div>
+          <div className="grid gap-2 sm:col-span-2">
+            <ImageUploadField
+              value={editForm.imageUrl || null}
+              onChange={(url) => setEditForm({ ...editForm, imageUrl: url ?? "" })}
+              context="category"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor={`edit-sort-${category.id}`}>{t("admin.catalog.sortOrderLabel")}</Label>
+            <Input
+              id={`edit-sort-${category.id}`}
+              type="number"
+              value={editForm.sortOrder}
+              onChange={(e) => setEditForm({ ...editForm, sortOrder: e.target.value })}
+            />
+          </div>
+          <div className="flex items-end gap-2">
+            <Button
+              type="button"
+              className="h-10 rounded-full"
+              disabled={saveEditMutation.isPending}
+              onClick={() => handleSaveEdit(category.id)}
+            >
+              {saveEditMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                t("common.save")
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-10 rounded-full"
+              onClick={() => setEditingId(null)}
+            >
+              {t("common.cancel")}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Товары, до сих пор напрямую привязанные к этой категории (не к
+          подкатегории) — существующие данные, не переназначались этой
+          задачей. Не скрываются, чтобы не стать недостижимыми в новой
+          навигации. */}
+      {options.directProducts.length > 0 && (
+        <div className="mt-4 border-t border-border/60 pt-4">
+          <p className="mb-3 text-sm font-medium text-muted-foreground">
+            {t("admin.catalog.directProductsHeading")} ({options.directProducts.length})
+          </p>
+          <ul className="space-y-3">
+            {options.directProducts.map((product) => renderProductRow(product, category.name))}
+          </ul>
+        </div>
+      )}
+    </li>
+  );
+
+  const renderProductRow = (product: SellerProductDTO, categoryName: string) => (
+    <li key={product.id} className="rounded-lg border border-border/60 bg-background/60 p-4">
+      {editingProductId === product.id && editProductForm ? (
+        <div className="space-y-3">
+          <ProductFormFields
+            form={editProductForm}
+            setForm={setEditProductForm}
+            idPrefix={`edit-product-${product.id}`}
+          />
+          <div className="flex gap-2 pt-1">
+            <Button
+              type="button"
+              className="h-10 rounded-full"
+              disabled={updateProductMutation.isPending}
+              onClick={() => handleSaveProductEdit(product.id)}
+            >
+              {updateProductMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                t("common.save")
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-10 rounded-full"
+              onClick={cancelEditProduct}
+            >
+              {t("common.cancel")}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <ProductCard
+              product={product}
+              categoryName={categoryName}
+              onEdit={() => startEditProduct(product)}
+            />
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={toggleProductStatusMutation.isPending}
+              aria-label={
+                product.publicationStatus === ProductPublicationStatus.HIDDEN
+                  ? t("admin.catalog.activateProductButton")
+                  : t("admin.catalog.hideProductButton")
+              }
+              onClick={() =>
+                toggleProductStatusMutation.mutate({
+                  id: product.id,
+                  publicationStatus:
+                    product.publicationStatus === ProductPublicationStatus.HIDDEN
+                      ? ProductPublicationStatus.PUBLISHED
+                      : ProductPublicationStatus.HIDDEN,
+                })
+              }
+            >
+              {product.publicationStatus === ProductPublicationStatus.HIDDEN ? (
+                <Eye className="h-4 w-4" />
+              ) : (
+                <EyeOff className="h-4 w-4" />
+              )}
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  aria-label={t("common.delete")}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {t("admin.catalog.deleteProductConfirmTitle")}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t("admin.catalog.deleteProductConfirmDescription", { name: product.name })}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => deleteProductMutation.mutate(product.id)}>
+                    {t("common.delete")}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+      )}
+    </li>
+  );
+
+  // Форма создания категории/подкатегории — общая для обоих уровней,
+  // parentId уже подставлен в handleSubmit через viewCategoryId.
+  const renderCreateCategoryForm = (heading: string) => (
+    <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">
+      <h2 className="font-serif text-2xl mb-4">{heading}</h2>
+      <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+        <div className="grid gap-2">
+          <Label htmlFor="category-name">{t("admin.catalog.nameLabel")}</Label>
+          <Input
+            id="category-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("admin.catalog.namePlaceholder")}
+            maxLength={200}
+          />
+        </div>
+        <Button type="submit" className="h-12 rounded-full" disabled={createMutation.isPending}>
+          {createMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            t("admin.catalog.createButton")
+          )}
+        </Button>
+      </form>
+      {formError && <p className="mt-2 text-sm text-destructive">{formError}</p>}
+    </section>
+  );
+
+  const renderNewProductSection = (categoryId: string) => (
+    <>
+      {addingProductCategoryId !== categoryId && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => startAddProduct(categoryId)}
+        >
+          {t("admin.catalog.addProductButton")}
+        </Button>
+      )}
+      {addingProductCategoryId === categoryId && (
+        <div className="mt-3 w-full rounded-lg border border-dashed border-primary/40 bg-background/60 p-4">
+          <h3 className="font-medium mb-3">{t("admin.catalog.newProductHeading")}</h3>
+          <ProductFormFields
+            form={productForm}
+            setForm={setProductForm}
+            idPrefix={`new-product-${categoryId}`}
+          />
+          <div className="flex flex-wrap gap-2 pt-3">
+            <Button
+              type="button"
+              className="h-10 rounded-full"
+              disabled={createProductMutation.isPending}
+              onClick={() => handleCreateProduct(categoryId, false)}
+            >
+              {createProductMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                t("common.save")
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 rounded-full"
+              disabled={createProductMutation.isPending}
+              onClick={() => handleCreateProduct(categoryId, true)}
+            >
+              {createProductMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                t("admin.catalog.editButton")
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-10 rounded-full"
+              onClick={cancelAddProduct}
+            >
+              {t("common.cancel")}
+            </Button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
   return (
     <AdminLayout>
       <div className="mx-auto max-w-3xl px-6 py-12">
@@ -432,305 +887,120 @@ function AdminCatalogPage() {
           {t("admin.catalog.descriptionSuffix")}
         </p>
 
-        <section className="mt-8 rounded-2xl border border-border/60 bg-card p-6">
-          {!categories || categories.length === 0 ? (
-            <div className="py-8 text-center">
-              <Tags className="h-6 w-6 text-primary mx-auto mb-4" />
-              <p className="text-muted-foreground">{t("admin.catalog.emptyState")}</p>
-            </div>
-          ) : (
-            <ul className="space-y-3">
-              {categories.map((category) => {
-                const categoryProducts = productsByCategory.get(category.id) ?? [];
-                return (
-                  <li key={category.id} className="rounded-xl bg-secondary/40 px-4 py-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{category.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {category.slug}
-                          {category.nameKg ? ` · ${category.nameKg}` : ""}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            editingId === category.id ? setEditingId(null) : startEdit(category)
-                          }
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={toggleActiveMutation.isPending}
-                          onClick={() =>
-                            toggleActiveMutation.mutate({
-                              id: category.id,
-                              isActive: !category.isActive,
-                            })
-                          }
-                        >
-                          <Badge variant={category.isActive ? "secondary" : "outline"}>
-                            {category.isActive
-                              ? t("admin.catalog.statusActive")
-                              : t("admin.catalog.statusHidden")}
-                          </Badge>
-                        </Button>
-                      </div>
-                    </div>
-
-                    {editingId === category.id && editForm && (
-                      <div className="mt-4 grid gap-3 sm:grid-cols-2 border-t border-border/60 pt-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor={`edit-name-${category.id}`}>
-                            {t("admin.catalog.nameLabel")}
-                          </Label>
-                          <Input
-                            id={`edit-name-${category.id}`}
-                            value={editForm.name}
-                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                            maxLength={200}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor={`edit-namekg-${category.id}`}>
-                            {t("admin.catalog.nameKgLabel")}
-                          </Label>
-                          <Input
-                            id={`edit-namekg-${category.id}`}
-                            value={editForm.nameKg}
-                            onChange={(e) => setEditForm({ ...editForm, nameKg: e.target.value })}
-                            maxLength={200}
-                          />
-                        </div>
-                        <div className="grid gap-2 sm:col-span-2">
-                          <Label htmlFor={`edit-desc-${category.id}`}>
-                            {t("admin.catalog.descriptionLabel")}
-                          </Label>
-                          <Input
-                            id={`edit-desc-${category.id}`}
-                            value={editForm.description}
-                            onChange={(e) =>
-                              setEditForm({ ...editForm, description: e.target.value })
-                            }
-                            maxLength={2000}
-                          />
-                        </div>
-                        <div className="grid gap-2 sm:col-span-2">
-                          <ImageUploadField
-                            value={editForm.imageUrl || null}
-                            onChange={(url) => setEditForm({ ...editForm, imageUrl: url ?? "" })}
-                            context="category"
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor={`edit-sort-${category.id}`}>
-                            {t("admin.catalog.sortOrderLabel")}
-                          </Label>
-                          <Input
-                            id={`edit-sort-${category.id}`}
-                            type="number"
-                            value={editForm.sortOrder}
-                            onChange={(e) =>
-                              setEditForm({ ...editForm, sortOrder: e.target.value })
-                            }
-                          />
-                        </div>
-                        <div className="flex items-end gap-2">
-                          <Button
-                            type="button"
-                            className="h-10 rounded-full"
-                            disabled={saveEditMutation.isPending}
-                            onClick={() => handleSaveEdit(category.id)}
-                          >
-                            {saveEditMutation.isPending ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              t("common.save")
-                            )}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            className="h-10 rounded-full"
-                            onClick={() => setEditingId(null)}
-                          >
-                            {t("common.cancel")}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="mt-4 border-t border-border/60 pt-4">
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <p className="text-sm font-medium text-muted-foreground">
-                          {t("admin.catalog.productsHeading")}{" "}
-                          {categoryProducts.length > 0 && `(${categoryProducts.length})`}
-                        </p>
-                        {addingProductCategoryId !== category.id && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => startAddProduct(category.id)}
-                          >
-                            {t("admin.catalog.addProductButton")}
-                          </Button>
-                        )}
-                      </div>
-
-                      {categoryProducts.length === 0 && addingProductCategoryId !== category.id && (
-                        <p className="text-sm text-muted-foreground">
-                          {t("admin.catalog.noProductsInCategory")}
-                        </p>
-                      )}
-
-                      {categoryProducts.length > 0 && (
-                        <ul className="space-y-3">
-                          {categoryProducts.map((product) => (
-                            <li
-                              key={product.id}
-                              className="rounded-lg border border-border/60 bg-background/60 p-4"
-                            >
-                              {editingProductId === product.id && editProductForm ? (
-                                <div className="space-y-3">
-                                  <ProductFormFields
-                                    form={editProductForm}
-                                    setForm={setEditProductForm}
-                                    idPrefix={`edit-product-${product.id}`}
-                                  />
-                                  <div className="flex gap-2 pt-1">
-                                    <Button
-                                      type="button"
-                                      className="h-10 rounded-full"
-                                      disabled={updateProductMutation.isPending}
-                                      onClick={() => handleSaveProductEdit(product.id)}
-                                    >
-                                      {updateProductMutation.isPending ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                      ) : (
-                                        t("common.save")
-                                      )}
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      className="h-10 rounded-full"
-                                      onClick={cancelEditProduct}
-                                    >
-                                      {t("common.cancel")}
-                                    </Button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <ProductCard
-                                  product={product}
-                                  categoryName={category.name}
-                                  onEdit={() => startEditProduct(product)}
-                                />
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-
-                      {addingProductCategoryId === category.id && (
-                        <div className="mt-3 rounded-lg border border-dashed border-primary/40 bg-background/60 p-4">
-                          <h3 className="font-medium mb-3">
-                            {t("admin.catalog.newProductHeading")}
-                          </h3>
-                          <ProductFormFields
-                            form={productForm}
-                            setForm={setProductForm}
-                            idPrefix={`new-product-${category.id}`}
-                          />
-                          <div className="flex flex-wrap gap-2 pt-3">
-                            <Button
-                              type="button"
-                              className="h-10 rounded-full"
-                              disabled={createProductMutation.isPending}
-                              onClick={() => handleCreateProduct(category.id, false)}
-                            >
-                              {createProductMutation.isPending ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                t("common.save")
-                              )}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="h-10 rounded-full"
-                              disabled={createProductMutation.isPending}
-                              onClick={() => handleCreateProduct(category.id, true)}
-                            >
-                              {createProductMutation.isPending ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                t("admin.catalog.editButton")
-                              )}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              className="h-10 rounded-full"
-                              onClick={cancelAddProduct}
-                            >
-                              {t("common.cancel")}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-
-        {productsPageResult?.hasMore && (
-          <div className="mt-4 flex justify-center">
+        {/* Уровень 3: товары выбранной подкатегории (Каталог → Категории →
+            Подкатегории → Товары). */}
+        {viewSubcategory ? (
+          <>
             <Button
-              type="button"
-              variant="outline"
-              className="rounded-full"
-              onClick={() => setProductsPage((p) => p + 1)}
+              variant="ghost"
+              className="mt-6 -ml-2 rounded-full"
+              onClick={goBackToSubcategories}
             >
-              {t("admin.catalog.showMoreProductsButton", {
-                shown: String(products.length),
-                total: String(productsPageResult.total),
-              })}
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              {t("admin.catalog.backButton")}
             </Button>
-          </div>
-        )}
-
-        <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">
-          <h2 className="font-serif text-2xl mb-4">{t("admin.catalog.newCategoryHeading")}</h2>
-          <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
-            <div className="grid gap-2">
-              <Label htmlFor="category-name">{t("admin.catalog.nameLabel")}</Label>
-              <Input
-                id="category-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t("admin.catalog.namePlaceholder")}
-                maxLength={200}
-              />
-            </div>
-            <Button type="submit" className="h-12 rounded-full" disabled={createMutation.isPending}>
-              {createMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                t("admin.catalog.createButton")
+            <h2 className="mt-2 font-serif text-2xl">
+              {viewCategory?.name} / {viewSubcategory.name}
+            </h2>
+            <section className="mt-4 rounded-2xl border border-border/60 bg-card p-6">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <p className="text-sm font-medium text-muted-foreground">
+                  {t("admin.catalog.productsHeading")}{" "}
+                  {(productsByCategory.get(viewSubcategory.id)?.length ?? 0) > 0 &&
+                    `(${productsByCategory.get(viewSubcategory.id)?.length})`}
+                </p>
+                {renderNewProductSection(viewSubcategory.id)}
+              </div>
+              {(productsByCategory.get(viewSubcategory.id) ?? []).length === 0 &&
+                addingProductCategoryId !== viewSubcategory.id && (
+                  <p className="text-sm text-muted-foreground">
+                    {t("admin.catalog.noProductsInCategory")}
+                  </p>
+                )}
+              {(productsByCategory.get(viewSubcategory.id) ?? []).length > 0 && (
+                <ul className="space-y-3">
+                  {(productsByCategory.get(viewSubcategory.id) ?? []).map((product) =>
+                    renderProductRow(product, viewSubcategory.name),
+                  )}
+                </ul>
               )}
+            </section>
+          </>
+        ) : viewCategory ? (
+          /* Уровень 2: подкатегории выбранной основной категории. */
+          <>
+            <Button
+              variant="ghost"
+              className="mt-6 -ml-2 rounded-full"
+              onClick={goBackToCategories}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              {t("admin.catalog.backButton")}
             </Button>
-          </form>
-          {formError && <p className="mt-2 text-sm text-destructive">{formError}</p>}
-        </section>
+            <h2 className="mt-2 font-serif text-2xl">{viewCategory.name}</h2>
+            <section className="mt-4 rounded-2xl border border-border/60 bg-card p-6">
+              {subcategoriesOfViewCategory.length === 0 ? (
+                <div className="py-8 text-center">
+                  <Tags className="h-6 w-6 text-primary mx-auto mb-4" />
+                  <p className="text-muted-foreground">
+                    {t("admin.catalog.noSubcategoriesInCategory")}
+                  </p>
+                </div>
+              ) : (
+                <ul className="space-y-3">
+                  {subcategoriesOfViewCategory.map((sub) =>
+                    renderCategoryRow(sub, {
+                      onDrillIn: () => drillIntoSubcategory(sub.id),
+                      drillLabel: t("admin.catalog.viewProductsButton"),
+                      directProducts: productsByCategory.get(sub.id) ?? [],
+                    }),
+                  )}
+                </ul>
+              )}
+            </section>
+            {renderCreateCategoryForm(t("admin.catalog.newSubcategoryHeading"))}
+          </>
+        ) : (
+          /* Уровень 1: основные категории. */
+          <>
+            <section className="mt-8 rounded-2xl border border-border/60 bg-card p-6">
+              {!categories || topLevelCategories.length === 0 ? (
+                <div className="py-8 text-center">
+                  <Tags className="h-6 w-6 text-primary mx-auto mb-4" />
+                  <p className="text-muted-foreground">{t("admin.catalog.emptyState")}</p>
+                </div>
+              ) : (
+                <ul className="space-y-3">
+                  {topLevelCategories.map((category) =>
+                    renderCategoryRow(category, {
+                      onDrillIn: () => drillIntoCategory(category.id),
+                      drillLabel: t("admin.catalog.viewSubcategoriesButton"),
+                      directProducts: productsByCategory.get(category.id) ?? [],
+                    }),
+                  )}
+                </ul>
+              )}
+            </section>
+
+            {productsPageResult?.hasMore && (
+              <div className="mt-4 flex justify-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => setProductsPage((p) => p + 1)}
+                >
+                  {t("admin.catalog.showMoreProductsButton", {
+                    shown: String(products.length),
+                    total: String(productsPageResult.total),
+                  })}
+                </Button>
+              </div>
+            )}
+
+            {renderCreateCategoryForm(t("admin.catalog.newCategoryHeading"))}
+          </>
+        )}
       </div>
     </AdminLayout>
   );

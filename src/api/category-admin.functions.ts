@@ -4,6 +4,7 @@ import {
   createCategoryRequestSchema,
   updateCategoryRequestSchema,
 } from "@shared/validation/category-admin.schema";
+import { uuidParamSchema } from "@shared/validation/common.schema";
 
 export const listAdminCategoriesFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<AdminCategoryDTO[]> => {
@@ -25,4 +26,11 @@ export const updateCategoryFn = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<AdminCategoryDTO> => {
     const { executeUpdateCategory } = await import("@server/functions/category-admin.executor");
     return executeUpdateCategory(data);
+  });
+
+export const deleteCategoryFn = createServerFn({ method: "POST" })
+  .validator((data: unknown) => uuidParamSchema.parse(data))
+  .handler(async ({ data }): Promise<void> => {
+    const { executeDeleteCategory } = await import("@server/functions/category-admin.executor");
+    return executeDeleteCategory(data.id);
   });

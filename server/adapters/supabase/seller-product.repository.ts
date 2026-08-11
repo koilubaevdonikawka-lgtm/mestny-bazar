@@ -202,4 +202,12 @@ export class SupabaseSellerProductRepository implements ISellerProductRepository
     }
     return mapRow(row);
   }
+
+  async delete(id: string, sellerId: string | null): Promise<void> {
+    let query = supabaseAdmin.from("products").delete().eq("id", id);
+    if (sellerId !== null) query = query.eq("seller_id", sellerId);
+
+    const { error } = await query;
+    if (error) throw new Error(`Failed to delete product: ${error.message}`);
+  }
 }

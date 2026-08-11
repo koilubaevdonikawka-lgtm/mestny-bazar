@@ -179,6 +179,21 @@ export class SellerProductService {
     return updated;
   }
 
+  /**
+   * Hard delete — unlike hideProduct (reversible, publicationStatus only).
+   * Safe with respect to order history: order_items.product_id is
+   * ON DELETE SET NULL and already denormalizes product_name/product_image_url
+   * at order time, so past orders keep their line-item text even after the
+   * product row itself is gone.
+   */
+  async deleteProduct(sellerId: string | null, id: string): Promise<void> {
+    const existing = await this.products.getById(id, sellerId);
+    if (!existing) throw new SellerProductNotFoundError();
+
+    await this.products.delete(id, sellerId);
+    await this.events.publish({ type: "product.deleted", productId: id, name: existing.name });
+  }
+
   private async assertCategoryExists(categoryId: string): Promise<void> {
     const category = await this.categories.getById(categoryId);
     if (!category) {

@@ -105,6 +105,11 @@ export class SupabaseAdminCategoryRepository implements IAdminCategoryRepository
     return mapAdminCategoryRow(row);
   }
 
+  async delete(id: string): Promise<void> {
+    const { error } = await supabaseAdmin.from("categories").delete().eq("id", id);
+    if (error) throw new Error(`Failed to delete category: ${error.message}`);
+  }
+
   async slugExists(slug: string, exceptId?: string): Promise<boolean> {
     let query = supabaseAdmin.from("categories").select("id").eq("slug", slug);
     if (exceptId) query = query.neq("id", exceptId);

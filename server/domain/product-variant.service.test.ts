@@ -66,6 +66,7 @@ function fakeSellerProductRepo(
     create: vi.fn(async () => makeSellerProduct()),
     update: vi.fn(async () => makeSellerProduct()),
     setPublicationStatus: vi.fn(async () => makeSellerProduct()),
+    delete: vi.fn(async () => {}),
     slugExists: vi.fn(async () => false),
     ...overrides,
   };

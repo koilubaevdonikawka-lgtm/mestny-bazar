@@ -6,6 +6,7 @@ import type {
 import type { IAdminCategoryRepository } from "@server/ports/category-admin.repository";
 import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
 import {
+  CategoryHasChildrenError,
   CategoryNotFoundError,
   CategoryValidationError,
 } from "@server/domain/category-admin.errors";
@@ -51,6 +52,28 @@ export class CategoryAdminService {
     const category = await this.categories.update(patch);
     await this.events.publish({ type: "category.updated", category });
     return category;
+  }
+
+  /**
+   * Deletion is blocked while the category still has subcategories — the FK
+   * (parent_id ON DELETE SET NULL) would otherwise silently promote them to
+   * top-level, collapsing the hierarchy without confirmation. Products that
+   * reference this category are intentionally NOT checked here: the same FK
+   * sets their category_id to null on delete (no row is destroyed, no data
+   * lost — an admin can reassign them afterward), matching how the schema
+   * itself was designed for this case (see category_hierarchy migration).
+   */
+  async deleteCategory(id: string): Promise<void> {
+    const existing = await this.categories.getById(id);
+    if (!existing) throw new CategoryNotFoundError();
+
+    const all = await this.categories.listAll();
+    if (all.some((c) => c.parentId === id)) {
+      throw new CategoryHasChildrenError();
+    }
+
+    await this.categories.delete(id);
+    await this.events.publish({ type: "category.deleted", categoryId: id, name: existing.name });
   }
 
   private async resolveUniqueSlug(baseSlug: string, exceptId?: string): Promise<string> {
