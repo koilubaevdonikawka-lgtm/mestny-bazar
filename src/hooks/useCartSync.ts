@@ -48,7 +48,22 @@ export function useCartSync() {
       } else {
         void mergeGuestIntoServer();
       }
-    } else if (!isAuthenticated && previous === true) {
+    } else if (!isAuthenticated && useCartStore.getState().mode === "authenticated") {
+      // CART_DEBUG_REPORT_2026-08-13.md — this used to require
+      // `previous === true` (a live sign-out transition witnessed by this
+      // exact mount). That misses a fresh page load where localStorage
+      // already has mode "authenticated" from an earlier real sign-in, but
+      // the current Supabase session is already invalid by the time this
+      // effect first runs (previous is still its initial `null`, never
+      // `true`) — mode stayed stuck as "authenticated" forever, so every
+      // cart action attempted a server call that correctly failed
+      // (UnauthorizedError, no valid token), surfacing as "не удалось
+      // добавить товар в корзину". Checking the store's actual current
+      // mode instead of the locally-witnessed transition catches both the
+      // live sign-out case and the stale-on-load case, and stays safe for a
+      // genuine guest with items already in their cart: resetToGuest()
+      // (which clears items) only ever fires when mode is really
+      // "authenticated", never when it's already "guest".
       resetToGuest();
     }
   }, [isAuthenticated, syncFromServer, mergeGuestIntoServer, resetToGuest]);
