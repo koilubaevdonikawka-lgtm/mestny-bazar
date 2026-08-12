@@ -24,30 +24,17 @@ import type { PaymentMethod } from "@shared/contracts/order";
  * страница должна открываться по прямому URL (deep-link) точно так же, как
  * при обычной навигации со страницы товара.
  */
+// productSlug/quantity have no sensible default (there's no "default
+// product") — `.catch(undefined)` per field keeps validateSearch itself
+// from ever throwing (a throw there surfaces as a raw server error, not a
+// normal in-app page); QuickBuyPage checks for the missing/invalid case
+// itself and renders a friendly fallback instead. Every real visit (via
+// the "Купить в один клик" button) always supplies both params — this only
+// guards a direct/malformed URL, not the golden path.
 const quickBuySearchSchema = z.object({
-  productSlug: z.string().min(1),
-  quantity: z.number().int().positive(),
+  productSlug: z.string().min(1).optional().catch(undefined),
+  quantity: z.number().int().positive().optional().catch(undefined),
 });
-
-/** productSlug/quantity have no sensible default (there's no "default
- * product") — a direct/malformed visit with missing or invalid params fails
- * validateSearch. Without this, that failure surfaces as a raw server
- * error instead of a normal in-app page; every real visit (via the "Купить
- * в один клик" button) always supplies both params, so this only guards an
- * edge case, not the golden path. */
-function QuickBuyInvalidLinkComponent() {
-  const { t } = useTranslation();
-  return (
-    <div className="min-h-screen flex items-center justify-center p-6 text-center">
-      <div>
-        <h2 className="font-serif text-2xl">{t("product.notFoundTitle")}</h2>
-        <Button asChild size="lg" className="mt-6 h-12 rounded-full px-8">
-          <Link to="/">{t("common.home")}</Link>
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 export const Route = createFileRoute("/checkout/quick-buy")({
   component: QuickBuyPage,
@@ -55,7 +42,6 @@ export const Route = createFileRoute("/checkout/quick-buy")({
   head: () => ({
     meta: [{ title: `${BRAND.name}` }],
   }),
-  errorComponent: QuickBuyInvalidLinkComponent,
 });
 
 function QuickBuyPage() {
@@ -68,9 +54,10 @@ function QuickBuyPage() {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["product", productSlug],
-    queryFn: () => fetchCatalogProduct(productSlug),
+    queryKey: ["product", productSlug ?? ""],
+    queryFn: () => fetchCatalogProduct(productSlug!),
     retry: false,
+    enabled: !!productSlug && !!quantity,
   });
 
   const { address, zoneId, customerPhone, setAddress, setZoneId, setCustomerPhone } =
@@ -85,6 +72,23 @@ function QuickBuyPage() {
 
   const translations = useTranslatedTexts([product?.title ?? ""], language);
   const displayTitle = product ? (translations[product.title] ?? product.title) : "";
+
+  // Прямая/испорченная ссылка без обоих параметров — единственный реальный
+  // путь на эту страницу (кнопка "Купить в один клик") всегда передаёт оба.
+  // Ранний return здесь же сужает тип productSlug/quantity до string/number
+  // для остального тела компонента (goBackToProduct/handlePay/JSX ниже).
+  if (!productSlug || !quantity) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 text-center">
+        <div>
+          <h2 className="font-serif text-2xl">{t("product.notFoundTitle")}</h2>
+          <Button asChild size="lg" className="mt-6 h-12 rounded-full px-8">
+            <Link to="/">{t("common.home")}</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const goBackToProduct = () => {
     void navigate({ to: "/product/$handle", params: { handle: productSlug } });
