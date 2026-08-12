@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -18,6 +18,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ImageUploadField } from "@/components/shared/ImageUploadField";
 import { MultiImageUploadField } from "@/components/shared/MultiImageUploadField";
 import {
@@ -44,6 +51,7 @@ import {
   ChevronDown,
   Eye,
   EyeOff,
+  Home,
   Loader2,
   LogIn,
   Package,
@@ -230,6 +238,16 @@ function AdminCatalogPage() {
     setViewSubcategoryId(null);
   };
   const goBackToSubcategories = () => setViewSubcategoryId(null);
+
+  const navigate = useNavigate();
+  // Единая кнопка «Назад» фиксированной панели навигации — цель зависит от
+  // текущего уровня; на уровне категорий вести на главную (Часть 2 задачи
+  // явно допускает этот вариант вместо недоступной кнопки).
+  const handleFixedNavBack = () => {
+    if (viewSubcategoryId) goBackToSubcategories();
+    else if (viewCategoryId) goBackToCategories();
+    else void navigate({ to: "/admin" });
+  };
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ["admin", "categories", "list"] });
@@ -628,78 +646,6 @@ function AdminCatalogPage() {
           <ChevronDown className="h-3.5 w-3.5" />
         </Button>
       </div>
-
-      {editingId === category.id && editForm && (
-        <div className="grid gap-3 border-t border-border/60 p-3 sm:grid-cols-2">
-          <div className="grid gap-2">
-            <Label htmlFor={`edit-name-${category.id}`}>{t("admin.catalog.nameLabel")}</Label>
-            <Input
-              id={`edit-name-${category.id}`}
-              value={editForm.name}
-              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-              maxLength={200}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor={`edit-namekg-${category.id}`}>{t("admin.catalog.nameKgLabel")}</Label>
-            <Input
-              id={`edit-namekg-${category.id}`}
-              value={editForm.nameKg}
-              onChange={(e) => setEditForm({ ...editForm, nameKg: e.target.value })}
-              maxLength={200}
-            />
-          </div>
-          <div className="grid gap-2 sm:col-span-2">
-            <Label htmlFor={`edit-desc-${category.id}`}>
-              {t("admin.catalog.descriptionLabel")}
-            </Label>
-            <Input
-              id={`edit-desc-${category.id}`}
-              value={editForm.description}
-              onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-              maxLength={2000}
-            />
-          </div>
-          <div className="grid gap-2 sm:col-span-2">
-            <ImageUploadField
-              value={editForm.imageUrl || null}
-              onChange={(url) => setEditForm({ ...editForm, imageUrl: url ?? "" })}
-              context="category"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor={`edit-sort-${category.id}`}>{t("admin.catalog.sortOrderLabel")}</Label>
-            <Input
-              id={`edit-sort-${category.id}`}
-              type="number"
-              value={editForm.sortOrder}
-              onChange={(e) => setEditForm({ ...editForm, sortOrder: e.target.value })}
-            />
-          </div>
-          <div className="flex items-end gap-2">
-            <Button
-              type="button"
-              className="h-10 rounded-full"
-              disabled={saveEditMutation.isPending}
-              onClick={() => handleSaveEdit(category.id)}
-            >
-              {saveEditMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                t("common.save")
-              )}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-10 rounded-full"
-              onClick={() => setEditingId(null)}
-            >
-              {t("common.cancel")}
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 
@@ -713,133 +659,97 @@ function AdminCatalogPage() {
       key={product.id}
       className="flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card"
     >
-      {editingProductId === product.id && editProductForm ? (
-        <div className="space-y-3 p-3">
-          <ProductFormFields
-            form={editProductForm}
-            setForm={setEditProductForm}
-            idPrefix={`edit-product-${product.id}`}
-          />
-          <div className="flex gap-2 pt-1">
-            <Button
-              type="button"
-              className="h-10 rounded-full"
-              disabled={updateProductMutation.isPending}
-              onClick={() => handleSaveProductEdit(product.id)}
-            >
-              {updateProductMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                t("common.save")
-              )}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-10 rounded-full"
-              onClick={cancelEditProduct}
-            >
-              {t("common.cancel")}
-            </Button>
+      <div className="aspect-square w-full overflow-hidden bg-secondary/40">
+        {product.imageUrl ? (
+          <img src={product.imageUrl} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+            <Package className="h-5 w-5" />
           </div>
-        </div>
-      ) : (
-        <>
-          <div className="aspect-square w-full overflow-hidden bg-secondary/40">
-            {product.imageUrl ? (
-              <img src={product.imageUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                <Package className="h-5 w-5" />
-              </div>
-            )}
-          </div>
-          <div className="min-w-0 px-2 pt-1.5 pb-1">
-            <p className="truncate text-sm font-medium">{product.name}</p>
-            <p className="text-sm font-semibold">
-              {product.price.toFixed(2)} {product.currency}
-            </p>
-          </div>
-          <div className="mt-auto flex flex-wrap items-center gap-0.5 border-t border-border/60 px-1 py-1">
-            <Badge
-              variant={
-                product.publicationStatus === ProductPublicationStatus.PUBLISHED
-                  ? "secondary"
-                  : "outline"
-              }
-              className="text-[10px]"
-            >
-              {t(publicationStatusKey(product.publicationStatus))}
-            </Badge>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="ml-auto h-7 w-7 p-0"
-              onClick={() => startEditProduct(product)}
-              aria-label={t("admin.catalog.editButton")}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 p-0"
-              disabled={toggleProductStatusMutation.isPending}
-              aria-label={
+        )}
+      </div>
+      <div className="min-w-0 px-2 pt-1.5 pb-1">
+        <p className="truncate text-sm font-medium">{product.name}</p>
+        <p className="text-sm font-semibold">
+          {product.price.toFixed(2)} {product.currency}
+        </p>
+      </div>
+      <div className="mt-auto flex flex-wrap items-center gap-0.5 border-t border-border/60 px-1 py-1">
+        <Badge
+          variant={
+            product.publicationStatus === ProductPublicationStatus.PUBLISHED
+              ? "secondary"
+              : "outline"
+          }
+          className="text-[10px]"
+        >
+          {t(publicationStatusKey(product.publicationStatus))}
+        </Badge>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="ml-auto h-7 w-7 p-0"
+          onClick={() => startEditProduct(product)}
+          aria-label={t("admin.catalog.editButton")}
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0"
+          disabled={toggleProductStatusMutation.isPending}
+          aria-label={
+            product.publicationStatus === ProductPublicationStatus.HIDDEN
+              ? t("admin.catalog.activateProductButton")
+              : t("admin.catalog.hideProductButton")
+          }
+          onClick={() =>
+            toggleProductStatusMutation.mutate({
+              id: product.id,
+              publicationStatus:
                 product.publicationStatus === ProductPublicationStatus.HIDDEN
-                  ? t("admin.catalog.activateProductButton")
-                  : t("admin.catalog.hideProductButton")
-              }
-              onClick={() =>
-                toggleProductStatusMutation.mutate({
-                  id: product.id,
-                  publicationStatus:
-                    product.publicationStatus === ProductPublicationStatus.HIDDEN
-                      ? ProductPublicationStatus.PUBLISHED
-                      : ProductPublicationStatus.HIDDEN,
-                })
-              }
+                  ? ProductPublicationStatus.PUBLISHED
+                  : ProductPublicationStatus.HIDDEN,
+            })
+          }
+        >
+          {product.publicationStatus === ProductPublicationStatus.HIDDEN ? (
+            <Eye className="h-3.5 w-3.5" />
+          ) : (
+            <EyeOff className="h-3.5 w-3.5" />
+          )}
+        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+              aria-label={t("common.delete")}
             >
-              {product.publicationStatus === ProductPublicationStatus.HIDDEN ? (
-                <Eye className="h-3.5 w-3.5" />
-              ) : (
-                <EyeOff className="h-3.5 w-3.5" />
-              )}
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                  aria-label={t("common.delete")}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    {t("admin.catalog.deleteProductConfirmTitle")}
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {t("admin.catalog.deleteProductConfirmDescription", { name: product.name })}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => deleteProductMutation.mutate(product.id)}>
-                    {t("common.delete")}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </>
-      )}
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("admin.catalog.deleteProductConfirmTitle")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("admin.catalog.deleteProductConfirmDescription", { name: product.name })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+              <AlertDialogAction onClick={() => deleteProductMutation.mutate(product.id)}>
+                {t("common.delete")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </div>
   );
 
@@ -938,34 +848,54 @@ function AdminCatalogPage() {
     </>
   );
 
+  // Единственный заголовок страницы — зависит от текущего уровня. Ни на
+  // одном уровне не показываются «сырые» составные надписи вида
+  // «Категория / Подкатегория» — только по шаблону (Часть 1/4 задачи).
+  const pageTitle = viewSubcategory
+    ? t("admin.catalog.productsTitle", { name: viewSubcategory.name })
+    : viewCategory
+      ? t("admin.catalog.subcategoriesTitle", { name: viewCategory.name })
+      : t("admin.catalog.title");
+
   return (
     <AdminLayout>
-      <div className="mx-auto max-w-6xl px-6 py-12">
-        <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
+      {/* Фиксированная навигация — всегда видна в верхнем левом углу,
+          независимо от прокрутки (Часть 2 задачи). z-[45] — выше шапки
+          (z-40), но ниже fullscreen-модалок редактирования (z-50), которые
+          при открытии должны полностью перекрывать эту панель. */}
+      <div className="fixed left-3 top-20 z-[45] flex items-center gap-1 rounded-full border border-border/60 bg-background/95 p-1 shadow-[var(--shadow-card)] backdrop-blur-md">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 rounded-full px-2.5 text-xs"
+          onClick={handleFixedNavBack}
+        >
+          <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+          {t("admin.catalog.backButton")}
+        </Button>
+        <Button
+          asChild
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 rounded-full px-2.5 text-xs"
+        >
           <Link to="/admin">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            {t("admin.common.backToHub")}
+            <Home className="h-3.5 w-3.5 mr-1" />
+            {t("admin.catalog.fixedNavHome")}
           </Link>
         </Button>
+      </div>
 
-        <h1 className="font-serif text-4xl tracking-tight">{t("admin.catalog.title")}</h1>
+      <div className="mx-auto max-w-6xl px-6 pt-28 pb-12">
+        <h1 className="font-serif text-4xl tracking-tight">{pageTitle}</h1>
 
         {/* Уровень 3: товары выбранной подкатегории (Каталог → Категории →
             Подкатегории → Товары). */}
         {viewSubcategory ? (
           <>
-            <Button
-              variant="ghost"
-              className="mt-6 -ml-2 rounded-full"
-              onClick={goBackToSubcategories}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              {t("admin.catalog.backButton")}
-            </Button>
-            <h2 className="mt-2 font-serif text-2xl">
-              {viewCategory?.name} / {viewSubcategory.name}
-            </h2>
-            <section className="mt-4 rounded-2xl border border-border/60 bg-card p-6">
+            <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <p className="text-sm font-medium text-muted-foreground">
                   {t("admin.catalog.productsHeading")}{" "}
@@ -992,16 +922,7 @@ function AdminCatalogPage() {
         ) : viewCategory ? (
           /* Уровень 2: подкатегории выбранной основной категории. */
           <>
-            <Button
-              variant="ghost"
-              className="mt-6 -ml-2 rounded-full"
-              onClick={goBackToCategories}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              {t("admin.catalog.backButton")}
-            </Button>
-            <h2 className="mt-2 font-serif text-2xl">{viewCategory.name}</h2>
-            <section className="mt-4 rounded-2xl border border-border/60 bg-card p-6">
+            <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">
               {subcategoriesOfViewCategory.length === 0 ? (
                 <div className="py-8 text-center">
                   <Tags className="h-6 w-6 text-primary mx-auto mb-4" />
@@ -1063,6 +984,132 @@ function AdminCatalogPage() {
           </>
         )}
       </div>
+
+      {/* Fullscreen-модалка редактирования категории/подкатегории — единая
+          на всю страницу, а не встроенная в каждую карточку (Часть 3
+          задачи). Управляется тем же editingId/editForm, что и раньше. */}
+      <Dialog open={editingId !== null} onOpenChange={(open) => !open && setEditingId(null)}>
+        <DialogContent className="inset-0 left-0 top-0 h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 gap-4 overflow-y-auto rounded-none border-0 p-6 sm:rounded-none">
+          {editForm && editingId && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{t("admin.catalog.editCategoryDialogTitle")}</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-name">{t("admin.catalog.nameLabel")}</Label>
+                  <Input
+                    id="edit-name"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    maxLength={200}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-namekg">{t("admin.catalog.nameKgLabel")}</Label>
+                  <Input
+                    id="edit-namekg"
+                    value={editForm.nameKg}
+                    onChange={(e) => setEditForm({ ...editForm, nameKg: e.target.value })}
+                    maxLength={200}
+                  />
+                </div>
+                <div className="grid gap-2 sm:col-span-2">
+                  <Label htmlFor="edit-desc">{t("admin.catalog.descriptionLabel")}</Label>
+                  <Input
+                    id="edit-desc"
+                    value={editForm.description}
+                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    maxLength={2000}
+                  />
+                </div>
+                <div className="grid gap-2 sm:col-span-2">
+                  <ImageUploadField
+                    value={editForm.imageUrl || null}
+                    onChange={(url) => setEditForm({ ...editForm, imageUrl: url ?? "" })}
+                    context="category"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-sort">{t("admin.catalog.sortOrderLabel")}</Label>
+                  <Input
+                    id="edit-sort"
+                    type="number"
+                    value={editForm.sortOrder}
+                    onChange={(e) => setEditForm({ ...editForm, sortOrder: e.target.value })}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-10 rounded-full"
+                  onClick={() => setEditingId(null)}
+                >
+                  {t("common.cancel")}
+                </Button>
+                <Button
+                  type="button"
+                  className="h-10 rounded-full"
+                  disabled={saveEditMutation.isPending}
+                  onClick={() => handleSaveEdit(editingId)}
+                >
+                  {saveEditMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    t("common.save")
+                  )}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Fullscreen-модалка редактирования товара — та же логика, для
+          editingProductId/editProductForm. */}
+      <Dialog
+        open={editingProductId !== null}
+        onOpenChange={(open) => !open && cancelEditProduct()}
+      >
+        <DialogContent className="inset-0 left-0 top-0 h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 gap-4 overflow-y-auto rounded-none border-0 p-6 sm:rounded-none">
+          {editProductForm && editingProductId && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{t("admin.catalog.editProductDialogTitle")}</DialogTitle>
+              </DialogHeader>
+              <ProductFormFields
+                form={editProductForm}
+                setForm={setEditProductForm}
+                idPrefix={`edit-product-${editingProductId}`}
+              />
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-10 rounded-full"
+                  onClick={cancelEditProduct}
+                >
+                  {t("common.cancel")}
+                </Button>
+                <Button
+                  type="button"
+                  className="h-10 rounded-full"
+                  disabled={updateProductMutation.isPending}
+                  onClick={() => handleSaveProductEdit(editingProductId)}
+                >
+                  {updateProductMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    t("common.save")
+                  )}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
