@@ -9,19 +9,29 @@ import {
   categorySearchSchema,
 } from "@/components/category/ProductPage";
 
-export const Route = createFileRoute("/category/$slug")({
-  component: CategoryPage,
+/**
+ * Страница товаров подкатегории — Этап: трёхуровневая навигация.
+ * Отдельный URL от `/category/$slug`, но та же логика товаров/фильтров
+ * (`ProductPage`, см. этот компонент): категория и подкатегория — одна
+ * сущность (`categories.slug` глобально уникален), поэтому запрос к
+ * товарам идентичен для обоих маршрутов — не дублируется, а переиспользуется
+ * через общий компонент.
+ */
+export const Route = createFileRoute("/category/$categorySlug/subcategory/$subcategorySlug")({
+  component: SubcategoryProductPage,
   validateSearch: categorySearchSchema,
   loader: async ({ params, context }) => {
     const category = await context.queryClient.ensureQueryData({
-      queryKey: categoryQueryKey(params.slug),
-      queryFn: () => fetchCatalogCategory(params.slug),
+      queryKey: categoryQueryKey(params.subcategorySlug),
+      queryFn: () => fetchCatalogCategory(params.subcategorySlug),
     });
     return { category };
   },
   head: ({ params, loaderData }) => {
     const category = loaderData?.category;
-    const title = category ? `${category.name} — ${BRAND.name}` : `${params.slug} — ${BRAND.name}`;
+    const title = category
+      ? `${category.name} — ${BRAND.name}`
+      : `${params.subcategorySlug} — ${BRAND.name}`;
     const description = category?.description?.trim() || BRAND.description;
     const image = category?.imageUrl || BRAND.ogImage;
     return {
@@ -38,14 +48,14 @@ export const Route = createFileRoute("/category/$slug")({
   notFoundComponent: CategoryNotFoundComponent,
 });
 
-function CategoryPage() {
-  const { slug } = Route.useParams();
+function SubcategoryProductPage() {
+  const { subcategorySlug } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
 
   return (
     <ProductPage
-      slug={slug}
+      slug={subcategorySlug}
       search={search}
       setSearch={(updater) => void navigate({ search: updater, replace: true })}
       backHref="/"

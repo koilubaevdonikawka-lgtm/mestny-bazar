@@ -49,6 +49,7 @@ import { Route as SellerProductsIdRouteImport } from './routes/seller/products/$
 import { Route as CourierOrdersIdRouteImport } from './routes/courier/orders/$id'
 import { Route as AdminOrdersIdRouteImport } from './routes/admin/orders/$id'
 import { Route as AdminCouriersIdRouteImport } from './routes/admin/couriers/$id'
+import { Route as CategoryCategorySlugSubcategorySubcategorySlugRouteImport } from './routes/category.$categorySlug.subcategory.$subcategorySlug'
 
 const WorkspaceRoute = WorkspaceRouteImport.update({
   id: '/workspace',
@@ -250,6 +251,12 @@ const AdminCouriersIdRoute = AdminCouriersIdRouteImport.update({
   path: '/admin/couriers/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CategoryCategorySlugSubcategorySubcategorySlugRoute =
+  CategoryCategorySlugSubcategorySubcategorySlugRouteImport.update({
+    id: '/category/$categorySlug/subcategory/$subcategorySlug',
+    path: '/category/$categorySlug/subcategory/$subcategorySlug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -292,6 +299,7 @@ export interface FileRoutesByFullPath {
   '/seller/products/': typeof SellerProductsIndexRoute
   '/seller/profile/': typeof SellerProfileIndexRoute
   '/warehouse/orders/': typeof WarehouseOrdersIndexRoute
+  '/category/$categorySlug/subcategory/$subcategorySlug': typeof CategoryCategorySlugSubcategorySubcategorySlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -334,6 +342,7 @@ export interface FileRoutesByTo {
   '/seller/products': typeof SellerProductsIndexRoute
   '/seller/profile': typeof SellerProfileIndexRoute
   '/warehouse/orders': typeof WarehouseOrdersIndexRoute
+  '/category/$categorySlug/subcategory/$subcategorySlug': typeof CategoryCategorySlugSubcategorySubcategorySlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -377,6 +386,7 @@ export interface FileRoutesById {
   '/seller/products/': typeof SellerProductsIndexRoute
   '/seller/profile/': typeof SellerProfileIndexRoute
   '/warehouse/orders/': typeof WarehouseOrdersIndexRoute
+  '/category/$categorySlug/subcategory/$subcategorySlug': typeof CategoryCategorySlugSubcategorySubcategorySlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -421,6 +431,7 @@ export interface FileRouteTypes {
     | '/seller/products/'
     | '/seller/profile/'
     | '/warehouse/orders/'
+    | '/category/$categorySlug/subcategory/$subcategorySlug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -463,6 +474,7 @@ export interface FileRouteTypes {
     | '/seller/products'
     | '/seller/profile'
     | '/warehouse/orders'
+    | '/category/$categorySlug/subcategory/$subcategorySlug'
   id:
     | '__root__'
     | '/'
@@ -505,6 +517,7 @@ export interface FileRouteTypes {
     | '/seller/products/'
     | '/seller/profile/'
     | '/warehouse/orders/'
+    | '/category/$categorySlug/subcategory/$subcategorySlug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -548,6 +561,7 @@ export interface RootRouteChildren {
   SellerProductsIndexRoute: typeof SellerProductsIndexRoute
   SellerProfileIndexRoute: typeof SellerProfileIndexRoute
   WarehouseOrdersIndexRoute: typeof WarehouseOrdersIndexRoute
+  CategoryCategorySlugSubcategorySubcategorySlugRoute: typeof CategoryCategorySlugSubcategorySubcategorySlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -832,6 +846,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCouriersIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/category/$categorySlug/subcategory/$subcategorySlug': {
+      id: '/category/$categorySlug/subcategory/$subcategorySlug'
+      path: '/category/$categorySlug/subcategory/$subcategorySlug'
+      fullPath: '/category/$categorySlug/subcategory/$subcategorySlug'
+      preLoaderRoute: typeof CategoryCategorySlugSubcategorySubcategorySlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -876,6 +897,8 @@ const rootRouteChildren: RootRouteChildren = {
   SellerProductsIndexRoute: SellerProductsIndexRoute,
   SellerProfileIndexRoute: SellerProfileIndexRoute,
   WarehouseOrdersIndexRoute: WarehouseOrdersIndexRoute,
+  CategoryCategorySlugSubcategorySubcategorySlugRoute:
+    CategoryCategorySlugSubcategorySubcategorySlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

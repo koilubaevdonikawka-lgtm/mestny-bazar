@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -30,6 +30,7 @@ import { CONTACT } from "@/config/contact";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { DEFAULT_LANGUAGE } from "@/i18n/languages";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
+import { SubcategoryGrid } from "@/components/home/SubcategoryGrid";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -86,6 +87,10 @@ function Home() {
     topLevelCategories[0]?.id ??
     null;
   const activeCategoryId = selectedCategoryId ?? defaultCategoryId;
+  const activeCategory = useMemo(
+    () => topLevelCategories.find((c) => c.id === activeCategoryId) ?? null,
+    [topLevelCategories, activeCategoryId],
+  );
   const activeSubcategories = useMemo(
     () => (categories ?? []).filter((c) => c.parentId === activeCategoryId),
     [categories, activeCategoryId],
@@ -193,19 +198,19 @@ function Home() {
     <div className="min-h-screen flex flex-col">
       <SiteHeader showLanguageSwitcher safeAreaTop />
 
-      {/* Двухуровневая навигация категорий, над Hero — доступна без
-          прокрутки. Клик по основной категории с подкатегориями ВЫБИРАЕТ
-          её (кнопка, не ссылка — не уходит со страницы) и заменяет нижнюю
-          панель; клик по категории без подкатегорий ведёт сразу на её
-          страницу (см. subcategoryCountByParentId выше — иначе товары
-          таких категорий стали бы недостижимы через эту панель). Нижняя
-          панель ведёт на уже существующую страницу категории
-          (/category/$slug), переиспользована как есть, не продублирована.
-          Не sticky — постоянно закреплённая вторая панель уменьшила бы
-          видимую область контента. */}
+      {/* Горизонтальная панель основных категорий, над Hero — доступна без
+          прокрутки. Не менялась (Этап: трёхуровневая навигация — п.
+          "Не менять главные категории"). Клик по категории с
+          подкатегориями ВЫБИРАЕТ её (кнопка, не ссылка — не уходит со
+          страницы) и обновляет центральную сетку подкатегорий ниже; клик
+          по категории без подкатегорий ведёт сразу на её страницу товаров
+          (см. subcategoryCountByParentId выше — иначе товары таких
+          категорий стали бы недостижимы через эту панель). Не sticky —
+          постоянно закреплённая панель уменьшила бы видимую область
+          контента. */}
       {topLevelCategories.length > 0 && (
         <nav aria-label={t("nav.categories")} className="border-b border-border/60 bg-background">
-          <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 pt-3 sm:px-6">
+          <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 pt-3 pb-3 sm:px-6">
             {topLevelCategories.map((c) => {
               const displayName =
                 language === DEFAULT_LANGUAGE ? c.name : (pageTranslations[c.name] ?? c.name);
@@ -234,27 +239,6 @@ function Home() {
               );
             })}
           </div>
-
-          {activeSubcategories.length > 0 && (
-            <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-3 sm:px-6">
-              {activeSubcategories.map((sub) => {
-                const subDisplayName =
-                  language === DEFAULT_LANGUAGE
-                    ? sub.name
-                    : (pageTranslations[sub.name] ?? sub.name);
-                return (
-                  <Link
-                    key={sub.id}
-                    to="/category/$slug"
-                    params={{ slug: sub.slug }}
-                    className="flex h-9 shrink-0 items-center whitespace-nowrap rounded-full border border-border/60 bg-card px-3 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
-                  >
-                    {subDisplayName}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
         </nav>
       )}
 
@@ -299,6 +283,33 @@ function Home() {
           </div>
         )}
       </section>
+
+      {/* Подкатегории выбранной основной категории — в центре экрана, под
+          логотипом, вертикальной сеткой (2 колонки, своя прокрутка).
+          Клик по подкатегории ведёт на отдельную страницу товаров
+          (/category/$categorySlug/subcategory/$subcategorySlug), не на
+          общий /category/$slug — Этап: трёхуровневая навигация.
+          Обновляется при выборе другой основной категории в панели выше
+          (activeSubcategories пересчитывается от activeCategoryId). */}
+      {activeCategory && activeSubcategories.length > 0 && (
+        <section className="mx-auto max-w-7xl px-6 py-8 w-full sm:py-12">
+          <h2 className="mb-4 font-serif text-2xl tracking-tight sm:text-3xl">
+            {language === DEFAULT_LANGUAGE
+              ? activeCategory.name
+              : (pageTranslations[activeCategory.name] ?? activeCategory.name)}
+          </h2>
+          <SubcategoryGrid
+            categorySlug={activeCategory.slug}
+            subcategories={activeSubcategories.map((sub) => ({
+              id: sub.id,
+              slug: sub.slug,
+              name:
+                language === DEFAULT_LANGUAGE ? sub.name : (pageTranslations[sub.name] ?? sub.name),
+              imageUrl: sub.imageUrl,
+            }))}
+          />
+        </section>
+      )}
 
       {/* Products */}
       <section id="products" className="mx-auto max-w-7xl px-6 py-6 w-full flex-1 sm:py-12">
