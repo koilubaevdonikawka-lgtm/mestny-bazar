@@ -44,7 +44,6 @@ import {
   ChevronDown,
   Eye,
   EyeOff,
-  ExternalLink,
   Loader2,
   LogIn,
   Package,
@@ -522,17 +521,22 @@ function AdminCatalogPage() {
 
   // Общая карточка — используется и для основных категорий, и для
   // подкатегорий (одна и та же сущность categories, различается только
-  // тем, что передано в onDrillIn/drillLabel/products). Не дублирует JSX
-  // между двумя уровнями. Стиль — как у карточки товара: фото сверху
+  // тем, что передано в onDrillIn/drillLabel). Не дублирует JSX между
+  // двумя уровнями. Компактный стиль — как у карточки товара: фото сверху
   // (кликабельно, вход в подкатегории/товары), название в середине,
-  // кнопки управления внизу (Этап: карточки категорий в сетке).
+  // кнопки управления внизу (Этап: адаптивная сетка админ-каталога).
+  //
+  // Товары этой категории здесь намеренно НЕ отображаются (ни на уровне
+  // основных категорий, ни на уровне подкатегорий) — страница категорий и
+  // страница подкатегорий показывают только сами категории/подкатегории,
+  // товары видны исключительно на отдельной странице товаров (Уровень 3).
   const renderCategoryRow = (
     category: AdminCategoryDTO,
-    options: { onDrillIn: () => void; drillLabel: string; directProducts: SellerProductDTO[] },
+    options: { onDrillIn: () => void; drillLabel: string },
   ) => (
     <div
       key={category.id}
-      className="flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card"
+      className="flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card"
     >
       {/* Верхняя часть — фото категории, целиком кликабельная кнопка входа
           в подкатегории/товары этой категории. */}
@@ -550,39 +554,40 @@ function AdminCatalogPage() {
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-            <Tags className="h-8 w-8" />
+            <Tags className="h-5 w-5" />
           </div>
         )}
       </button>
 
       {/* Середина — название категории. */}
-      <div className="min-w-0 px-4 pt-3 pb-2">
-        <p className="truncate font-medium">{category.name}</p>
+      <div className="min-w-0 px-2 pt-1.5 pb-1">
+        <p className="truncate text-sm font-medium">{category.name}</p>
         {category.nameKg && (
-          <p className="truncate text-xs text-muted-foreground">{category.nameKg}</p>
+          <p className="truncate text-[11px] text-muted-foreground">{category.nameKg}</p>
         )}
       </div>
 
       {/* Низ — кнопки управления: Редактировать, Удалить,
           Активировать/Скрыть, Открыть подкатегории. */}
-      <div className="mt-auto flex flex-wrap items-center gap-1 border-t border-border/60 px-2 py-2">
+      <div className="mt-auto flex flex-wrap items-center gap-0.5 border-t border-border/60 px-1 py-1">
         <Button
           variant="ghost"
           size="sm"
+          className="h-7 w-7 p-0"
           aria-label={t("admin.catalog.editButton")}
           onClick={() => (editingId === category.id ? setEditingId(null) : startEdit(category))}
         >
-          <Pencil className="h-4 w-4" />
+          <Pencil className="h-3.5 w-3.5" />
         </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button
               variant="ghost"
               size="sm"
-              className="text-destructive hover:text-destructive"
+              className="h-7 w-7 p-0 text-destructive hover:text-destructive"
               aria-label={t("common.delete")}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
@@ -603,28 +608,29 @@ function AdminCatalogPage() {
         <Button
           variant="outline"
           size="sm"
+          className="h-7 px-1.5"
           disabled={toggleActiveMutation.isPending}
           onClick={() =>
             toggleActiveMutation.mutate({ id: category.id, isActive: !category.isActive })
           }
         >
-          <Badge variant={category.isActive ? "secondary" : "outline"}>
+          <Badge variant={category.isActive ? "secondary" : "outline"} className="text-[10px]">
             {category.isActive ? t("admin.catalog.statusActive") : t("admin.catalog.statusHidden")}
           </Badge>
         </Button>
         <Button
           variant="ghost"
           size="sm"
+          className="ml-auto h-7 w-7 p-0"
           onClick={options.onDrillIn}
           aria-label={options.drillLabel}
-          className="ml-auto"
         >
-          <ChevronDown className="h-4 w-4" />
+          <ChevronDown className="h-3.5 w-3.5" />
         </Button>
       </div>
 
       {editingId === category.id && editForm && (
-        <div className="grid gap-3 border-t border-border/60 p-4 sm:grid-cols-2">
+        <div className="grid gap-3 border-t border-border/60 p-3 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label htmlFor={`edit-name-${category.id}`}>{t("admin.catalog.nameLabel")}</Label>
             <Input
@@ -694,28 +700,21 @@ function AdminCatalogPage() {
           </div>
         </div>
       )}
-
-      {/* Товары, до сих пор напрямую привязанные к этой категории (не к
-          подкатегории) — существующие данные, не переназначались этой
-          задачей. Не скрываются, чтобы не стать недостижимыми в новой
-          навигации. */}
-      {options.directProducts.length > 0 && (
-        <div className="border-t border-border/60 p-4">
-          <p className="mb-3 text-sm font-medium text-muted-foreground">
-            {t("admin.catalog.directProductsHeading")} ({options.directProducts.length})
-          </p>
-          <ul className="space-y-3">
-            {options.directProducts.map((product) => renderProductRow(product, category.name))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 
-  const renderProductRow = (product: SellerProductDTO, categoryName: string) => (
-    <li key={product.id} className="rounded-lg border border-border/60 bg-background/60 p-4">
+  // Компактная карточка товара — та же структура, что у карточки
+  // категории (фото сверху / название и цена в середине / кнопки внизу),
+  // для единой адаптивной сетки на всех трёх уровнях каталога (Этап:
+  // адаптивная сетка админ-каталога). Показывается только на странице
+  // товаров (Уровень 3) — не смешивается с категориями/подкатегориями.
+  const renderProductGridCard = (product: SellerProductDTO) => (
+    <div
+      key={product.id}
+      className="flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card"
+    >
       {editingProductId === product.id && editProductForm ? (
-        <div className="space-y-3">
+        <div className="space-y-3 p-3">
           <ProductFormFields
             form={editProductForm}
             setForm={setEditProductForm}
@@ -745,19 +744,48 @@ function AdminCatalogPage() {
           </div>
         </div>
       ) : (
-        <div className="flex items-start gap-2">
-          <div className="min-w-0 flex-1">
-            <ProductCard
-              product={product}
-              categoryName={categoryName}
-              onEdit={() => startEditProduct(product)}
-            />
+        <>
+          <div className="aspect-square w-full overflow-hidden bg-secondary/40">
+            {product.imageUrl ? (
+              <img src={product.imageUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                <Package className="h-5 w-5" />
+              </div>
+            )}
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="min-w-0 px-2 pt-1.5 pb-1">
+            <p className="truncate text-sm font-medium">{product.name}</p>
+            <p className="text-sm font-semibold">
+              {product.price.toFixed(2)} {product.currency}
+            </p>
+          </div>
+          <div className="mt-auto flex flex-wrap items-center gap-0.5 border-t border-border/60 px-1 py-1">
+            <Badge
+              variant={
+                product.publicationStatus === ProductPublicationStatus.PUBLISHED
+                  ? "secondary"
+                  : "outline"
+              }
+              className="text-[10px]"
+            >
+              {t(publicationStatusKey(product.publicationStatus))}
+            </Badge>
             <Button
               type="button"
               variant="ghost"
               size="sm"
+              className="ml-auto h-7 w-7 p-0"
+              onClick={() => startEditProduct(product)}
+              aria-label={t("admin.catalog.editButton")}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
               disabled={toggleProductStatusMutation.isPending}
               aria-label={
                 product.publicationStatus === ProductPublicationStatus.HIDDEN
@@ -775,9 +803,9 @@ function AdminCatalogPage() {
               }
             >
               {product.publicationStatus === ProductPublicationStatus.HIDDEN ? (
-                <Eye className="h-4 w-4" />
+                <Eye className="h-3.5 w-3.5" />
               ) : (
-                <EyeOff className="h-4 w-4" />
+                <EyeOff className="h-3.5 w-3.5" />
               )}
             </Button>
             <AlertDialog>
@@ -786,10 +814,10 @@ function AdminCatalogPage() {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="text-destructive hover:text-destructive"
+                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                   aria-label={t("common.delete")}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -810,9 +838,9 @@ function AdminCatalogPage() {
               </AlertDialogContent>
             </AlertDialog>
           </div>
-        </div>
+        </>
       )}
-    </li>
+    </div>
   );
 
   // Форма создания категории/подкатегории — общая для обоих уровней,
@@ -953,11 +981,11 @@ function AdminCatalogPage() {
                   </p>
                 )}
               {(productsByCategory.get(viewSubcategory.id) ?? []).length > 0 && (
-                <ul className="space-y-3">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   {(productsByCategory.get(viewSubcategory.id) ?? []).map((product) =>
-                    renderProductRow(product, viewSubcategory.name),
+                    renderProductGridCard(product),
                   )}
-                </ul>
+                </div>
               )}
             </section>
           </>
@@ -982,12 +1010,11 @@ function AdminCatalogPage() {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   {subcategoriesOfViewCategory.map((sub) =>
                     renderCategoryRow(sub, {
                       onDrillIn: () => drillIntoSubcategory(sub.id),
                       drillLabel: t("admin.catalog.viewProductsButton"),
-                      directProducts: productsByCategory.get(sub.id) ?? [],
                     }),
                   )}
                 </div>
@@ -1005,12 +1032,11 @@ function AdminCatalogPage() {
                   <p className="text-muted-foreground">{t("admin.catalog.emptyState")}</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   {topLevelCategories.map((category) =>
                     renderCategoryRow(category, {
                       onDrillIn: () => drillIntoCategory(category.id),
                       drillLabel: t("admin.catalog.viewSubcategoriesButton"),
-                      directProducts: productsByCategory.get(category.id) ?? [],
                     }),
                   )}
                 </div>
@@ -1163,111 +1189,6 @@ export function ProductFormFields({
             </option>
           </select>
         </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Карточка товара (Промпт №1, новая серия) — только информация о товаре:
- * название, фото, описание, цена, характеристики, статус публикации.
- * Остатки/поступления/продажи/возвраты/списания сюда сознательно не входят —
- * это отдельная, независимая сущность.
- */
-function ProductCard({
-  product,
-  categoryName,
-  onEdit,
-}: {
-  product: SellerProductDTO;
-  categoryName: string;
-  onEdit: () => void;
-}) {
-  const { t } = useTranslation();
-  const characteristics = [
-    product.unit && t("admin.catalog.unitCharacteristic", { unit: product.unit }),
-    product.manufacturer &&
-      t("admin.catalog.manufacturerCharacteristic", { value: product.manufacturer }),
-    product.countryOfOrigin &&
-      t("admin.catalog.countryCharacteristic", { value: product.countryOfOrigin }),
-    product.sku && t("admin.catalog.skuCharacteristic", { value: product.sku }),
-  ].filter(Boolean) as string[];
-
-  return (
-    <div className="flex gap-4">
-      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-secondary/40">
-        {product.imageUrl ? (
-          <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-            <Package className="h-6 w-6" />
-          </div>
-        )}
-        {product.imageUrls.length > 1 && (
-          <span
-            aria-hidden="true"
-            className="absolute bottom-0 right-0 rounded-tl bg-background/90 px-1 text-[10px] font-medium text-muted-foreground"
-          >
-            +{product.imageUrls.length - 1}
-          </span>
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="font-medium truncate">{product.name}</p>
-          <Badge
-            variant={
-              product.publicationStatus === ProductPublicationStatus.PUBLISHED
-                ? "secondary"
-                : "outline"
-            }
-          >
-            {t(publicationStatusKey(product.publicationStatus))}
-          </Badge>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          {t("admin.catalog.categoryLabelPrefix", { name: categoryName })}
-        </p>
-        {product.description && (
-          <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{product.description}</p>
-        )}
-        <p className="mt-2 font-semibold">
-          {product.price.toFixed(2)} {product.currency}
-        </p>
-        {characteristics.length > 0 && (
-          <p className="mt-1 text-xs text-muted-foreground">{characteristics.join(" · ")}</p>
-        )}
-      </div>
-      <div className="flex shrink-0 items-center gap-1">
-        {/* Only a PUBLISHED product actually has a reachable storefront page
-            (Промпт №106's investigation) — linking out for DRAFT/HIDDEN
-            products would just land the admin on a 404. */}
-        {product.publicationStatus === ProductPublicationStatus.PUBLISHED && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            asChild
-            aria-label={t("admin.catalog.viewOnStorefrontButton")}
-          >
-            <Link
-              to="/product/$handle"
-              params={{ handle: product.slug }}
-              search={{ from: "admin" }}
-            >
-              <ExternalLink className="h-4 w-4" />
-            </Link>
-          </Button>
-        )}
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onEdit}
-          aria-label={t("admin.catalog.editButton")}
-        >
-          <Pencil className="h-4 w-4" />
-        </Button>
       </div>
     </div>
   );
