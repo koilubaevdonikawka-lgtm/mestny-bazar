@@ -1,8 +1,8 @@
-import { useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
+import { Link, useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
 import { CartDrawer } from "./CartDrawer";
 import { AccountMenu } from "./AccountMenu";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, Home, Search } from "lucide-react";
 import { useSearchStore } from "@/stores/searchStore";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 import { useTranslation } from "@/i18n/LanguageProvider";
@@ -31,6 +31,20 @@ interface SiteHeaderProps {
    * courier headers stay byte-for-byte unchanged.
    */
   safeAreaTop?: boolean;
+  /**
+   * Adds a "На главную" button right after "Назад" — both in the header's
+   * top-left corner (Часть 3, products page navigation cleanup). Opt-in,
+   * only the products page passes it — every other caller's header stays
+   * unchanged.
+   */
+  showHomeButton?: boolean;
+  /**
+   * Hides AccountMenu's "Войти" call-to-action for signed-out visitors —
+   * sign-in is now offered once via WelcomeGate on first visit instead of a
+   * permanent header button (Часть 2). Opt-in so admin/seller/courier pages
+   * sharing this same header keep their existing behavior untouched.
+   */
+  hideSignInButton?: boolean;
 }
 
 export function SiteHeader({
@@ -38,6 +52,8 @@ export function SiteHeader({
   showSearch = true,
   showCart = true,
   safeAreaTop = false,
+  showHomeButton = false,
+  hideSignInButton = false,
 }: SiteHeaderProps = {}) {
   const { search, setSearch } = useSearchStore();
   const { t } = useTranslation();
@@ -77,6 +93,16 @@ export function SiteHeader({
             <span className="text-sm font-medium">{t("common.back")}</span>
           </button>
         )}
+        {showSearch && showHomeButton && (
+          <Link
+            to="/"
+            aria-label={t("common.home")}
+            className="flex h-11 shrink-0 items-center gap-1 rounded-full px-2 text-foreground transition-colors hover:bg-secondary"
+          >
+            <Home className="h-5 w-5" />
+            <span className="hidden text-sm font-medium sm:inline">{t("common.home")}</span>
+          </Link>
+        )}
         {/* flex-1 spacer kept even when search is hidden (Admin Platform) — it's
             what pushes nav/account/cart to the right; only its contents are
             conditional, so hiding search doesn't collapse the header layout. */}
@@ -108,7 +134,7 @@ export function SiteHeader({
           </a>
         </nav>
         {showLanguageSwitcher && <LanguageSwitcher />}
-        <AccountMenu />
+        <AccountMenu hideSignInCta={hideSignInButton} />
         {showCart && <CartDrawer />}
       </div>
     </header>

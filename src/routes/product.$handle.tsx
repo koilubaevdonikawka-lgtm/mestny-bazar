@@ -194,7 +194,7 @@ function ProductPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
-        <SiteHeader showLanguageSwitcher safeAreaTop />
+        <SiteHeader safeAreaTop hideSignInButton />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -206,7 +206,7 @@ function ProductPage() {
     const message = error instanceof Error ? error.message : t("product.loadErrorTitle");
     return (
       <div className="min-h-screen flex flex-col">
-        <SiteHeader showLanguageSwitcher safeAreaTop />
+        <SiteHeader safeAreaTop hideSignInButton />
         <div className="flex-1 flex items-center justify-center p-6 text-center">
           <div>
             <h2 className="font-serif text-2xl">{t("product.loadErrorTitle")}</h2>

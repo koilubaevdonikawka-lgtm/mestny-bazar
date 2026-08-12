@@ -525,4 +525,8 @@ export const ky = {
       totalLabel: "Жалпы сумма",
     },
   },
+  welcome: {
+    signUpButton: "Катталуу",
+    continueAsGuestButton: "Катталбастан улантуу",
+  },
 } satisfies Dictionary;

@@ -523,4 +523,8 @@ export const en = {
       totalLabel: "Total",
     },
   },
+  welcome: {
+    signUpButton: "Sign up",
+    continueAsGuestButton: "Continue without an account",
+  },
 } satisfies Dictionary;

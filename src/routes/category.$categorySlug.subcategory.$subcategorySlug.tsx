@@ -51,14 +51,6 @@ export const Route = createFileRoute("/category/$categorySlug/subcategory/$subca
 function SubcategoryProductPage() {
   const { subcategorySlug } = Route.useParams();
   const search = Route.useSearch();
-  const navigate = Route.useNavigate();
 
-  return (
-    <ProductPage
-      slug={subcategorySlug}
-      search={search}
-      setSearch={(updater) => void navigate({ search: updater, replace: true })}
-      backHref="/"
-    />
-  );
+  return <ProductPage slug={subcategorySlug} search={search} />;
 }

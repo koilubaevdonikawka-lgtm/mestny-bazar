@@ -31,6 +31,8 @@ import { useTranslation } from "@/i18n/LanguageProvider";
 import { DEFAULT_LANGUAGE } from "@/i18n/languages";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
 import { SubcategoryGrid } from "@/components/home/SubcategoryGrid";
+import { WelcomeGate } from "@/components/WelcomeGate";
+import { useCategoryStore } from "@/stores/categoryStore";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -81,7 +83,8 @@ function Home() {
   // соответствует продуктовому разделу"), "Мука и крупы" is the preferred
   // default. Falls back to the first top-level category by sort order if
   // that slug is ever renamed/removed, rather than defaulting to nothing.
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const selectedCategoryId = useCategoryStore((s) => s.activeCategoryId);
+  const setSelectedCategoryId = useCategoryStore((s) => s.setActiveCategoryId);
   const defaultCategoryId =
     topLevelCategories.find((c) => c.slug === "muka-krupy")?.id ??
     topLevelCategories[0]?.id ??
@@ -196,7 +199,8 @@ function Home() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader showLanguageSwitcher safeAreaTop />
+      <WelcomeGate />
+      <SiteHeader safeAreaTop hideSignInButton />
 
       {/* Горизонтальная панель основных категорий, над Hero — доступна без
           прокрутки. Не менялась (Этап: трёхуровневая навигация — п.

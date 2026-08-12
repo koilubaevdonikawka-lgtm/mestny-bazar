@@ -527,6 +527,10 @@ export const ru = {
       totalLabel: "Итого",
     },
   },
+  welcome: {
+    signUpButton: "Зарегистрироваться",
+    continueAsGuestButton: "Продолжить без регистрации",
+  },
 } as const;
 
 /**

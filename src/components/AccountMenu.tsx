@@ -14,7 +14,18 @@ import { LogOut, MapPin, Package, User } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "@/i18n/LanguageProvider";
 
-export function AccountMenu() {
+interface AccountMenuProps {
+  /**
+   * Скрывает кнопку "Войти" в header для неавторизованных гостей — вход
+   * теперь предлагается один раз через WelcomeGate при первом визите, а не
+   * постоянной кнопкой в шапке (Часть 2 задачи о пользовательской панели).
+   * По умолчанию false — админ/сервисные страницы, использующие тот же
+   * SiteHeader, сохраняют прежнее поведение без изменений.
+   */
+  hideSignInCta?: boolean;
+}
+
+export function AccountMenu({ hideSignInCta = false }: AccountMenuProps = {}) {
   const { t } = useTranslation();
   const { isAuthenticated } = useSupabaseSession();
 
@@ -36,6 +47,7 @@ export function AccountMenu() {
   }
 
   if (!isAuthenticated) {
+    if (hideSignInCta) return null;
     return (
       <Button
         variant="outline"
