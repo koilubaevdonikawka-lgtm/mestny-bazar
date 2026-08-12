@@ -421,10 +421,8 @@ export const en = {
     },
     catalog: {
       title: "Catalog — categories and products",
-      descriptionPrefix:
-        "Storefront category management: name, description, image, and Kyrgyz name (replaces the hardcoded KG_NAME_BY_SLUG/FALLBACK_IMAGE_BY_SLUG on the home page — see",
-      descriptionSuffix:
-        "Products are added directly under their category — stock and warehouse data are not part of this card, a separate warehouse section handles that.",
+      description:
+        "Storefront categories, subcategories and products: name, photo, and customer visibility. Stock and warehouse data live in the separate Warehouse section.",
       loadError: "Failed to load categories",
       emptyState: "No categories yet.",
       statusActive: "Active",

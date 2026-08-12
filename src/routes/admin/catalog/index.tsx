@@ -136,6 +136,7 @@ function AdminCatalogPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
@@ -243,6 +244,7 @@ function AdminCatalogPage() {
       invalidate();
       toast.success(t("admin.catalog.categoryCreatedToast"));
       setName("");
+      setImageUrl(null);
     },
     onError: (e) =>
       toast.error(e instanceof Error ? e.message : t("admin.catalog.categoryCreateError")),
@@ -358,7 +360,7 @@ function AdminCatalogPage() {
     // viewCategoryId — null на экране основных категорий (создаётся
     // категория верхнего уровня), либо id просматриваемой категории на
     // экране подкатегорий (создаётся подкатегория с этим parentId).
-    createMutation.mutate({ name: name.trim(), parentId: viewCategoryId });
+    createMutation.mutate({ name: name.trim(), parentId: viewCategoryId, imageUrl });
   };
 
   const startEdit = (category: AdminCategoryDTO) => {
@@ -528,12 +530,22 @@ function AdminCatalogPage() {
   ) => (
     <li key={category.id} className="rounded-xl bg-secondary/40 px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="font-medium truncate">{category.name}</p>
-          <p className="text-xs text-muted-foreground truncate">
-            {category.slug}
-            {category.nameKg ? ` · ${category.nameKg}` : ""}
-          </p>
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-background/60">
+            {category.imageUrl ? (
+              <img src={category.imageUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                <Tags className="h-4 w-4" />
+              </div>
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium truncate">{category.name}</p>
+            {category.nameKg && (
+              <p className="text-xs text-muted-foreground truncate">{category.nameKg}</p>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <Button
@@ -787,18 +799,25 @@ function AdminCatalogPage() {
   const renderCreateCategoryForm = (heading: string) => (
     <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">
       <h2 className="font-serif text-2xl mb-4">{heading}</h2>
-      <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
-        <div className="grid gap-2">
-          <Label htmlFor="category-name">{t("admin.catalog.nameLabel")}</Label>
-          <Input
-            id="category-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t("admin.catalog.namePlaceholder")}
-            maxLength={200}
-          />
+      <form onSubmit={handleSubmit} className="grid gap-4">
+        <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+          <div className="grid gap-2">
+            <Label htmlFor="category-name">{t("admin.catalog.nameLabel")}</Label>
+            <Input
+              id="category-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t("admin.catalog.namePlaceholder")}
+              maxLength={200}
+            />
+          </div>
         </div>
-        <Button type="submit" className="h-12 rounded-full" disabled={createMutation.isPending}>
+        <ImageUploadField value={imageUrl} onChange={setImageUrl} context="category" />
+        <Button
+          type="submit"
+          className="h-12 w-fit rounded-full"
+          disabled={createMutation.isPending}
+        >
           {createMutation.isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
@@ -881,11 +900,7 @@ function AdminCatalogPage() {
         </Button>
 
         <h1 className="font-serif text-4xl tracking-tight">{t("admin.catalog.title")}</h1>
-        <p className="mt-2 text-muted-foreground">
-          {t("admin.catalog.descriptionPrefix")}{" "}
-          <code className="text-sm">docs/admin-platform/design.md</code>).{" "}
-          {t("admin.catalog.descriptionSuffix")}
-        </p>
+        <p className="mt-2 text-muted-foreground">{t("admin.catalog.description")}</p>
 
         {/* Уровень 3: товары выбранной подкатегории (Каталог → Категории →
             Подкатегории → Товары). */}
