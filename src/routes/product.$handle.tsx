@@ -1,35 +1,20 @@
-import { createFileRoute, Link, notFound, useCanGoBack, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import {
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  LayoutDashboard,
-  Loader2,
-  Minus,
-  Plus,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, LayoutDashboard, Loader2, Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ProductCard } from "@/components/ProductCard";
 import { fetchCatalogProduct } from "@/lib/catalog";
 import { listProducts } from "@/api/catalog";
 import { useCartStore } from "@/stores/cartStore";
-import { useCreateOrder } from "@/hooks/useCreateOrder";
 import { BRAND } from "@/config/brand";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
-import { PLATFORM_VARIANT_PREFIX, toCatalogProductNode } from "@shared/lib/product-adapter";
-
-/** Related-strip size — same order of magnitude as other short lists in the
- * project (e.g. category filter facets); not a paging size, so CATALOG_PAGE_SIZE
- * doesn't apply here. */
-const RELATED_PRODUCTS_LIMIT = 8;
+import { PLATFORM_VARIANT_PREFIX } from "@shared/lib/product-adapter";
 
 /** Same "candidate cap" idiom as product.repository.ts's POPULARITY_CANDIDATE_CAP
  * — large enough to cover any real category for prev/next ordering, without
@@ -109,14 +94,6 @@ function ProductPage() {
   const { handle } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const router = useRouter();
-  // Этап №7 — true iff there's an in-app previous entry to go back to (not
-  // just true whenever history.length > 1, which would also fire for a
-  // fresh tab). Lets "Назад к категориям" prefer real browser back (keeps
-  // the category page's filters/scroll position intact) and only fall back
-  // to a plain link to the category root when there's nothing to go back to
-  // — e.g. arriving via a direct/external link.
-  const canGoBack = useCanGoBack();
   const { t, language } = useTranslation();
   const [selectedImage, setSelectedImage] = useState(0);
   const touchStartX = useRef<number | null>(null);
@@ -149,26 +126,10 @@ function ProductPage() {
   // redundant raw-id field to the shared node shape.
   const rawProductId = product ? product.id.slice(PLATFORM_VARIANT_PREFIX.length) : undefined;
 
-  // Objective, data-driven relation — same category, publication already
-  // restricted to PUBLISHED by listProducts itself, current product
-  // excluded server-side. No behavioural/purchase-based relation exists in
-  // the project, so none is invented here.
-  const { data: relatedResult } = useQuery({
-    queryKey: ["related-products", categorySlug, rawProductId],
-    queryFn: () =>
-      listProducts({
-        categorySlug,
-        excludeProductId: rawProductId,
-        pageSize: RELATED_PRODUCTS_LIMIT,
-      }),
-    enabled: !!categorySlug && !!rawProductId,
-  });
-  const relatedProducts = (relatedResult?.items ?? []).map(toCatalogProductNode);
-
   // Этап №3 — quick prev/next navigation within the current category.
   // Same category ordering as the category page's own default ("newest"),
-  // current product included so its index can be located; unlike the
-  // related-products query above, nothing is excluded here.
+  // current product included (unlike a facet query) so its index can be
+  // located.
   const { data: siblingResult } = useQuery({
     queryKey: ["category-products-order", categorySlug],
     queryFn: () => listProducts({ categorySlug, pageSize: SIBLING_PRODUCTS_LIMIT }),
@@ -214,7 +175,6 @@ function ProductPage() {
 
   const addItem = useCartStore((s) => s.addItem);
   const cartLoading = useCartStore((s) => s.isLoading);
-  const { submitOrder, isSubmitting: isBuyingNow } = useCreateOrder();
 
   if (loading) {
     return (
@@ -288,20 +248,16 @@ function ProductPage() {
     }
   };
 
-  const handleBuyNow = async () => {
+  // Часть 6 задачи — «Купить в один клик» больше не создаёт заказ прямо
+  // здесь: ведёт на отдельную страницу оплаты (/checkout/quick-buy) с двумя
+  // вариантами (онлайн/наличные), передав товар и количество через search
+  // params. Сама отправка заказа (useCreateOrder) теперь живёт там.
+  const handleBuyNow = () => {
     if (!variant) return;
-    await submitOrder([
-      {
-        productSlug: product.handle,
-        quantity,
-        snapshot: {
-          name: product.title,
-          price: parseFloat(price.amount),
-          currency: price.currencyCode,
-          imageUrl: images[0]?.node.url ?? null,
-        },
-      },
-    ]);
+    void navigate({
+      to: "/checkout/quick-buy",
+      search: { productSlug: product.handle, quantity },
+    });
   };
 
   // Часть 3/4 задачи — общий блок [-] количество [+] и две кнопки покупки,
@@ -342,11 +298,11 @@ function ProductPage() {
       <div className="grid grid-cols-2 gap-2">
         <Button
           type="button"
-          onClick={() => void handleBuyNow()}
-          disabled={!canPurchase || isBuyingNow}
+          onClick={handleBuyNow}
+          disabled={!canPurchase}
           className="h-12 rounded-full text-sm font-semibold shadow-md"
         >
-          {isBuyingNow ? <Loader2 className="h-4 w-4 animate-spin" /> : t("product.buyNowButton")}
+          {t("product.buyNowButton")}
         </Button>
         <Button
           type="button"
@@ -373,39 +329,23 @@ function ProductPage() {
           info block, sticky one-handed add-to-cart bar on mobile only.
           Desktop (`lg:`) keeps its previous, more spacious layout. */}
       <main className="flex-1 mx-auto max-w-6xl w-full px-4 pt-3 pb-36 sm:px-6 lg:pt-12 lg:pb-12">
-        <div className="mb-3 flex items-center justify-between gap-3 lg:mb-8">
-          {/* Этап №7 — real back navigation when there's somewhere to go
-              back to (preserves the category page's filters/sort/scroll
-              position exactly as the user left them), plain link to the
-              category root otherwise. */}
-          <button
-            type="button"
-            onClick={() => {
-              if (canGoBack) {
-                router.history.back();
-              } else {
-                void navigate(
-                  categorySlug
-                    ? { to: "/category/$slug", params: { slug: categorySlug } }
-                    : { to: "/" },
-                );
-              }
-            }}
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" /> {t("product.backToCategories")}
-          </button>
-          {/* Only reachable when the admin's own "view on storefront" link
-              set from=admin — never shown otherwise (Этап №3, п.4). */}
-          {search.from === "admin" && (
+        {/* Отдельная кнопка "Назад к категориям" под шапкой убрана (Часть 3
+            задачи о комплексной оптимизации) — дублировала уже имеющуюся в
+            SiteHeader реальную кнопку "← Назад" (та же history-based
+            логика). Ссылка "Вернуться в админ-панель" — самостоятельная
+            функция, не навигационный дубль, остаётся. */}
+        {search.from === "admin" && (
+          <div className="mb-3 flex items-center justify-end gap-3 lg:mb-8">
+            {/* Only reachable when the admin's own "view on storefront" link
+                set from=admin — never shown otherwise (Этап №3, п.4). */}
             <Link
               to="/admin/catalog"
               className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
             >
               <LayoutDashboard className="h-4 w-4" /> {t("product.returnToAdmin")}
             </Link>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="grid gap-4 md:grid-cols-2 lg:gap-12">
           <div>
@@ -539,19 +479,6 @@ function ProductPage() {
             )}
           </div>
         </div>
-
-        {relatedProducts.length > 0 && (
-          <section className="mt-10 lg:mt-16">
-            <h2 className="font-serif text-xl tracking-tight sm:text-2xl lg:text-3xl">
-              {t("product.relatedHeading")}
-            </h2>
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-6 lg:mt-6 lg:grid-cols-4">
-              {relatedProducts.map((p) => (
-                <ProductCard key={p.node.id} product={p} />
-              ))}
-            </div>
-          </section>
-        )}
       </main>
 
       {/* Sticky one-handed purchase bar — mobile only (Этап №3, п.7);

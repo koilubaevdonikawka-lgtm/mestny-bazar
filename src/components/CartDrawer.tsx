@@ -146,10 +146,11 @@ export const CartDrawer = ({ iconOnly = false }: CartDrawerProps = {}) => {
           {!iconOnly && <span className="font-serif text-sm">{t("cart.yourCartTitle")}</span>}
           {totalItems > 0 && (
             <Badge
+              aria-label={String(totalItems)}
               className={
                 iconOnly
-                  ? "absolute -right-1 -top-1 h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center text-xs bg-accent text-accent-foreground border border-primary-foreground/30"
-                  : "ml-1 h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center text-xs bg-accent text-accent-foreground border border-primary-foreground/30"
+                  ? "absolute -right-1 -top-1 h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center text-xs bg-destructive text-destructive-foreground border border-primary-foreground/30"
+                  : "ml-1 h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center text-xs bg-destructive text-destructive-foreground border border-primary-foreground/30"
               }
             >
               {totalItems}

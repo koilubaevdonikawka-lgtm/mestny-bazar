@@ -53,7 +53,7 @@ function OrderSuccessPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader safeAreaTop hideSignInButton />
+      <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
       <main className="flex-1 flex items-center justify-center px-6 py-12 sm:py-24">
         <div className="max-w-md text-center">
           <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-6">

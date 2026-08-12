@@ -161,6 +161,9 @@ export const ky = {
     cash: "Алганда накталай",
     online: "Онлайн төлөм",
     placeOrder: "Буйрутманы ырастоо",
+    quantityLabel: "Саны",
+    payOnlineButton: "Онлайн сатып алуу",
+    payCashButton: "Накталай төлөө",
   },
   orders: {
     title: "Менин буйрутмаларым",

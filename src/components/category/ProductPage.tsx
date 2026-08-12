@@ -187,7 +187,7 @@ export function ProductPage({ slug, search }: ProductPageProps) {
   if (categoryLoading) {
     return (
       <div className="min-h-screen flex flex-col">
-        <SiteHeader safeAreaTop showHomeButton hideSignInButton />
+        <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -200,7 +200,7 @@ export function ProductPage({ slug, search }: ProductPageProps) {
       categoryError instanceof Error ? categoryError.message : t("category.loadErrorTitle");
     return (
       <div className="min-h-screen flex flex-col">
-        <SiteHeader safeAreaTop showHomeButton hideSignInButton />
+        <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
         <div className="flex-1 flex items-center justify-center p-6 text-center">
           <div>
             <h2 className="font-serif text-2xl">{t("category.loadErrorTitle")}</h2>
@@ -223,7 +223,7 @@ export function ProductPage({ slug, search }: ProductPageProps) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader safeAreaTop showHomeButton hideSignInButton />
+      <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
       <main className="flex-1 mx-auto max-w-7xl px-4 pt-4 pb-12 w-full sm:px-6 lg:pt-12">
         <h1 className="font-serif text-2xl tracking-tight sm:text-3xl lg:text-5xl">
           {displayName}

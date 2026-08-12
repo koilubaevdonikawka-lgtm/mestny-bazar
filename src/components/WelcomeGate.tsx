@@ -18,7 +18,7 @@ const QUICK_LANGUAGES: { code: Language; label: string }[] = [
 /**
  * Единый экран входа/регистрации/выбора языка при первом визите — заменяет
  * прежние отдельные кнопки "Войти"/"Смена языка" во всегда видимом header
- * (убраны из SiteHeader/AccountMenu, см. их showHomeButton/hideSignInButton
+ * (убраны из SiteHeader/AccountMenu, см. их showAccountMenu/hideSignInButton
  * пропы). Показывается один раз на браузер/устройство (localStorage-флаг),
  * дальше не мешает — гость может продолжать без регистрации сколько угодно.
  *

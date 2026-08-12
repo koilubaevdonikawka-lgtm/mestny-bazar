@@ -164,6 +164,9 @@ export const ru = {
     cash: "Наличными при получении",
     online: "Онлайн-оплата",
     placeOrder: "Подтвердить заказ",
+    quantityLabel: "Количество",
+    payOnlineButton: "Купить онлайн",
+    payCashButton: "Оплатить наличными",
   },
   orders: {
     title: "Мои заказы",

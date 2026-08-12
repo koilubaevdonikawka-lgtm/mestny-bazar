@@ -1,8 +1,8 @@
-import { Link, useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
+import { useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
 import { CartDrawer } from "./CartDrawer";
 import { AccountMenu } from "./AccountMenu";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Home, Search } from "lucide-react";
+import { ArrowLeft, Search } from "lucide-react";
 import { useSearchStore } from "@/stores/searchStore";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 import { useTranslation } from "@/i18n/LanguageProvider";
@@ -32,13 +32,6 @@ interface SiteHeaderProps {
    */
   safeAreaTop?: boolean;
   /**
-   * Adds a "На главную" button right after "Назад" — both in the header's
-   * top-left corner (Часть 3, products page navigation cleanup). Opt-in,
-   * only the products page passes it — every other caller's header stays
-   * unchanged.
-   */
-  showHomeButton?: boolean;
-  /**
    * Hides AccountMenu's "Войти" call-to-action for signed-out visitors —
    * sign-in is now offered once via WelcomeGate on first visit instead of a
    * permanent header button (Часть 2). Opt-in so admin/seller/courier pages
@@ -47,14 +40,15 @@ interface SiteHeaderProps {
   hideSignInButton?: boolean;
   /**
    * Fully hides AccountMenu — both the signed-out "Войти" CTA and the
-   * signed-in avatar/dropdown (Часть 1, product detail page task: no
-   * person-silhouette icon at all, regardless of auth state). Opt-out
-   * (default true) like showSearch/showCart, so every existing caller keeps
-   * its icon.
+   * signed-in avatar/dropdown (no person-silhouette icon at all, regardless
+   * of auth state — every customer-facing page passes this now, per the
+   * comprehensive user panel task). Opt-out (default true), so any
+   * non-customer caller keeps its icon.
    */
   showAccountMenu?: boolean;
-  /** Cart trigger shows the icon only, no "Ваша корзина" label — opt-in,
-   * only the product detail page's header passes it. */
+  /** Cart trigger shows the icon only, no "Ваша корзина" label (Часть 1 of
+   * the comprehensive user panel task — every customer-facing page passes
+   * this now). Opt-in so any non-customer caller keeps the labelled button. */
   cartIconOnly?: boolean;
 }
 
@@ -63,7 +57,6 @@ export function SiteHeader({
   showSearch = true,
   showCart = true,
   safeAreaTop = false,
-  showHomeButton = false,
   hideSignInButton = false,
   showAccountMenu = true,
   cartIconOnly = false,
@@ -105,16 +98,6 @@ export function SiteHeader({
             <ArrowLeft className="h-5 w-5" />
             <span className="text-sm font-medium">{t("common.back")}</span>
           </button>
-        )}
-        {showSearch && showHomeButton && (
-          <Link
-            to="/"
-            aria-label={t("common.home")}
-            className="flex h-11 shrink-0 items-center gap-1 rounded-full px-2 text-foreground transition-colors hover:bg-secondary"
-          >
-            <Home className="h-5 w-5" />
-            <span className="hidden text-sm font-medium sm:inline">{t("common.home")}</span>
-          </Link>
         )}
         {/* flex-1 spacer kept even when search is hidden (Admin Platform) — it's
             what pushes nav/account/cart to the right; only its contents are

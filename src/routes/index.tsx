@@ -200,7 +200,7 @@ function Home() {
   return (
     <div className="min-h-screen flex flex-col">
       <WelcomeGate />
-      <SiteHeader safeAreaTop hideSignInButton />
+      <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
 
       {/* Горизонтальная панель основных категорий, над Hero — доступна без
           прокрутки. Не менялась (Этап: трёхуровневая навигация — п.

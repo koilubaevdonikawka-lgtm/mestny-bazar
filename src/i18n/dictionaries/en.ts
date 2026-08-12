@@ -162,6 +162,9 @@ export const en = {
     cash: "Cash on delivery",
     online: "Pay online",
     placeOrder: "Place order",
+    quantityLabel: "Quantity",
+    payOnlineButton: "Buy online",
+    payCashButton: "Pay with cash",
   },
   orders: {
     title: "My orders",

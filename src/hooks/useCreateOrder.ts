@@ -19,10 +19,15 @@ export function useCreateOrder() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { address, zoneId, paymentMethod, customerPhone, customerName, setCustomerName } =
-    useCheckoutStore();
 
+  // Reads via useCheckoutStore.getState() rather than the reactive hook,
+  // so a caller that does useCheckoutStore.getState().setPaymentMethod(...)
+  // immediately before submitOrder() in the same synchronous handler (the
+  // quick-buy page's two payment buttons — each click both picks and
+  // submits) always sees that fresh value, not a stale one captured at this
+  // hook's last render.
   const resolveCustomerName = async (): Promise<string> => {
+    const { customerName, setCustomerName } = useCheckoutStore.getState();
     if (customerName.trim().length >= 2) return customerName.trim();
     const { data } = await supabase.auth.getUser();
     const metaName =
@@ -50,6 +55,7 @@ export function useCreateOrder() {
   ): Promise<boolean> => {
     const { data: sessionData } = await supabase.auth.getSession();
     const isAuthenticated = !!sessionData.session?.user;
+    const { address, zoneId, paymentMethod, customerPhone } = useCheckoutStore.getState();
     const hasManualAddress = address.trim().length >= 5;
 
     if (!isAuthenticated && !hasManualAddress) {

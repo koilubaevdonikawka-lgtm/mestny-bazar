@@ -19,6 +19,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as ProfileAddressesRouteImport } from './routes/profile/addresses'
 import { Route as ProductHandleRouteImport } from './routes/product.$handle'
 import { Route as OrdersIdRouteImport } from './routes/orders/$id'
+import { Route as CheckoutQuickBuyRouteImport } from './routes/checkout.quick-buy'
 import { Route as CategorySlugRouteImport } from './routes/category.$slug'
 import { Route as WarehouseOrdersIndexRouteImport } from './routes/warehouse/orders/index'
 import { Route as SellerProfileIndexRouteImport } from './routes/seller/profile/index'
@@ -99,6 +100,11 @@ const ProductHandleRoute = ProductHandleRouteImport.update({
 const OrdersIdRoute = OrdersIdRouteImport.update({
   id: '/orders/$id',
   path: '/orders/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutQuickBuyRoute = CheckoutQuickBuyRouteImport.update({
+  id: '/checkout/quick-buy',
+  path: '/checkout/quick-buy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CategorySlugRoute = CategorySlugRouteImport.update({
@@ -265,6 +271,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/workspace': typeof WorkspaceRoute
   '/category/$slug': typeof CategorySlugRoute
+  '/checkout/quick-buy': typeof CheckoutQuickBuyRoute
   '/orders/$id': typeof OrdersIdRoute
   '/product/$handle': typeof ProductHandleRoute
   '/profile/addresses': typeof ProfileAddressesRoute
@@ -308,6 +315,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/workspace': typeof WorkspaceRoute
   '/category/$slug': typeof CategorySlugRoute
+  '/checkout/quick-buy': typeof CheckoutQuickBuyRoute
   '/orders/$id': typeof OrdersIdRoute
   '/product/$handle': typeof ProductHandleRoute
   '/profile/addresses': typeof ProfileAddressesRoute
@@ -352,6 +360,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/workspace': typeof WorkspaceRoute
   '/category/$slug': typeof CategorySlugRoute
+  '/checkout/quick-buy': typeof CheckoutQuickBuyRoute
   '/orders/$id': typeof OrdersIdRoute
   '/product/$handle': typeof ProductHandleRoute
   '/profile/addresses': typeof ProfileAddressesRoute
@@ -397,6 +406,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/workspace'
     | '/category/$slug'
+    | '/checkout/quick-buy'
     | '/orders/$id'
     | '/product/$handle'
     | '/profile/addresses'
@@ -440,6 +450,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/workspace'
     | '/category/$slug'
+    | '/checkout/quick-buy'
     | '/orders/$id'
     | '/product/$handle'
     | '/profile/addresses'
@@ -483,6 +494,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/workspace'
     | '/category/$slug'
+    | '/checkout/quick-buy'
     | '/orders/$id'
     | '/product/$handle'
     | '/profile/addresses'
@@ -527,6 +539,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   WorkspaceRoute: typeof WorkspaceRoute
   CategorySlugRoute: typeof CategorySlugRoute
+  CheckoutQuickBuyRoute: typeof CheckoutQuickBuyRoute
   OrdersIdRoute: typeof OrdersIdRoute
   ProductHandleRoute: typeof ProductHandleRoute
   ProfileAddressesRoute: typeof ProfileAddressesRoute
@@ -634,6 +647,13 @@ declare module '@tanstack/react-router' {
       path: '/orders/$id'
       fullPath: '/orders/$id'
       preLoaderRoute: typeof OrdersIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout/quick-buy': {
+      id: '/checkout/quick-buy'
+      path: '/checkout/quick-buy'
+      fullPath: '/checkout/quick-buy'
+      preLoaderRoute: typeof CheckoutQuickBuyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/category/$slug': {
@@ -863,6 +883,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   WorkspaceRoute: WorkspaceRoute,
   CategorySlugRoute: CategorySlugRoute,
+  CheckoutQuickBuyRoute: CheckoutQuickBuyRoute,
   OrdersIdRoute: OrdersIdRoute,
   ProductHandleRoute: ProductHandleRoute,
   ProfileAddressesRoute: ProfileAddressesRoute,
