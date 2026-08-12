@@ -242,12 +242,11 @@ function Home() {
         </nav>
       )}
 
-      {/* Hero — Этап №10, п.7: tightened on mobile only (`sm:`/`md:` restore
-          the exact original desktop spacing/size) so a phone visitor reaches
-          actual categories/products sooner, without touching the desktop
-          hero, which wasn't broken. */}
+      {/* Hero — spacing halved (было pt/pb-8/16/24, стало 4/8/12) —
+          задача "оптимизировать spacing": расстояние между панелью
+          категорий и логотипом было визуально избыточным. */}
       <section className="relative overflow-hidden">
-        <div className="mx-auto max-w-7xl px-6 pt-8 pb-8 text-center sm:pt-16 sm:pb-16 md:pt-24 md:pb-24">
+        <div className="mx-auto max-w-7xl px-6 pt-4 pb-4 text-center sm:pt-8 sm:pb-8 md:pt-12 md:pb-12">
           <div className="inline-block rounded-2xl bg-primary px-6 py-3 shadow-[var(--shadow-card)] md:px-12 md:py-6">
             <h1 className="font-serif text-3xl leading-[1.02] tracking-tight text-primary-foreground sm:text-5xl md:text-7xl">
               «{displayBrandName}»
@@ -293,11 +292,9 @@ function Home() {
           (activeSubcategories пересчитывается от activeCategoryId). */}
       {activeCategory && activeSubcategories.length > 0 && (
         <section className="mx-auto max-w-7xl px-6 py-8 w-full sm:py-12">
-          <h2 className="mb-4 font-serif text-2xl tracking-tight sm:text-3xl">
-            {language === DEFAULT_LANGUAGE
-              ? activeCategory.name
-              : (pageTranslations[activeCategory.name] ?? activeCategory.name)}
-          </h2>
+          {/* Заголовок с названием категории убран — дублировал уже
+              выбранную (подсвеченную зелёным) кнопку в панели категорий
+              выше (задача: "удалить дублирующее описание категории"). */}
           <SubcategoryGrid
             categorySlug={activeCategory.slug}
             subcategories={activeSubcategories.map((sub) => ({
