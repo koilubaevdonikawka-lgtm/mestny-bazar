@@ -132,9 +132,6 @@ function AdminPlatformHome() {
     <AdminLayout>
       <div className="mx-auto max-w-5xl px-6 py-12">
         <h1 className="font-serif text-4xl tracking-tight">{t("admin.hub.title")}</h1>
-        <p className="mt-2 text-muted-foreground">
-          {t("admin.hub.subtitlePrefix")} <code className="text-sm">docs/admin-platform/</code>.
-        </p>
 
         <div className="mt-8 grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
           {NAV_ENTRIES.map((entry) => {

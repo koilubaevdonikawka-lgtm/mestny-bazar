@@ -137,10 +137,6 @@ function AdminSellersPage() {
         </Button>
 
         <h1 className="font-serif text-4xl tracking-tight">Продавцы</h1>
-        <p className="mt-2 text-muted-foreground">
-          Профили продавцов и верификация (см.{" "}
-          <code className="text-sm">docs/admin-platform/sellers.md</code>).
-        </p>
 
         <section className="mt-8 rounded-2xl border border-border/60 bg-card p-6">
           {!sellers || sellers.length === 0 ? (

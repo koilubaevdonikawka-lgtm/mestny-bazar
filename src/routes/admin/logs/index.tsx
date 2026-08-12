@@ -140,11 +140,6 @@ function AdminLogsPage() {
         </Button>
 
         <h1 className="font-serif text-4xl tracking-tight">{t("admin.logs.title")}</h1>
-        <p className="mt-2 text-muted-foreground">
-          {t("admin.logs.descriptionPrefix")}{" "}
-          <code className="text-sm">docs/admin-platform/logs.md</code>).{" "}
-          {t("admin.logs.descriptionSuffix")}
-        </p>
 
         <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">
           <div className="grid gap-4 sm:grid-cols-3">

@@ -164,10 +164,6 @@ function AdminSettingsPage() {
         </Button>
 
         <h1 className="font-serif text-4xl tracking-tight">{t("admin.settings.title")}</h1>
-        <p className="mt-2 text-muted-foreground">
-          {t("admin.settings.descriptionPrefix")}{" "}
-          <code className="text-sm">docs/admin-platform/settings.md</code>).
-        </p>
 
         <section className="mt-8 rounded-2xl border border-border/60 bg-card p-6">
           {!settings || settings.length === 0 ? (

@@ -100,7 +100,6 @@ function AdminDashboardPage() {
         </Button>
 
         <h1 className="font-serif text-4xl tracking-tight">{t("admin.dashboard.title")}</h1>
-        <p className="mt-2 text-muted-foreground">{t("admin.dashboard.subtitle")}</p>
 
         <div className="mt-8 grid gap-4 grid-cols-2 lg:grid-cols-4">
           <KpiCard

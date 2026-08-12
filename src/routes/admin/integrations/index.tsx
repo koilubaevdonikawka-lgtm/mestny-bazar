@@ -115,11 +115,6 @@ function AdminIntegrationsPage() {
         </Button>
 
         <h1 className="font-serif text-4xl tracking-tight">Интеграции</h1>
-        <p className="mt-2 text-muted-foreground">
-          Статус внешних интеграций (см.{" "}
-          <code className="text-sm">docs/admin-platform/integrations.md</code>
-          ). Секреты редактируются только через переменные окружения, разработчиком — не здесь.
-        </p>
 
         <section className="mt-8 space-y-3">
           {status.integrations.map((integration) => (

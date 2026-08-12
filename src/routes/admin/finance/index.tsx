@@ -180,12 +180,6 @@ function AdminFinancePage() {
         </Button>
 
         <h1 className="font-serif text-4xl tracking-tight">Финансы</h1>
-        <p className="mt-2 text-muted-foreground">
-          Выплаты продавцам и комиссия платформы (см.{" "}
-          <code className="text-sm">docs/admin-platform/finance.md</code>). Сверка с платёжным
-          провайдером заблокирована до предоставления реальных ключей провайдера (Public Key, Secret
-          Key, Merchant ID, API URL, Webhook Secret).
-        </p>
 
         {!overviewLoading && overview && (
           <div className="mt-8 grid gap-4 grid-cols-2 sm:grid-cols-4">

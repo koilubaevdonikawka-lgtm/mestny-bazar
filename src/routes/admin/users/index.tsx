@@ -154,11 +154,6 @@ function AdminUsersPage() {
         </Button>
 
         <h1 className="font-serif text-4xl tracking-tight">Пользователи и права</h1>
-        <p className="mt-2 text-muted-foreground">
-          Роли, области доступа администратора и блокировка покупателей (см.{" "}
-          <code className="text-sm">docs/admin-platform/permissions.md</code>,{" "}
-          <code className="text-sm">users.md</code>).
-        </p>
 
         <section className="mt-8 rounded-2xl border border-border/60 bg-card p-6">
           {!users || users.length === 0 ? (

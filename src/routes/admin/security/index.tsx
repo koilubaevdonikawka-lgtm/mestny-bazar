@@ -110,11 +110,6 @@ function AdminSecurityPage() {
         </Button>
 
         <h1 className="font-serif text-4xl tracking-tight">{t("admin.security.title")}</h1>
-        <p className="mt-2 text-muted-foreground">
-          {t("admin.security.descriptionPrefix")}{" "}
-          <code className="text-sm">docs/admin-platform/security.md</code>
-          ).
-        </p>
 
         <section className="mt-8 rounded-2xl border border-border/60 bg-card p-6">
           <h2 className="font-serif text-2xl mb-4">{t("admin.security.perimeterHeading")}</h2>

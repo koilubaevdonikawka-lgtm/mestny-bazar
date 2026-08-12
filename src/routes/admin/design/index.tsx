@@ -157,15 +157,6 @@ function AdminDesignPage() {
         </Button>
 
         <h1 className="font-serif text-4xl tracking-tight">Оформление — баннеры</h1>
-        <p className="mt-2 text-muted-foreground">
-          Баннеры главной страницы (см.{" "}
-          <code className="text-sm">docs/admin-platform/design.md</code>
-          ). Кыргызские названия и изображения категорий редактируются на странице{" "}
-          <Link to="/admin/catalog" className="underline">
-            Каталог
-          </Link>
-          .
-        </p>
 
         <section className="mt-8 rounded-2xl border border-border/60 bg-card p-6">
           {!banners || banners.length === 0 ? (

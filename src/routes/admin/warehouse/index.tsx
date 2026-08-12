@@ -1344,11 +1344,6 @@ function AdminWarehousePage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="font-serif text-4xl tracking-tight">{t("admin.warehouse.title")}</h1>
-            <p className="mt-2 text-muted-foreground">
-              {t("admin.warehouse.descriptionPrefix")}{" "}
-              <code className="text-sm">docs/admin-platform/warehouse.md</code>).{" "}
-              {t("admin.warehouse.descriptionSuffix")}
-            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">

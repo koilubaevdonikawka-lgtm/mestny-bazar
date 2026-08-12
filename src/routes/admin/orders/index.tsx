@@ -16,7 +16,6 @@ import {
   formatOrderStatus,
   formatPaymentStatus,
 } from "@shared/lib/order-display";
-import { OrderStatus } from "@shared/contracts/order";
 import { ArrowLeft, ArrowRight, Loader2, LogIn, Package, ShieldAlert } from "lucide-react";
 
 const PAGE_SIZE = 20;
@@ -121,19 +120,10 @@ function AdminOrdersPage() {
     );
   }
 
-  const newOnPage = orders.filter((order) => order.status === OrderStatus.CREATED);
-  const total = data?.total ?? 0;
-
   return (
     <PageShell>
       <div className="mx-auto max-w-3xl px-6 py-12">
         <h1 className="font-serif text-4xl tracking-tight">{t("admin.orders.title")}</h1>
-        <p className="mt-2 text-muted-foreground">
-          {t("admin.orders.summaryLine", {
-            total: String(total),
-            newCount: String(newOnPage.length),
-          })}
-        </p>
 
         {orders.length === 0 ? (
           <div className="mt-12 rounded-3xl border border-dashed border-border py-16 text-center">

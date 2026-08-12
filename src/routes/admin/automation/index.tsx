@@ -109,11 +109,6 @@ function AdminAutomationPage() {
         </Button>
 
         <h1 className="font-serif text-4xl tracking-tight">Автоматизация</h1>
-        <p className="mt-2 text-muted-foreground">
-          Каталог событий платформы и их подписчики (см.{" "}
-          <code className="text-sm">docs/admin-platform/automation.md</code>).{" "}
-          {overview.architectureNote}
-        </p>
 
         <section className="mt-8 rounded-2xl border border-border/60 bg-card p-6">
           {overview.events.length === 0 ? (

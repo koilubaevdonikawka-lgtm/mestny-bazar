@@ -109,12 +109,6 @@ function AdminAIPage() {
         </Button>
 
         <h1 className="font-serif text-4xl tracking-tight">ИИ-инструменты</h1>
-        <p className="mt-2 text-muted-foreground">
-          Анализ качества карточки товара (см.{" "}
-          <code className="text-sm">docs/admin-platform/ai.md</code>
-          ). Запускается событием <code className="text-sm">{status.triggerEvent}</code> —
-          публикацией товара продавцом, не каждым заказом.
-        </p>
 
         {!status.resultsPersisted && (
           <div className="mt-4 rounded-xl border border-dashed border-border/60 bg-card/50 p-4 text-sm text-muted-foreground">

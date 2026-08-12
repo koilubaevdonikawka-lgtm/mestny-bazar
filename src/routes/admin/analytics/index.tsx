@@ -112,11 +112,6 @@ function AdminAnalyticsPage() {
         </Button>
 
         <h1 className="font-serif text-4xl tracking-tight">Аналитика продаж</h1>
-        <p className="mt-2 text-muted-foreground">
-          Динамика продаж за последние 30 дней (см.{" "}
-          <code className="text-sm">docs/admin-platform/analytics.md</code>). Покупатели, курьеры и
-          экспорт — будущее расширение.
-        </p>
 
         <div className="mt-8 grid gap-4 grid-cols-2 sm:grid-cols-3">
           <div className="rounded-2xl border border-border/60 bg-card p-6">

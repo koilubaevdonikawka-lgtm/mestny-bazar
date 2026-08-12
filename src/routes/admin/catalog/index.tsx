@@ -900,7 +900,6 @@ function AdminCatalogPage() {
         </Button>
 
         <h1 className="font-serif text-4xl tracking-tight">{t("admin.catalog.title")}</h1>
-        <p className="mt-2 text-muted-foreground">{t("admin.catalog.description")}</p>
 
         {/* Уровень 3: товары выбранной подкатегории (Каталог → Категории →
             Подкатегории → Товары). */}

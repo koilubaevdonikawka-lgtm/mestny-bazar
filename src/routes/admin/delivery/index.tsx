@@ -458,11 +458,6 @@ function AdminDeliveryPage() {
         </Button>
 
         <h1 className="font-serif text-4xl tracking-tight">Delivery Management &amp; Pricing</h1>
-        <p className="mt-2 text-muted-foreground">
-          Зоны и тарифы доставки. Стоимость всегда пересчитывается на сервере через
-          DeliveryPricingEngine (см. <code className="text-sm">docs/delivery/</code>) — эта страница
-          не может задать цену напрямую.
-        </p>
 
         {/* Stores — Подэтап 0 (delivery-future-roadmap.md): origin point for
             BY_DISTANCE. Координаты не используются в расчёте стоимости пока

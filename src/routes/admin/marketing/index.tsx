@@ -157,11 +157,6 @@ function AdminMarketingPage() {
         </Button>
 
         <h1 className="font-serif text-4xl tracking-tight">Маркетинг — купоны</h1>
-        <p className="mt-2 text-muted-foreground">
-          Скидка проверяется и рассчитывается на сервере при оформлении заказа (см.{" "}
-          <code className="text-sm">docs/admin-platform/marketing.md</code>). Поле ввода кода купона
-          на витрине — следующий этап; сейчас купоны можно применить только через API.
-        </p>
 
         <section className="mt-8 rounded-2xl border border-border/60 bg-card p-6">
           {!coupons || coupons.length === 0 ? (

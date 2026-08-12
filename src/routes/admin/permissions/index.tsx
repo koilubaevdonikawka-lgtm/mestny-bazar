@@ -144,10 +144,6 @@ function AdminPermissionsPage() {
           <Lock className="h-7 w-7 text-primary" />
           <h1 className="font-serif text-4xl tracking-tight">Права доступа</h1>
         </div>
-        <p className="mt-2 text-muted-foreground">
-          Роли, разрешения и назначение ролей пользователям. Изменения вступают в силу сразу после
-          сохранения.
-        </p>
 
         <div className="mt-8 flex flex-wrap gap-2">
           {(
