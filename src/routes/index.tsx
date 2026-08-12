@@ -30,35 +30,10 @@ import { CONTACT } from "@/config/contact";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { DEFAULT_LANGUAGE } from "@/i18n/languages";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
-import catFlour from "@/assets/cat-flour.png";
-import catProduce from "@/assets/cat-produce.png";
-import catOils from "@/assets/cat-oils.png";
-import catDrinks from "@/assets/cat-drinks.png";
-import catSweets from "@/assets/cat-sweets.png";
-import catDairy from "@/assets/cat-dairy.png";
-import catMeat from "@/assets/cat-meat.png";
 
 export const Route = createFileRoute("/")({
   component: Home,
 });
-
-// image_url is still empty for every seeded category (nothing's been
-// uploaded to Supabase Storage yet) — these keep the section looking the way
-// it always has until real photos are set via category-images. A slug with
-// no entry here (e.g. "hleb-vypechka" — seeded in the DB but never given a
-// local asset) must fall through to the "Нет фото" placeholder below, not to
-// another category's specific image: this map used to also expose a shared
-// DEFAULT_FALLBACK_IMAGE equal to catProduce, so any unmapped category
-// silently rendered as "Овощи и фрукты" instead of admitting it has no photo.
-const FALLBACK_IMAGE_BY_SLUG: Record<string, string> = {
-  "muka-krupy": catFlour,
-  "ovoshchi-frukty": catProduce,
-  masla: catOils,
-  napitki: catDrinks,
-  sladosti: catSweets,
-  molochnoe: catDairy,
-  myasnoe: catMeat,
-};
 
 function Home() {
   const { t, language } = useTranslation();
@@ -87,9 +62,6 @@ function Home() {
     queryFn: listCategories,
     staleTime: 5 * 60 * 1000,
   });
-  // Stage 11: the home grid further down shows only top-level categories —
-  // the nav strip below additionally surfaces subcategories inline (see the
-  // two-level nav further down this component).
   const topLevelCategories = useMemo(
     () => (categories ?? []).filter((c) => c.parentId === null),
     [categories],
@@ -227,13 +199,9 @@ function Home() {
           панель; клик по категории без подкатегорий ведёт сразу на её
           страницу (см. subcategoryCountByParentId выше — иначе товары
           таких категорий стали бы недостижимы через эту панель). Нижняя
-          панель и прямой переход у категорий без подкатегорий ведут на
-          уже существующую страницу категории (/category/$slug), которая
-          сама умеет отображать товары, фильтры и дальнейшие подкатегории
-          — переиспользована как есть, не продублирована. Реюзает тот же
-          список categories (та же таблица, тот же sort_order, тот же
-          admin CRUD), что и грид ниже. Не sticky — по той же причине, что
-          и раньше: постоянно закреплённая вторая панель уменьшила бы
+          панель ведёт на уже существующую страницу категории
+          (/category/$slug), переиспользована как есть, не продублирована.
+          Не sticky — постоянно закреплённая вторая панель уменьшила бы
           видимую область контента. */}
       {topLevelCategories.length > 0 && (
         <nav aria-label={t("nav.categories")} className="border-b border-border/60 bg-background">
@@ -331,53 +299,6 @@ function Home() {
           </div>
         )}
       </section>
-
-      {/* Categories — Этап №10, п.8: an empty catalog (no top-level
-          categories yet) skips this whole section instead of rendering a
-          silent, empty padded block with nothing in it. */}
-      {topLevelCategories.length > 0 && (
-        <section id="categories" className="mx-auto max-w-7xl px-6 py-8 w-full sm:py-16">
-          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-            {topLevelCategories.map((c) => {
-              const image = c.imageUrl || FALLBACK_IMAGE_BY_SLUG[c.slug];
-              // Category names are entered once, in Russian, by the admin — no
-              // per-category language field exists or is added (Промпт №092).
-              // The interface language decides display: the original text when
-              // it matches the source language, otherwise the AI-translated
-              // text (falls back to the original while the translation is
-              // still loading or unavailable, never a blank name).
-              const displayName =
-                language === DEFAULT_LANGUAGE ? c.name : (pageTranslations[c.name] ?? c.name);
-              return (
-                <Link
-                  key={c.id}
-                  to="/category/$slug"
-                  params={{ slug: c.slug }}
-                  className="group rounded-2xl border border-border/60 bg-card p-5 text-center transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-card)] hover:border-primary/40"
-                >
-                  <div className="aspect-square w-full overflow-hidden rounded-xl bg-secondary/40">
-                    {image ? (
-                      <img
-                        src={image}
-                        alt={displayName}
-                        loading="lazy"
-                        width={512}
-                        height={512}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
-                        {t("common.noPhoto")}
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-3 font-serif text-lg text-primary">{displayName}</div>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      )}
 
       {/* Products */}
       <section id="products" className="mx-auto max-w-7xl px-6 py-6 w-full flex-1 sm:py-12">
