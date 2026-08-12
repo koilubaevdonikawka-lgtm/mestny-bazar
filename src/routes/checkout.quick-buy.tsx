@@ -29,12 +29,33 @@ const quickBuySearchSchema = z.object({
   quantity: z.number().int().positive(),
 });
 
+/** productSlug/quantity have no sensible default (there's no "default
+ * product") — a direct/malformed visit with missing or invalid params fails
+ * validateSearch. Without this, that failure surfaces as a raw server
+ * error instead of a normal in-app page; every real visit (via the "Купить
+ * в один клик" button) always supplies both params, so this only guards an
+ * edge case, not the golden path. */
+function QuickBuyInvalidLinkComponent() {
+  const { t } = useTranslation();
+  return (
+    <div className="min-h-screen flex items-center justify-center p-6 text-center">
+      <div>
+        <h2 className="font-serif text-2xl">{t("product.notFoundTitle")}</h2>
+        <Button asChild size="lg" className="mt-6 h-12 rounded-full px-8">
+          <Link to="/">{t("common.home")}</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export const Route = createFileRoute("/checkout/quick-buy")({
   component: QuickBuyPage,
   validateSearch: quickBuySearchSchema,
   head: () => ({
     meta: [{ title: `${BRAND.name}` }],
   }),
+  errorComponent: QuickBuyInvalidLinkComponent,
 });
 
 function QuickBuyPage() {
