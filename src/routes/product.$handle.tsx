@@ -1,16 +1,26 @@
 import { createFileRoute, Link, notFound, useCanGoBack, useRouter } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { ArrowLeft, ChevronLeft, ChevronRight, LayoutDashboard, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  LayoutDashboard,
+  Loader2,
+  Minus,
+  Plus,
+} from "lucide-react";
+import { toast } from "sonner";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ProductCard } from "@/components/ProductCard";
-import { CartQuantityControl } from "@/components/CartQuantityControl";
 import { fetchCatalogProduct } from "@/lib/catalog";
 import { listProducts } from "@/api/catalog";
+import { useCartStore } from "@/stores/cartStore";
+import { useCreateOrder } from "@/hooks/useCreateOrder";
 import { BRAND } from "@/config/brand";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
@@ -111,6 +121,17 @@ function ProductPage() {
   const [selectedImage, setSelectedImage] = useState(0);
   const touchStartX = useRef<number | null>(null);
 
+  // Часть 3 задачи "СТРАНИЦА ТОВАРА" — количество, выбираемое ДО добавления
+  // в корзину/покупки, независимо от того, что уже лежит в корзине (в
+  // отличие от прежнего CartQuantityControl, где "количество" — это и есть
+  // количество в корзине). Сбрасывается в 1 при переходе на другой товар
+  // (соседний по свайпу/похожий) — иначе выбранное количество одного товара
+  // молча перенеслось бы на совсем другой.
+  const [quantity, setQuantity] = useState(1);
+  useEffect(() => {
+    setQuantity(1);
+  }, [handle]);
+
   const {
     data: product,
     isLoading: loading,
@@ -191,10 +212,14 @@ function ProductPage() {
     language,
   );
 
+  const addItem = useCartStore((s) => s.addItem);
+  const cartLoading = useCartStore((s) => s.isLoading);
+  const { submitOrder, isSubmitting: isBuyingNow } = useCreateOrder();
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
-        <SiteHeader safeAreaTop hideSignInButton />
+        <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -206,7 +231,7 @@ function ProductPage() {
     const message = error instanceof Error ? error.message : t("product.loadErrorTitle");
     return (
       <div className="min-h-screen flex flex-col">
-        <SiteHeader safeAreaTop hideSignInButton />
+        <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
         <div className="flex-1 flex items-center justify-center p-6 text-center">
           <div>
             <h2 className="font-serif text-2xl">{t("product.loadErrorTitle")}</h2>
@@ -233,15 +258,116 @@ function ProductPage() {
   const images = product.images.edges;
   const activeImage = images[selectedImage] ?? images[0];
   const price = product.priceRange.minVariantPrice;
+  const variant = product.variants.edges[0]?.node;
+  const maxQuantity = product.inStock ? Math.max(1, product.stock) : 1;
+  const canPurchase = product.inStock && !!variant;
 
   const displayTitle = translations[product.title] ?? product.title;
   const displayDescription = product.description
     ? (translations[product.description] ?? product.description)
     : null;
 
+  const decreaseQuantity = () => setQuantity((q) => Math.max(1, q - 1));
+  const increaseQuantity = () => setQuantity((q) => Math.min(maxQuantity, q + 1));
+
+  const handleAddToCart = async () => {
+    if (!variant) return;
+    const added = await addItem({
+      product: { node: product },
+      variantId: variant.id,
+      variantTitle: variant.title,
+      price: variant.price,
+      quantity,
+      selectedOptions: variant.selectedOptions || [],
+    });
+    if (added) {
+      toast.success(t("product.addedToCartToast"), {
+        description: displayTitle,
+        position: "top-center",
+      });
+    }
+  };
+
+  const handleBuyNow = async () => {
+    if (!variant) return;
+    await submitOrder([
+      {
+        productSlug: product.handle,
+        quantity,
+        snapshot: {
+          name: product.title,
+          price: parseFloat(price.amount),
+          currency: price.currencyCode,
+          imageUrl: images[0]?.node.url ?? null,
+        },
+      },
+    ]);
+  };
+
+  // Часть 3/4 задачи — общий блок [-] количество [+] и две кнопки покупки,
+  // используется и в основной колонке (десктоп), и в закреплённой нижней
+  // панели (мобильный) — одна и та же логика/состояние, не дублируется.
+  const purchaseControls = (
+    <div className="space-y-3">
+      <div className="flex h-11 w-fit items-center gap-1 rounded-full bg-secondary">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-11 w-11 shrink-0 rounded-full"
+          onClick={decreaseQuantity}
+          disabled={quantity <= 1 || !canPurchase}
+          aria-label={t("product.decreaseQuantity")}
+        >
+          <Minus className="h-4 w-4" />
+        </Button>
+        <span
+          className="min-w-[2rem] flex-1 text-center text-base font-medium tabular-nums"
+          aria-live="polite"
+        >
+          {quantity}
+        </span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-11 w-11 shrink-0 rounded-full"
+          onClick={increaseQuantity}
+          disabled={quantity >= maxQuantity || !canPurchase}
+          aria-label={t("product.increaseQuantity")}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Button
+          type="button"
+          onClick={() => void handleBuyNow()}
+          disabled={!canPurchase || isBuyingNow}
+          className="h-12 rounded-full text-sm font-semibold shadow-md"
+        >
+          {isBuyingNow ? <Loader2 className="h-4 w-4 animate-spin" /> : t("product.buyNowButton")}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void handleAddToCart()}
+          disabled={!canPurchase || cartLoading}
+          className="h-12 rounded-full text-sm font-semibold"
+        >
+          {cartLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            t("product.addToCartShortButton")
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader showLanguageSwitcher safeAreaTop />
+      <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
       {/* Этап №3 — mobile-first rework: tight top nav row, image with
           overlaid prev/next + swipe (zero extra vertical space), compact
           info block, sticky one-handed add-to-cart bar on mobile only.
@@ -355,28 +481,31 @@ function ProductPage() {
             )}
           </div>
           <div>
-            {product.category && (
-              <Link
-                to="/category/$slug"
-                params={{ slug: product.category.slug }}
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                {t("product.categoryLabel")}: {product.category.name}
-              </Link>
-            )}
             {/* Этап №8, п.8 — title stays descriptive-sized; price is the
                 decision-critical number, so it's deliberately the single
-                largest, boldest piece of text on the whole screen. */}
-            <h1 className="mt-1 font-serif text-lg font-medium tracking-tight sm:text-xl lg:mt-2 lg:text-2xl">
+                largest, boldest piece of text on the whole screen. Часть 5
+                задачи "СТРАНИЦА ТОВАРА" — раздел категории/подкатегории под
+                фото убран, здесь остаются только название, описание, цена,
+                статус наличия. */}
+            <h1 className="font-serif text-lg font-medium tracking-tight sm:text-xl lg:text-2xl">
               {displayTitle}
             </h1>
 
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 lg:mt-3">
+            {displayDescription && (
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed whitespace-pre-line lg:mt-3 lg:text-base">
+                {displayDescription}
+              </p>
+            )}
+
+            <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 lg:mt-4">
               <span className="font-serif text-3xl font-bold text-primary lg:text-5xl">
-                {parseFloat(price.amount).toFixed(2)} {price.currencyCode}
+                {parseFloat(price.amount).toFixed(2)}
+              </span>
+              <span className="text-base font-medium text-muted-foreground lg:text-xl">
+                {t("product.currencyLabel")}
               </span>
               {product.unit && (
-                <span className="text-sm text-muted-foreground">
+                <span className="ml-2 text-sm text-muted-foreground">
                   {t("product.unit")}: {product.unit}
                 </span>
               )}
@@ -387,10 +516,15 @@ function ProductPage() {
               </Badge>
             )}
 
+            {/* Количество + две кнопки покупки — inline здесь на десктопе
+                only, мобильный использует закреплённую нижнюю панель ниже
+                (см. purchaseControls). */}
+            <div className="mt-6 hidden max-w-sm lg:block">{purchaseControls}</div>
+
             {/* Characteristics as compact inline chips instead of a spaced-out
                 definition list — same information, far less vertical room. */}
             {(product.manufacturer || product.countryOfOrigin) && (
-              <div className="mt-2 flex flex-wrap gap-1.5 lg:mt-6">
+              <div className="mt-4 flex flex-wrap gap-1.5 lg:mt-6">
                 {product.manufacturer && (
                   <span className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
                     {t("category.manufacturerLabel")}: {product.manufacturer}
@@ -402,28 +536,6 @@ function ProductPage() {
                   </span>
                 )}
               </div>
-            )}
-
-            {/* Add-to-cart / [-] qty [+] stays inline here on desktop only —
-                mobile uses the sticky one-handed bottom bar below instead
-                (п.7). Same shared control as ProductCard, so the two never
-                disagree on what's already in the cart. Этап №8, п.4/5 —
-                full-width, text-labelled: the single most prominent
-                interactive element in this column, unmistakably the primary
-                action on the page. */}
-            <div className="mt-6 hidden max-w-sm lg:block">
-              <CartQuantityControl
-                product={{ node: product }}
-                size="lg"
-                showLabel
-                className="w-full"
-              />
-            </div>
-
-            {displayDescription && (
-              <p className="mt-4 text-sm text-muted-foreground leading-relaxed whitespace-pre-line lg:mt-6 lg:text-base">
-                {displayDescription}
-              </p>
             )}
           </div>
         </div>
@@ -442,22 +554,21 @@ function ProductPage() {
         )}
       </main>
 
-      {/* Sticky one-handed add-to-cart bar — mobile only (Этап №3, п.7);
-          desktop keeps the inline button above instead of a second,
-          redundant one. Этап №8 — price stacked above a full-width,
-          text-labelled CTA (rather than squeezed beside a small icon
-          button) so both the price and the purchase action are maximally
-          prominent, always in reach, on every scroll position. */}
+      {/* Sticky one-handed purchase bar — mobile only (Этап №3, п.7);
+          desktop keeps the inline controls above instead of a second,
+          redundant one. Price stacked above the same [-] qty [+] + two
+          buttons block as the desktop column (Часть 2-4 задачи). */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/95 backdrop-blur-md pb-safe lg:hidden">
         <div className="px-4 pt-2">
           <p className="truncate text-xs text-muted-foreground">{displayTitle}</p>
           <p className="font-serif text-2xl font-bold text-primary">
-            {parseFloat(price.amount).toFixed(2)} {price.currencyCode}
+            {parseFloat(price.amount).toFixed(2)}{" "}
+            <span className="text-sm font-medium text-muted-foreground">
+              {t("product.currencyLabel")}
+            </span>
           </p>
         </div>
-        <div className="px-4 pb-3 pt-2">
-          <CartQuantityControl product={{ node: product }} size="lg" showLabel className="w-full" />
-        </div>
+        <div className="px-4 pb-3 pt-2">{purchaseControls}</div>
       </div>
       <SiteFooter />
     </div>

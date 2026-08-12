@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,18 +25,25 @@ import {
 import { toast } from "sonner";
 import { useCartStore } from "@/stores/cartStore";
 import { useCheckoutStore } from "@/stores/checkoutStore";
-import { createOrder } from "@/api/orders";
 import { calculateDeliveryFee } from "@/api/delivery-pricing";
 import { listDeliveryZones } from "@/api/delivery-zone";
-import { supabase } from "@/integrations/supabase/client";
 import { CartQuantityControl } from "@/components/CartQuantityControl";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
 import { useCloseOnBackButton } from "@/hooks/useCloseOnBackButton";
+import { useCreateOrder } from "@/hooks/useCreateOrder";
 import type { CartLineStatus } from "@shared/contracts/cart";
 
-export const CartDrawer = () => {
-  const navigate = useNavigate();
+interface CartDrawerProps {
+  /**
+   * Icon-only trigger — no "Ваша корзина" label, no serif text (Часть 1 of
+   * the product detail page task). Opt-in, defaults to false so every
+   * other caller keeps the current labelled button unchanged.
+   */
+  iconOnly?: boolean;
+}
+
+export const CartDrawer = ({ iconOnly = false }: CartDrawerProps = {}) => {
   const { t, language } = useTranslation();
   const VALIDATION_MESSAGE: Record<Exclude<CartLineStatus, "ok">, string> = useMemo(
     () => ({
@@ -50,7 +57,6 @@ export const CartDrawer = () => {
   // Этап №7 — Android/browser hardware Back closes the cart first instead
   // of skipping over it and navigating the page underneath away.
   useCloseOnBackButton(isOpen, setIsOpen);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [lineWarnings, setLineWarnings] = useState<Record<string, string>>({});
   const { items, isLoading, removeItem, validateCart, clearCart } = useCartStore();
   const {
@@ -58,12 +64,10 @@ export const CartDrawer = () => {
     zoneId,
     paymentMethod,
     customerPhone,
-    customerName,
     setAddress,
     setZoneId,
     setPaymentMethod,
     setCustomerPhone,
-    setCustomerName,
   } = useCheckoutStore();
   const totalItems = items.reduce((s, i) => s + i.quantity, 0);
   const totalPrice = items.reduce((s, i) => s + parseFloat(i.price.amount) * i.quantity, 0);
@@ -104,92 +108,24 @@ export const CartDrawer = () => {
     });
   }, [isOpen, validateCart, VALIDATION_MESSAGE]);
 
-  const resolveCustomerName = async (): Promise<string> => {
-    if (customerName.trim().length >= 2) return customerName.trim();
-    const { data } = await supabase.auth.getUser();
-    const metaName =
-      data.user?.user_metadata?.full_name ??
-      data.user?.user_metadata?.name ??
-      data.user?.email?.split("@")[0];
-    if (metaName && String(metaName).trim().length >= 2) {
-      const name = String(metaName).trim();
-      setCustomerName(name);
-      return name;
-    }
-    return t("cart.defaultCustomerName");
-  };
+  const { submitOrder, isSubmitting } = useCreateOrder();
 
   const handleCheckout = async () => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const isAuthenticated = !!sessionData.session?.user;
-    const hasManualAddress = address.trim().length >= 5;
-
-    if (!isAuthenticated && !hasManualAddress) {
-      toast.error(t("cart.missingAddressError"));
-      return;
-    }
-    if (!paymentMethod) {
-      toast.error(t("cart.missingPaymentMethodError"));
-      return;
-    }
-    const phoneDigits = customerPhone.replace(/[^\d]/g, "");
-    if (phoneDigits.length < 9) {
-      toast.error(t("cart.missingPhoneError"));
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const name = await resolveCustomerName();
-      const response = await createOrder({
-        items: items.map((item) => ({
-          productSlug: item.product.node.handle,
-          quantity: item.quantity,
-          snapshot: {
-            name: item.product.node.title,
-            price: parseFloat(item.price.amount),
-            currency: item.price.currencyCode,
-            imageUrl: item.product.node.images?.edges?.[0]?.node?.url ?? null,
-          },
-        })),
-        ...(hasManualAddress ? { addressSnapshot: address.trim() } : {}),
-        ...(zoneId ? { zoneId } : {}),
-        customerName: name,
-        customerPhone,
-        paymentMethod,
-        idempotencyKey: crypto.randomUUID(),
-      });
-
+    const orderItems = items.map((item) => ({
+      productSlug: item.product.node.handle,
+      quantity: item.quantity,
+      snapshot: {
+        name: item.product.node.title,
+        price: parseFloat(item.price.amount),
+        currency: item.price.currencyCode,
+        imageUrl: item.product.node.images?.edges?.[0]?.node?.url ?? null,
+      },
+    }));
+    await submitOrder(orderItems, async () => {
       await clearCart();
       useCheckoutStore.getState().reset();
       setIsOpen(false);
-
-      if (response.paymentUrl) {
-        // Full browser navigation to the provider-hosted payment page — not
-        // a router.navigate(), since this leaves the app entirely.
-        window.location.href = response.paymentUrl;
-        return;
-      }
-
-      await navigate({
-        to: "/order-success",
-        search: { orderNumber: response.order.orderNumber, orderId: response.order.id },
-      });
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        (error.name === "CashPaymentRequiresAuthentication" ||
-          error.message.includes("Cash payment requires authentication") ||
-          error.message.includes("Оплата наличными"))
-      ) {
-        toast.error(t("cart.cashRequiresAuthError"));
-        return;
-      }
-      const message = error instanceof Error ? error.message : t("cart.checkoutFailedError");
-      toast.error(message);
-    } finally {
-      setIsSubmitting(false);
-    }
+    });
   };
 
   const checkoutBusy = isLoading || isSubmitting;
@@ -199,12 +135,23 @@ export const CartDrawer = () => {
       <SheetTrigger asChild>
         <Button
           variant="default"
-          className="relative h-11 rounded-full pl-4 pr-5 gap-2 bg-primary text-primary-foreground shadow-sm hover:shadow-md hover:bg-primary/90"
+          aria-label={iconOnly ? t("cart.yourCartTitle") : undefined}
+          className={
+            iconOnly
+              ? "relative h-11 w-11 rounded-full p-0 bg-primary text-primary-foreground shadow-sm hover:shadow-md hover:bg-primary/90"
+              : "relative h-11 rounded-full pl-4 pr-5 gap-2 bg-primary text-primary-foreground shadow-sm hover:shadow-md hover:bg-primary/90"
+          }
         >
           <ShoppingCart className="h-4 w-4" />
-          <span className="font-serif text-sm">{t("cart.yourCartTitle")}</span>
+          {!iconOnly && <span className="font-serif text-sm">{t("cart.yourCartTitle")}</span>}
           {totalItems > 0 && (
-            <Badge className="ml-1 h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center text-xs bg-accent text-accent-foreground border border-primary-foreground/30">
+            <Badge
+              className={
+                iconOnly
+                  ? "absolute -right-1 -top-1 h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center text-xs bg-accent text-accent-foreground border border-primary-foreground/30"
+                  : "ml-1 h-5 min-w-5 px-1.5 rounded-full flex items-center justify-center text-xs bg-accent text-accent-foreground border border-primary-foreground/30"
+              }
+            >
               {totalItems}
             </Badge>
           )}

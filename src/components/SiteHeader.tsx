@@ -45,6 +45,17 @@ interface SiteHeaderProps {
    * sharing this same header keep their existing behavior untouched.
    */
   hideSignInButton?: boolean;
+  /**
+   * Fully hides AccountMenu — both the signed-out "Войти" CTA and the
+   * signed-in avatar/dropdown (Часть 1, product detail page task: no
+   * person-silhouette icon at all, regardless of auth state). Opt-out
+   * (default true) like showSearch/showCart, so every existing caller keeps
+   * its icon.
+   */
+  showAccountMenu?: boolean;
+  /** Cart trigger shows the icon only, no "Ваша корзина" label — opt-in,
+   * only the product detail page's header passes it. */
+  cartIconOnly?: boolean;
 }
 
 export function SiteHeader({
@@ -54,6 +65,8 @@ export function SiteHeader({
   safeAreaTop = false,
   showHomeButton = false,
   hideSignInButton = false,
+  showAccountMenu = true,
+  cartIconOnly = false,
 }: SiteHeaderProps = {}) {
   const { search, setSearch } = useSearchStore();
   const { t } = useTranslation();
@@ -134,8 +147,8 @@ export function SiteHeader({
           </a>
         </nav>
         {showLanguageSwitcher && <LanguageSwitcher />}
-        <AccountMenu hideSignInCta={hideSignInButton} />
-        {showCart && <CartDrawer />}
+        {showAccountMenu && <AccountMenu hideSignInCta={hideSignInButton} />}
+        {showCart && <CartDrawer iconOnly={cartIconOnly} />}
       </div>
     </header>
   );
