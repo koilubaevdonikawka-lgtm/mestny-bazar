@@ -41,7 +41,7 @@ import { useTranslation } from "@/i18n/LanguageProvider";
 import type { TranslationKey } from "@/i18n/t";
 import {
   ArrowLeft,
-  ChevronRight,
+  ChevronDown,
   Eye,
   EyeOff,
   ExternalLink,
@@ -520,90 +520,111 @@ function AdminCatalogPage() {
     );
   }
 
-  // Общая строка списка — используется и для основных категорий, и для
+  // Общая карточка — используется и для основных категорий, и для
   // подкатегорий (одна и та же сущность categories, различается только
   // тем, что передано в onDrillIn/drillLabel/products). Не дублирует JSX
-  // между двумя уровнями.
+  // между двумя уровнями. Стиль — как у карточки товара: фото сверху
+  // (кликабельно, вход в подкатегории/товары), название в середине,
+  // кнопки управления внизу (Этап: карточки категорий в сетке).
   const renderCategoryRow = (
     category: AdminCategoryDTO,
     options: { onDrillIn: () => void; drillLabel: string; directProducts: SellerProductDTO[] },
   ) => (
-    <li key={category.id} className="rounded-xl bg-secondary/40 px-4 py-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-background/60">
-            {category.imageUrl ? (
-              <img src={category.imageUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                <Tags className="h-4 w-4" />
-              </div>
-            )}
+    <div
+      key={category.id}
+      className="flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card"
+    >
+      {/* Верхняя часть — фото категории, целиком кликабельная кнопка входа
+          в подкатегории/товары этой категории. */}
+      <button
+        type="button"
+        onClick={options.onDrillIn}
+        aria-label={options.drillLabel}
+        className="group aspect-square w-full overflow-hidden bg-secondary/40"
+      >
+        {category.imageUrl ? (
+          <img
+            src={category.imageUrl}
+            alt=""
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+            <Tags className="h-8 w-8" />
           </div>
-          <div className="min-w-0">
-            <p className="font-medium truncate">{category.name}</p>
-            {category.nameKg && (
-              <p className="text-xs text-muted-foreground truncate">{category.nameKg}</p>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => (editingId === category.id ? setEditingId(null) : startEdit(category))}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={toggleActiveMutation.isPending}
-            onClick={() =>
-              toggleActiveMutation.mutate({ id: category.id, isActive: !category.isActive })
-            }
-          >
-            <Badge variant={category.isActive ? "secondary" : "outline"}>
-              {category.isActive
-                ? t("admin.catalog.statusActive")
-                : t("admin.catalog.statusHidden")}
-            </Badge>
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive hover:text-destructive"
-                aria-label={t("common.delete")}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{t("admin.catalog.deleteCategoryConfirmTitle")}</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {t("admin.catalog.deleteCategoryConfirmDescription", { name: category.name })}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-                <AlertDialogAction onClick={() => deleteCategoryMutation.mutate(category.id)}>
-                  {t("common.delete")}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <Button variant="ghost" size="sm" onClick={options.onDrillIn}>
-            {options.drillLabel}
-            <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
-        </div>
+        )}
+      </button>
+
+      {/* Середина — название категории. */}
+      <div className="min-w-0 px-4 pt-3 pb-2">
+        <p className="truncate font-medium">{category.name}</p>
+        {category.nameKg && (
+          <p className="truncate text-xs text-muted-foreground">{category.nameKg}</p>
+        )}
+      </div>
+
+      {/* Низ — кнопки управления: Редактировать, Удалить,
+          Активировать/Скрыть, Открыть подкатегории. */}
+      <div className="mt-auto flex flex-wrap items-center gap-1 border-t border-border/60 px-2 py-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label={t("admin.catalog.editButton")}
+          onClick={() => (editingId === category.id ? setEditingId(null) : startEdit(category))}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              aria-label={t("common.delete")}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("admin.catalog.deleteCategoryConfirmTitle")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("admin.catalog.deleteCategoryConfirmDescription", { name: category.name })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+              <AlertDialogAction onClick={() => deleteCategoryMutation.mutate(category.id)}>
+                {t("common.delete")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={toggleActiveMutation.isPending}
+          onClick={() =>
+            toggleActiveMutation.mutate({ id: category.id, isActive: !category.isActive })
+          }
+        >
+          <Badge variant={category.isActive ? "secondary" : "outline"}>
+            {category.isActive ? t("admin.catalog.statusActive") : t("admin.catalog.statusHidden")}
+          </Badge>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={options.onDrillIn}
+          aria-label={options.drillLabel}
+          className="ml-auto"
+        >
+          <ChevronDown className="h-4 w-4" />
+        </Button>
       </div>
 
       {editingId === category.id && editForm && (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 border-t border-border/60 pt-4">
+        <div className="grid gap-3 border-t border-border/60 p-4 sm:grid-cols-2">
           <div className="grid gap-2">
             <Label htmlFor={`edit-name-${category.id}`}>{t("admin.catalog.nameLabel")}</Label>
             <Input
@@ -679,7 +700,7 @@ function AdminCatalogPage() {
           задачей. Не скрываются, чтобы не стать недостижимыми в новой
           навигации. */}
       {options.directProducts.length > 0 && (
-        <div className="mt-4 border-t border-border/60 pt-4">
+        <div className="border-t border-border/60 p-4">
           <p className="mb-3 text-sm font-medium text-muted-foreground">
             {t("admin.catalog.directProductsHeading")} ({options.directProducts.length})
           </p>
@@ -688,7 +709,7 @@ function AdminCatalogPage() {
           </ul>
         </div>
       )}
-    </li>
+    </div>
   );
 
   const renderProductRow = (product: SellerProductDTO, categoryName: string) => (
@@ -891,7 +912,7 @@ function AdminCatalogPage() {
 
   return (
     <AdminLayout>
-      <div className="mx-auto max-w-3xl px-6 py-12">
+      <div className="mx-auto max-w-6xl px-6 py-12">
         <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
           <Link to="/admin">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -961,7 +982,7 @@ function AdminCatalogPage() {
                   </p>
                 </div>
               ) : (
-                <ul className="space-y-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {subcategoriesOfViewCategory.map((sub) =>
                     renderCategoryRow(sub, {
                       onDrillIn: () => drillIntoSubcategory(sub.id),
@@ -969,7 +990,7 @@ function AdminCatalogPage() {
                       directProducts: productsByCategory.get(sub.id) ?? [],
                     }),
                   )}
-                </ul>
+                </div>
               )}
             </section>
             {renderCreateCategoryForm(t("admin.catalog.newSubcategoryHeading"))}
@@ -984,7 +1005,7 @@ function AdminCatalogPage() {
                   <p className="text-muted-foreground">{t("admin.catalog.emptyState")}</p>
                 </div>
               ) : (
-                <ul className="space-y-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {topLevelCategories.map((category) =>
                     renderCategoryRow(category, {
                       onDrillIn: () => drillIntoCategory(category.id),
@@ -992,7 +1013,7 @@ function AdminCatalogPage() {
                       directProducts: productsByCategory.get(category.id) ?? [],
                     }),
                   )}
-                </ul>
+                </div>
               )}
             </section>
 

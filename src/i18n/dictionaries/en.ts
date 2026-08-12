@@ -420,7 +420,7 @@ export const en = {
       dateRequiredReturnError: "Enter the return date",
     },
     catalog: {
-      title: "Catalog — categories and products",
+      title: "Categories",
       description:
         "Storefront categories, subcategories and products: name, photo, and customer visibility. Stock and warehouse data live in the separate Warehouse section.",
       loadError: "Failed to load categories",
