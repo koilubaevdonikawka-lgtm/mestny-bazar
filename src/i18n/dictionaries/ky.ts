@@ -40,6 +40,7 @@ export const ky = {
   search: {
     viewAllResults: "Бардык жыйынтыктарды көрсөтүү ({{count}})",
     resultsTitle: "Издөө жыйынтыктары: «{{query}}»",
+    loadErrorTitle: "Товарларды жүктөө мүмкүн болгон жок",
   },
   home: {
     title: "Местный Базар",

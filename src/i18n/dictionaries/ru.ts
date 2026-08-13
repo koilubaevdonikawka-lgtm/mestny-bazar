@@ -43,6 +43,7 @@ export const ru = {
   search: {
     viewAllResults: "Показать все результаты ({{count}})",
     resultsTitle: "Результаты поиска: «{{query}}»",
+    loadErrorTitle: "Не удалось загрузить товары",
   },
   home: {
     title: "Местный Базар",

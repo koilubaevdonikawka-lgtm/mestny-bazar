@@ -40,6 +40,7 @@ export const en = {
   search: {
     viewAllResults: "Show all results ({{count}})",
     resultsTitle: 'Search results: "{{query}}"',
+    loadErrorTitle: "Failed to load products",
   },
   home: {
     title: "Mestny Bazar",

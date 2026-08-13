@@ -1,9 +1,10 @@
 import { createFileRoute, Link, useCanGoBack, useRouter } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { ArrowLeft, Home, Loader2, Search, ShoppingBasket } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Home, Loader2, Search, ShoppingBasket } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { listProducts } from "@/api/catalog";
 import { listCategories } from "@/api/category";
@@ -27,10 +28,16 @@ export const Route = createFileRoute("/search")({
  * filtered/sorted entirely client-side. Deliberate for the current scale —
  * a handful of products total (checked directly against production before
  * building this) — not a general-purpose pattern; revisit with real
- * server-side pagination/virtualization if the catalog grows into the
- * hundreds+.
+ * server-side pagination/virtualization if the catalog grows past this.
+ *
+ * 200 is the actual hard ceiling — shared/validation/common.schema.ts's
+ * pageSizeSchema caps pageSize at 200 server-side (deliberate anti-abuse
+ * guard, not something to raise for this one page). An earlier version of
+ * this constant was 500, past that cap: every listProducts() call failed
+ * zod validation, so the page silently never loaded any products at all —
+ * caught via an actual browser run (Playwright), not by reading the code.
  */
-const ALL_PRODUCTS_PAGE_SIZE = 500;
+const ALL_PRODUCTS_PAGE_SIZE = 200;
 
 interface CategoryPath {
   top: CategoryDTO | null;
@@ -56,12 +63,22 @@ function SearchPage() {
   const canGoBack = useCanGoBack();
   const debouncedSearch = useDebouncedValue(search.trim().toLowerCase(), 300);
 
-  const { data: productResult, isLoading: productsLoading } = useQuery({
+  const {
+    data: productResult,
+    isLoading: productsLoading,
+    isError: productsError,
+    refetch: refetchProducts,
+  } = useQuery({
     queryKey: ["products", "search-page-all"],
     queryFn: () => listProducts({ sortBy: "name", pageSize: ALL_PRODUCTS_PAGE_SIZE }),
     staleTime: 60 * 1000,
   });
-  const { data: categories, isLoading: categoriesLoading } = useQuery({
+  const {
+    data: categories,
+    isLoading: categoriesLoading,
+    isError: categoriesError,
+    refetch: refetchCategories,
+  } = useQuery({
     queryKey: ["categories"],
     queryFn: listCategories,
     staleTime: 5 * 60 * 1000,
@@ -100,6 +117,7 @@ function SearchPage() {
     language === DEFAULT_LANGUAGE ? raw : (translations[raw] ?? raw);
 
   const isLoading = productsLoading || categoriesLoading;
+  const isError = productsError || categoriesError;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -150,6 +168,23 @@ function SearchPage() {
         {isLoading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : isError ? (
+          <div className="rounded-3xl border border-dashed border-border py-16 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-secondary">
+              <AlertTriangle className="h-6 w-6 text-primary" />
+            </div>
+            <h3 className="font-serif text-2xl">{t("search.loadErrorTitle")}</h3>
+            <Button
+              onClick={() => {
+                void refetchProducts();
+                void refetchCategories();
+              }}
+              size="lg"
+              className="mt-6 h-12 rounded-full px-8"
+            >
+              {t("common.retry")}
+            </Button>
           </div>
         ) : filteredRows.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-border py-16 text-center">
