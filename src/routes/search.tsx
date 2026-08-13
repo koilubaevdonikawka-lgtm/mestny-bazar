@@ -1,124 +1,192 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { createFileRoute, Link, useCanGoBack, useRouter } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { z } from "zod";
-import { Loader2, ShoppingBasket } from "lucide-react";
+import { ArrowLeft, Home, Loader2, Search, ShoppingBasket } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
-import { Button } from "@/components/ui/button";
-import { ProductCard } from "@/components/ProductCard";
-import { fetchCatalogProducts } from "@/lib/catalog";
+import { Input } from "@/components/ui/input";
+import { listProducts } from "@/api/catalog";
+import { listCategories } from "@/api/category";
+import { useSearchStore } from "@/stores/searchStore";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTranslation } from "@/i18n/LanguageProvider";
+import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
+import { DEFAULT_LANGUAGE } from "@/i18n/languages";
 import { BRAND } from "@/config/brand";
-import type { CatalogProductNode } from "@shared/lib/product-adapter";
-
-// `.catch(undefined)` keeps validateSearch itself from ever throwing on a
-// malformed/missing q — same lenient pattern as checkout.quick-buy.tsx;
-// SearchPage below renders its own empty-query fallback instead of a raw
-// server error.
-const searchPageSchema = z.object({
-  q: z.string().min(1).optional().catch(undefined),
-});
+import type { CategoryDTO } from "@shared/contracts/catalog";
 
 export const Route = createFileRoute("/search")({
   component: SearchPage,
-  validateSearch: searchPageSchema,
   head: () => ({
     meta: [{ title: `${BRAND.name}` }],
   }),
 });
 
 /**
- * Full results page for the header SearchBar's "Показать все результаты"
- * link (and Enter-to-search) — same fetchCatalogProducts({search}) query the
- * home page's live-filtered grid already uses, just without the
- * category/hero/subcategory chrome that only makes sense on "/". No
- * sort/filter UI (task scope: minimal results grid now, richer controls are
- * a deliberate later addition, not this one).
+ * Whole catalog loaded up front (single request, no cursor pagination) and
+ * filtered/sorted entirely client-side. Deliberate for the current scale —
+ * a handful of products total (checked directly against production before
+ * building this) — not a general-purpose pattern; revisit with real
+ * server-side pagination/virtualization if the catalog grows into the
+ * hundreds+.
  */
-function SearchPage() {
-  const { q } = Route.useSearch();
-  const { t } = useTranslation();
-  const query = q?.trim() ?? "";
+const ALL_PRODUCTS_PAGE_SIZE = 500;
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ["products", "search-page", query],
-    queryFn: ({ pageParam }) => fetchCatalogProducts({ search: query, cursor: pageParam }),
-    initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: query.length > 0,
+interface CategoryPath {
+  top: CategoryDTO | null;
+  sub: CategoryDTO | null;
+}
+
+function resolveCategoryPath(
+  categoryId: string | null,
+  categoriesById: Map<string, CategoryDTO>,
+): CategoryPath {
+  if (!categoryId) return { top: null, sub: null };
+  const category = categoriesById.get(categoryId);
+  if (!category) return { top: null, sub: null };
+  if (!category.parentId) return { top: category, sub: null };
+  const parent = categoriesById.get(category.parentId) ?? null;
+  return { top: parent, sub: category };
+}
+
+function SearchPage() {
+  const { t, language } = useTranslation();
+  const { search, setSearch } = useSearchStore();
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
+  const debouncedSearch = useDebouncedValue(search.trim().toLowerCase(), 300);
+
+  const { data: productResult, isLoading: productsLoading } = useQuery({
+    queryKey: ["products", "search-page-all"],
+    queryFn: () => listProducts({ sortBy: "name", pageSize: ALL_PRODUCTS_PAGE_SIZE }),
+    staleTime: 60 * 1000,
+  });
+  const { data: categories, isLoading: categoriesLoading } = useQuery({
+    queryKey: ["categories"],
+    queryFn: listCategories,
+    staleTime: 5 * 60 * 1000,
   });
 
-  const products = useMemo(() => {
-    const seen = new Set<string>();
-    const merged: CatalogProductNode[] = [];
-    for (const page of data?.pages ?? []) {
-      for (const product of page.items) {
-        if (seen.has(product.node.id)) continue;
-        seen.add(product.node.id);
-        merged.push(product);
-      }
-    }
-    return merged;
-  }, [data]);
+  const categoriesById = useMemo(() => {
+    const map = new Map<string, CategoryDTO>();
+    for (const c of categories ?? []) map.set(c.id, c);
+    return map;
+  }, [categories]);
+
+  const rows = useMemo(() => {
+    const products = productResult?.items ?? [];
+    return products.map((product) => ({
+      product,
+      path: resolveCategoryPath(product.categoryId, categoriesById),
+    }));
+  }, [productResult, categoriesById]);
+
+  const filteredRows = useMemo(() => {
+    if (!debouncedSearch) return rows;
+    return rows.filter(({ product, path }) => {
+      const haystack = [product.name, path.top?.name, path.sub?.name]
+        .filter((v): v is string => Boolean(v))
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(debouncedSearch);
+    });
+  }, [rows, debouncedSearch]);
+
+  const translations = useTranslatedTexts(
+    [...rows.map((r) => r.product.name), ...(categories ?? []).map((c) => c.name)],
+    language,
+  );
+  const displayText = (raw: string) =>
+    language === DEFAULT_LANGUAGE ? raw : (translations[raw] ?? raw);
+
+  const isLoading = productsLoading || categoriesLoading;
 
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
+      <SiteHeader safeAreaTop showAccountMenu={false} showSearch={false} cartIconOnly />
 
-      <section className="mx-auto max-w-7xl px-6 py-6 w-full flex-1 sm:py-12">
-        <h1 className="mb-5 font-serif text-2xl tracking-tight sm:mb-10 sm:text-4xl md:text-5xl">
-          {query ? t("search.resultsTitle", { query }) : t("home.productsHeading")}
-        </h1>
+      <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-4 sm:px-6 sm:py-6">
+        {/* [Назад] [Home] */}
+        <div className="mb-4 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (canGoBack) {
+                router.history.back();
+              } else {
+                void router.navigate({ to: "/" });
+              }
+            }}
+            className="flex h-10 items-center gap-1 rounded-full px-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {t("common.back")}
+          </button>
+          <Link
+            to="/"
+            className="flex h-10 items-center gap-1 rounded-full px-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+          >
+            <Home className="h-4 w-4" />
+            {t("common.home")}
+          </Link>
+        </div>
 
-        {query.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-border py-12 text-center sm:py-24">
-            <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
-              <ShoppingBasket className="h-6 w-6 text-primary" />
-            </div>
-            <h3 className="font-serif text-2xl">{t("home.noResultsTitle")}</h3>
-          </div>
-        ) : isLoading ? (
-          <div className="flex justify-center py-12 sm:py-24">
+        {/* Поисковая панель */}
+        <div className="relative mb-6">
+          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <Input
+            type="search"
+            inputMode="search"
+            autoFocus
+            placeholder={t("header.searchPlaceholder")}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-12 rounded-full pl-11 pr-5 text-base"
+            aria-label={t("header.searchPlaceholder")}
+          />
+        </div>
+
+        {/* Вертикальный список: Категория > Подкатегория > Товар */}
+        {isLoading ? (
+          <div className="flex justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : products.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-border py-12 text-center sm:py-24">
-            <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
+        ) : filteredRows.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-border py-16 text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-secondary">
               <ShoppingBasket className="h-6 w-6 text-primary" />
             </div>
             <h3 className="font-serif text-2xl">{t("home.noResultsTitle")}</h3>
-            <p className="mt-2 text-muted-foreground max-w-md mx-auto">
-              {t("home.noResultsDescription", { query })}
-            </p>
+            {debouncedSearch && (
+              <p className="mx-auto mt-2 max-w-md text-muted-foreground">
+                {t("home.noResultsDescription", { query: search.trim() })}
+              </p>
+            )}
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
-              {products.map((p) => (
-                <ProductCard key={p.node.id} product={p} />
-              ))}
-            </div>
-            {hasNextPage && (
-              <div className="mt-10 flex justify-center">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="h-12 px-8 rounded-full"
-                  onClick={() => void fetchNextPage()}
-                  disabled={isFetchingNextPage}
+          <ul className="flex flex-col divide-y divide-border/60 rounded-2xl border border-border/60 bg-card">
+            {filteredRows.map(({ product, path }) => (
+              <li key={product.id}>
+                <Link
+                  to="/product/$handle"
+                  params={{ handle: product.slug }}
+                  className="flex flex-col gap-0.5 px-4 py-3 transition-colors hover:bg-secondary sm:px-5"
                 >
-                  {isFetchingNextPage ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    t("common.showMore")
-                  )}
-                </Button>
-              </div>
-            )}
-          </>
+                  <span className="text-xs text-muted-foreground">
+                    {[path.top, path.sub]
+                      .filter((c): c is CategoryDTO => Boolean(c))
+                      .map((c) => displayText(c.name))
+                      .join(" > ")}
+                  </span>
+                  <span className="text-sm font-medium sm:text-base">
+                    {displayText(product.name)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         )}
-      </section>
+      </div>
 
       <SiteFooter />
     </div>
