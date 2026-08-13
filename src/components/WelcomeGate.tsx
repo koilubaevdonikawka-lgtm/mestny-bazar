@@ -46,12 +46,24 @@ export function WelcomeGate() {
     setOpen(false);
   }, []);
 
-  // Если пользователь уже авторизован (успешный OAuth-вход только что
-  // вернул его в приложение, либо он уже был авторизован ранее на этом
-  // устройстве) — экран не нужен, закрыть и запомнить.
+  // Fallback for a user who's already authenticated on mount (session
+  // restored from a previous visit) without ever clicking through this
+  // instance of the gate.
   useEffect(() => {
     if (isAuthenticated) dismiss();
   }, [isAuthenticated, dismiss]);
+
+  // "Seen" must be recorded synchronously on click, not reactively once
+  // isAuthenticated flips true — getAuthRedirectUrl() sends Google OAuth to
+  // /workspace, not back to this page, so this component is unmounted by
+  // the external navigation before it ever gets a chance to observe
+  // isAuthenticated becoming true. Waiting for that flip is unreliable;
+  // clicking either button unambiguously means onboarding is done with,
+  // regardless of where the OAuth round trip eventually lands the user.
+  const handleAuthClick = useCallback(() => {
+    dismiss();
+    void signInWithGoogle();
+  }, [dismiss]);
 
   if (!open) return null;
 
@@ -78,14 +90,14 @@ export function WelcomeGate() {
         </div>
 
         <div className="mt-8 grid gap-3">
-          <Button size="lg" className="h-12 rounded-full" onClick={() => void signInWithGoogle()}>
+          <Button size="lg" className="h-12 rounded-full" onClick={handleAuthClick}>
             {t("common.signIn")}
           </Button>
           <Button
             size="lg"
             variant="outline"
             className="h-12 rounded-full"
-            onClick={() => void signInWithGoogle()}
+            onClick={handleAuthClick}
           >
             {t("welcome.signUpButton")}
           </Button>
