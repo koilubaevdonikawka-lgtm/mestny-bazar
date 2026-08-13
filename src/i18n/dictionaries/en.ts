@@ -37,6 +37,10 @@ export const en = {
     searchPlaceholder: "Search products…",
     deliveryLink: "Delivery",
   },
+  search: {
+    viewAllResults: "Show all results ({{count}})",
+    resultsTitle: 'Search results: "{{query}}"',
+  },
   home: {
     title: "Mestny Bazar",
     tagline: "online grocery market with delivery",

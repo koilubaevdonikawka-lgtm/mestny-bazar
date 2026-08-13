@@ -1,9 +1,8 @@
 import { useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
 import { CartDrawer } from "./CartDrawer";
 import { AccountMenu } from "./AccountMenu";
-import { Input } from "@/components/ui/input";
-import { ArrowLeft, Search } from "lucide-react";
-import { useSearchStore } from "@/stores/searchStore";
+import { SearchBar } from "./SearchBar";
+import { ArrowLeft } from "lucide-react";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 import { useTranslation } from "@/i18n/LanguageProvider";
 
@@ -61,7 +60,6 @@ export function SiteHeader({
   showAccountMenu = true,
   cartIconOnly = false,
 }: SiteHeaderProps = {}) {
-  const { search, setSearch } = useSearchStore();
   const { t } = useTranslation();
   const router = useRouter();
   const navigate = useNavigate();
@@ -102,22 +100,7 @@ export function SiteHeader({
         {/* flex-1 spacer kept even when search is hidden (Admin Platform) — it's
             what pushes nav/account/cart to the right; only its contents are
             conditional, so hiding search doesn't collapse the header layout. */}
-        <div className="relative flex-1 max-w-xl">
-          {showSearch && (
-            <>
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <Input
-                type="search"
-                inputMode="search"
-                placeholder={t("header.searchPlaceholder")}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-11 rounded-full pl-11 pr-5"
-                aria-label={t("header.searchPlaceholder")}
-              />
-            </>
-          )}
-        </div>
+        <div className="relative flex-1 max-w-xl">{showSearch && <SearchBar />}</div>
         <nav className="hidden lg:flex items-center gap-6 text-sm">
           <a href="#categories" className="hover:text-primary transition-colors">
             {t("nav.categories")}

@@ -40,6 +40,10 @@ export const ru = {
     searchPlaceholder: "Поиск продукта…",
     deliveryLink: "Доставка",
   },
+  search: {
+    viewAllResults: "Показать все результаты ({{count}})",
+    resultsTitle: "Результаты поиска: «{{query}}»",
+  },
   home: {
     title: "Местный Базар",
     tagline: "онлайн-базар продуктов с доставкой",

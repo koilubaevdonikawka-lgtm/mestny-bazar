@@ -37,6 +37,10 @@ export const ky = {
     searchPlaceholder: "Продукт издөө…",
     deliveryLink: "Жеткирүү",
   },
+  search: {
+    viewAllResults: "Бардык жыйынтыктарды көрсөтүү ({{count}})",
+    resultsTitle: "Издөө жыйынтыктары: «{{query}}»",
+  },
   home: {
     title: "Местный Базар",
     tagline: "жеткирүү менен онлайн азык-түлүк базары",
