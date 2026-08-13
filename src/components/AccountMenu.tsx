@@ -10,6 +10,7 @@ import {
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { signInWithGoogle } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { WELCOME_SEEN_KEY } from "@/components/WelcomeGate";
 import { LogOut, MapPin, Package, User } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "@/i18n/LanguageProvider";
@@ -35,6 +36,10 @@ export function AccountMenu({ hideSignInCta = false }: AccountMenuProps = {}) {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    // Shared-device case: the next person on this browser should see
+    // WelcomeGate again, not silently inherit "already seen" from whoever
+    // signed out.
+    window.localStorage.removeItem(WELCOME_SEEN_KEY);
     toast.success(t("account.signedOutToast"));
   };
 

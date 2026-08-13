@@ -7,7 +7,8 @@ import { signInWithGoogle } from "@/lib/auth";
 import { BRAND } from "@/config/brand";
 import type { Language } from "@/i18n/languages";
 
-const WELCOME_SEEN_KEY = "mestny-bazar-welcome-seen";
+/** Exported so AccountMenu's sign-out can clear it — the next person on a shared device sees WelcomeGate again. */
+export const WELCOME_SEEN_KEY = "mestny-bazar-welcome-seen";
 
 const QUICK_LANGUAGES: { code: Language; label: string }[] = [
   { code: "ru", label: "Русский" },
