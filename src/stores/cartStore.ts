@@ -49,6 +49,18 @@ function toLineInput(item: CartItem): CartLineInput {
   };
 }
 
+/**
+ * True when the server rejected the request because the bearer token was
+ * missing/invalid (`server/auth/resolve-user.ts` → `UnauthorizedError`) —
+ * i.e. `mode` says "authenticated" but the session backing it is actually
+ * dead (expired between page-load and this call, revoked, or the
+ * useCartSync resync effect simply hasn't run yet). Distinguishes that
+ * specific, recoverable case from a real network/server failure.
+ */
+function isUnauthorized(e: unknown): boolean {
+  return e instanceof Error && e.name === "UnauthorizedError";
+}
+
 /** Reconstructs a renderable CartItem purely from the server's stored snapshot. */
 function fromCartItemDTO(dto: CartItemDTO): CartItem {
   const variantId = dto.productSlug ?? dto.productId ?? "";
@@ -154,6 +166,23 @@ export const useCartStore = create<CartStore>()(
           set({ items: cart.items.map(fromCartItemDTO) });
           return true;
         } catch (e) {
+          if (isUnauthorized(e)) {
+            // Session is actually dead despite the persisted "authenticated"
+            // mode — fall back to a local guest add instead of a dead end so
+            // the item the user just clicked doesn't just vanish.
+            const current = get().items;
+            const existingIndex = current.findIndex((i) => i.variantId === item.variantId);
+            set({
+              mode: "guest",
+              items:
+                existingIndex >= 0
+                  ? current.map((i, idx) =>
+                      idx === existingIndex ? { ...i, quantity: i.quantity + item.quantity } : i,
+                    )
+                  : [...current, item],
+            });
+            return true;
+          }
           console.error("Failed to add item:", e);
           toast.error("Не удалось добавить товар в корзину. Попробуйте ещё раз.");
           return false;
@@ -178,6 +207,14 @@ export const useCartStore = create<CartStore>()(
           const cart = await updateCartItem(toIdentifier(item), quantity);
           set({ items: cart.items.map(fromCartItemDTO) });
         } catch (e) {
+          if (isUnauthorized(e)) {
+            const current = get().items;
+            set({
+              mode: "guest",
+              items: current.map((i) => (i.variantId === variantId ? { ...i, quantity } : i)),
+            });
+            return;
+          }
           console.error("Failed to update quantity:", e);
           toast.error("Не удалось обновить количество товара. Попробуйте ещё раз.");
         } finally {
@@ -200,6 +237,11 @@ export const useCartStore = create<CartStore>()(
           const cart = await removeCartItem(toIdentifier(item));
           set({ items: cart.items.map(fromCartItemDTO) });
         } catch (e) {
+          if (isUnauthorized(e)) {
+            const current = get().items;
+            set({ mode: "guest", items: current.filter((i) => i.variantId !== variantId) });
+            return;
+          }
           console.error("Failed to remove item:", e);
           toast.error("Не удалось удалить товар из корзины. Попробуйте ещё раз.");
         } finally {
