@@ -34,4 +34,6 @@ export interface IPaymentRepository {
     eventType: PaymentEventType,
     metadata?: Record<string, unknown>,
   ): Promise<void>;
+  /** Every payment still `pending`/`awaiting` whose `expiresAt` is already in the past — the sweep target for `PaymentService.checkExpiry`. */
+  listExpiredPending(): Promise<PaymentRecordDTO[]>;
 }

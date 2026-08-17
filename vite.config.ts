@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv } from "vite";
 import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -57,7 +58,37 @@ export default defineConfig(({ mode, command }) => {
         server: { entry: "server" },
       }),
       // Build-only: generates the Cloudflare Workers-compatible output in .output/.
-      ...(command === "build" ? [nitro({ defaultPreset: "cloudflare-module" })] : []),
+      ...(command === "build"
+        ? [
+            nitro({
+              defaultPreset: "cloudflare-module",
+              // Payment expiry sweep (tasks/payment/sweep-expired.ts) — the
+              // cloudflare-module preset has native Cron Trigger support;
+              // Nitro generates the trigger in the built wrangler config at
+              // build time, no hand-maintained wrangler.toml needed.
+              experimental: { tasks: true },
+              // Explicit handler registration, not file-based tasks/ scanning
+              // — this project's scanDirs (set by the TanStack Start Nitro
+              // integration) don't include the plain project-root tasks/
+              // directory a vanilla Nitro app would scan, so auto-discovery
+              // silently found nothing (verified: build succeeded and wrote
+              // the cron trigger to wrangler.json, but the task handler's
+              // own code never appeared anywhere in .output/server/). A
+              // relative "./tasks/..." handler path also failed — Nitro's
+              // virtual tasks module resolves it from a base other than this
+              // file's directory — so this uses an absolute path instead.
+              tasks: {
+                "payment:sweep-expired": {
+                  handler: fileURLToPath(
+                    new URL("./tasks/payment/sweep-expired.ts", import.meta.url),
+                  ),
+                },
+              },
+              scheduledTasks: { "*/5 * * * *": "payment:sweep-expired" },
+              cloudflare: { deployConfig: true },
+            }),
+          ]
+        : []),
       viteReact(),
     ],
   };

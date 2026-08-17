@@ -166,4 +166,15 @@ export class SupabasePaymentRepository implements IPaymentRepository {
 
     if (error) throw new Error(`Failed to log payment event: ${error.message}`);
   }
+
+  async listExpiredPending(): Promise<PaymentRecordDTO[]> {
+    const { data, error } = await supabaseAdmin
+      .from("payments")
+      .select(PAYMENT_SELECT)
+      .in("status", ["pending", "awaiting"])
+      .lt("expires_at", new Date().toISOString());
+
+    if (error) throw new Error(`Failed to list expired pending payments: ${error.message}`);
+    return (data ?? []).map((row) => mapPaymentRow(row as unknown as PaymentRow));
+  }
 }
