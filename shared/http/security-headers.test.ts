@@ -66,6 +66,21 @@ describe("applySecurityHeaders", () => {
     expect(csp).toContain("https://*.supabase.co");
   });
 
+  it("allows Cloudflare's own Web Analytics beacon in script-src and connect-src", () => {
+    process.env.NODE_ENV = "production";
+    const headers = new Headers();
+
+    applySecurityHeaders(headers);
+
+    const csp = headers.get("Content-Security-Policy") ?? "";
+    expect(csp).toContain(
+      "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+    );
+    expect(csp).toContain(
+      "connect-src 'self' https://*.supabase.co https://static.cloudflareinsights.com",
+    );
+  });
+
   it("does not allow Shopify hosts in connect-src — Supabase is the sole catalog source (ADR-002)", () => {
     process.env.NODE_ENV = "production";
     const headers = new Headers();

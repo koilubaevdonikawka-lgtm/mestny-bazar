@@ -18,16 +18,22 @@
  */
 
 const SUPABASE_CONNECT_SRC = "https://*.supabase.co";
+// Cloudflare's own Web Analytics (RUM) beacon — auto-injected by Cloudflare
+// at the edge into every HTML response when the zone has Web Analytics
+// enabled, entirely outside this app's own <script> tags. Without these,
+// enabling that Cloudflare feature causes a CSP violation for a script this
+// app never chose to add and can't remove from its own source.
+const CLOUDFLARE_INSIGHTS_SRC = "https://static.cloudflareinsights.com";
 
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline' ${CLOUDFLARE_INSIGHTS_SRC}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   // Seller-submitted product image URLs can point to any host, so img-src
   // can't be locked to a fixed allow-list without breaking real listings.
   "img-src 'self' data: https:",
-  `connect-src 'self' ${SUPABASE_CONNECT_SRC}`,
+  `connect-src 'self' ${SUPABASE_CONNECT_SRC} ${CLOUDFLARE_INSIGHTS_SRC}`,
   "frame-ancestors 'none'",
   "object-src 'none'",
   "base-uri 'self'",

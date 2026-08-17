@@ -14,6 +14,27 @@ export default defineConfig(({ mode, command }) => {
     Object.entries(env).map(([key, value]) => [`import.meta.env.${key}`, JSON.stringify(value)]),
   );
 
+  // Fail the build loudly, not the deployed client silently. Without this,
+  // a missing .env at build time (confirmed to have actually happened —
+  // .env was absent from disk during a production build/deploy) still
+  // produces a normal-looking `exit 0` build: the client Supabase proxy
+  // (src/integrations/supabase/client.ts) only throws "Missing Supabase
+  // environment variable(s)" later, at runtime, the first time any browser
+  // touches supabase.* — which happens inside src/routes/__root.tsx's own
+  // hooks (useCartSync etc.), before <LanguageProvider> ever mounts, which
+  // is what turned this into a second, more confusing crash ("useTranslation
+  // must be used within LanguageProvider") on top of the real cause. Build
+  // is the only point where a clear, actionable, impossible-to-miss failure
+  // is still cheap — production runtime is not.
+  if (command === "build" && (!env.VITE_SUPABASE_URL || !env.VITE_SUPABASE_PUBLISHABLE_KEY)) {
+    throw new Error(
+      "Build aborted: VITE_SUPABASE_URL and/or VITE_SUPABASE_PUBLISHABLE_KEY are missing. " +
+        "The built client bundle would ship without a working Supabase client — every " +
+        "browser-side call to supabase.* (auth, session, cart sync) would throw at runtime. " +
+        "Set both in .env before building.",
+    );
+  }
+
   return {
     define: envDefine,
     // Vite uses PostCSS in dev and Lightning CSS at build by default; forcing
