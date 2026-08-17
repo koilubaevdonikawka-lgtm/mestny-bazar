@@ -9,8 +9,8 @@ export function isPlatformVariantId(variantId: string): boolean {
 
 /**
  * Product rendering, cart, and checkout code across the buyer PWA share this
- * shape (title/handle/priceRange/images/variants) — a legacy naming carried
- * over from the pre-ADR-002 Shopify Storefront API era, kept because dozens
+ * shape (title/handle/priceRange/images/variants) — legacy naming carried
+ * over from the pre-ADR-002 external-catalog-API era, kept because dozens
  * of components already understand it and Supabase is now the only producer
  * of this shape (see ADR-002).
  */
@@ -38,7 +38,7 @@ export interface CatalogProductNode {
       }>;
     };
     options: Array<{ name: string; values: string[] }>;
-    /** Platform-native fields with no Shopify-shape equivalent — added for
+    /** Platform-native fields with no legacy-shape equivalent — added for
      * the product detail page (Stage 5). Absent/unset source data maps to
      * `null`, never a fabricated value. */
     unit: string | null;

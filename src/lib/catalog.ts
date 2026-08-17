@@ -69,9 +69,9 @@ export async function fetchCatalogCategory(slug: string): Promise<CategoryDTO | 
 }
 
 /**
- * Raw (non-Shopify-adapted) products for a category, unfiltered beyond
- * category scope — used only to derive available filter facet values
- * (manufacturer/country of origin), never rendered as product cards.
+ * Raw (unadapted) products for a category, unfiltered beyond category scope
+ * — used only to derive available filter facet values (manufacturer/country
+ * of origin), never rendered as product cards.
  */
 export async function fetchCatalogCategoryFacetSource(categorySlug: string): Promise<ProductDTO[]> {
   const result = await listProducts({ categorySlug, pageSize: CATALOG_PAGE_SIZE });
