@@ -55,6 +55,9 @@ export class SupabaseAdminCategoryRepository implements IAdminCategoryRepository
   }
 
   async create(data: Parameters<IAdminCategoryRepository["create"]>[0]): Promise<AdminCategoryDTO> {
+    const parentId = data.parentId ?? null;
+    const sortOrder = data.sortOrder ?? (await this.nextSortOrder(parentId));
+
     const { data: row, error } = await supabaseAdmin
       .from("categories")
       .insert({
@@ -62,16 +65,37 @@ export class SupabaseAdminCategoryRepository implements IAdminCategoryRepository
         slug: data.slug,
         description: data.description ?? null,
         image_url: data.imageUrl ?? null,
-        sort_order: data.sortOrder ?? 0,
+        sort_order: sortOrder,
         is_active: data.isActive ?? true,
         name_kg: data.nameKg ?? null,
-        parent_id: data.parentId ?? null,
+        parent_id: parentId,
       })
       .select(CATEGORY_SELECT)
       .single();
 
     if (error || !row) throw new Error(`Failed to create category: ${error?.message ?? "unknown"}`);
     return mapAdminCategoryRow(row);
+  }
+
+  /**
+   * A new category with no explicit sort_order goes to the end of its
+   * sibling group (same parent_id — NULL for top-level), not sort_order 0.
+   * 0 previously meant every category created without an explicit order
+   * jumped ahead of the entire existing list — confirmed live: a category
+   * added via the admin panel this way ("Строй материялы", sort_order 0)
+   * displaced the intended first category on the homepage's top-level row.
+   */
+  private async nextSortOrder(parentId: string | null): Promise<number> {
+    let query = supabaseAdmin
+      .from("categories")
+      .select("sort_order")
+      .order("sort_order", { ascending: false })
+      .limit(1);
+    query = parentId === null ? query.is("parent_id", null) : query.eq("parent_id", parentId);
+
+    const { data, error } = await query.maybeSingle();
+    if (error) throw new Error(`Failed to compute next category sort order: ${error.message}`);
+    return (data?.sort_order ?? -1) + 1;
   }
 
   async update(data: UpdateCategoryRequest): Promise<AdminCategoryDTO> {
