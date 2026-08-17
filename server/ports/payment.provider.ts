@@ -6,6 +6,8 @@ export interface PaymentWebhookPayload {
   status: "paid" | "failed";
   rawBody: string;
   signature: string | null;
+  /** x-api-timestamp header value — checked against a 10-second validity window (Промпт №077). */
+  timestamp: string | null;
 }
 
 export interface IPaymentProvider {

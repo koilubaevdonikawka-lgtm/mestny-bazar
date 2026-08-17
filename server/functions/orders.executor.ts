@@ -17,4 +17,9 @@ export async function executeGetOrder(orderId: string): Promise<OrderDTO> {
   return order;
 }
 
+export async function executeCancelOrder(orderId: string): Promise<OrderDTO> {
+  const userId = await requireUserIdFromRequest();
+  return getServices().orderService.cancelOrder(orderId, userId);
+}
+
 export { UnauthorizedError, OrderNotFoundError };

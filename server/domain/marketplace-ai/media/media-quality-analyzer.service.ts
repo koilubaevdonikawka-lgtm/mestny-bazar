@@ -19,8 +19,7 @@ export class MediaQualityAnalyzerService implements IMediaQualityAnalyzer {
     const duplicateGroups = this.findDuplicateGroups(input.assets);
     const duplicateCount = duplicateGroups.reduce((sum, group) => sum + group.length - 1, 0);
 
-    const photoCountPassed =
-      photos.length >= rules.minPhotos && photos.length <= rules.maxPhotos;
+    const photoCountPassed = photos.length >= rules.minPhotos && photos.length <= rules.maxPhotos;
     const resolutionViolations = photos.filter((photo) =>
       photo.issues.some((issue) => issue.startsWith("resolution:")),
     ).length;

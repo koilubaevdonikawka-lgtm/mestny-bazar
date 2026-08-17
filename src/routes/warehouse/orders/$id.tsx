@@ -1,8 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -10,14 +8,14 @@ import {
   getWarehouseOrder,
   startWarehouseAssembly,
 } from "@/api/warehouse";
-import { lovable } from "@/integrations/lovable";
-import { supabase } from "@/integrations/supabase/client";
+import { signInWithGoogle } from "@/lib/auth";
+import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import {
   formatMoney,
   formatOrderDate,
   formatOrderStatus,
   formatPaymentStatus,
-} from "@/lib/order-display";
+} from "@shared/lib/order-display";
 import { OrderStatus } from "@shared/contracts/order";
 import { ArrowLeft, Loader2, LogIn, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
@@ -29,19 +27,14 @@ export const Route = createFileRoute("/warehouse/orders/$id")({
 function WarehouseOrderDetailPage() {
   const { id } = Route.useParams();
   const queryClient = useQueryClient();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const { isAuthenticated } = useSupabaseSession();
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setIsAuthenticated(!!data.session?.user);
-    });
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session?.user);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const { data: order, isLoading, isError, error } = useQuery({
+  const {
+    data: order,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ["warehouse", "orders", id],
     queryFn: () => getWarehouseOrder(id),
     enabled: isAuthenticated === true,
@@ -72,24 +65,22 @@ function WarehouseOrderDetailPage() {
   });
 
   const handleSignIn = async () => {
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + `/warehouse/orders/${id}`,
-    });
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="flex justify-center py-24">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="max-w-md mx-auto text-center py-24 px-6">
           <LogIn className="h-10 w-10 text-primary mx-auto mb-4" />
           <h1 className="font-serif text-3xl tracking-tight">Войдите в аккаунт</h1>
@@ -98,17 +89,17 @@ function WarehouseOrderDetailPage() {
             Войти
           </Button>
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
   if (isLoading) {
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="flex justify-center py-24">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
@@ -122,13 +113,15 @@ function WarehouseOrderDetailPage() {
       message.toLowerCase().includes("warehouse role");
 
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="max-w-md mx-auto text-center py-24 px-6">
           {isForbidden ? (
             <>
               <ShieldAlert className="h-10 w-10 text-primary mx-auto mb-4" />
               <h1 className="font-serif text-3xl tracking-tight">Доступ запрещён</h1>
-              <p className="mt-3 text-muted-foreground">Эта страница доступна только сотрудникам склада.</p>
+              <p className="mt-3 text-muted-foreground">
+                Эта страница доступна только сотрудникам склада.
+              </p>
             </>
           ) : (
             <p className="text-muted-foreground">{message}</p>
@@ -137,7 +130,7 @@ function WarehouseOrderDetailPage() {
             <Link to="/warehouse/orders">К списку заказов</Link>
           </Button>
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
@@ -145,13 +138,12 @@ function WarehouseOrderDetailPage() {
     throw notFound();
   }
 
-  const canStartAssembly =
-    order.status === OrderStatus.CONFIRMED || order.status === OrderStatus.PAID;
+  const canStartAssembly = order.status === OrderStatus.CONFIRMED;
   const canCompleteAssembly = order.status === OrderStatus.ASSEMBLING;
   const isBusy = startMutation.isPending || completeMutation.isPending;
 
   return (
-    <PageShell>
+    <AdminLayout>
       <div className="mx-auto max-w-3xl px-6 py-12">
         <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
           <Link to="/warehouse/orders">
@@ -183,11 +175,7 @@ function WarehouseOrderDetailPage() {
               </Button>
             )}
             {canCompleteAssembly && (
-              <Button
-                variant="outline"
-                disabled={isBusy}
-                onClick={() => completeMutation.mutate()}
-              >
+              <Button variant="outline" disabled={isBusy} onClick={() => completeMutation.mutate()}>
                 {completeMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -225,6 +213,7 @@ function WarehouseOrderDetailPage() {
                     <img
                       src={item.productImageUrl}
                       alt={item.productName}
+                      loading="lazy"
                       className="w-full h-full object-cover"
                     />
                   )}
@@ -257,16 +246,6 @@ function WarehouseOrderDetailPage() {
           </div>
         </section>
       </div>
-    </PageShell>
-  );
-}
-
-function PageShell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen flex flex-col">
-      <SiteHeader />
-      <main className="flex-1">{children}</main>
-      <SiteFooter />
-    </div>
+    </AdminLayout>
   );
 }

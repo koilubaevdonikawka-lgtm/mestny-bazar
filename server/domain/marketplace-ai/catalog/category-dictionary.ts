@@ -16,18 +16,46 @@ export const CATEGORY_DICTIONARY: CategoryRule[] = [
     categoryName: "Мука",
     keywords: ["мука", "ун", "flour", "булоч", "тесто"],
     subcategories: [
-      { subcategorySlug: "wheat-flour", subcategoryName: "Пшеничная мука", keywords: ["пшен", "wheat"] },
+      {
+        subcategorySlug: "wheat-flour",
+        subcategoryName: "Пшеничная мука",
+        keywords: ["пшен", "wheat"],
+      },
       { subcategorySlug: "rye-flour", subcategoryName: "Ржаная мука", keywords: ["ржан", "rye"] },
     ],
   },
   {
     categorySlug: "produce",
     categoryName: "Фрукты и овощи",
-    keywords: ["овощ", "фрукт", "картоф", "лук", "морков", "яблок", "банан", "помидор", "огур", "зелень", "жашылча"],
+    keywords: [
+      "овощ",
+      "фрукт",
+      "картоф",
+      "лук",
+      "морков",
+      "яблок",
+      "банан",
+      "помидор",
+      "огур",
+      "зелень",
+      "жашылча",
+    ],
     subcategories: [
-      { subcategorySlug: "vegetables", subcategoryName: "Овощи", keywords: ["овощ", "картоф", "лук", "морков", "огур", "помидор"] },
-      { subcategorySlug: "fruits", subcategoryName: "Фрукты", keywords: ["фрукт", "яблок", "банан", "апельс", "груш"] },
-      { subcategorySlug: "greens", subcategoryName: "Зелень", keywords: ["зелень", "укроп", "петруш", "салат"] },
+      {
+        subcategorySlug: "vegetables",
+        subcategoryName: "Овощи",
+        keywords: ["овощ", "картоф", "лук", "морков", "огур", "помидор"],
+      },
+      {
+        subcategorySlug: "fruits",
+        subcategoryName: "Фрукты",
+        keywords: ["фрукт", "яблок", "банан", "апельс", "груш"],
+      },
+      {
+        subcategorySlug: "greens",
+        subcategoryName: "Зелень",
+        keywords: ["зелень", "укроп", "петруш", "салат"],
+      },
     ],
   },
   {
@@ -35,7 +63,11 @@ export const CATEGORY_DICTIONARY: CategoryRule[] = [
     categoryName: "Масла",
     keywords: ["масло", "май", "oil", "олив", "подсолнеч"],
     subcategories: [
-      { subcategorySlug: "sunflower-oil", subcategoryName: "Подсолнечное масло", keywords: ["подсолнеч"] },
+      {
+        subcategorySlug: "sunflower-oil",
+        subcategoryName: "Подсолнечное масло",
+        keywords: ["подсолнеч"],
+      },
       { subcategorySlug: "olive-oil", subcategoryName: "Оливковое масло", keywords: ["олив"] },
     ],
   },
@@ -46,7 +78,11 @@ export const CATEGORY_DICTIONARY: CategoryRule[] = [
     subcategories: [
       { subcategorySlug: "juice", subcategoryName: "Соки", keywords: ["сок", "juice"] },
       { subcategorySlug: "water", subcategoryName: "Вода", keywords: ["вода", "water"] },
-      { subcategorySlug: "tea-coffee", subcategoryName: "Чай и кофе", keywords: ["чай", "кофе", "tea", "coffee"] },
+      {
+        subcategorySlug: "tea-coffee",
+        subcategoryName: "Чай и кофе",
+        keywords: ["чай", "кофе", "tea", "coffee"],
+      },
     ],
   },
   {
@@ -54,7 +90,11 @@ export const CATEGORY_DICTIONARY: CategoryRule[] = [
     categoryName: "Сладости",
     keywords: ["слад", "конфет", "шоколад", "печень", "торт", "варень", "мёд", "мед"],
     subcategories: [
-      { subcategorySlug: "chocolate", subcategoryName: "Шоколад", keywords: ["шоколад", "chocolate"] },
+      {
+        subcategorySlug: "chocolate",
+        subcategoryName: "Шоколад",
+        keywords: ["шоколад", "chocolate"],
+      },
       { subcategorySlug: "cookies", subcategoryName: "Печенье", keywords: ["печень", "cookie"] },
       { subcategorySlug: "candy", subcategoryName: "Конфеты", keywords: ["конфет", "candy"] },
     ],
@@ -64,7 +104,11 @@ export const CATEGORY_DICTIONARY: CategoryRule[] = [
     categoryName: "Острокислое",
     keywords: ["солен", "марин", "кисл", "огур", "капуст", "pickle"],
     subcategories: [
-      { subcategorySlug: "pickled-vegetables", subcategoryName: "Соленья", keywords: ["солен", "огур", "капуст"] },
+      {
+        subcategorySlug: "pickled-vegetables",
+        subcategoryName: "Соленья",
+        keywords: ["солен", "огур", "капуст"],
+      },
       { subcategorySlug: "marinades", subcategoryName: "Маринады", keywords: ["марин"] },
     ],
   },
@@ -75,7 +119,11 @@ export const CATEGORY_DICTIONARY: CategoryRule[] = [
     subcategories: [
       { subcategorySlug: "milk", subcategoryName: "Молоко", keywords: ["молок", "milk"] },
       { subcategorySlug: "cheese", subcategoryName: "Сыр", keywords: ["сыр", "cheese"] },
-      { subcategorySlug: "yogurt", subcategoryName: "Йогурт и кефир", keywords: ["йогурт", "кефир", "творог"] },
+      {
+        subcategorySlug: "yogurt",
+        subcategoryName: "Йогурт и кефир",
+        keywords: ["йогурт", "кефир", "творог"],
+      },
     ],
   },
   {
@@ -83,7 +131,11 @@ export const CATEGORY_DICTIONARY: CategoryRule[] = [
     categoryName: "Яйца",
     keywords: ["яйц", "жумуртка", "egg"],
     subcategories: [
-      { subcategorySlug: "chicken-eggs", subcategoryName: "Куриные яйца", keywords: ["курин", "яйц"] },
+      {
+        subcategorySlug: "chicken-eggs",
+        subcategoryName: "Куриные яйца",
+        keywords: ["курин", "яйц"],
+      },
     ],
   },
   {
@@ -91,8 +143,16 @@ export const CATEGORY_DICTIONARY: CategoryRule[] = [
     categoryName: "Мясное",
     keywords: ["мясо", "говяд", "свин", "куриц", "колбас", "сосиск", "эт", "meat"],
     subcategories: [
-      { subcategorySlug: "poultry", subcategoryName: "Птица", keywords: ["куриц", "индейк", "утк"] },
-      { subcategorySlug: "beef-pork", subcategoryName: "Говядина и свинина", keywords: ["говяд", "свин"] },
+      {
+        subcategorySlug: "poultry",
+        subcategoryName: "Птица",
+        keywords: ["куриц", "индейк", "утк"],
+      },
+      {
+        subcategorySlug: "beef-pork",
+        subcategoryName: "Говядина и свинина",
+        keywords: ["говяд", "свин"],
+      },
       { subcategorySlug: "sausages", subcategoryName: "Колбасы", keywords: ["колбас", "сосиск"] },
     ],
   },

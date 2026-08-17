@@ -11,20 +11,13 @@ function isCourier(actor: OrderLifecycleActor): boolean {
   return actor.roles?.includes("courier") ?? false;
 }
 
-/** ASSEMBLING is the DB round-trip form of READY_FOR_DELIVERY after warehouse completion. */
-const ACCEPTABLE_STATUSES = new Set<OrderStatus>([
-  OrderStatus.READY_FOR_DELIVERY,
-  OrderStatus.ASSEMBLING,
-]);
-
 /** Courier accepts a ready order (no status change — validation only). */
 export class CourierAcceptOrderRule implements OrderLifecycleRule {
   readonly order = OrderLifecycleOrder.ROLE_PERMISSION;
 
   applies(context: OrderLifecycleContext): boolean {
     return (
-      context.reason === "courier_accept" &&
-      context.targetStatus === OrderStatus.READY_FOR_DELIVERY
+      context.reason === "courier_accept" && context.targetStatus === OrderStatus.READY_FOR_DELIVERY
     );
   }
 
@@ -37,7 +30,7 @@ export class CourierAcceptOrderRule implements OrderLifecycleRule {
       };
     }
 
-    if (!ACCEPTABLE_STATUSES.has(context.currentStatus)) {
+    if (context.currentStatus !== OrderStatus.READY_FOR_DELIVERY) {
       return {
         allowed: false,
         denialCode: "INVALID_ACCEPT_TRANSITION",

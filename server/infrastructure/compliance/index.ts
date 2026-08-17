@@ -1,1 +1,0 @@
-export { activateCompliancePlatform } from "./bootstrap";

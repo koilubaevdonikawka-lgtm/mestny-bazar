@@ -71,10 +71,7 @@ export interface CatalogAnalysisResult {
 }
 
 export interface ICatalogQualityAnalyzer {
-  analyze(input: {
-    productId: string | null;
-    product: CatalogProductInput;
-  }): CatalogAnalysisResult;
+  analyze(input: { productId: string | null; product: CatalogProductInput }): CatalogAnalysisResult;
 }
 
 export const CATALOG_REQUIRED_FIELDS = ["name", "price", "currency", "imageUrl"] as const;

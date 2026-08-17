@@ -9,30 +9,97 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WorkspaceRouteImport } from './routes/workspace'
+import { Route as WarehouseRouteImport } from './routes/warehouse'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SellerRouteImport } from './routes/seller'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as OrderSuccessRouteImport } from './routes/order-success'
+import { Route as CourierRouteImport } from './routes/courier'
+import { Route as BootstrapRouteImport } from './routes/bootstrap'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OrdersIndexRouteImport } from './routes/orders/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as ProfileAddressesRouteImport } from './routes/profile/addresses'
 import { Route as ProductHandleRouteImport } from './routes/product.$handle'
 import { Route as OrdersIdRouteImport } from './routes/orders/$id'
+import { Route as CheckoutQuickBuyRouteImport } from './routes/checkout.quick-buy'
+import { Route as CategorySlugRouteImport } from './routes/category.$slug'
 import { Route as WarehouseOrdersIndexRouteImport } from './routes/warehouse/orders/index'
+import { Route as SellerProfileIndexRouteImport } from './routes/seller/profile/index'
 import { Route as SellerProductsIndexRouteImport } from './routes/seller/products/index'
 import { Route as CourierOrdersIndexRouteImport } from './routes/courier/orders/index'
+import { Route as AdminWarehouseIndexRouteImport } from './routes/admin/warehouse/index'
+import { Route as AdminUsersIndexRouteImport } from './routes/admin/users/index'
+import { Route as AdminSuppliersIndexRouteImport } from './routes/admin/suppliers/index'
+import { Route as AdminSettingsIndexRouteImport } from './routes/admin/settings/index'
+import { Route as AdminSellersIndexRouteImport } from './routes/admin/sellers/index'
+import { Route as AdminSecurityIndexRouteImport } from './routes/admin/security/index'
+import { Route as AdminPermissionsIndexRouteImport } from './routes/admin/permissions/index'
 import { Route as AdminOrdersIndexRouteImport } from './routes/admin/orders/index'
+import { Route as AdminMarketingIndexRouteImport } from './routes/admin/marketing/index'
+import { Route as AdminLogsIndexRouteImport } from './routes/admin/logs/index'
+import { Route as AdminIntegrationsIndexRouteImport } from './routes/admin/integrations/index'
+import { Route as AdminFinanceIndexRouteImport } from './routes/admin/finance/index'
+import { Route as AdminDesignIndexRouteImport } from './routes/admin/design/index'
+import { Route as AdminDeliveryIndexRouteImport } from './routes/admin/delivery/index'
+import { Route as AdminDashboardIndexRouteImport } from './routes/admin/dashboard/index'
+import { Route as AdminCouriersIndexRouteImport } from './routes/admin/couriers/index'
+import { Route as AdminCatalogIndexRouteImport } from './routes/admin/catalog/index'
+import { Route as AdminAutomationIndexRouteImport } from './routes/admin/automation/index'
+import { Route as AdminAnalyticsIndexRouteImport } from './routes/admin/analytics/index'
+import { Route as AdminAiIndexRouteImport } from './routes/admin/ai/index'
 import { Route as WarehouseOrdersIdRouteImport } from './routes/warehouse/orders/$id'
 import { Route as SellerProductsIdRouteImport } from './routes/seller/products/$id'
 import { Route as CourierOrdersIdRouteImport } from './routes/courier/orders/$id'
 import { Route as AdminOrdersIdRouteImport } from './routes/admin/orders/$id'
+import { Route as AdminCouriersIdRouteImport } from './routes/admin/couriers/$id'
+import { Route as CategoryCategorySlugSubcategorySubcategorySlugRouteImport } from './routes/category.$categorySlug.subcategory.$subcategorySlug'
 
+const WorkspaceRoute = WorkspaceRouteImport.update({
+  id: '/workspace',
+  path: '/workspace',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WarehouseRoute = WarehouseRouteImport.update({
+  id: '/warehouse',
+  path: '/warehouse',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SellerRoute = SellerRouteImport.update({
+  id: '/seller',
+  path: '/seller',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrderSuccessRoute = OrderSuccessRouteImport.update({
   id: '/order-success',
   path: '/order-success',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CourierRoute = CourierRouteImport.update({
+  id: '/courier',
+  path: '/courier',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BootstrapRoute = BootstrapRouteImport.update({
+  id: '/bootstrap',
+  path: '/bootstrap',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -44,6 +111,11 @@ const OrdersIndexRoute = OrdersIndexRouteImport.update({
   id: '/orders/',
   path: '/orders/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const ProfileAddressesRoute = ProfileAddressesRouteImport.update({
   id: '/profile/addresses',
@@ -60,173 +132,500 @@ const OrdersIdRoute = OrdersIdRouteImport.update({
   path: '/orders/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WarehouseOrdersIndexRoute = WarehouseOrdersIndexRouteImport.update({
-  id: '/warehouse/orders/',
-  path: '/warehouse/orders/',
+const CheckoutQuickBuyRoute = CheckoutQuickBuyRouteImport.update({
+  id: '/checkout/quick-buy',
+  path: '/checkout/quick-buy',
   getParentRoute: () => rootRouteImport,
+} as any)
+const CategorySlugRoute = CategorySlugRouteImport.update({
+  id: '/category/$slug',
+  path: '/category/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WarehouseOrdersIndexRoute = WarehouseOrdersIndexRouteImport.update({
+  id: '/orders/',
+  path: '/orders/',
+  getParentRoute: () => WarehouseRoute,
+} as any)
+const SellerProfileIndexRoute = SellerProfileIndexRouteImport.update({
+  id: '/profile/',
+  path: '/profile/',
+  getParentRoute: () => SellerRoute,
 } as any)
 const SellerProductsIndexRoute = SellerProductsIndexRouteImport.update({
-  id: '/seller/products/',
-  path: '/seller/products/',
-  getParentRoute: () => rootRouteImport,
+  id: '/products/',
+  path: '/products/',
+  getParentRoute: () => SellerRoute,
 } as any)
 const CourierOrdersIndexRoute = CourierOrdersIndexRouteImport.update({
-  id: '/courier/orders/',
-  path: '/courier/orders/',
-  getParentRoute: () => rootRouteImport,
+  id: '/orders/',
+  path: '/orders/',
+  getParentRoute: () => CourierRoute,
+} as any)
+const AdminWarehouseIndexRoute = AdminWarehouseIndexRouteImport.update({
+  id: '/warehouse/',
+  path: '/warehouse/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsersIndexRoute = AdminUsersIndexRouteImport.update({
+  id: '/users/',
+  path: '/users/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSuppliersIndexRoute = AdminSuppliersIndexRouteImport.update({
+  id: '/suppliers/',
+  path: '/suppliers/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSettingsIndexRoute = AdminSettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSellersIndexRoute = AdminSellersIndexRouteImport.update({
+  id: '/sellers/',
+  path: '/sellers/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSecurityIndexRoute = AdminSecurityIndexRouteImport.update({
+  id: '/security/',
+  path: '/security/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPermissionsIndexRoute = AdminPermissionsIndexRouteImport.update({
+  id: '/permissions/',
+  path: '/permissions/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminOrdersIndexRoute = AdminOrdersIndexRouteImport.update({
-  id: '/admin/orders/',
-  path: '/admin/orders/',
-  getParentRoute: () => rootRouteImport,
+  id: '/orders/',
+  path: '/orders/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminMarketingIndexRoute = AdminMarketingIndexRouteImport.update({
+  id: '/marketing/',
+  path: '/marketing/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLogsIndexRoute = AdminLogsIndexRouteImport.update({
+  id: '/logs/',
+  path: '/logs/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminIntegrationsIndexRoute = AdminIntegrationsIndexRouteImport.update({
+  id: '/integrations/',
+  path: '/integrations/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFinanceIndexRoute = AdminFinanceIndexRouteImport.update({
+  id: '/finance/',
+  path: '/finance/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDesignIndexRoute = AdminDesignIndexRouteImport.update({
+  id: '/design/',
+  path: '/design/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDeliveryIndexRoute = AdminDeliveryIndexRouteImport.update({
+  id: '/delivery/',
+  path: '/delivery/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDashboardIndexRoute = AdminDashboardIndexRouteImport.update({
+  id: '/dashboard/',
+  path: '/dashboard/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCouriersIndexRoute = AdminCouriersIndexRouteImport.update({
+  id: '/couriers/',
+  path: '/couriers/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCatalogIndexRoute = AdminCatalogIndexRouteImport.update({
+  id: '/catalog/',
+  path: '/catalog/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAutomationIndexRoute = AdminAutomationIndexRouteImport.update({
+  id: '/automation/',
+  path: '/automation/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAnalyticsIndexRoute = AdminAnalyticsIndexRouteImport.update({
+  id: '/analytics/',
+  path: '/analytics/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAiIndexRoute = AdminAiIndexRouteImport.update({
+  id: '/ai/',
+  path: '/ai/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const WarehouseOrdersIdRoute = WarehouseOrdersIdRouteImport.update({
-  id: '/warehouse/orders/$id',
-  path: '/warehouse/orders/$id',
-  getParentRoute: () => rootRouteImport,
+  id: '/orders/$id',
+  path: '/orders/$id',
+  getParentRoute: () => WarehouseRoute,
 } as any)
 const SellerProductsIdRoute = SellerProductsIdRouteImport.update({
-  id: '/seller/products/$id',
-  path: '/seller/products/$id',
-  getParentRoute: () => rootRouteImport,
+  id: '/products/$id',
+  path: '/products/$id',
+  getParentRoute: () => SellerRoute,
 } as any)
 const CourierOrdersIdRoute = CourierOrdersIdRouteImport.update({
-  id: '/courier/orders/$id',
-  path: '/courier/orders/$id',
-  getParentRoute: () => rootRouteImport,
+  id: '/orders/$id',
+  path: '/orders/$id',
+  getParentRoute: () => CourierRoute,
 } as any)
 const AdminOrdersIdRoute = AdminOrdersIdRouteImport.update({
-  id: '/admin/orders/$id',
-  path: '/admin/orders/$id',
-  getParentRoute: () => rootRouteImport,
+  id: '/orders/$id',
+  path: '/orders/$id',
+  getParentRoute: () => AdminRoute,
 } as any)
+const AdminCouriersIdRoute = AdminCouriersIdRouteImport.update({
+  id: '/couriers/$id',
+  path: '/couriers/$id',
+  getParentRoute: () => AdminRoute,
+} as any)
+const CategoryCategorySlugSubcategorySubcategorySlugRoute =
+  CategoryCategorySlugSubcategorySubcategorySlugRouteImport.update({
+    id: '/category/$categorySlug/subcategory/$subcategorySlug',
+    path: '/category/$categorySlug/subcategory/$subcategorySlug',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/bootstrap': typeof BootstrapRoute
+  '/courier': typeof CourierRouteWithChildren
   '/order-success': typeof OrderSuccessRoute
+  '/search': typeof SearchRoute
+  '/seller': typeof SellerRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/warehouse': typeof WarehouseRouteWithChildren
+  '/workspace': typeof WorkspaceRoute
+  '/category/$slug': typeof CategorySlugRoute
+  '/checkout/quick-buy': typeof CheckoutQuickBuyRoute
   '/orders/$id': typeof OrdersIdRoute
   '/product/$handle': typeof ProductHandleRoute
   '/profile/addresses': typeof ProfileAddressesRoute
+  '/admin/': typeof AdminIndexRoute
   '/orders/': typeof OrdersIndexRoute
+  '/admin/couriers/$id': typeof AdminCouriersIdRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/courier/orders/$id': typeof CourierOrdersIdRoute
   '/seller/products/$id': typeof SellerProductsIdRoute
   '/warehouse/orders/$id': typeof WarehouseOrdersIdRoute
+  '/admin/ai/': typeof AdminAiIndexRoute
+  '/admin/analytics/': typeof AdminAnalyticsIndexRoute
+  '/admin/automation/': typeof AdminAutomationIndexRoute
+  '/admin/catalog/': typeof AdminCatalogIndexRoute
+  '/admin/couriers/': typeof AdminCouriersIndexRoute
+  '/admin/dashboard/': typeof AdminDashboardIndexRoute
+  '/admin/delivery/': typeof AdminDeliveryIndexRoute
+  '/admin/design/': typeof AdminDesignIndexRoute
+  '/admin/finance/': typeof AdminFinanceIndexRoute
+  '/admin/integrations/': typeof AdminIntegrationsIndexRoute
+  '/admin/logs/': typeof AdminLogsIndexRoute
+  '/admin/marketing/': typeof AdminMarketingIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
+  '/admin/permissions/': typeof AdminPermissionsIndexRoute
+  '/admin/security/': typeof AdminSecurityIndexRoute
+  '/admin/sellers/': typeof AdminSellersIndexRoute
+  '/admin/settings/': typeof AdminSettingsIndexRoute
+  '/admin/suppliers/': typeof AdminSuppliersIndexRoute
+  '/admin/users/': typeof AdminUsersIndexRoute
+  '/admin/warehouse/': typeof AdminWarehouseIndexRoute
   '/courier/orders/': typeof CourierOrdersIndexRoute
   '/seller/products/': typeof SellerProductsIndexRoute
+  '/seller/profile/': typeof SellerProfileIndexRoute
   '/warehouse/orders/': typeof WarehouseOrdersIndexRoute
+  '/category/$categorySlug/subcategory/$subcategorySlug': typeof CategoryCategorySlugSubcategorySubcategorySlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/bootstrap': typeof BootstrapRoute
+  '/courier': typeof CourierRouteWithChildren
   '/order-success': typeof OrderSuccessRoute
+  '/search': typeof SearchRoute
+  '/seller': typeof SellerRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/warehouse': typeof WarehouseRouteWithChildren
+  '/workspace': typeof WorkspaceRoute
+  '/category/$slug': typeof CategorySlugRoute
+  '/checkout/quick-buy': typeof CheckoutQuickBuyRoute
   '/orders/$id': typeof OrdersIdRoute
   '/product/$handle': typeof ProductHandleRoute
   '/profile/addresses': typeof ProfileAddressesRoute
+  '/admin': typeof AdminIndexRoute
   '/orders': typeof OrdersIndexRoute
+  '/admin/couriers/$id': typeof AdminCouriersIdRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/courier/orders/$id': typeof CourierOrdersIdRoute
   '/seller/products/$id': typeof SellerProductsIdRoute
   '/warehouse/orders/$id': typeof WarehouseOrdersIdRoute
+  '/admin/ai': typeof AdminAiIndexRoute
+  '/admin/analytics': typeof AdminAnalyticsIndexRoute
+  '/admin/automation': typeof AdminAutomationIndexRoute
+  '/admin/catalog': typeof AdminCatalogIndexRoute
+  '/admin/couriers': typeof AdminCouriersIndexRoute
+  '/admin/dashboard': typeof AdminDashboardIndexRoute
+  '/admin/delivery': typeof AdminDeliveryIndexRoute
+  '/admin/design': typeof AdminDesignIndexRoute
+  '/admin/finance': typeof AdminFinanceIndexRoute
+  '/admin/integrations': typeof AdminIntegrationsIndexRoute
+  '/admin/logs': typeof AdminLogsIndexRoute
+  '/admin/marketing': typeof AdminMarketingIndexRoute
   '/admin/orders': typeof AdminOrdersIndexRoute
+  '/admin/permissions': typeof AdminPermissionsIndexRoute
+  '/admin/security': typeof AdminSecurityIndexRoute
+  '/admin/sellers': typeof AdminSellersIndexRoute
+  '/admin/settings': typeof AdminSettingsIndexRoute
+  '/admin/suppliers': typeof AdminSuppliersIndexRoute
+  '/admin/users': typeof AdminUsersIndexRoute
+  '/admin/warehouse': typeof AdminWarehouseIndexRoute
   '/courier/orders': typeof CourierOrdersIndexRoute
   '/seller/products': typeof SellerProductsIndexRoute
+  '/seller/profile': typeof SellerProfileIndexRoute
   '/warehouse/orders': typeof WarehouseOrdersIndexRoute
+  '/category/$categorySlug/subcategory/$subcategorySlug': typeof CategoryCategorySlugSubcategorySubcategorySlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/bootstrap': typeof BootstrapRoute
+  '/courier': typeof CourierRouteWithChildren
   '/order-success': typeof OrderSuccessRoute
+  '/search': typeof SearchRoute
+  '/seller': typeof SellerRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/warehouse': typeof WarehouseRouteWithChildren
+  '/workspace': typeof WorkspaceRoute
+  '/category/$slug': typeof CategorySlugRoute
+  '/checkout/quick-buy': typeof CheckoutQuickBuyRoute
   '/orders/$id': typeof OrdersIdRoute
   '/product/$handle': typeof ProductHandleRoute
   '/profile/addresses': typeof ProfileAddressesRoute
+  '/admin/': typeof AdminIndexRoute
   '/orders/': typeof OrdersIndexRoute
+  '/admin/couriers/$id': typeof AdminCouriersIdRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/courier/orders/$id': typeof CourierOrdersIdRoute
   '/seller/products/$id': typeof SellerProductsIdRoute
   '/warehouse/orders/$id': typeof WarehouseOrdersIdRoute
+  '/admin/ai/': typeof AdminAiIndexRoute
+  '/admin/analytics/': typeof AdminAnalyticsIndexRoute
+  '/admin/automation/': typeof AdminAutomationIndexRoute
+  '/admin/catalog/': typeof AdminCatalogIndexRoute
+  '/admin/couriers/': typeof AdminCouriersIndexRoute
+  '/admin/dashboard/': typeof AdminDashboardIndexRoute
+  '/admin/delivery/': typeof AdminDeliveryIndexRoute
+  '/admin/design/': typeof AdminDesignIndexRoute
+  '/admin/finance/': typeof AdminFinanceIndexRoute
+  '/admin/integrations/': typeof AdminIntegrationsIndexRoute
+  '/admin/logs/': typeof AdminLogsIndexRoute
+  '/admin/marketing/': typeof AdminMarketingIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
+  '/admin/permissions/': typeof AdminPermissionsIndexRoute
+  '/admin/security/': typeof AdminSecurityIndexRoute
+  '/admin/sellers/': typeof AdminSellersIndexRoute
+  '/admin/settings/': typeof AdminSettingsIndexRoute
+  '/admin/suppliers/': typeof AdminSuppliersIndexRoute
+  '/admin/users/': typeof AdminUsersIndexRoute
+  '/admin/warehouse/': typeof AdminWarehouseIndexRoute
   '/courier/orders/': typeof CourierOrdersIndexRoute
   '/seller/products/': typeof SellerProductsIndexRoute
+  '/seller/profile/': typeof SellerProfileIndexRoute
   '/warehouse/orders/': typeof WarehouseOrdersIndexRoute
+  '/category/$categorySlug/subcategory/$subcategorySlug': typeof CategoryCategorySlugSubcategorySubcategorySlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
+    | '/bootstrap'
+    | '/courier'
     | '/order-success'
+    | '/search'
+    | '/seller'
     | '/sitemap.xml'
+    | '/warehouse'
+    | '/workspace'
+    | '/category/$slug'
+    | '/checkout/quick-buy'
     | '/orders/$id'
     | '/product/$handle'
     | '/profile/addresses'
+    | '/admin/'
     | '/orders/'
+    | '/admin/couriers/$id'
     | '/admin/orders/$id'
     | '/courier/orders/$id'
     | '/seller/products/$id'
     | '/warehouse/orders/$id'
+    | '/admin/ai/'
+    | '/admin/analytics/'
+    | '/admin/automation/'
+    | '/admin/catalog/'
+    | '/admin/couriers/'
+    | '/admin/dashboard/'
+    | '/admin/delivery/'
+    | '/admin/design/'
+    | '/admin/finance/'
+    | '/admin/integrations/'
+    | '/admin/logs/'
+    | '/admin/marketing/'
     | '/admin/orders/'
+    | '/admin/permissions/'
+    | '/admin/security/'
+    | '/admin/sellers/'
+    | '/admin/settings/'
+    | '/admin/suppliers/'
+    | '/admin/users/'
+    | '/admin/warehouse/'
     | '/courier/orders/'
     | '/seller/products/'
+    | '/seller/profile/'
     | '/warehouse/orders/'
+    | '/category/$categorySlug/subcategory/$subcategorySlug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/bootstrap'
+    | '/courier'
     | '/order-success'
+    | '/search'
+    | '/seller'
     | '/sitemap.xml'
+    | '/warehouse'
+    | '/workspace'
+    | '/category/$slug'
+    | '/checkout/quick-buy'
     | '/orders/$id'
     | '/product/$handle'
     | '/profile/addresses'
+    | '/admin'
     | '/orders'
+    | '/admin/couriers/$id'
     | '/admin/orders/$id'
     | '/courier/orders/$id'
     | '/seller/products/$id'
     | '/warehouse/orders/$id'
+    | '/admin/ai'
+    | '/admin/analytics'
+    | '/admin/automation'
+    | '/admin/catalog'
+    | '/admin/couriers'
+    | '/admin/dashboard'
+    | '/admin/delivery'
+    | '/admin/design'
+    | '/admin/finance'
+    | '/admin/integrations'
+    | '/admin/logs'
+    | '/admin/marketing'
     | '/admin/orders'
+    | '/admin/permissions'
+    | '/admin/security'
+    | '/admin/sellers'
+    | '/admin/settings'
+    | '/admin/suppliers'
+    | '/admin/users'
+    | '/admin/warehouse'
     | '/courier/orders'
     | '/seller/products'
+    | '/seller/profile'
     | '/warehouse/orders'
+    | '/category/$categorySlug/subcategory/$subcategorySlug'
   id:
     | '__root__'
     | '/'
+    | '/admin'
+    | '/bootstrap'
+    | '/courier'
     | '/order-success'
+    | '/search'
+    | '/seller'
     | '/sitemap.xml'
+    | '/warehouse'
+    | '/workspace'
+    | '/category/$slug'
+    | '/checkout/quick-buy'
     | '/orders/$id'
     | '/product/$handle'
     | '/profile/addresses'
+    | '/admin/'
     | '/orders/'
+    | '/admin/couriers/$id'
     | '/admin/orders/$id'
     | '/courier/orders/$id'
     | '/seller/products/$id'
     | '/warehouse/orders/$id'
+    | '/admin/ai/'
+    | '/admin/analytics/'
+    | '/admin/automation/'
+    | '/admin/catalog/'
+    | '/admin/couriers/'
+    | '/admin/dashboard/'
+    | '/admin/delivery/'
+    | '/admin/design/'
+    | '/admin/finance/'
+    | '/admin/integrations/'
+    | '/admin/logs/'
+    | '/admin/marketing/'
     | '/admin/orders/'
+    | '/admin/permissions/'
+    | '/admin/security/'
+    | '/admin/sellers/'
+    | '/admin/settings/'
+    | '/admin/suppliers/'
+    | '/admin/users/'
+    | '/admin/warehouse/'
     | '/courier/orders/'
     | '/seller/products/'
+    | '/seller/profile/'
     | '/warehouse/orders/'
+    | '/category/$categorySlug/subcategory/$subcategorySlug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
+  BootstrapRoute: typeof BootstrapRoute
+  CourierRoute: typeof CourierRouteWithChildren
   OrderSuccessRoute: typeof OrderSuccessRoute
+  SearchRoute: typeof SearchRoute
+  SellerRoute: typeof SellerRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  WarehouseRoute: typeof WarehouseRouteWithChildren
+  WorkspaceRoute: typeof WorkspaceRoute
+  CategorySlugRoute: typeof CategorySlugRoute
+  CheckoutQuickBuyRoute: typeof CheckoutQuickBuyRoute
   OrdersIdRoute: typeof OrdersIdRoute
   ProductHandleRoute: typeof ProductHandleRoute
   ProfileAddressesRoute: typeof ProfileAddressesRoute
   OrdersIndexRoute: typeof OrdersIndexRoute
-  AdminOrdersIdRoute: typeof AdminOrdersIdRoute
-  CourierOrdersIdRoute: typeof CourierOrdersIdRoute
-  SellerProductsIdRoute: typeof SellerProductsIdRoute
-  WarehouseOrdersIdRoute: typeof WarehouseOrdersIdRoute
-  AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute
-  CourierOrdersIndexRoute: typeof CourierOrdersIndexRoute
-  SellerProductsIndexRoute: typeof SellerProductsIndexRoute
-  WarehouseOrdersIndexRoute: typeof WarehouseOrdersIndexRoute
+  CategoryCategorySlugSubcategorySubcategorySlugRoute: typeof CategoryCategorySlugSubcategorySubcategorySlugRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/workspace': {
+      id: '/workspace'
+      path: '/workspace'
+      fullPath: '/workspace'
+      preLoaderRoute: typeof WorkspaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/warehouse': {
+      id: '/warehouse'
+      path: '/warehouse'
+      fullPath: '/warehouse'
+      preLoaderRoute: typeof WarehouseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -234,11 +633,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/seller': {
+      id: '/seller'
+      path: '/seller'
+      fullPath: '/seller'
+      preLoaderRoute: typeof SellerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/order-success': {
       id: '/order-success'
       path: '/order-success'
       fullPath: '/order-success'
       preLoaderRoute: typeof OrderSuccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/courier': {
+      id: '/courier'
+      path: '/courier'
+      fullPath: '/courier'
+      preLoaderRoute: typeof CourierRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bootstrap': {
+      id: '/bootstrap'
+      path: '/bootstrap'
+      fullPath: '/bootstrap'
+      preLoaderRoute: typeof BootstrapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -254,6 +688,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/orders/'
       preLoaderRoute: typeof OrdersIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/profile/addresses': {
       id: '/profile/addresses'
@@ -276,81 +717,348 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrdersIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/checkout/quick-buy': {
+      id: '/checkout/quick-buy'
+      path: '/checkout/quick-buy'
+      fullPath: '/checkout/quick-buy'
+      preLoaderRoute: typeof CheckoutQuickBuyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/category/$slug': {
+      id: '/category/$slug'
+      path: '/category/$slug'
+      fullPath: '/category/$slug'
+      preLoaderRoute: typeof CategorySlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/warehouse/orders/': {
       id: '/warehouse/orders/'
-      path: '/warehouse/orders'
+      path: '/orders'
       fullPath: '/warehouse/orders/'
       preLoaderRoute: typeof WarehouseOrdersIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof WarehouseRoute
+    }
+    '/seller/profile/': {
+      id: '/seller/profile/'
+      path: '/profile'
+      fullPath: '/seller/profile/'
+      preLoaderRoute: typeof SellerProfileIndexRouteImport
+      parentRoute: typeof SellerRoute
     }
     '/seller/products/': {
       id: '/seller/products/'
-      path: '/seller/products'
+      path: '/products'
       fullPath: '/seller/products/'
       preLoaderRoute: typeof SellerProductsIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SellerRoute
     }
     '/courier/orders/': {
       id: '/courier/orders/'
-      path: '/courier/orders'
+      path: '/orders'
       fullPath: '/courier/orders/'
       preLoaderRoute: typeof CourierOrdersIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof CourierRoute
+    }
+    '/admin/warehouse/': {
+      id: '/admin/warehouse/'
+      path: '/warehouse'
+      fullPath: '/admin/warehouse/'
+      preLoaderRoute: typeof AdminWarehouseIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users/': {
+      id: '/admin/users/'
+      path: '/users'
+      fullPath: '/admin/users/'
+      preLoaderRoute: typeof AdminUsersIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/suppliers/': {
+      id: '/admin/suppliers/'
+      path: '/suppliers'
+      fullPath: '/admin/suppliers/'
+      preLoaderRoute: typeof AdminSuppliersIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/settings/': {
+      id: '/admin/settings/'
+      path: '/settings'
+      fullPath: '/admin/settings/'
+      preLoaderRoute: typeof AdminSettingsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/sellers/': {
+      id: '/admin/sellers/'
+      path: '/sellers'
+      fullPath: '/admin/sellers/'
+      preLoaderRoute: typeof AdminSellersIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/security/': {
+      id: '/admin/security/'
+      path: '/security'
+      fullPath: '/admin/security/'
+      preLoaderRoute: typeof AdminSecurityIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/permissions/': {
+      id: '/admin/permissions/'
+      path: '/permissions'
+      fullPath: '/admin/permissions/'
+      preLoaderRoute: typeof AdminPermissionsIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/orders/': {
       id: '/admin/orders/'
-      path: '/admin/orders'
+      path: '/orders'
       fullPath: '/admin/orders/'
       preLoaderRoute: typeof AdminOrdersIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/marketing/': {
+      id: '/admin/marketing/'
+      path: '/marketing'
+      fullPath: '/admin/marketing/'
+      preLoaderRoute: typeof AdminMarketingIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/logs/': {
+      id: '/admin/logs/'
+      path: '/logs'
+      fullPath: '/admin/logs/'
+      preLoaderRoute: typeof AdminLogsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/integrations/': {
+      id: '/admin/integrations/'
+      path: '/integrations'
+      fullPath: '/admin/integrations/'
+      preLoaderRoute: typeof AdminIntegrationsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/finance/': {
+      id: '/admin/finance/'
+      path: '/finance'
+      fullPath: '/admin/finance/'
+      preLoaderRoute: typeof AdminFinanceIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/design/': {
+      id: '/admin/design/'
+      path: '/design'
+      fullPath: '/admin/design/'
+      preLoaderRoute: typeof AdminDesignIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/delivery/': {
+      id: '/admin/delivery/'
+      path: '/delivery'
+      fullPath: '/admin/delivery/'
+      preLoaderRoute: typeof AdminDeliveryIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/dashboard/': {
+      id: '/admin/dashboard/'
+      path: '/dashboard'
+      fullPath: '/admin/dashboard/'
+      preLoaderRoute: typeof AdminDashboardIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/couriers/': {
+      id: '/admin/couriers/'
+      path: '/couriers'
+      fullPath: '/admin/couriers/'
+      preLoaderRoute: typeof AdminCouriersIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/catalog/': {
+      id: '/admin/catalog/'
+      path: '/catalog'
+      fullPath: '/admin/catalog/'
+      preLoaderRoute: typeof AdminCatalogIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/automation/': {
+      id: '/admin/automation/'
+      path: '/automation'
+      fullPath: '/admin/automation/'
+      preLoaderRoute: typeof AdminAutomationIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/analytics/': {
+      id: '/admin/analytics/'
+      path: '/analytics'
+      fullPath: '/admin/analytics/'
+      preLoaderRoute: typeof AdminAnalyticsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/ai/': {
+      id: '/admin/ai/'
+      path: '/ai'
+      fullPath: '/admin/ai/'
+      preLoaderRoute: typeof AdminAiIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/warehouse/orders/$id': {
       id: '/warehouse/orders/$id'
-      path: '/warehouse/orders/$id'
+      path: '/orders/$id'
       fullPath: '/warehouse/orders/$id'
       preLoaderRoute: typeof WarehouseOrdersIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof WarehouseRoute
     }
     '/seller/products/$id': {
       id: '/seller/products/$id'
-      path: '/seller/products/$id'
+      path: '/products/$id'
       fullPath: '/seller/products/$id'
       preLoaderRoute: typeof SellerProductsIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SellerRoute
     }
     '/courier/orders/$id': {
       id: '/courier/orders/$id'
-      path: '/courier/orders/$id'
+      path: '/orders/$id'
       fullPath: '/courier/orders/$id'
       preLoaderRoute: typeof CourierOrdersIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof CourierRoute
     }
     '/admin/orders/$id': {
       id: '/admin/orders/$id'
-      path: '/admin/orders/$id'
+      path: '/orders/$id'
       fullPath: '/admin/orders/$id'
       preLoaderRoute: typeof AdminOrdersIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/couriers/$id': {
+      id: '/admin/couriers/$id'
+      path: '/couriers/$id'
+      fullPath: '/admin/couriers/$id'
+      preLoaderRoute: typeof AdminCouriersIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/category/$categorySlug/subcategory/$subcategorySlug': {
+      id: '/category/$categorySlug/subcategory/$subcategorySlug'
+      path: '/category/$categorySlug/subcategory/$subcategorySlug'
+      fullPath: '/category/$categorySlug/subcategory/$subcategorySlug'
+      preLoaderRoute: typeof CategoryCategorySlugSubcategorySubcategorySlugRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
 }
 
+interface AdminRouteChildren {
+  AdminIndexRoute: typeof AdminIndexRoute
+  AdminCouriersIdRoute: typeof AdminCouriersIdRoute
+  AdminOrdersIdRoute: typeof AdminOrdersIdRoute
+  AdminAiIndexRoute: typeof AdminAiIndexRoute
+  AdminAnalyticsIndexRoute: typeof AdminAnalyticsIndexRoute
+  AdminAutomationIndexRoute: typeof AdminAutomationIndexRoute
+  AdminCatalogIndexRoute: typeof AdminCatalogIndexRoute
+  AdminCouriersIndexRoute: typeof AdminCouriersIndexRoute
+  AdminDashboardIndexRoute: typeof AdminDashboardIndexRoute
+  AdminDeliveryIndexRoute: typeof AdminDeliveryIndexRoute
+  AdminDesignIndexRoute: typeof AdminDesignIndexRoute
+  AdminFinanceIndexRoute: typeof AdminFinanceIndexRoute
+  AdminIntegrationsIndexRoute: typeof AdminIntegrationsIndexRoute
+  AdminLogsIndexRoute: typeof AdminLogsIndexRoute
+  AdminMarketingIndexRoute: typeof AdminMarketingIndexRoute
+  AdminOrdersIndexRoute: typeof AdminOrdersIndexRoute
+  AdminPermissionsIndexRoute: typeof AdminPermissionsIndexRoute
+  AdminSecurityIndexRoute: typeof AdminSecurityIndexRoute
+  AdminSellersIndexRoute: typeof AdminSellersIndexRoute
+  AdminSettingsIndexRoute: typeof AdminSettingsIndexRoute
+  AdminSuppliersIndexRoute: typeof AdminSuppliersIndexRoute
+  AdminUsersIndexRoute: typeof AdminUsersIndexRoute
+  AdminWarehouseIndexRoute: typeof AdminWarehouseIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminIndexRoute: AdminIndexRoute,
+  AdminCouriersIdRoute: AdminCouriersIdRoute,
+  AdminOrdersIdRoute: AdminOrdersIdRoute,
+  AdminAiIndexRoute: AdminAiIndexRoute,
+  AdminAnalyticsIndexRoute: AdminAnalyticsIndexRoute,
+  AdminAutomationIndexRoute: AdminAutomationIndexRoute,
+  AdminCatalogIndexRoute: AdminCatalogIndexRoute,
+  AdminCouriersIndexRoute: AdminCouriersIndexRoute,
+  AdminDashboardIndexRoute: AdminDashboardIndexRoute,
+  AdminDeliveryIndexRoute: AdminDeliveryIndexRoute,
+  AdminDesignIndexRoute: AdminDesignIndexRoute,
+  AdminFinanceIndexRoute: AdminFinanceIndexRoute,
+  AdminIntegrationsIndexRoute: AdminIntegrationsIndexRoute,
+  AdminLogsIndexRoute: AdminLogsIndexRoute,
+  AdminMarketingIndexRoute: AdminMarketingIndexRoute,
+  AdminOrdersIndexRoute: AdminOrdersIndexRoute,
+  AdminPermissionsIndexRoute: AdminPermissionsIndexRoute,
+  AdminSecurityIndexRoute: AdminSecurityIndexRoute,
+  AdminSellersIndexRoute: AdminSellersIndexRoute,
+  AdminSettingsIndexRoute: AdminSettingsIndexRoute,
+  AdminSuppliersIndexRoute: AdminSuppliersIndexRoute,
+  AdminUsersIndexRoute: AdminUsersIndexRoute,
+  AdminWarehouseIndexRoute: AdminWarehouseIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
+interface CourierRouteChildren {
+  CourierOrdersIdRoute: typeof CourierOrdersIdRoute
+  CourierOrdersIndexRoute: typeof CourierOrdersIndexRoute
+}
+
+const CourierRouteChildren: CourierRouteChildren = {
+  CourierOrdersIdRoute: CourierOrdersIdRoute,
+  CourierOrdersIndexRoute: CourierOrdersIndexRoute,
+}
+
+const CourierRouteWithChildren =
+  CourierRoute._addFileChildren(CourierRouteChildren)
+
+interface SellerRouteChildren {
+  SellerProductsIdRoute: typeof SellerProductsIdRoute
+  SellerProductsIndexRoute: typeof SellerProductsIndexRoute
+  SellerProfileIndexRoute: typeof SellerProfileIndexRoute
+}
+
+const SellerRouteChildren: SellerRouteChildren = {
+  SellerProductsIdRoute: SellerProductsIdRoute,
+  SellerProductsIndexRoute: SellerProductsIndexRoute,
+  SellerProfileIndexRoute: SellerProfileIndexRoute,
+}
+
+const SellerRouteWithChildren =
+  SellerRoute._addFileChildren(SellerRouteChildren)
+
+interface WarehouseRouteChildren {
+  WarehouseOrdersIdRoute: typeof WarehouseOrdersIdRoute
+  WarehouseOrdersIndexRoute: typeof WarehouseOrdersIndexRoute
+}
+
+const WarehouseRouteChildren: WarehouseRouteChildren = {
+  WarehouseOrdersIdRoute: WarehouseOrdersIdRoute,
+  WarehouseOrdersIndexRoute: WarehouseOrdersIndexRoute,
+}
+
+const WarehouseRouteWithChildren = WarehouseRoute._addFileChildren(
+  WarehouseRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
+  BootstrapRoute: BootstrapRoute,
+  CourierRoute: CourierRouteWithChildren,
   OrderSuccessRoute: OrderSuccessRoute,
+  SearchRoute: SearchRoute,
+  SellerRoute: SellerRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  WarehouseRoute: WarehouseRouteWithChildren,
+  WorkspaceRoute: WorkspaceRoute,
+  CategorySlugRoute: CategorySlugRoute,
+  CheckoutQuickBuyRoute: CheckoutQuickBuyRoute,
   OrdersIdRoute: OrdersIdRoute,
   ProductHandleRoute: ProductHandleRoute,
   ProfileAddressesRoute: ProfileAddressesRoute,
   OrdersIndexRoute: OrdersIndexRoute,
-  AdminOrdersIdRoute: AdminOrdersIdRoute,
-  CourierOrdersIdRoute: CourierOrdersIdRoute,
-  SellerProductsIdRoute: SellerProductsIdRoute,
-  WarehouseOrdersIdRoute: WarehouseOrdersIdRoute,
-  AdminOrdersIndexRoute: AdminOrdersIndexRoute,
-  CourierOrdersIndexRoute: CourierOrdersIndexRoute,
-  SellerProductsIndexRoute: SellerProductsIndexRoute,
-  WarehouseOrdersIndexRoute: WarehouseOrdersIndexRoute,
+  CategoryCategorySlugSubcategorySubcategorySlugRoute:
+    CategoryCategorySlugSubcategorySubcategorySlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

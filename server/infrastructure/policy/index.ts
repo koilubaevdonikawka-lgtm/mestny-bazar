@@ -1,1 +1,0 @@
-export { activatePolicyPlatform } from "./bootstrap";

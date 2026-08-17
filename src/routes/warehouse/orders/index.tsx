@@ -1,40 +1,34 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { listWarehouseOrders } from "@/api/warehouse";
-import { lovable } from "@/integrations/lovable";
-import { supabase } from "@/integrations/supabase/client";
+import { signInWithGoogle } from "@/lib/auth";
+import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import {
   formatMoney,
   formatOrderDate,
   formatOrderStatus,
   formatPaymentStatus,
-} from "@/lib/order-display";
+} from "@shared/lib/order-display";
 import { OrderStatus } from "@shared/contracts/order";
-import { Loader2, LogIn, Package, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Loader2, LogIn, Package, ShieldAlert } from "lucide-react";
 
 export const Route = createFileRoute("/warehouse/orders/")({
   component: WarehouseOrdersPage,
 });
 
 function WarehouseOrdersPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const { isAuthenticated } = useSupabaseSession();
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setIsAuthenticated(!!data.session?.user);
-    });
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session?.user);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const { data: orders = [], isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: orders = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["warehouse", "orders", "list"],
     queryFn: listWarehouseOrders,
     enabled: isAuthenticated === true,
@@ -42,24 +36,22 @@ function WarehouseOrdersPage() {
   });
 
   const handleSignIn = async () => {
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/warehouse/orders",
-    });
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="flex justify-center py-24">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="max-w-md mx-auto text-center py-24">
           <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
             <LogIn className="h-6 w-6 text-primary" />
@@ -70,17 +62,17 @@ function WarehouseOrdersPage() {
             Войти
           </Button>
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
   if (isLoading) {
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="flex justify-center py-24">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
@@ -93,19 +85,25 @@ function WarehouseOrdersPage() {
       message.toLowerCase().includes("authentication") || message.includes("Unauthorized");
 
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="max-w-md mx-auto text-center py-24">
           {isForbidden ? (
             <>
               <ShieldAlert className="h-10 w-10 text-primary mx-auto mb-4" />
               <h1 className="font-serif text-3xl tracking-tight">Доступ запрещён</h1>
-              <p className="mt-3 text-muted-foreground">Эта страница доступна только сотрудникам склада.</p>
+              <p className="mt-3 text-muted-foreground">
+                Эта страница доступна только сотрудникам склада.
+              </p>
             </>
           ) : (
             <>
               <p className="text-muted-foreground">{message}</p>
               {isAuthError ? (
-                <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
+                <Button
+                  size="lg"
+                  className="mt-6 h-12 rounded-full"
+                  onClick={() => void handleSignIn()}
+                >
                   Войти снова
                 </Button>
               ) : (
@@ -116,7 +114,7 @@ function WarehouseOrdersPage() {
             </>
           )}
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
@@ -126,8 +124,15 @@ function WarehouseOrdersPage() {
   const inAssembly = orders.filter((order) => order.status === OrderStatus.ASSEMBLING);
 
   return (
-    <PageShell>
+    <AdminLayout>
       <div className="mx-auto max-w-3xl px-6 py-12">
+        <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
+          <Link to="/admin">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Административная платформа
+          </Link>
+        </Button>
+
         <h1 className="font-serif text-4xl tracking-tight">Сборка заказов</h1>
         <p className="mt-2 text-muted-foreground">
           Ожидают сборки: {pendingAssembly.length} · В работе: {inAssembly.length}
@@ -165,8 +170,7 @@ function WarehouseOrdersPage() {
                     {formatMoney(order.total, order.currency)}
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {order.items.length}{" "}
-                    {order.items.length === 1 ? "товар" : "товаров"}
+                    {order.items.length} {order.items.length === 1 ? "товар" : "товаров"}
                   </p>
                 </Link>
               </li>
@@ -174,16 +178,6 @@ function WarehouseOrdersPage() {
           </ul>
         )}
       </div>
-    </PageShell>
-  );
-}
-
-function PageShell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen flex flex-col">
-      <SiteHeader />
-      <main className="flex-1">{children}</main>
-      <SiteFooter />
-    </div>
+    </AdminLayout>
   );
 }

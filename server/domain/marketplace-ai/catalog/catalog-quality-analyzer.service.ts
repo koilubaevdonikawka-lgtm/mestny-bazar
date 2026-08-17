@@ -20,7 +20,10 @@ const MIN_DESCRIPTION_LENGTH = 20;
 
 /** Rule-based catalog analyzer — recommendations only, no publication decisions. */
 export class CatalogQualityAnalyzerService implements ICatalogQualityAnalyzer {
-  analyze(input: { productId: string | null; product: CatalogProductInput }): CatalogAnalysisResult {
+  analyze(input: {
+    productId: string | null;
+    product: CatalogProductInput;
+  }): CatalogAnalysisResult {
     const { productId, product } = input;
     const nameAnalysis = this.analyzeName(product.name);
     const descriptionAnalysis = this.analyzeDescription(product.description ?? null);
@@ -30,7 +33,8 @@ export class CatalogQualityAnalyzerService implements ICatalogQualityAnalyzer {
     const categoryAssigned = Boolean(product.categoryId?.trim());
     const matchesSuggestion =
       !recommendations.suggestedCategory ||
-      recommendations.suggestedCategory.categorySlug === this.inferAssignedCategorySlug(product.categoryId);
+      recommendations.suggestedCategory.categorySlug ===
+        this.inferAssignedCategorySlug(product.categoryId);
 
     const checks = {
       name: { passed: nameAnalysis.issues.length === 0, issues: nameAnalysis.issues },

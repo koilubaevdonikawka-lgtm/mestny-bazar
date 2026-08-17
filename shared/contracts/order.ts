@@ -20,6 +20,8 @@ export type PaymentMethod = "ONLINE" | "CASH";
 export interface OrderItemDTO {
   id: string;
   productId: string | null;
+  /** Stage 17 — which product_variants row this line was ordered as, if any. Not yet validated/resolved anywhere (no variant-aware pricing/stock check exists yet); a plain persisted identifier for a future stage to build on. */
+  variantId: string | null;
   productName: string;
   productImageUrl: string | null;
   quantity: number;
@@ -35,6 +37,13 @@ export interface OrderDTO {
   paymentMethod: PaymentMethod;
   subtotal: number;
   deliveryFee: number;
+  /** Snapshotted at checkout (docs/delivery/) — Courier Platform reads these without re-deriving. */
+  zoneId: string | null;
+  deliveryTariffId: string | null;
+  deliveryEtaMinMinutes: number | null;
+  deliveryEtaMaxMinutes: number | null;
+  discountAmount: number;
+  couponCode: string | null;
   total: number;
   currency: string;
   customerName: string;
@@ -45,14 +54,24 @@ export interface OrderDTO {
   items: OrderItemDTO[];
   createdAt: string;
   paidAt: string | null;
+  /** Persistent courier assignment (couriers.md §"Обнаруженный пробел") — null until auto-assigned. */
+  assignedCourierId: string | null;
 }
 
 export interface CreateOrderItemRequest {
   quantity: number;
   /** Platform product UUID. */
   productId?: string;
-  /** Shopify handle / platform slug during catalog migration. */
+  /** Product's platform slug. */
   productSlug?: string;
+  /**
+   * Stage 17 — optional product_variants UUID. Persisted as-is on the order
+   * line (order_items.variant_id) once the item resolves; not validated
+   * against the resolved product or checked for stock here — no variant-
+   * aware pricing/reservation exists yet (a future stage's job, using the
+   * already-built ProductVariantService/VariantStockService).
+   */
+  variantId?: string;
   /** Used to provision a platform product when slug is not in DB yet. */
   snapshot?: {
     name: string;
@@ -72,9 +91,24 @@ export interface CreateOrderRequest {
   paymentMethod: PaymentMethod;
   notes?: string;
   idempotencyKey: string;
+  /** marketing.md — validated and applied server-side by DiscountPolicyService; never trusted as-is. */
+  couponCode?: string;
 }
 
 export interface CreateOrderResponse {
   order: OrderDTO;
   paymentUrl: string | null;
+}
+
+export interface OrderListParams {
+  page?: number;
+  pageSize?: number;
+}
+
+export interface OrderListResult {
+  items: OrderDTO[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
 }

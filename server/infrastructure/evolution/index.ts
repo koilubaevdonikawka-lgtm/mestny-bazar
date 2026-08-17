@@ -1,1 +1,0 @@
-export { activateEvolutionPlatform } from "./bootstrap";

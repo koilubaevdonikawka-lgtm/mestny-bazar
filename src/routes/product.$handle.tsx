@@ -1,87 +1,185 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { z } from "zod";
+import { ChevronLeft, ChevronRight, LayoutDashboard, Loader2, Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Plus } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { fetchCatalogProduct } from "@/lib/catalog";
+import { listProducts } from "@/api/catalog";
 import { useCartStore } from "@/stores/cartStore";
-import {
-  STOREFRONT_PRODUCT_BY_HANDLE_QUERY,
-  storefrontApiRequest,
-} from "@/lib/shopify";
+import { BRAND } from "@/config/brand";
+import { useTranslation } from "@/i18n/LanguageProvider";
+import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
+import { PLATFORM_VARIANT_PREFIX } from "@shared/lib/product-adapter";
 
-interface ProductNode {
-  id: string;
-  title: string;
-  description: string;
-  handle: string;
-  priceRange: { minVariantPrice: { amount: string; currencyCode: string } };
-  images: { edges: Array<{ node: { url: string; altText: string | null } }> };
-  variants: {
-    edges: Array<{
-      node: {
-        id: string;
-        title: string;
-        price: { amount: string; currencyCode: string };
-        availableForSale: boolean;
-        selectedOptions: Array<{ name: string; value: string }>;
-      };
-    }>;
-  };
-  options: Array<{ name: string; values: string[] }>;
+/** Same "candidate cap" idiom as product.repository.ts's POPULARITY_CANDIDATE_CAP
+ * — large enough to cover any real category for prev/next ordering, without
+ * being an actual paginated fetch. */
+const SIBLING_PRODUCTS_LIMIT = 200;
+
+/** `from=admin` — set only by the admin catalog's own "view on storefront"
+ * link (Этап №3); everywhere else this is simply absent, so the "return to
+ * admin panel" button only ever renders when it's genuinely reachable. */
+const productSearchSchema = z.object({
+  from: z.enum(["admin"]).optional(),
+});
+
+function ProductErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <div className="min-h-screen flex items-center justify-center p-6 text-center">
+      <div>
+        <h2 className="font-serif text-2xl">{t("product.loadErrorTitle")}</h2>
+        <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
+        <Button onClick={reset} size="lg" className="mt-6 h-12 rounded-full px-8">
+          {t("common.retry")}
+        </Button>
+      </div>
+    </div>
+  );
 }
 
-async function fetchProduct(handle: string): Promise<ProductNode | null> {
-  const data = await storefrontApiRequest(STOREFRONT_PRODUCT_BY_HANDLE_QUERY, { handle });
-  return data?.data?.product ?? null;
+function ProductNotFoundComponent() {
+  const { t } = useTranslation();
+  return (
+    <div className="min-h-screen flex items-center justify-center p-6 text-center">
+      <div>
+        <h2 className="font-serif text-3xl">{t("product.notFoundTitle")}</h2>
+        <Button asChild size="lg" className="mt-6 h-12 rounded-full px-8">
+          <Link to="/">{t("common.home")}</Link>
+        </Button>
+      </div>
+    </div>
+  );
 }
+
+/** Shared between the loader (SSR prefetch) and the component's own
+ * useQuery, so both hit the exact same cache entry — no duplicate fetch. */
+const productQueryKey = (handle: string) => ["product", handle] as const;
 
 export const Route = createFileRoute("/product/$handle")({
   component: ProductPage,
-  head: ({ params }) => ({
-    meta: [
-      { title: `${params.handle} — Свежий Двор` },
-      { name: "description", content: `Купить ${params.handle} с доставкой в Свежем Дворе.` },
-    ],
-  }),
-  errorComponent: ({ error, reset }) => (
-    <div className="min-h-screen flex items-center justify-center p-6 text-center">
-      <div>
-        <h2 className="font-serif text-2xl">Не удалось загрузить продукт</h2>
-        <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
-        <Button onClick={reset} className="mt-6">Повторить</Button>
-      </div>
-    </div>
-  ),
-  notFoundComponent: () => (
-    <div className="min-h-screen flex items-center justify-center p-6 text-center">
-      <div>
-        <h2 className="font-serif text-3xl">Продукт не найден</h2>
-        <Button asChild className="mt-6"><Link to="/">На главную</Link></Button>
-      </div>
-    </div>
-  ),
+  validateSearch: productSearchSchema,
+  loader: async ({ params, context }) => {
+    const product = await context.queryClient.ensureQueryData({
+      queryKey: productQueryKey(params.handle),
+      queryFn: () => fetchCatalogProduct(params.handle),
+    });
+    return { product };
+  },
+  head: ({ params, loaderData }) => {
+    const product = loaderData?.product;
+    const title = product ? `${product.title} — ${BRAND.name}` : `${params.handle} — ${BRAND.name}`;
+    const description = product?.description?.trim() || BRAND.description;
+    const image = product?.images.edges[0]?.node.url || BRAND.ogImage;
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:image", content: image },
+      ],
+    };
+  },
+  errorComponent: ProductErrorComponent,
+  notFoundComponent: ProductNotFoundComponent,
 });
 
 function ProductPage() {
   const { handle } = Route.useParams();
-  const addItem = useCartStore((s) => s.addItem);
-  const isLoading = useCartStore((s) => s.isLoading);
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const { t, language } = useTranslation();
+  const [selectedImage, setSelectedImage] = useState(0);
+  const touchStartX = useRef<number | null>(null);
 
-  const { data: product, isLoading: loading } = useQuery({
-    queryKey: ["product", handle],
-    queryFn: async () => {
-      const p = await fetchProduct(handle);
-      if (!p) throw notFound();
-      return p;
-    },
+  // Часть 3 задачи "СТРАНИЦА ТОВАРА" — количество, выбираемое ДО добавления
+  // в корзину/покупки, независимо от того, что уже лежит в корзине (в
+  // отличие от прежнего CartQuantityControl, где "количество" — это и есть
+  // количество в корзине). Сбрасывается в 1 при переходе на другой товар
+  // (соседний по свайпу/похожий) — иначе выбранное количество одного товара
+  // молча перенеслось бы на совсем другой.
+  const [quantity, setQuantity] = useState(1);
+  useEffect(() => {
+    setQuantity(1);
+  }, [handle]);
+
+  const {
+    data: product,
+    isLoading: loading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: productQueryKey(handle),
+    queryFn: () => fetchCatalogProduct(handle),
+    retry: false,
   });
+
+  const categorySlug = product?.category?.slug;
+  // node.id is PLATFORM_VARIANT_PREFIX + the real product id (see
+  // toCatalogProductNode) — recovered here rather than adding a second,
+  // redundant raw-id field to the shared node shape.
+  const rawProductId = product ? product.id.slice(PLATFORM_VARIANT_PREFIX.length) : undefined;
+
+  // Этап №3 — quick prev/next navigation within the current category.
+  // Same category ordering as the category page's own default ("newest"),
+  // current product included (unlike a facet query) so its index can be
+  // located.
+  const { data: siblingResult } = useQuery({
+    queryKey: ["category-products-order", categorySlug],
+    queryFn: () => listProducts({ categorySlug, pageSize: SIBLING_PRODUCTS_LIMIT }),
+    enabled: !!categorySlug,
+  });
+  const siblingProducts = siblingResult?.items ?? [];
+  const siblingIndex = siblingProducts.findIndex((p) => p.id === rawProductId);
+  const prevSibling = siblingIndex > 0 ? siblingProducts[siblingIndex - 1] : undefined;
+  const nextSibling =
+    siblingIndex >= 0 && siblingIndex < siblingProducts.length - 1
+      ? siblingProducts[siblingIndex + 1]
+      : undefined;
+
+  // Preserves `from=admin` across prev/next so an admin browsing several
+  // products in a row via swipe keeps the "return to admin panel" button,
+  // instead of it disappearing after the first swipe.
+  const goToSibling = (slug: string) => {
+    void navigate({ to: "/product/$handle", params: { handle: slug }, search });
+  };
+
+  const SWIPE_THRESHOLD_PX = 50;
+  const handleImageTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0]?.clientX ?? null;
+  };
+  const handleImageTouchEnd = (e: React.TouchEvent) => {
+    const startX = touchStartX.current;
+    touchStartX.current = null;
+    if (startX === null) return;
+    const deltaX = (e.changedTouches[0]?.clientX ?? startX) - startX;
+    if (deltaX <= -SWIPE_THRESHOLD_PX && nextSibling) {
+      goToSibling(nextSibling.slug);
+    } else if (deltaX >= SWIPE_THRESHOLD_PX && prevSibling) {
+      goToSibling(prevSibling.slug);
+    }
+  };
+
+  // Called unconditionally (rules of hooks) — falls back to empty strings
+  // before the product has loaded; useTranslatedTexts filters those out.
+  const translations = useTranslatedTexts(
+    [product?.title ?? "", product?.description ?? ""],
+    language,
+  );
+
+  const addItem = useCartStore((s) => s.addItem);
+  const cartLoading = useCartStore((s) => s.isLoading);
 
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
-        <SiteHeader />
+        <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -89,61 +187,316 @@ function ProductPage() {
     );
   }
 
-  if (!product) return null;
+  if (isError) {
+    const message = error instanceof Error ? error.message : t("product.loadErrorTitle");
+    return (
+      <div className="min-h-screen flex flex-col">
+        <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
+        <div className="flex-1 flex items-center justify-center p-6 text-center">
+          <div>
+            <h2 className="font-serif text-2xl">{t("product.loadErrorTitle")}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+            <Button asChild size="lg" className="mt-6 h-12 rounded-full px-8">
+              <Link to="/">{t("common.home")}</Link>
+            </Button>
+          </div>
+        </div>
+        <SiteFooter />
+      </div>
+    );
+  }
 
-  const variant = product.variants.edges[0]?.node;
-  const image = product.images.edges[0]?.node;
+  // Throwing here (during render) is what actually engages the route's
+  // notFoundComponent — throwing notFound() inside queryFn above did not:
+  // React Query catches all queryFn errors internally into `error` and never
+  // rethrows them, so that throw was silently swallowed and this page
+  // rendered blank for every missing (or failed) product.
+  if (!product) {
+    throw notFound();
+  }
+
+  const images = product.images.edges;
+  const activeImage = images[selectedImage] ?? images[0];
   const price = product.priceRange.minVariantPrice;
+  const variant = product.variants.edges[0]?.node;
+  const maxQuantity = product.inStock ? Math.max(1, product.stock) : 1;
+  const canPurchase = product.inStock && !!variant;
 
-  const handleAdd = async () => {
+  const displayTitle = translations[product.title] ?? product.title;
+  const displayDescription = product.description
+    ? (translations[product.description] ?? product.description)
+    : null;
+
+  const decreaseQuantity = () => setQuantity((q) => Math.max(1, q - 1));
+  const increaseQuantity = () => setQuantity((q) => Math.min(maxQuantity, q + 1));
+
+  const handleAddToCart = async () => {
     if (!variant) return;
-    await addItem({
+    const added = await addItem({
       product: { node: product },
       variantId: variant.id,
       variantTitle: variant.title,
       price: variant.price,
-      quantity: 1,
+      quantity,
       selectedOptions: variant.selectedOptions || [],
     });
-    toast.success("Добавлено в корзину", { description: product.title, position: "top-center" });
+    if (added) {
+      toast.success(t("product.addedToCartToast"), {
+        description: displayTitle,
+        position: "top-center",
+      });
+    }
   };
+
+  // Часть 6 задачи — «Купить в один клик» больше не создаёт заказ прямо
+  // здесь: ведёт на отдельную страницу оплаты (/checkout/quick-buy) с двумя
+  // вариантами (онлайн/наличные), передав товар и количество через search
+  // params. Сама отправка заказа (useCreateOrder) теперь живёт там.
+  const handleBuyNow = () => {
+    if (!variant) return;
+    void navigate({
+      to: "/checkout/quick-buy",
+      search: { productSlug: product.handle, quantity },
+    });
+  };
+
+  // Часть 3/4 задачи — общий блок [-] количество [+] и две кнопки покупки,
+  // используется и в основной колонке (десктоп), и в закреплённой нижней
+  // панели (мобильный) — одна и та же логика/состояние, не дублируется.
+  const purchaseControls = (
+    <div className="space-y-3">
+      <div className="flex h-11 w-fit items-center gap-1 rounded-full bg-secondary">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-11 w-11 shrink-0 rounded-full"
+          onClick={decreaseQuantity}
+          disabled={quantity <= 1 || !canPurchase}
+          aria-label={t("product.decreaseQuantity")}
+        >
+          <Minus className="h-4 w-4" />
+        </Button>
+        <span
+          className="min-w-[2rem] flex-1 text-center text-base font-medium tabular-nums"
+          aria-live="polite"
+        >
+          {quantity}
+        </span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-11 w-11 shrink-0 rounded-full"
+          onClick={increaseQuantity}
+          disabled={quantity >= maxQuantity || !canPurchase}
+          aria-label={t("product.increaseQuantity")}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Button
+          type="button"
+          onClick={handleBuyNow}
+          disabled={!canPurchase}
+          className="h-12 rounded-full text-sm font-semibold shadow-md"
+        >
+          {t("product.buyNowButton")}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => void handleAddToCart()}
+          disabled={!canPurchase || cartLoading}
+          className="h-12 rounded-full text-sm font-semibold"
+        >
+          {cartLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            t("product.addToCartShortButton")
+          )}
+        </Button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader />
-      <main className="flex-1 mx-auto max-w-6xl px-6 py-12 w-full">
-        <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8">
-          <ArrowLeft className="h-4 w-4" /> Назад в каталог
-        </Link>
-        <div className="grid gap-12 md:grid-cols-2">
-          <div className="aspect-square rounded-[2rem] overflow-hidden bg-secondary">
-            {image ? (
-              <img src={image.url} alt={image.altText || product.title} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-muted-foreground">Нет фото</div>
+      <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
+      {/* Этап №3 — mobile-first rework: tight top nav row, image with
+          overlaid prev/next + swipe (zero extra vertical space), compact
+          info block, sticky one-handed add-to-cart bar on mobile only.
+          Desktop (`lg:`) keeps its previous, more spacious layout. */}
+      <main className="flex-1 mx-auto max-w-6xl w-full px-4 pt-3 pb-36 sm:px-6 lg:pt-12 lg:pb-12">
+        {/* Отдельная кнопка "Назад к категориям" под шапкой убрана (Часть 3
+            задачи о комплексной оптимизации) — дублировала уже имеющуюся в
+            SiteHeader реальную кнопку "← Назад" (та же history-based
+            логика). Ссылка "Вернуться в админ-панель" — самостоятельная
+            функция, не навигационный дубль, остаётся. */}
+        {search.from === "admin" && (
+          <div className="mb-3 flex items-center justify-end gap-3 lg:mb-8">
+            {/* Only reachable when the admin's own "view on storefront" link
+                set from=admin — never shown otherwise (Этап №3, п.4). */}
+            <Link
+              to="/admin/catalog"
+              className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+            >
+              <LayoutDashboard className="h-4 w-4" /> {t("product.returnToAdmin")}
+            </Link>
+          </div>
+        )}
+
+        <div className="grid gap-4 md:grid-cols-2 lg:gap-12">
+          <div>
+            <div
+              className="relative aspect-square touch-pan-y overflow-hidden rounded-2xl bg-secondary lg:rounded-[2rem]"
+              onTouchStart={handleImageTouchStart}
+              onTouchEnd={handleImageTouchEnd}
+            >
+              {activeImage ? (
+                <img
+                  src={activeImage.node.url}
+                  alt={activeImage.node.altText || displayTitle}
+                  fetchPriority="high"
+                  className={`w-full h-full object-cover ${!product.inStock ? "opacity-60 grayscale-[30%]" : ""}`}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                  {t("common.noPhoto")}
+                </div>
+              )}
+              {/* Этап №8, п.7 — out of stock must be visible immediately,
+                  before the user even reaches the price/badge row below. */}
+              {!product.inStock && (
+                <div className="absolute left-0 top-4 rounded-r-full bg-destructive px-4 py-1.5 text-sm font-semibold text-destructive-foreground shadow-md">
+                  {t("product.outOfStock")}
+                </div>
+              )}
+              {/* Quick prev/next within the category — overlaid on the image
+                  so it costs zero extra vertical space; swipe on the same
+                  image area does the same thing (п.2). Only rendered when
+                  there actually is a neighbour to go to. */}
+              {prevSibling && (
+                <button
+                  type="button"
+                  onClick={() => goToSibling(prevSibling.slug)}
+                  aria-label={t("product.prevProduct")}
+                  className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/85 text-foreground shadow-md backdrop-blur-sm transition-transform hover:scale-105"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              )}
+              {nextSibling && (
+                <button
+                  type="button"
+                  onClick={() => goToSibling(nextSibling.slug)}
+                  aria-label={t("product.nextProduct")}
+                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/85 text-foreground shadow-md backdrop-blur-sm transition-transform hover:scale-105"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+            {images.length > 1 && (
+              <div className="mt-2 grid grid-cols-5 gap-2 lg:mt-4 lg:gap-3">
+                {images.map((image, index) => (
+                  <button
+                    key={image.node.url}
+                    type="button"
+                    onClick={() => setSelectedImage(index)}
+                    className={`aspect-square rounded-lg overflow-hidden bg-secondary border-2 transition-colors lg:rounded-xl ${
+                      index === selectedImage ? "border-primary" : "border-transparent"
+                    }`}
+                  >
+                    <img
+                      src={image.node.url}
+                      alt={image.node.altText || displayTitle}
+                      loading="lazy"
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
             )}
           </div>
           <div>
-            <h1 className="font-serif text-4xl md:text-5xl tracking-tight">{product.title}</h1>
-            <div className="mt-4 font-serif text-3xl text-primary">
-              {parseFloat(price.amount).toFixed(2)} {price.currencyCode}
-            </div>
-            {product.description && (
-              <p className="mt-6 text-muted-foreground leading-relaxed whitespace-pre-line">
-                {product.description}
+            {/* Этап №8, п.8 — title stays descriptive-sized; price is the
+                decision-critical number, so it's deliberately the single
+                largest, boldest piece of text on the whole screen. Часть 5
+                задачи "СТРАНИЦА ТОВАРА" — раздел категории/подкатегории под
+                фото убран, здесь остаются только название, описание, цена,
+                статус наличия. */}
+            <h1 className="font-serif text-lg font-medium tracking-tight sm:text-xl lg:text-2xl">
+              {displayTitle}
+            </h1>
+
+            {displayDescription && (
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed whitespace-pre-line lg:mt-3 lg:text-base">
+                {displayDescription}
               </p>
             )}
-            <Button
-              onClick={handleAdd}
-              disabled={isLoading || !variant || !variant.availableForSale}
-              size="lg"
-              className="mt-8 h-12 px-8 rounded-full text-base"
-            >
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4 mr-2" /> В корзину</>}
-            </Button>
+
+            <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 lg:mt-4">
+              <span className="font-serif text-3xl font-bold text-primary lg:text-5xl">
+                {parseFloat(price.amount).toFixed(2)}
+              </span>
+              <span className="text-base font-medium text-muted-foreground lg:text-xl">
+                {t("product.currencyLabel")}
+              </span>
+              {product.unit && (
+                <span className="ml-2 text-sm text-muted-foreground">
+                  {t("product.unit")}: {product.unit}
+                </span>
+              )}
+            </div>
+            {product.inStock && (
+              <Badge variant="secondary" className="mt-2">
+                {t("product.inStock")}
+              </Badge>
+            )}
+
+            {/* Количество + две кнопки покупки — inline здесь на десктопе
+                only, мобильный использует закреплённую нижнюю панель ниже
+                (см. purchaseControls). */}
+            <div className="mt-6 hidden max-w-sm lg:block">{purchaseControls}</div>
+
+            {/* Characteristics as compact inline chips instead of a spaced-out
+                definition list — same information, far less vertical room. */}
+            {(product.manufacturer || product.countryOfOrigin) && (
+              <div className="mt-4 flex flex-wrap gap-1.5 lg:mt-6">
+                {product.manufacturer && (
+                  <span className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
+                    {t("category.manufacturerLabel")}: {product.manufacturer}
+                  </span>
+                )}
+                {product.countryOfOrigin && (
+                  <span className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
+                    {t("category.countryLabel")}: {product.countryOfOrigin}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </main>
+
+      {/* Sticky one-handed purchase bar — mobile only (Этап №3, п.7);
+          desktop keeps the inline controls above instead of a second,
+          redundant one. Price stacked above the same [-] qty [+] + two
+          buttons block as the desktop column (Часть 2-4 задачи). */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/95 backdrop-blur-md pb-safe lg:hidden">
+        <div className="px-4 pt-2">
+          <p className="truncate text-xs text-muted-foreground">{displayTitle}</p>
+          <p className="font-serif text-2xl font-bold text-primary">
+            {parseFloat(price.amount).toFixed(2)}{" "}
+            <span className="text-sm font-medium text-muted-foreground">
+              {t("product.currencyLabel")}
+            </span>
+          </p>
+        </div>
+        <div className="px-4 pb-3 pt-2">{purchaseControls}</div>
+      </div>
       <SiteFooter />
     </div>
   );

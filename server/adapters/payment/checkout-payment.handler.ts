@@ -3,15 +3,17 @@ import type {
   CheckoutPaymentResult,
   ICheckoutPaymentHandler,
 } from "@server/ports/checkout-payment.port";
-import type { IPaymentProvider } from "@server/ports/payment.provider";
+import type { PaymentService } from "@server/domain/payment.service";
 
 /**
- * Resolves checkout payment by method.
- * ONLINE: architecture ready for IPaymentProvider, Finik not invoked yet.
+ * Resolves checkout payment by method (Промпт №075).
+ * ONLINE: initiates a real payment via PaymentService/IPaymentProvider —
+ * PaymentProviderError propagates as-is, matching checkout.service.ts's
+ * documented "preparePayment failures surface as-is" contract.
  * CASH: marks order as unpaid, no external payment URL.
  */
 export class CheckoutPaymentHandler implements ICheckoutPaymentHandler {
-  constructor(private readonly paymentProvider: IPaymentProvider) {}
+  constructor(private readonly paymentService: PaymentService) {}
 
   async preparePayment(
     method: PaymentMethod,
@@ -25,14 +27,11 @@ export class CheckoutPaymentHandler implements ICheckoutPaymentHandler {
       };
     }
 
-    // ONLINE — provider hook reserved; Finik integration deferred.
-    void this.paymentProvider;
-    void order;
-    void idempotencyKey;
+    const result = await this.paymentService.initiatePayment(order, idempotencyKey);
 
     return {
-      paymentUrl: null,
-      paymentStatus: "awaiting",
+      paymentUrl: result.paymentUrl,
+      paymentStatus: result.paymentUrl ? "awaiting" : "failed",
     };
   }
 }

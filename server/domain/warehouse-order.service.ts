@@ -1,5 +1,6 @@
 import type { IOrderRepository } from "@server/ports/order.repository";
 import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
+import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
 import type { OrderDTO } from "@shared/contracts/order";
 import { OrderStatus } from "@shared/contracts/order";
 import type { UserRole } from "@shared/contracts/user";
@@ -10,21 +11,21 @@ export interface WarehouseActor {
   roles: UserRole[];
 }
 
-const ASSEMBLY_QUEUE_STATUSES = new Set<OrderDTO["status"]>([
-  OrderStatus.CONFIRMED,
-  OrderStatus.PAID,
-  OrderStatus.ASSEMBLING,
-]);
+// PAID was included here only to compensate for CONFIRMED silently reverting to PAID
+// on re-read (see the order_status enum fix) — a merely-PAID order was never actually
+// startable (WarehouseStartAssemblyRule requires CONFIRMED), so keeping it in this
+// queue post-fix would just show staff orders they can't act on yet.
+const ASSEMBLY_QUEUE_STATUSES: OrderStatus[] = [OrderStatus.CONFIRMED, OrderStatus.ASSEMBLING];
 
 export class WarehouseOrderService {
   constructor(
     private readonly orders: IOrderRepository,
     private readonly orderLifecycle: IOrderLifecyclePolicy,
+    private readonly events: IMarketplaceEventBus,
   ) {}
 
   async listAssemblyOrders(): Promise<OrderDTO[]> {
-    const all = await this.orders.listAll();
-    return all.filter((order) => ASSEMBLY_QUEUE_STATUSES.has(order.status));
+    return this.orders.listByStatuses(ASSEMBLY_QUEUE_STATUSES);
   }
 
   async getOrder(id: string): Promise<OrderDTO> {
@@ -34,16 +35,25 @@ export class WarehouseOrderService {
   }
 
   async startAssembly(orderId: string, actor: WarehouseActor): Promise<OrderDTO> {
-    return this.transitionOrder(orderId, OrderStatus.ASSEMBLING, "warehouse_start_assembly", actor);
+    const order = await this.transitionOrder(
+      orderId,
+      OrderStatus.ASSEMBLING,
+      "warehouse_start_assembly",
+      actor,
+    );
+    await this.events.publish({ type: "order.assembling_started", order });
+    return order;
   }
 
   async completeAssembly(orderId: string, actor: WarehouseActor): Promise<OrderDTO> {
-    return this.transitionOrder(
+    const order = await this.transitionOrder(
       orderId,
       OrderStatus.READY_FOR_DELIVERY,
       "warehouse_complete_assembly",
       actor,
     );
+    await this.events.publish({ type: "order.ready_for_delivery", order });
+    return order;
   }
 
   private async transitionOrder(
@@ -62,6 +72,6 @@ export class WarehouseOrderService {
       reason,
     });
 
-    return this.orders.updateStatus(orderId, targetStatus);
+    return this.orders.updateStatus(orderId, order.status, targetStatus);
   }
 }

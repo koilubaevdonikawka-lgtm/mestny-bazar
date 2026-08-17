@@ -7,6 +7,11 @@ import type {
 } from "@server/ports/marketplace-ai/media-analysis.port";
 
 const MAX_FETCH_BYTES = 10 * 1024 * 1024;
+// This runs synchronously inside the seller's publish request (AIMediaWorker
+// is subscribed to "product.published", which SellerProductService awaits) —
+// an unreachable or deliberately slow image host must not be able to hang
+// that response indefinitely.
+const FETCH_TIMEOUT_MS = 5000;
 
 /** Resolves media metadata from provided fields or remote URLs (no vision API). */
 export class MediaMetadataService implements IMediaMetadataService {
@@ -54,7 +59,12 @@ export class MediaMetadataService implements IMediaMetadataService {
 
   private toResolvedAsset(
     input: MediaAssetInput,
-    fetched: { hash: string; width: number | null; height: number | null; fileSizeBytes: number | null },
+    fetched: {
+      hash: string;
+      width: number | null;
+      height: number | null;
+      fileSizeBytes: number | null;
+    },
   ): ResolvedMediaAsset {
     return {
       id: input.id,
@@ -74,32 +84,90 @@ export class MediaMetadataService implements IMediaMetadataService {
     return Number((width / height).toFixed(4));
   }
 
-  private async fetchImageMetadata(
-    url: string,
-  ): Promise<{ hash: string; width: number | null; height: number | null; fileSizeBytes: number | null }> {
-    const response = await fetch(url, { redirect: "follow" });
+  private async fetchImageMetadata(url: string): Promise<{
+    hash: string;
+    width: number | null;
+    height: number | null;
+    fileSizeBytes: number | null;
+  }> {
+    const response = await fetch(url, {
+      redirect: "follow",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
     if (!response.ok) {
       throw new Error(`Failed to fetch media: ${response.status}`);
     }
 
+    // Reject on the declared size before reading a single byte of the body —
+    // but a server can omit or lie about Content-Length, so this alone isn't
+    // a real guarantee; readBodyWithLimit enforces the cap during the read
+    // itself regardless of what this header claims.
     const contentLength = response.headers.get("content-length");
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.byteLength > MAX_FETCH_BYTES) {
+    const declaredSize = contentLength ? Number(contentLength) : null;
+    if (declaredSize !== null && Number.isFinite(declaredSize) && declaredSize > MAX_FETCH_BYTES) {
       throw new Error("Media file exceeds fetch limit");
     }
+
+    const buffer = await this.readBodyWithLimit(response, MAX_FETCH_BYTES);
 
     const dimensions = parseImageDimensions(buffer);
     return {
       hash: createHash("sha256").update(buffer).digest("hex"),
       width: dimensions?.width ?? null,
       height: dimensions?.height ?? null,
-      fileSizeBytes: contentLength ? Number(contentLength) : buffer.byteLength,
+      fileSizeBytes: declaredSize ?? buffer.byteLength,
     };
+  }
+
+  /**
+   * Streams the response body, counting bytes as they arrive and bailing out
+   * the moment the running total exceeds maxBytes — the previous
+   * implementation called response.arrayBuffer(), which reads the ENTIRE
+   * body into memory before any size check ran. A slow-but-huge response
+   * (or one lying about Content-Length) could exhaust the Worker isolate's
+   * memory before the old check ever fired.
+   */
+  private async readBodyWithLimit(response: Response, maxBytes: number): Promise<Buffer> {
+    const body = response.body;
+    if (!body) {
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.byteLength > maxBytes) {
+        throw new Error("Media file exceeds fetch limit");
+      }
+      return buffer;
+    }
+
+    const reader = body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel("Media file exceeds fetch limit").catch(() => {});
+        throw new Error("Media file exceeds fetch limit");
+      }
+      chunks.push(value);
+    }
+
+    return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
   }
 }
 
+// Compared byte-for-byte rather than via buffer.toString("ascii", ...): Node's
+// "ascii" decoding strips the high bit of every byte, so 0x89 (this signature's
+// first byte, present in every real PNG) would decode to 0x09 and never match
+// the literal "\x89..." string here — that string comparison could never be
+// true for an actual PNG file, silently sending every PNG through this
+// function as if it were unrecognized.
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
 function parseImageDimensions(buffer: Buffer): { width: number; height: number } | null {
-  if (buffer.length >= 24 && buffer.toString("ascii", 0, 8) === "\x89PNG\r\n\x1a\n") {
+  if (buffer.length >= 24 && buffer.subarray(0, 8).equals(PNG_SIGNATURE)) {
     return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
   }
 
@@ -111,7 +179,11 @@ function parseImageDimensions(buffer: Buffer): { width: number; height: number }
     return { width: buffer.readUInt16LE(6), height: buffer.readUInt16LE(8) };
   }
 
-  if (buffer.length >= 30 && buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP") {
+  if (
+    buffer.length >= 30 &&
+    buffer.toString("ascii", 0, 4) === "RIFF" &&
+    buffer.toString("ascii", 8, 12) === "WEBP"
+  ) {
     return parseWebpDimensions(buffer);
   }
 

@@ -1,1 +1,0 @@
-export { activateCapabilityPlatform } from "./bootstrap";

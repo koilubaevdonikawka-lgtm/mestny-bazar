@@ -1,12 +1,16 @@
 import type {
   CreateOrderRequest,
   OrderDTO,
+  OrderListParams,
+  OrderListResult,
   OrderStatus,
   PaymentStatus,
 } from "@shared/contracts/order";
 
 export interface OrderLineItemInput {
   productId: string;
+  /** Stage 17 — see CreateOrderItemRequest.variantId; a plain pass-through identifier. */
+  variantId: string | null;
   productName: string;
   productImageUrl: string | null;
   quantity: number;
@@ -14,7 +18,10 @@ export interface OrderLineItemInput {
   lineTotal: number;
 }
 
-export interface CreateOrderData extends Omit<CreateOrderRequest, "items" | "addressId" | "zoneId"> {
+export interface CreateOrderData extends Omit<
+  CreateOrderRequest,
+  "items" | "addressId" | "zoneId"
+> {
   userId: string | null;
   items: OrderLineItemInput[];
   addressId: string | null;
@@ -24,6 +31,10 @@ export interface CreateOrderData extends Omit<CreateOrderRequest, "items" | "add
   paymentStatus: PaymentStatus;
   subtotal: number;
   deliveryFee: number;
+  deliveryTariffId: string | null;
+  deliveryEtaMinMinutes: number | null;
+  deliveryEtaMaxMinutes: number | null;
+  discountAmount: number;
   total: number;
   currency: string;
 }
@@ -31,8 +42,33 @@ export interface CreateOrderData extends Omit<CreateOrderRequest, "items" | "add
 export interface IOrderRepository {
   create(data: CreateOrderData): Promise<OrderDTO>;
   getById(id: string, userId?: string): Promise<OrderDTO | null>;
+  getByIdempotencyKey(idempotencyKey: string): Promise<OrderDTO | null>;
   listByUser(userId: string): Promise<OrderDTO[]>;
-  listAll(): Promise<OrderDTO[]>;
-  updateStatus(id: string, status: OrderStatus): Promise<OrderDTO>;
+  listAll(params?: OrderListParams): Promise<OrderListResult>;
+  /** Filters at the query level — for role-specific work queues (warehouse, courier). */
+  listByStatuses(statuses: OrderStatus[]): Promise<OrderDTO[]>;
+  /**
+   * Optimistic concurrency: only applies the transition if the row's current
+   * status still matches `fromStatus` at write time. Throws
+   * OrderConcurrentModificationError if another action already changed it —
+   * callers read a status, decide a transition is allowed based on that read,
+   * then write; two concurrent actions racing that check-then-act window must
+   * not both succeed (e.g. two couriers accepting the same order).
+   */
+  updateStatus(id: string, fromStatus: OrderStatus, toStatus: OrderStatus): Promise<OrderDTO>;
   updatePaymentStatus(id: string, paymentStatus: PaymentStatus): Promise<OrderDTO>;
+  /** Count only — Dashboard KPI cards (dashboard.md), avoids fetching full order rows. */
+  countByStatuses(statuses: OrderStatus[]): Promise<number>;
+  /** Orders created since server-computed UTC midnight, excluding CANCELLED — Dashboard KPI cards. */
+  getTodaySummary(): Promise<{ orderCount: number; revenue: number }>;
+  /** Persists the auto-assignment decision (couriers.md — closes the "no assignment persisted" gap). */
+  assignCourier(orderId: string, courierId: string): Promise<OrderDTO>;
+  /** Active (READY_FOR_DELIVERY/OUT_FOR_DELIVERY/ARRIVED) deliveries currently assigned to this courier — CourierAssignmentService workload input. */
+  countActiveDeliveriesByCourier(courierId: string): Promise<number>;
+  /** Filters at the query level to only orders assigned to this courier — closes the shared-queue gap (couriers.md). */
+  listByStatusesForCourier(statuses: OrderStatus[], courierId: string): Promise<OrderDTO[]>;
+  /** Paginated order history for a specific courier — Couriers admin detail card (Промпт №068). */
+  listByCourier(courierId: string, params?: OrderListParams): Promise<OrderListResult>;
+  /** analytics.md — orders created within [periodStart, periodEnd], for sales aggregation. Not paginated: callers are internal aggregators, not staff-facing lists. */
+  listInPeriod(periodStart: string, periodEnd: string): Promise<OrderDTO[]>;
 }

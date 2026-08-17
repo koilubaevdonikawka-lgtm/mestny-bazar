@@ -12,8 +12,7 @@ export class BootstrapDraftRule implements ProductPublicationRule {
 
   applies(context: ProductPublicationContext): boolean {
     return (
-      context.reason === "seller_create" &&
-      context.targetStatus === ProductPublicationStatus.DRAFT
+      context.reason === "seller_create" && context.targetStatus === ProductPublicationStatus.DRAFT
     );
   }
 

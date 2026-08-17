@@ -1,17 +1,25 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { toast } from "sonner";
+import type { CatalogProductNode } from "@shared/lib/product-adapter";
+import type {
+  CartItemDTO,
+  CartLineIdentifier,
+  CartLineInput,
+  CartValidationResult,
+} from "@shared/contracts/cart";
 import {
-  addLineToShopifyCart,
-  createShopifyCart,
-  fetchCart,
-  removeLineFromShopifyCart,
-  updateShopifyCartLine,
-  type ShopifyProduct,
-} from "@/lib/shopify";
+  addCartItem,
+  clearCart as clearServerCart,
+  getCart,
+  mergeGuestCart,
+  removeCartItem,
+  updateCartItem,
+  validateCart as validateCartRequest,
+} from "@/api/cart";
 
 export interface CartItem {
-  lineId: string | null;
-  product: ShopifyProduct;
+  product: CatalogProductNode;
   variantId: string;
   variantTitle: string;
   price: { amount: string; currencyCode: string };
@@ -19,62 +27,165 @@ export interface CartItem {
   selectedOptions: Array<{ name: string; value: string }>;
 }
 
+/**
+ * A cart line is identified by product.node.handle, which toCatalogProductNode
+ * sets to the product's own slug (shared/lib/product-adapter.ts) — the same
+ * identity CartDrawer's checkout request resolves against.
+ */
+function toIdentifier(item: Pick<CartItem, "product">): CartLineIdentifier {
+  return { productSlug: item.product.node.handle };
+}
+
+function toLineInput(item: CartItem): CartLineInput {
+  return {
+    ...toIdentifier(item),
+    quantity: item.quantity,
+    snapshot: {
+      name: item.product.node.title,
+      price: parseFloat(item.price.amount),
+      currency: item.price.currencyCode,
+      imageUrl: item.product.node.images?.edges?.[0]?.node?.url ?? null,
+    },
+  };
+}
+
+/**
+ * True when the server rejected the request because the bearer token was
+ * missing/invalid (`server/auth/resolve-user.ts` → `UnauthorizedError`) —
+ * i.e. `mode` says "authenticated" but the session backing it is actually
+ * dead (expired between page-load and this call, revoked, or the
+ * useCartSync resync effect simply hasn't run yet). Distinguishes that
+ * specific, recoverable case from a real network/server failure.
+ */
+function isUnauthorized(e: unknown): boolean {
+  return e instanceof Error && e.name === "UnauthorizedError";
+}
+
+/** Reconstructs a renderable CartItem purely from the server's stored snapshot. */
+function fromCartItemDTO(dto: CartItemDTO): CartItem {
+  const variantId = dto.productSlug ?? dto.productId ?? "";
+  return {
+    product: {
+      node: {
+        id: variantId,
+        title: dto.name,
+        description: "",
+        handle: dto.productSlug ?? "",
+        priceRange: {
+          minVariantPrice: { amount: dto.price.toFixed(2), currencyCode: dto.currency },
+        },
+        images: {
+          edges: dto.imageUrl ? [{ node: { url: dto.imageUrl, altText: dto.name } }] : [],
+        },
+        // Этап №5 — mirrors toCatalogProductNode's single synthetic variant
+        // shape exactly (id = variantId, availableForSale = true) rather
+        // than leaving this empty: CartQuantityControl (reused inside
+        // CartDrawer to render the [-] qty [+] stepper) reads
+        // product.node.variants.edges[0] the same way for every caller — an
+        // empty array here would silently make it fall back to the "Add to
+        // cart" state for every authenticated-user cart line.
+        variants: {
+          edges: [
+            {
+              node: {
+                id: variantId,
+                title: dto.name,
+                price: { amount: dto.price.toFixed(2), currencyCode: dto.currency },
+                availableForSale: true,
+                selectedOptions: [],
+              },
+            },
+          ],
+        },
+        options: [],
+        // The cart snapshot (CartItemDTO) never carried these — live stock is
+        // re-checked separately by validateCart, not read off this node.
+        unit: null,
+        manufacturer: null,
+        countryOfOrigin: null,
+        stock: 0,
+        inStock: true,
+        category: null,
+      },
+    },
+    variantId,
+    variantTitle: dto.name,
+    price: { amount: dto.price.toFixed(2), currencyCode: dto.currency },
+    quantity: dto.quantity,
+    selectedOptions: [],
+  };
+}
+
 interface CartStore {
   items: CartItem[];
-  cartId: string | null;
-  checkoutUrl: string | null;
+  /** "authenticated" means the server cart is the source of truth; "guest" means localStorage is. */
+  mode: "guest" | "authenticated";
   isLoading: boolean;
-  isSyncing: boolean;
-  addItem: (item: Omit<CartItem, "lineId">) => Promise<void>;
+  /** Resolves true only if the item was actually added — callers must not show a success toast otherwise. */
+  addItem: (item: CartItem) => Promise<boolean>;
   updateQuantity: (variantId: string, quantity: number) => Promise<void>;
   removeItem: (variantId: string) => Promise<void>;
-  clearCart: () => void;
-  syncCart: () => Promise<void>;
-  getCheckoutUrl: () => string | null;
+  clearCart: () => Promise<void>;
+  /** Re-validates every line against IProductRepository; returns null if the cart is empty or the check failed. */
+  validateCart: () => Promise<CartValidationResult | null>;
+  /** Loads the authenticated user's server cart, replacing local state with it. */
+  syncFromServer: () => Promise<void>;
+  /** Folds the current (guest) items into the server cart, then switches to server mode. Safe to call with an empty cart. */
+  mergeGuestIntoServer: () => Promise<void>;
+  /** Called on sign-out — the server cart belongs to a specific user and must not leak into the next anonymous session. */
+  resetToGuest: () => void;
 }
 
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
-      cartId: null,
-      checkoutUrl: null,
+      mode: "guest",
       isLoading: false,
-      isSyncing: false,
 
       addItem: async (item) => {
-        const { items, cartId, clearCart } = get();
-        const existingItem = items.find((i) => i.variantId === item.variantId);
+        const { items, mode } = get();
+
+        if (mode === "guest") {
+          const existingIndex = items.findIndex((i) => i.variantId === item.variantId);
+          if (existingIndex >= 0) {
+            set({
+              items: items.map((i, idx) =>
+                idx === existingIndex ? { ...i, quantity: i.quantity + item.quantity } : i,
+              ),
+            });
+          } else {
+            set({ items: [...items, item] });
+          }
+          return true;
+        }
+
         set({ isLoading: true });
         try {
-          if (!cartId) {
-            const result = await createShopifyCart(item.variantId, item.quantity);
-            if (result) {
-              set({
-                cartId: result.cartId,
-                checkoutUrl: result.checkoutUrl,
-                items: [{ ...item, lineId: result.lineId }],
-              });
-            }
-          } else if (existingItem) {
-            const newQuantity = existingItem.quantity + item.quantity;
-            if (!existingItem.lineId) return;
-            const result = await updateShopifyCartLine(cartId, existingItem.lineId, newQuantity);
-            if (result.success) {
-              set({
-                items: get().items.map((i) =>
-                  i.variantId === item.variantId ? { ...i, quantity: newQuantity } : i,
-                ),
-              });
-            } else if (result.cartNotFound) clearCart();
-          } else {
-            const result = await addLineToShopifyCart(cartId, item.variantId, item.quantity);
-            if (result.success) {
-              set({ items: [...get().items, { ...item, lineId: result.lineId ?? null }] });
-            } else if (result.cartNotFound) clearCart();
-          }
+          const cart = await addCartItem(toLineInput(item));
+          set({ items: cart.items.map(fromCartItemDTO) });
+          return true;
         } catch (e) {
+          if (isUnauthorized(e)) {
+            // Session is actually dead despite the persisted "authenticated"
+            // mode — fall back to a local guest add instead of a dead end so
+            // the item the user just clicked doesn't just vanish.
+            const current = get().items;
+            const existingIndex = current.findIndex((i) => i.variantId === item.variantId);
+            set({
+              mode: "guest",
+              items:
+                existingIndex >= 0
+                  ? current.map((i, idx) =>
+                      idx === existingIndex ? { ...i, quantity: i.quantity + item.quantity } : i,
+                    )
+                  : [...current, item],
+            });
+            return true;
+          }
           console.error("Failed to add item:", e);
+          toast.error("Не удалось добавить товар в корзину. Попробуйте ещё раз.");
+          return false;
         } finally {
           set({ isLoading: false });
         }
@@ -82,65 +193,119 @@ export const useCartStore = create<CartStore>()(
 
       updateQuantity: async (variantId, quantity) => {
         if (quantity <= 0) return get().removeItem(variantId);
-        const { items, cartId, clearCart } = get();
+        const { items, mode } = get();
         const item = items.find((i) => i.variantId === variantId);
-        if (!item?.lineId || !cartId) return;
+        if (!item) return;
+
+        if (mode === "guest") {
+          set({ items: items.map((i) => (i.variantId === variantId ? { ...i, quantity } : i)) });
+          return;
+        }
+
         set({ isLoading: true });
         try {
-          const result = await updateShopifyCartLine(cartId, item.lineId, quantity);
-          if (result.success) {
+          const cart = await updateCartItem(toIdentifier(item), quantity);
+          set({ items: cart.items.map(fromCartItemDTO) });
+        } catch (e) {
+          if (isUnauthorized(e)) {
+            const current = get().items;
             set({
-              items: get().items.map((i) => (i.variantId === variantId ? { ...i, quantity } : i)),
+              mode: "guest",
+              items: current.map((i) => (i.variantId === variantId ? { ...i, quantity } : i)),
             });
-          } else if (result.cartNotFound) clearCart();
+            return;
+          }
+          console.error("Failed to update quantity:", e);
+          toast.error("Не удалось обновить количество товара. Попробуйте ещё раз.");
         } finally {
           set({ isLoading: false });
         }
       },
 
       removeItem: async (variantId) => {
-        const { items, cartId, clearCart } = get();
+        const { items, mode } = get();
         const item = items.find((i) => i.variantId === variantId);
-        if (!item?.lineId || !cartId) return;
+        if (!item) return;
+
+        if (mode === "guest") {
+          set({ items: items.filter((i) => i.variantId !== variantId) });
+          return;
+        }
+
         set({ isLoading: true });
         try {
-          const result = await removeLineFromShopifyCart(cartId, item.lineId);
-          if (result.success) {
-            const newItems = get().items.filter((i) => i.variantId !== variantId);
-            newItems.length === 0 ? clearCart() : set({ items: newItems });
-          } else if (result.cartNotFound) clearCart();
+          const cart = await removeCartItem(toIdentifier(item));
+          set({ items: cart.items.map(fromCartItemDTO) });
+        } catch (e) {
+          if (isUnauthorized(e)) {
+            const current = get().items;
+            set({ mode: "guest", items: current.filter((i) => i.variantId !== variantId) });
+            return;
+          }
+          console.error("Failed to remove item:", e);
+          toast.error("Не удалось удалить товар из корзины. Попробуйте ещё раз.");
         } finally {
           set({ isLoading: false });
         }
       },
 
-      clearCart: () => set({ items: [], cartId: null, checkoutUrl: null }),
-      getCheckoutUrl: () => get().checkoutUrl,
-
-      syncCart: async () => {
-        const { cartId, isSyncing, clearCart } = get();
-        if (!cartId || isSyncing) return;
-        set({ isSyncing: true });
-        try {
-          const data = await fetchCart(cartId);
-          if (!data) return;
-          const cart = data?.data?.cart;
-          if (!cart || cart.totalQuantity === 0) clearCart();
-        } catch (e) {
-          console.error("Failed to sync cart:", e);
-        } finally {
-          set({ isSyncing: false });
+      clearCart: async () => {
+        const { mode } = get();
+        set({ items: [] });
+        if (mode === "authenticated") {
+          try {
+            await clearServerCart();
+          } catch (e) {
+            console.error("Failed to clear server cart:", e);
+          }
         }
       },
+
+      validateCart: async () => {
+        const { items } = get();
+        if (!items.length) return null;
+        try {
+          return await validateCartRequest(items.map(toLineInput));
+        } catch (e) {
+          console.error("Failed to validate cart:", e);
+          return null;
+        }
+      },
+
+      syncFromServer: async () => {
+        set({ isLoading: true });
+        try {
+          const cart = await getCart();
+          set({ items: cart.items.map(fromCartItemDTO), mode: "authenticated" });
+        } catch (e) {
+          console.error("Failed to load cart:", e);
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      mergeGuestIntoServer: async () => {
+        if (get().mode === "authenticated") return;
+        const { items } = get();
+        set({ isLoading: true });
+        try {
+          const cart = items.length
+            ? await mergeGuestCart(items.map(toLineInput))
+            : await getCart();
+          set({ items: cart.items.map(fromCartItemDTO), mode: "authenticated" });
+        } catch (e) {
+          console.error("Failed to merge guest cart:", e);
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      resetToGuest: () => set({ items: [], mode: "guest" }),
     }),
     {
-      name: "shopify-cart",
+      name: "platform-cart",
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        items: state.items,
-        cartId: state.cartId,
-        checkoutUrl: state.checkoutUrl,
-      }),
+      partialize: (state) => ({ items: state.items, mode: state.mode }),
     },
   ),
 );

@@ -1,1 +1,0 @@
-export { activateLifecyclePlatform } from "./bootstrap";

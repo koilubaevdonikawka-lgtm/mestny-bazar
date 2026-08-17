@@ -1,15 +1,11 @@
 import type { ProductDTO, ProductListParams, ProductListResult } from "@shared/contracts/catalog";
+import { getProductBySlugFn, listProductsFn } from "@/api/catalog.functions";
 
-/**
- * Catalog API — calls Platform Layer server functions.
- * Not wired to UI until Stage 3 (FEATURE_CATALOG_SOURCE switch).
- */
-export async function listProducts(_params?: ProductListParams): Promise<ProductListResult> {
-  const { listProductsFn } = await import("@server/functions/catalog.functions");
-  return listProductsFn({ data: _params ?? {} });
+/** Catalog API — calls Platform Layer server functions (Stage 3). */
+export async function listProducts(params?: ProductListParams): Promise<ProductListResult> {
+  return listProductsFn({ data: params ?? {} });
 }
 
-export async function getProductBySlug(_slug: string): Promise<ProductDTO | null> {
-  const { getProductBySlugFn } = await import("@server/functions/catalog.functions");
-  return getProductBySlugFn({ data: { slug: _slug } });
+export async function getProductBySlug(slug: string): Promise<ProductDTO | null> {
+  return getProductBySlugFn({ data: { slug } });
 }

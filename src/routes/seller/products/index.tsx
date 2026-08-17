@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createSellerProduct, listSellerProducts } from "@/api/seller";
 import { ProductPublicationStatus } from "@shared/contracts/seller-product";
-import { lovable } from "@/integrations/lovable";
-import { supabase } from "@/integrations/supabase/client";
+import { signInWithGoogle } from "@/lib/auth";
+import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { Loader2, LogIn, Plus, ShieldAlert, Store } from "lucide-react";
 import { toast } from "sonner";
 
@@ -53,21 +53,17 @@ const emptyForm = (): ProductFormState => ({
 function SellerProductsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const { isAuthenticated } = useSupabaseSession();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<ProductFormState>(emptyForm);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setIsAuthenticated(!!data.session?.user);
-    });
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session?.user);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const { data: products = [], isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: products = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["seller", "products", "list"],
     queryFn: listSellerProducts,
     enabled: isAuthenticated === true,
@@ -87,9 +83,7 @@ function SellerProductsPage() {
   });
 
   const handleSignIn = async () => {
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/seller/products",
-    });
+    await signInWithGoogle();
   };
 
   const handleSubmit = (event: React.FormEvent) => {
@@ -269,7 +263,11 @@ function SellerProductsPage() {
             </div>
             <div className="flex gap-3 pt-2">
               <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Создать"}
+                {createMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Создать"
+                )}
               </Button>
               <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
                 Отмена

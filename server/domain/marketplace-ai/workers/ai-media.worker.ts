@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import type { AIJob, AIJobResult } from "@server/ports/marketplace-ai.port";
 import type {
   IMediaMetadataService,
@@ -8,10 +6,13 @@ import type {
   MediaAssetInput,
 } from "@server/ports/marketplace-ai/media-analysis.port";
 import type { IMarketplaceEventBus, MarketplaceEvent } from "@server/ports/marketplace-events.port";
-import type { OrderDTO } from "@shared/contracts/order";
 import { AIWorker } from "@server/domain/marketplace-ai/ai-worker";
 
-/** Analyzes product media quality and publishes photo.analysis.completed. */
+/**
+ * Analyzes product media quality and publishes photo.analysis.completed.
+ * Triggered by product.published (see AICatalogWorker's doc comment for the
+ * same retargeting rationale — Этап 5).
+ */
 export class AIMediaWorker extends AIWorker {
   readonly id = "ai-media-worker";
 
@@ -24,7 +25,7 @@ export class AIMediaWorker extends AIWorker {
   }
 
   canHandle(event: MarketplaceEvent): boolean {
-    return event.type === "order.created" || event.type === "product.media.analysis.requested";
+    return event.type === "product.published" || event.type === "product.media.analysis.requested";
   }
 
   async process(job: AIJob): Promise<AIJobResult> {
@@ -54,33 +55,18 @@ export class AIMediaWorker extends AIWorker {
       };
     }
 
-    if (event.type === "order.created") {
+    if (event.type === "product.published") {
+      const product = event.product;
+      if (!product.imageUrl) {
+        return { productId: product.id, photos: [] };
+      }
       return {
-        productId: null,
-        photos: this.extractPhotosFromOrder(event.order),
+        productId: product.id,
+        photos: [{ id: product.id, url: product.imageUrl }],
       };
     }
 
     return { productId: null, photos: [] };
-  }
-
-  private extractPhotosFromOrder(order: OrderDTO): MediaAssetInput[] {
-    const seen = new Set<string>();
-    const photos: MediaAssetInput[] = [];
-
-    for (const item of order.items) {
-      if (!item.productImageUrl || seen.has(item.productImageUrl)) {
-        continue;
-      }
-
-      seen.add(item.productImageUrl);
-      photos.push({
-        id: item.productId ?? createHash("sha256").update(item.productImageUrl).digest("hex").slice(0, 16),
-        url: item.productImageUrl,
-      });
-    }
-
-    return photos;
   }
 
   private async publishCompleted(

@@ -5,23 +5,25 @@ import {
   formatOrderStatus,
   getTimelineStepState,
   ORDER_TIMELINE_SEQUENCE,
-} from "@/lib/order-display";
+} from "@shared/lib/order-display";
 import { Check, Circle, X } from "lucide-react";
+import { useTranslation } from "@/i18n/LanguageProvider";
 
 interface OrderTimelineProps {
   order: OrderDTO;
 }
 
 export function OrderTimeline({ order }: OrderTimelineProps) {
+  const { t } = useTranslation();
   const isCancelled = order.status === OrderStatus.CANCELLED;
 
   return (
     <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">
-      <h2 className="font-serif text-2xl mb-6">Статус заказа</h2>
+      <h2 className="font-serif text-2xl mb-6">{t("orders.timelineTitle")}</h2>
 
       {isCancelled && (
         <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-          Заказ отменён
+          {t("orders.cancelledLabel")}
         </div>
       )}
 
@@ -46,7 +48,8 @@ export function OrderTimeline({ order }: OrderTimelineProps) {
                 className={cn(
                   "relative z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 transition-colors",
                   state === "completed" && "border-primary bg-primary text-primary-foreground",
-                  state === "current" && "border-primary bg-primary/10 text-primary ring-4 ring-primary/20",
+                  state === "current" &&
+                    "border-primary bg-primary/10 text-primary ring-4 ring-primary/20",
                   state === "upcoming" && "border-border bg-background text-muted-foreground",
                   state === "cancelled" && "border-border/60 bg-muted text-muted-foreground",
                 )}
@@ -70,7 +73,9 @@ export function OrderTimeline({ order }: OrderTimelineProps) {
                   {formatOrderStatus(step)}
                 </p>
                 {state === "current" && !isCancelled && (
-                  <p className="mt-1 text-sm text-muted-foreground">Текущий этап</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {t("orders.currentStepLabel")}
+                  </p>
                 )}
               </div>
             </li>

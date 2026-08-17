@@ -1,53 +1,54 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { OrderDTO } from "@shared/contracts/order";
-
-async function runCourier<T>(fn: () => Promise<T>): Promise<T> {
-  const { mapCourierError } = await import("@server/functions/courier.executor");
-  try {
-    return await fn();
-  } catch (e) {
-    mapCourierError(e);
-  }
-}
+import type { CourierStatusDTO } from "@shared/contracts/courier-status";
+import { uuidParamSchema } from "@shared/validation/common.schema";
+import { setCourierAvailabilityRequestSchema } from "@shared/validation/courier-status.schema";
 
 export const listCourierOrdersFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<OrderDTO[]> => {
     const { executeListCourierOrders } = await import("@server/functions/courier.executor");
-    return runCourier(() => executeListCourierOrders());
+    return executeListCourierOrders();
   },
 );
 
 export const getCourierOrderFn = createServerFn({ method: "GET" })
-  .validator((data: { id: string }) => data)
+  .validator((data: unknown) => uuidParamSchema.parse(data))
   .handler(async ({ data }): Promise<OrderDTO> => {
     const { executeGetCourierOrder } = await import("@server/functions/courier.executor");
-    return runCourier(() => executeGetCourierOrder(data.id));
+    return executeGetCourierOrder(data.id);
   });
 
 export const acceptCourierOrderFn = createServerFn({ method: "POST" })
-  .validator((data: { id: string }) => data)
+  .validator((data: unknown) => uuidParamSchema.parse(data))
   .handler(async ({ data }): Promise<OrderDTO> => {
     const { executeAcceptCourierOrder } = await import("@server/functions/courier.executor");
-    return runCourier(() => executeAcceptCourierOrder(data.id));
+    return executeAcceptCourierOrder(data.id);
   });
 
 export const startCourierDeliveryFn = createServerFn({ method: "POST" })
-  .validator((data: { id: string }) => data)
+  .validator((data: unknown) => uuidParamSchema.parse(data))
   .handler(async ({ data }): Promise<OrderDTO> => {
     const { executeStartCourierDelivery } = await import("@server/functions/courier.executor");
-    return runCourier(() => executeStartCourierDelivery(data.id));
+    return executeStartCourierDelivery(data.id);
   });
 
 export const markCourierArrivalFn = createServerFn({ method: "POST" })
-  .validator((data: { id: string }) => data)
+  .validator((data: unknown) => uuidParamSchema.parse(data))
   .handler(async ({ data }): Promise<OrderDTO> => {
     const { executeMarkCourierArrival } = await import("@server/functions/courier.executor");
-    return runCourier(() => executeMarkCourierArrival(data.id));
+    return executeMarkCourierArrival(data.id);
   });
 
 export const completeCourierDeliveryFn = createServerFn({ method: "POST" })
-  .validator((data: { id: string }) => data)
+  .validator((data: unknown) => uuidParamSchema.parse(data))
   .handler(async ({ data }): Promise<OrderDTO> => {
     const { executeCompleteCourierDelivery } = await import("@server/functions/courier.executor");
-    return runCourier(() => executeCompleteCourierDelivery(data.id));
+    return executeCompleteCourierDelivery(data.id);
+  });
+
+export const setCourierAvailabilityFn = createServerFn({ method: "POST" })
+  .validator((data: unknown) => setCourierAvailabilityRequestSchema.parse(data))
+  .handler(async ({ data }): Promise<CourierStatusDTO> => {
+    const { executeSetCourierAvailability } = await import("@server/functions/courier.executor");
+    return executeSetCourierAvailability(data.isAvailable);
   });

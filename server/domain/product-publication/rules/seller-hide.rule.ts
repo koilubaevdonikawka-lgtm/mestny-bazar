@@ -12,8 +12,7 @@ export class SellerHideRule implements ProductPublicationRule {
 
   applies(context: ProductPublicationContext): boolean {
     return (
-      context.reason === "seller_hide" &&
-      context.targetStatus === ProductPublicationStatus.HIDDEN
+      context.reason === "seller_hide" && context.targetStatus === ProductPublicationStatus.HIDDEN
     );
   }
 

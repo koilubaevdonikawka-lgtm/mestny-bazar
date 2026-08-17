@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ImageUploadField } from "@/components/shared/ImageUploadField";
 import {
   getSellerProduct,
   hideSellerProduct,
@@ -15,8 +16,8 @@ import {
   updateSellerProduct,
 } from "@/api/seller";
 import { ProductPublicationStatus } from "@shared/contracts/seller-product";
-import { lovable } from "@/integrations/lovable";
-import { supabase } from "@/integrations/supabase/client";
+import { signInWithGoogle } from "@/lib/auth";
+import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { ArrowLeft, EyeOff, Loader2, LogIn, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
@@ -38,19 +39,14 @@ function formatPublicationStatus(status: ProductPublicationStatus): string {
 function SellerProductDetailPage() {
   const { id } = Route.useParams();
   const queryClient = useQueryClient();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const { isAuthenticated } = useSupabaseSession();
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setIsAuthenticated(!!data.session?.user);
-    });
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session?.user);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const { data: product, isLoading, isError, error } = useQuery({
+  const {
+    data: product,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ["seller", "products", id],
     queryFn: () => getSellerProduct(id),
     enabled: isAuthenticated === true,
@@ -114,9 +110,7 @@ function SellerProductDetailPage() {
   });
 
   const handleSignIn = async () => {
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + `/seller/products/${id}`,
-    });
+    await signInWithGoogle();
   };
 
   const handleSubmit = (event: React.FormEvent) => {
@@ -329,11 +323,10 @@ function SellerProductDetailPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="imageUrl">URL изображения</Label>
-              <Input
-                id="imageUrl"
-                value={form.imageUrl}
-                onChange={(e) => setForm((prev) => ({ ...prev, imageUrl: e.target.value }))}
+              <ImageUploadField
+                value={form.imageUrl || null}
+                onChange={(url) => setForm((prev) => ({ ...prev, imageUrl: url ?? "" }))}
+                context="product"
               />
             </div>
           </div>

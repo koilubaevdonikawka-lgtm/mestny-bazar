@@ -10,7 +10,7 @@
 ```typescript
 // ❌ Domain создаёт адаптер сам
 class CatalogService {
-  private shopify = new ShopifyCatalogAdapter();
+  private repo = new SupabaseProductRepository();
 }
 ```
 

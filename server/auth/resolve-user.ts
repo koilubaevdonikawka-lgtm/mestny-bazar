@@ -5,11 +5,17 @@ import { supabaseAdmin } from "@server/adapters/supabase/client";
 import { ForbiddenError, UnauthorizedError } from "@server/domain/orders.errors";
 import type { UserRole } from "@shared/contracts/user";
 
-function isNewSupabaseApiKey(value: string): boolean {
+export function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
 }
 
-function createSupabaseFetch(supabaseKey: string): typeof fetch {
+// resolveUserIdFromRequest() runs on every admin/warehouse/courier/seller
+// request via requireXFromRequest() — an unreachable or hanging Supabase auth
+// endpoint (e.g. the JWKS fetch inside getClaims()) must not be able to hang
+// every authenticated request indefinitely.
+const AUTH_FETCH_TIMEOUT_MS = 5000;
+
+export function createSupabaseFetch(supabaseKey: string): typeof fetch {
   return (input, init) => {
     const headers = new Headers(
       typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined,
@@ -17,11 +23,18 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     if (init?.headers) {
       new Headers(init.headers).forEach((value, key) => headers.set(key, value));
     }
-    if (isNewSupabaseApiKey(supabaseKey) && headers.get("Authorization") === `Bearer ${supabaseKey}`) {
+    if (
+      isNewSupabaseApiKey(supabaseKey) &&
+      headers.get("Authorization") === `Bearer ${supabaseKey}`
+    ) {
       headers.delete("Authorization");
     }
     headers.set("apikey", supabaseKey);
-    return fetch(input, { ...init, headers });
+    return fetch(input, {
+      ...init,
+      headers,
+      signal: init?.signal ?? AbortSignal.timeout(AUTH_FETCH_TIMEOUT_MS),
+    });
   };
 }
 

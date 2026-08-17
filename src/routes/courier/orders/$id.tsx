@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
@@ -12,14 +12,14 @@ import {
   markCourierArrival,
   startCourierDelivery,
 } from "@/api/courier";
-import { lovable } from "@/integrations/lovable";
-import { supabase } from "@/integrations/supabase/client";
+import { signInWithGoogle } from "@/lib/auth";
+import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import {
   formatMoney,
   formatOrderDate,
   formatOrderStatus,
   formatPaymentStatus,
-} from "@/lib/order-display";
+} from "@shared/lib/order-display";
 import { OrderStatus } from "@shared/contracts/order";
 import { ArrowLeft, Loader2, LogIn, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
@@ -31,21 +31,16 @@ export const Route = createFileRoute("/courier/orders/$id")({
 function CourierOrderDetailPage() {
   const { id } = Route.useParams();
   const queryClient = useQueryClient();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const { isAuthenticated } = useSupabaseSession();
   const [accepted, setAccepted] = useState(false);
   const [arrived, setArrived] = useState(false);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setIsAuthenticated(!!data.session?.user);
-    });
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session?.user);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const { data: order, isLoading, isError, error } = useQuery({
+  const {
+    data: order,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ["courier", "orders", id],
     queryFn: () => getCourierOrder(id),
     enabled: isAuthenticated === true,
@@ -95,9 +90,7 @@ function CourierOrderDetailPage() {
   });
 
   const handleSignIn = async () => {
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + `/courier/orders/${id}`,
-    });
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {
@@ -168,10 +161,16 @@ function CourierOrderDetailPage() {
     throw notFound();
   }
 
-  const isReadyForDelivery =
-    order.status === OrderStatus.READY_FOR_DELIVERY || order.status === OrderStatus.ASSEMBLING;
+  const isReadyForDelivery = order.status === OrderStatus.READY_FOR_DELIVERY;
   const canAccept = isReadyForDelivery && !accepted;
-  const canStartDelivery = isReadyForDelivery && accepted;
+  // Deliberately NOT gated on the local `accepted` flag: acceptCourierOrder has no
+  // server-persisted effect (READY_FOR_DELIVERY -> READY_FOR_DELIVERY, validation
+  // only — see CourierAcceptOrderRule), so `accepted` is plain component state that
+  // resets on every remount/refresh. Gating "Start Delivery" on it meant a courier
+  // who accepted an order and then reloaded the page would see "Accept" again
+  // instead of "Start Delivery", even though nothing had actually changed —
+  // order.status is the only durable signal here, same as every other role page.
+  const canStartDelivery = isReadyForDelivery;
   const canMarkArrival = order.status === OrderStatus.OUT_FOR_DELIVERY && !arrived;
   const canCompleteDelivery =
     order.status === OrderStatus.ARRIVED ||
@@ -269,6 +268,7 @@ function CourierOrderDetailPage() {
                     <img
                       src={item.productImageUrl}
                       alt={item.productName}
+                      loading="lazy"
                       className="w-full h-full object-cover"
                     />
                   )}

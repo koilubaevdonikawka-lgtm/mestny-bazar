@@ -1,50 +1,59 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { listCourierOrders } from "@/api/courier";
-import { lovable } from "@/integrations/lovable";
-import { supabase } from "@/integrations/supabase/client";
+import { listCourierOrders, setCourierAvailability } from "@/api/courier";
+import { signInWithGoogle } from "@/lib/auth";
+import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import {
   formatMoney,
   formatOrderDate,
   formatOrderStatus,
   formatPaymentStatus,
-} from "@/lib/order-display";
+} from "@shared/lib/order-display";
 import { OrderStatus } from "@shared/contracts/order";
 import { Loader2, LogIn, Package, ShieldAlert } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/courier/orders/")({
   component: CourierOrdersPage,
 });
 
 function CourierOrdersPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const { isAuthenticated } = useSupabaseSession();
+  const queryClient = useQueryClient();
+  // No dedicated "get my status" endpoint exists yet — assumes the DB default
+  // (available) until the courier explicitly toggles it in this session.
+  const [isAvailable, setIsAvailable] = useState(true);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setIsAuthenticated(!!data.session?.user);
-    });
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session?.user);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const { data: orders = [], isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: orders = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["courier", "orders", "list"],
     queryFn: listCourierOrders,
     enabled: isAuthenticated === true,
     retry: false,
   });
 
+  const availabilityMutation = useMutation({
+    mutationFn: setCourierAvailability,
+    onSuccess: (status) => {
+      setIsAvailable(status.isAvailable);
+      queryClient.invalidateQueries({ queryKey: ["courier", "orders", "list"] });
+      toast.success("Статус обновлён");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось обновить статус"),
+  });
+
   const handleSignIn = async () => {
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/courier/orders",
-    });
+    await signInWithGoogle();
   };
 
   if (isAuthenticated === null) {
@@ -105,7 +114,11 @@ function CourierOrdersPage() {
             <>
               <p className="text-muted-foreground">{message}</p>
               {isAuthError ? (
-                <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
+                <Button
+                  size="lg"
+                  className="mt-6 h-12 rounded-full"
+                  onClick={() => void handleSignIn()}
+                >
                   Войти снова
                 </Button>
               ) : (
@@ -132,10 +145,27 @@ function CourierOrdersPage() {
   return (
     <PageShell>
       <div className="mx-auto max-w-3xl px-6 py-12">
-        <h1 className="font-serif text-4xl tracking-tight">Доставка заказов</h1>
-        <p className="mt-2 text-muted-foreground">
-          Готовы к доставке: {readyForDelivery.length} · В пути: {inDelivery.length}
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="font-serif text-4xl tracking-tight">Доставка заказов</h1>
+            <p className="mt-2 text-muted-foreground">
+              Готовы к доставке: {readyForDelivery.length} · В пути: {inDelivery.length}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            disabled={availabilityMutation.isPending}
+            onClick={() => availabilityMutation.mutate(!isAvailable)}
+          >
+            {availabilityMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : isAvailable ? (
+              "Я доступен — стать недоступным"
+            ) : (
+              "Я недоступен — стать доступным"
+            )}
+          </Button>
+        </div>
 
         {orders.length === 0 ? (
           <div className="mt-12 rounded-3xl border border-dashed border-border py-16 text-center">

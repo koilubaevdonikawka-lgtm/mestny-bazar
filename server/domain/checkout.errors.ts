@@ -15,3 +15,19 @@ export class ProductNotSynchronized extends Error {
     this.name = "ProductNotSynchronized";
   }
 }
+
+/** Stock reservation failed atomically — another order already took the remaining units. */
+export class InsufficientStockError extends Error {
+  constructor(public readonly productId: string) {
+    super(`Insufficient stock for product ${productId}`);
+    this.name = "InsufficientStockError";
+  }
+}
+
+/** Stage 19 — variant stock reservation failed atomically. Mirrors InsufficientStockError exactly, scoped to a variant. */
+export class InsufficientVariantStockError extends Error {
+  constructor(public readonly variantId: string) {
+    super(`Insufficient stock for product variant ${variantId}`);
+    this.name = "InsufficientVariantStockError";
+  }
+}

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
@@ -15,11 +15,13 @@ import {
   setDefaultAddress,
   updateAddress,
 } from "@/api/addresses";
+import { listDeliveryZones } from "@/api/delivery-zone";
 import type { AddressDTO } from "@shared/contracts/delivery";
-import { lovable } from "@/integrations/lovable";
-import { supabase } from "@/integrations/supabase/client";
+import { signInWithGoogle } from "@/lib/auth";
+import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { Loader2, LogIn, MapPin, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "@/i18n/LanguageProvider";
 
 export const Route = createFileRoute("/profile/addresses")({
   component: ProfileAddressesPage,
@@ -31,6 +33,7 @@ type AddressFormState = {
   city: string;
   district: string;
   notes: string;
+  zoneId: string;
   isDefault: boolean;
 };
 
@@ -40,31 +43,36 @@ const emptyForm = (): AddressFormState => ({
   city: "",
   district: "",
   notes: "",
+  zoneId: "",
   isDefault: false,
 });
 
 function ProfileAddressesPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const { isAuthenticated } = useSupabaseSession();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<AddressFormState>(emptyForm);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setIsAuthenticated(!!data.session?.user);
-    });
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session?.user);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const { data: addresses = [], isLoading, isError, error, refetch } = useQuery({
+  const {
+    data: addresses = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["addresses", "list"],
     queryFn: listAddresses,
     enabled: isAuthenticated === true,
     retry: false,
+  });
+
+  const { data: deliveryZones } = useQuery({
+    queryKey: ["delivery", "zones"],
+    queryFn: listDeliveryZones,
+    enabled: isAuthenticated === true,
+    staleTime: 5 * 60 * 1000,
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["addresses", "list"] });
@@ -74,9 +82,9 @@ function ProfileAddressesPage() {
     onSuccess: () => {
       invalidate();
       resetForm();
-      toast.success("Адрес добавлен");
+      toast.success(t("addresses.createdToast"));
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось добавить адрес"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : t("addresses.createError")),
   });
 
   const updateMutation = useMutation({
@@ -84,27 +92,27 @@ function ProfileAddressesPage() {
     onSuccess: () => {
       invalidate();
       resetForm();
-      toast.success("Адрес обновлён");
+      toast.success(t("addresses.updatedToast"));
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось обновить адрес"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : t("addresses.updateError")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteAddress,
     onSuccess: () => {
       invalidate();
-      toast.success("Адрес удалён");
+      toast.success(t("addresses.deletedToast"));
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось удалить адрес"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : t("addresses.deleteError")),
   });
 
   const defaultMutation = useMutation({
     mutationFn: setDefaultAddress,
     onSuccess: () => {
       invalidate();
-      toast.success("Адрес по умолчанию обновлён");
+      toast.success(t("addresses.defaultUpdatedToast"));
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось выбрать адрес"),
+    onError: (e) => toast.error(e instanceof Error ? e.message : t("addresses.setDefaultError")),
   });
 
   const resetForm = () => {
@@ -127,6 +135,7 @@ function ProfileAddressesPage() {
       city: address.city ?? "",
       district: address.district ?? "",
       notes: address.notes ?? "",
+      zoneId: address.zoneId ?? "",
       isDefault: address.isDefault,
     });
     setShowForm(true);
@@ -140,11 +149,12 @@ function ProfileAddressesPage() {
       city: form.city.trim() || undefined,
       district: form.district.trim() || undefined,
       notes: form.notes.trim() || undefined,
+      zoneId: form.zoneId || undefined,
       isDefault: form.isDefault,
     };
 
     if (payload.fullAddress.length < 5) {
-      toast.error("Адрес должен содержать не менее 5 символов");
+      toast.error(t("addresses.tooShortError"));
       return;
     }
 
@@ -156,9 +166,7 @@ function ProfileAddressesPage() {
   };
 
   const handleSignIn = async () => {
-    await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/profile/addresses",
-    });
+    await signInWithGoogle();
   };
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
@@ -180,10 +188,10 @@ function ProfileAddressesPage() {
           <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
             <LogIn className="h-6 w-6 text-primary" />
           </div>
-          <h1 className="font-serif text-3xl tracking-tight">Адреса доставки</h1>
-          <p className="mt-3 text-muted-foreground">Войдите, чтобы управлять адресами доставки.</p>
+          <h1 className="font-serif text-3xl tracking-tight">{t("addresses.title")}</h1>
+          <p className="mt-3 text-muted-foreground">{t("addresses.signInPrompt")}</p>
           <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
-            Войти
+            {t("common.signIn")}
           </Button>
         </div>
       </PageShell>
@@ -201,7 +209,7 @@ function ProfileAddressesPage() {
   }
 
   if (isError) {
-    const message = error instanceof Error ? error.message : "Не удалось загрузить адреса";
+    const message = error instanceof Error ? error.message : t("addresses.loadError");
     const isAuthError =
       message.toLowerCase().includes("authentication") || message.includes("Unauthorized");
     return (
@@ -209,12 +217,16 @@ function ProfileAddressesPage() {
         <div className="max-w-md mx-auto text-center py-24">
           <p className="text-muted-foreground">{message}</p>
           {isAuthError ? (
-            <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
-              Войти снова
+            <Button
+              size="lg"
+              className="mt-6 h-12 rounded-full"
+              onClick={() => void handleSignIn()}
+            >
+              {t("common.signInAgain")}
             </Button>
           ) : (
             <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void refetch()}>
-              Повторить
+              {t("common.retry")}
             </Button>
           )}
         </div>
@@ -227,15 +239,13 @@ function ProfileAddressesPage() {
       <div className="mx-auto max-w-3xl px-6 py-12">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="font-serif text-4xl tracking-tight">Адреса доставки</h1>
-            <p className="mt-2 text-muted-foreground">
-              Управляйте адресами. Адрес по умолчанию используется при оформлении заказа.
-            </p>
+            <h1 className="font-serif text-4xl tracking-tight">{t("addresses.title")}</h1>
+            <p className="mt-2 text-muted-foreground">{t("addresses.subtitle")}</p>
           </div>
           {!showForm && (
             <Button className="rounded-full" onClick={openCreate}>
               <Plus className="h-4 w-4 mr-2" />
-              Добавить адрес
+              {t("addresses.addButton")}
             </Button>
           )}
         </div>
@@ -246,20 +256,20 @@ function ProfileAddressesPage() {
             className="mt-8 rounded-2xl border border-border/60 bg-card p-6 space-y-4"
           >
             <h2 className="font-serif text-2xl">
-              {editingId ? "Редактировать адрес" : "Новый адрес"}
+              {editingId ? t("addresses.editTitle") : t("addresses.newTitle")}
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="label">Название</Label>
+                <Label htmlFor="label">{t("addresses.labelField")}</Label>
                 <Input
                   id="label"
-                  placeholder="Дом, офис…"
+                  placeholder={t("addresses.labelPlaceholder")}
                   value={form.label}
                   onChange={(e) => setForm((prev) => ({ ...prev, label: e.target.value }))}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="city">Город</Label>
+                <Label htmlFor="city">{t("addresses.cityField")}</Label>
                 <Input
                   id="city"
                   value={form.city}
@@ -268,7 +278,7 @@ function ProfileAddressesPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="fullAddress">Адрес *</Label>
+              <Label htmlFor="fullAddress">{t("addresses.fullAddressField")}</Label>
               <Textarea
                 id="fullAddress"
                 required
@@ -279,7 +289,7 @@ function ProfileAddressesPage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="district">Район</Label>
+                <Label htmlFor="district">{t("addresses.districtField")}</Label>
                 <Input
                   id="district"
                   value={form.district}
@@ -287,14 +297,31 @@ function ProfileAddressesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="notes">Комментарий</Label>
+                <Label htmlFor="notes">{t("addresses.notesField")}</Label>
                 <Input
                   id="notes"
-                  placeholder="Подъезд, этаж…"
+                  placeholder={t("addresses.notesPlaceholder")}
                   value={form.notes}
                   onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="zone">{t("home.deliveryZoneLabel")}</Label>
+              <select
+                id="zone"
+                value={form.zoneId}
+                onChange={(e) => setForm((prev) => ({ ...prev, zoneId: e.target.value }))}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">{t("home.zoneNotSelected")}</option>
+                {(deliveryZones ?? []).map((zone) => (
+                  <option key={zone.id} value={zone.id}>
+                    {zone.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">{t("addresses.zoneHint")}</p>
             </div>
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -302,14 +329,14 @@ function ProfileAddressesPage() {
                 checked={form.isDefault}
                 onChange={(e) => setForm((prev) => ({ ...prev, isDefault: e.target.checked }))}
               />
-              Использовать как адрес по умолчанию
+              {t("addresses.useAsDefaultLabel")}
             </label>
             <div className="flex gap-3 pt-2">
               <Button type="submit" disabled={isSaving}>
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Сохранить"}
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("common.save")}
               </Button>
               <Button type="button" variant="outline" onClick={resetForm}>
-                Отмена
+                {t("common.cancel")}
               </Button>
             </div>
           </form>
@@ -320,34 +347,41 @@ function ProfileAddressesPage() {
             <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
               <MapPin className="h-6 w-6 text-primary" />
             </div>
-            <h2 className="font-serif text-2xl">Адресов пока нет</h2>
-            <p className="mt-2 text-muted-foreground">Добавьте адрес для быстрого оформления заказа.</p>
+            <h2 className="font-serif text-2xl">{t("addresses.empty")}</h2>
+            <p className="mt-2 text-muted-foreground">{t("addresses.emptyDescription")}</p>
             {!showForm && (
               <Button className="mt-6 h-12 rounded-full" onClick={openCreate}>
                 <Plus className="h-4 w-4 mr-2" />
-                Добавить адрес
+                {t("addresses.addButton")}
               </Button>
             )}
           </div>
         ) : (
           <ul className="mt-8 space-y-4">
             {addresses.map((address) => (
-              <li
-                key={address.id}
-                className="rounded-2xl border border-border/60 bg-card p-6"
-              >
+              <li key={address.id} className="rounded-2xl border border-border/60 bg-card p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-serif text-xl">{address.label || "Адрес"}</p>
+                      <p className="font-serif text-xl">
+                        {address.label || t("addresses.fallbackLabel")}
+                      </p>
                       {address.isDefault && (
-                        <Badge variant="secondary">По умолчанию</Badge>
+                        <Badge variant="secondary">{t("addresses.defaultBadge")}</Badge>
                       )}
                     </div>
                     <p className="mt-2 text-muted-foreground">{address.fullAddress}</p>
                     {(address.city || address.district) && (
                       <p className="text-sm text-muted-foreground mt-1">
                         {[address.city, address.district].filter(Boolean).join(", ")}
+                      </p>
+                    )}
+                    {address.zoneId && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {t("addresses.zoneDisplay", {
+                          zoneName:
+                            deliveryZones?.find((z) => z.id === address.zoneId)?.name ?? "—",
+                        })}
                       </p>
                     )}
                     {address.notes && (
@@ -363,12 +397,12 @@ function ProfileAddressesPage() {
                         onClick={() => defaultMutation.mutate(address.id)}
                       >
                         <Star className="h-3.5 w-3.5 mr-1" />
-                        По умолчанию
+                        {t("addresses.defaultBadge")}
                       </Button>
                     )}
                     <Button variant="outline" size="sm" onClick={() => openEdit(address)}>
                       <Pencil className="h-3.5 w-3.5 mr-1" />
-                      Изменить
+                      {t("common.edit")}
                     </Button>
                     <Button
                       variant="outline"
@@ -377,7 +411,7 @@ function ProfileAddressesPage() {
                       onClick={() => deleteMutation.mutate(address.id)}
                     >
                       <Trash2 className="h-3.5 w-3.5 mr-1" />
-                      Удалить
+                      {t("common.delete")}
                     </Button>
                   </div>
                 </div>
@@ -393,7 +427,7 @@ function ProfileAddressesPage() {
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader />
+      <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
       <main className="flex-1">{children}</main>
       <SiteFooter />
     </div>

@@ -1,16 +1,11 @@
 import type { OrderDTO } from "@shared/contracts/order";
+import type { CourierStatusDTO } from "@shared/contracts/courier-status";
 import { requireCourierFromRequest } from "@server/auth/resolve-user";
 import { getServices } from "@server/di/container";
-import { OrderLifecycleDeniedError } from "@server/domain/order-lifecycle/order-lifecycle.errors";
-import {
-  ForbiddenError,
-  OrderNotFoundError,
-  UnauthorizedError,
-} from "@server/domain/orders.errors";
 
 export async function executeListCourierOrders(): Promise<OrderDTO[]> {
-  await requireCourierFromRequest();
-  return getServices().courierOrderService.listDeliveryOrders();
+  const { userId, roles } = await requireCourierFromRequest();
+  return getServices().courierOrderService.listDeliveryOrders({ id: userId, roles });
 }
 
 export async function executeGetCourierOrder(orderId: string): Promise<OrderDTO> {
@@ -38,10 +33,9 @@ export async function executeCompleteCourierDelivery(orderId: string): Promise<O
   return getServices().courierOrderService.completeDelivery(orderId, { id: userId, roles });
 }
 
-export function mapCourierError(error: unknown): never {
-  if (error instanceof UnauthorizedError) throw error;
-  if (error instanceof ForbiddenError) throw error;
-  if (error instanceof OrderNotFoundError) throw error;
-  if (error instanceof OrderLifecycleDeniedError) throw error;
-  throw error;
+export async function executeSetCourierAvailability(
+  isAvailable: boolean,
+): Promise<CourierStatusDTO> {
+  const { userId } = await requireCourierFromRequest();
+  return getServices().courierStatusService.setAvailability(userId, isAvailable);
 }

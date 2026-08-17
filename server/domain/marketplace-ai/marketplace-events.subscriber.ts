@@ -13,7 +13,9 @@ export function subscribeAIWorkers(bus: IMarketplaceEventBus, orchestrator: AIOr
     });
   };
 
-  bus.subscribe("order.created", async (event) => {
+  // ai.md / platform-lifecycle.md §5 — retargeted in Этап 5: analysis reacts
+  // to a product actually going live, not to every order.created.
+  bus.subscribe("product.published", async (event) => {
     await enqueue(event);
   });
 

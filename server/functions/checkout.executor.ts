@@ -1,7 +1,12 @@
 import type { CreateOrderRequest, CreateOrderResponse } from "@shared/contracts/order";
 import { resolveUserIdFromRequest } from "@server/auth/resolve-user";
 import { getServices } from "@server/di/container";
-import { CheckoutValidationError, ProductNotSynchronized } from "@server/domain/checkout.errors";
+import {
+  CheckoutValidationError,
+  InsufficientStockError,
+  InsufficientVariantStockError,
+  ProductNotSynchronized,
+} from "@server/domain/checkout.errors";
 import { CashPaymentRequiresAuthentication } from "@server/domain/payment-policy.errors";
 
 export async function executeCreateOrder(
@@ -22,6 +27,12 @@ export async function executeCreateOrder(
       throw error;
     }
     if (error instanceof ProductNotSynchronized) {
+      throw error;
+    }
+    if (error instanceof InsufficientStockError) {
+      throw error;
+    }
+    if (error instanceof InsufficientVariantStockError) {
       throw error;
     }
     throw error;

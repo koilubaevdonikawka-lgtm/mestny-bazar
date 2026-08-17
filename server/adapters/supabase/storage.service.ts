@@ -1,17 +1,36 @@
 import type { UploadResult } from "@server/ports/storage.service";
 import type { IStorageService } from "@server/ports/storage.service";
+import { supabaseAdmin } from "@server/adapters/supabase/client";
 
-/** Supabase Storage implementation — wired in Stage 8. */
+/**
+ * Supabase Storage implementation. Constructor-injected bucket name so one
+ * class serves every bucket (category-images, marketplace-media) — the port
+ * itself has no notion of "which bucket", only "upload this path".
+ *
+ * On Cloudflare Workers there is no Node Buffer — callers always pass a Blob
+ * (the File object straight from FormData), never convert to Buffer.
+ */
 export class SupabaseStorageAdapter implements IStorageService {
-  async upload(_path: string, _file: Blob | Buffer, _contentType: string): Promise<UploadResult> {
-    throw new Error("SupabaseStorageAdapter.upload not implemented (Stage 8)");
+  constructor(private readonly bucket: string) {}
+
+  async upload(path: string, file: Blob | Buffer, contentType: string): Promise<UploadResult> {
+    const { error } = await supabaseAdmin.storage
+      .from(this.bucket)
+      .upload(path, file, { contentType, upsert: false });
+    if (error) {
+      throw new Error(`Failed to upload file: ${error.message}`);
+    }
+    return { url: this.getPublicUrl(path), path };
   }
 
-  async delete(_path: string): Promise<void> {
-    throw new Error("SupabaseStorageAdapter.delete not implemented (Stage 8)");
+  async delete(path: string): Promise<void> {
+    const { error } = await supabaseAdmin.storage.from(this.bucket).remove([path]);
+    if (error) {
+      throw new Error(`Failed to delete file: ${error.message}`);
+    }
   }
 
-  getPublicUrl(_path: string): string {
-    throw new Error("SupabaseStorageAdapter.getPublicUrl not implemented (Stage 8)");
+  getPublicUrl(path: string): string {
+    return supabaseAdmin.storage.from(this.bucket).getPublicUrl(path).data.publicUrl;
   }
 }

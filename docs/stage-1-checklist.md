@@ -23,9 +23,9 @@
 
 ## Explicitly NOT done (later stages)
 
-- [ ] UI switch to `src/api/catalog.ts` (Stage 3)
-- [ ] Remove `src/lib/shopify.ts` (Stage 9)
-- [ ] Supabase repository implementations (Stage 2)
+- [x] UI switch to `src/api/catalog.ts` (Stage 3 — done, see below)
+- [x] Remove `src/lib/shopify.ts` (Stage 9 — done, see [ADR-002](./architecture/adr/ADR-002-complete-shopify-catalog-migration.md))
+- [x] Supabase repository implementations (Stage 2 — done)
 - [ ] Frontend direct Supabase catalog reads (never — use Platform API)
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` in production secrets
 
@@ -58,13 +58,42 @@ docs/
   stage-1-checklist.md
 ```
 
-## Next: Stage 2
+## Stage 2 — done
 
-1. Implement `SupabaseProductRepository`, `SupabaseOrderRepository`, etc.
-2. Map DB rows → DTOs in adapters (no Supabase types in `shared/`)
-3. Unit tests with mocked Supabase client
-4. Wire `createServices()` with real adapters
-5. Do **not** connect frontend yet
+`SupabaseProductRepository` and related adapters implemented and wired into `createServices()`
+via `server/di/container.ts`.
+
+## Stage 3 — done
+
+Frontend catalog reads switched from direct Shopify Storefront GraphQL calls to the Platform
+API, gated by `isPlatformCatalog()` (`src/config/features.ts`, `VITE_FEATURE_CATALOG_SOURCE`).
+
+- `src/lib/catalog.ts` — single switching point: `fetchCatalogProducts()` /
+  `fetchCatalogProduct()` call either `src/api/catalog.ts` (platform) or `src/lib/shopify.ts`
+  (Shopify), based on the feature flag.
+- `src/api/catalog.ts` → `src/api/catalog.functions.ts` (`createServerFn` boundary) →
+  `server/di/container.ts` → `CatalogService` → Supabase. Mirrors the existing
+  `src/api/orders.ts` / `src/api/orders.functions.ts` pattern.
+- `src/lib/product-adapter.ts` — `toShopifyProductShim()` adapts a platform `ProductDTO` into the
+  `ShopifyProduct` shape so `ProductCard.tsx`, `CartDrawer.tsx`, and `product.$handle.tsx` needed
+  no changes. Platform-sourced cart lines are tagged with a `platform:` prefix on `variantId`
+  (`isPlatformVariantId()`), which `cartStore.ts` uses to keep those lines in local state instead
+  of calling the Shopify Cart API — the `CartItem` shape and Shopify code paths are unchanged.
+- `src/routes/index.tsx`, `src/routes/product.$handle.tsx` — now call `fetchCatalogProducts()` /
+  `fetchCatalogProduct()` instead of querying the Shopify Storefront API directly.
+
+Note: `server/functions/catalog.functions.ts` (Stage 1) was no longer called by anything — the
+`createServerFn` boundary lives in `src/api/catalog.functions.ts` instead, since TanStack
+Start's `import-protection` plugin denies any client-reachable import under `server/**`
+regardless of whether the target is `createServerFn`-wrapped. Deleted as confirmed dead code
+(Промпт №018) — zero importers found across the repository.
+
+## Stage 9 — done
+
+`src/lib/shopify.ts`, `server/adapters/migration/shopify.adapter.ts`, `FEATURE_CATALOG_SOURCE`,
+and `FEATURE_CHECKOUT_SOURCE` all removed — see
+[ADR-002](./architecture/adr/ADR-002-complete-shopify-catalog-migration.md).
+`SupabaseProductRepository` is now the unconditional, sole `IProductRepository` implementation.
 
 ## Acceptance criteria (Stage 1)
 
@@ -74,4 +103,4 @@ docs/
 | Shopify catalog works in browser         | ✅ unchanged |
 | New folders exist                        | ✅           |
 | ESLint blocks `src/` → `server/domain`   | ✅           |
-| `FEATURE_CATALOG_SOURCE=shopify` default | ✅           |
+| `FEATURE_CATALOG_SOURCE=shopify` default | ✅ (Stage 1; flag removed entirely at Stage 9, ADR-002) |

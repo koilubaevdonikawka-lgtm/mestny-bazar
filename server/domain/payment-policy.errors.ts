@@ -1,7 +1,5 @@
 export class CashPaymentRequiresAuthentication extends Error {
-  constructor(
-    message = "Оплата наличными доступна только авторизованным пользователям",
-  ) {
+  constructor(message = "Оплата наличными доступна только авторизованным пользователям") {
     super(message);
     this.name = "CashPaymentRequiresAuthentication";
   }
