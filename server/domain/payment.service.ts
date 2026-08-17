@@ -45,6 +45,11 @@ export class PaymentService {
   async initiatePayment(order: OrderDTO, idempotencyKey: string): Promise<InitiatePaymentResult> {
     const existing = await this.payments.getByIdempotencyKey(idempotencyKey);
     if (existing) {
+      logger.info("payment:idempotent-replay", {
+        orderId: order.id,
+        idempotencyKey,
+        paymentId: existing.id,
+      });
       return { paymentUrl: existing.paymentUrl, paymentId: existing.id };
     }
 

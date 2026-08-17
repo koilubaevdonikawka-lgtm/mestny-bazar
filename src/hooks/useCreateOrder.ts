@@ -82,8 +82,13 @@ export function useCreateOrder() {
         customerName: name,
         customerPhone,
         paymentMethod,
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey: useCheckoutStore.getState().getOrCreateIdempotencyKey(),
       });
+
+      // Order created — this attempt reached a terminal outcome, so the next
+      // checkout (this order or a brand new one) must mint a fresh key
+      // rather than reuse this now-consumed one.
+      useCheckoutStore.getState().resetIdempotencyKey();
 
       if (onCreated) await onCreated(response);
 
