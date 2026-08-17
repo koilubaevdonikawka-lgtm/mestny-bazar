@@ -56,3 +56,10 @@ supabase/.temp/
 # tsc-analytics.txt as exactly this, accidentally committed in the baseline).
 tsc-output.txt
 tsc-analytics.txt
+
+# Local-only working material at repo root — a sanitized project snapshot/
+# export and the user's personal rules/methodology docs. Not part of the
+# shipped app; kept locally but must never be swept into a commit by an
+# `git add -A`/`git add .`.
+Project_Export/
+Project_Rules/
