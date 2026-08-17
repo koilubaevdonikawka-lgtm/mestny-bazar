@@ -1,0 +1,18 @@
+# Normalize all text files to LF in the repository, regardless of a
+# contributor's local core.autocrlf setting. Without this, Windows clients
+# with core.autocrlf=true check text files out as CRLF, which prettier/
+# eslint then flag on every line — exactly what happened after merging
+# architecture-cleanup into main (685 files, ~63k lint errors, purely from
+# line endings, zero real content difference).
+* text=auto eol=lf
+
+# Binary assets — never touch line endings.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
