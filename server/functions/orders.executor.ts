@@ -1,7 +1,9 @@
 import type { OrderDTO } from "@shared/contracts/order";
+import type { RetryPaymentResponse } from "@shared/contracts/payment";
 import { requireUserIdFromRequest } from "@server/auth/resolve-user";
 import { getServices } from "@server/di/container";
 import { OrderNotFoundError, UnauthorizedError } from "@server/domain/orders.errors";
+import { PaymentRetryNotAllowedError } from "@server/domain/payment.errors";
 
 export async function executeListOrders(): Promise<OrderDTO[]> {
   const userId = await requireUserIdFromRequest();
@@ -22,4 +24,10 @@ export async function executeCancelOrder(orderId: string): Promise<OrderDTO> {
   return getServices().orderService.cancelOrder(orderId, userId);
 }
 
-export { UnauthorizedError, OrderNotFoundError };
+export async function executeRetryPayment(orderId: string): Promise<RetryPaymentResponse> {
+  const userId = await requireUserIdFromRequest();
+  const result = await getServices().paymentService.retryPayment(orderId, userId);
+  return { paymentUrl: result.paymentUrl };
+}
+
+export { UnauthorizedError, OrderNotFoundError, PaymentRetryNotAllowedError };

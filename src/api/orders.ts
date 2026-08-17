@@ -1,5 +1,12 @@
 import type { CreateOrderRequest, CreateOrderResponse, OrderDTO } from "@shared/contracts/order";
-import { cancelOrderFn, createOrderFn, getOrderFn, listOrdersFn } from "@/api/orders.functions";
+import type { RetryPaymentResponse } from "@shared/contracts/payment";
+import {
+  cancelOrderFn,
+  createOrderFn,
+  getOrderFn,
+  listOrdersFn,
+  retryPaymentFn,
+} from "@/api/orders.functions";
 
 /** Creates an order via Platform Layer createOrderFn. userId is resolved server-side from JWT. */
 export async function createOrder(request: CreateOrderRequest): Promise<CreateOrderResponse> {
@@ -19,4 +26,9 @@ export async function getOrder(id: string): Promise<OrderDTO> {
 /** Cancels the caller's own order, if it hasn't entered assembly yet. */
 export async function cancelOrder(id: string): Promise<OrderDTO> {
   return cancelOrderFn({ data: { id } });
+}
+
+/** Retries payment for the caller's own order when a previous ONLINE attempt never succeeded — mints a fresh payment session, never reuses the failed one. */
+export async function retryPayment(id: string): Promise<RetryPaymentResponse> {
+  return retryPaymentFn({ data: { id } });
 }

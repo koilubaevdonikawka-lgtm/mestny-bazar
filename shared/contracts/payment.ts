@@ -64,3 +64,9 @@ export interface PaymentStatusCheckDTO {
   status: PaymentRecordStatus;
   orderStatus: string;
 }
+
+/** Result of retrying payment for an order whose previous attempt never reached a terminal success (БАГ 3). */
+export interface RetryPaymentResponse {
+  /** Where to redirect the customer to complete payment — null should not happen for an ONLINE retry, but mirrors InitiatePaymentResult's shape rather than asserting it away. */
+  paymentUrl: string | null;
+}

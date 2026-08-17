@@ -3,9 +3,15 @@ import type { IPaymentProvider } from "@server/ports/payment.provider";
 import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
 import type { OrderService } from "@server/domain/order.service";
 import type { OrderDTO } from "@shared/contracts/order";
+import { OrderStatus } from "@shared/contracts/order";
 import type { PaymentRecordDTO } from "@shared/contracts/payment";
 import { withRetry } from "@shared/lib/with-retry";
-import { PaymentNotFoundError, PaymentProviderError } from "@server/domain/payment.errors";
+import {
+  PaymentNotFoundError,
+  PaymentProviderError,
+  PaymentRetryNotAllowedError,
+} from "@server/domain/payment.errors";
+import { OrderNotFoundError } from "@server/domain/orders.errors";
 import { logger } from "@shared/observability/logger";
 
 const PAYMENT_RETRY_OPTIONS = { attempts: 3, delayMs: 500 };
@@ -110,6 +116,44 @@ export class PaymentService {
     await this.events.publish({ type: "payment.initiated", order, paymentId: record.id });
 
     return { paymentUrl: record.paymentUrl, paymentId: record.id };
+  }
+
+  /**
+   * БАГ 3 fix — lets a customer retry payment for their own order when the
+   * previous attempt never reached a terminal success: either the order has
+   * no payment record at all yet (`preparePayment` failed before persisting
+   * one — checkout.service.ts's documented "created-but-payment-not-
+   * prepared" gap) or its latest payment record is stuck pending/awaiting/
+   * failed. Always mints a brand-new idempotency key — reusing the failed
+   * attempt's key would just replay the SAME (already-failed) payment
+   * record via initiatePayment's own idempotency short-circuit above,
+   * never create a new one.
+   */
+  async retryPayment(orderId: string, userId: string): Promise<InitiatePaymentResult> {
+    const order = await this.orders.getOrder(orderId, userId);
+    if (!order) throw new OrderNotFoundError();
+
+    if (order.paymentMethod !== "ONLINE") {
+      throw new PaymentRetryNotAllowedError("Only ONLINE-payment orders can retry payment");
+    }
+    if (order.status === OrderStatus.CANCELLED) {
+      throw new PaymentRetryNotAllowedError("Cannot retry payment for a cancelled order");
+    }
+    if (order.paymentStatus === "paid" || order.paymentStatus === "refunded") {
+      throw new PaymentRetryNotAllowedError("This order's payment is already resolved");
+    }
+
+    const previous = await this.payments.getByOrderId(orderId);
+    const newIdempotencyKey = crypto.randomUUID();
+
+    logger.info("payment:retry-initiated", {
+      orderId,
+      previousPaymentId: previous?.id ?? null,
+      previousPaymentStatus: previous?.status ?? null,
+      newIdempotencyKey,
+    });
+
+    return this.initiatePayment(order, newIdempotencyKey);
   }
 
   /** Signature must be verified before anything in `resolved` is trusted. */

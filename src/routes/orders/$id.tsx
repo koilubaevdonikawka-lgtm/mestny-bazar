@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { OrderTimeline } from "@/components/OrderTimeline";
 import { CancelOrderButton } from "@/components/CancelOrderButton";
-import { cancelOrder, getOrder } from "@/api/orders";
+import { RetryPaymentButton } from "@/components/RetryPaymentButton";
+import { cancelOrder, getOrder, retryPayment } from "@/api/orders";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import {
@@ -75,6 +76,20 @@ function OrderDetailPage() {
       toast.success(t("orders.cancelledToast"));
     },
     onError: (e) => toast.error(formatCancelError(e, t)),
+  });
+
+  const retryPaymentMutation = useMutation({
+    mutationFn: () => retryPayment(id),
+    onSuccess: (result) => {
+      if (!result.paymentUrl) {
+        toast.error(t("orders.retryPaymentError"));
+        return;
+      }
+      // Full browser navigation to the provider-hosted payment page — leaves
+      // the SPA entirely, same as useCreateOrder's original checkout redirect.
+      window.location.href = result.paymentUrl;
+    },
+    onError: () => toast.error(t("orders.retryPaymentError")),
   });
 
   const handleSignIn = async () => {
@@ -160,7 +175,12 @@ function OrderDetailPage() {
           </div>
         </div>
 
-        <div className="mt-6">
+        <div className="mt-6 flex flex-wrap gap-3">
+          <RetryPaymentButton
+            order={order}
+            isPending={retryPaymentMutation.isPending}
+            onRetry={() => retryPaymentMutation.mutate()}
+          />
           <CancelOrderButton
             order={order}
             isPending={cancelMutation.isPending}

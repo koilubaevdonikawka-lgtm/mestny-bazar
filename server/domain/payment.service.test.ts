@@ -1,13 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
 import { PaymentService } from "@server/domain/payment.service";
-import { PaymentProviderError } from "@server/domain/payment.errors";
+import { OrderNotFoundError } from "@server/domain/orders.errors";
+import { PaymentProviderError, PaymentRetryNotAllowedError } from "@server/domain/payment.errors";
 import { RetryableError } from "@shared/lib/with-retry";
 import type { IPaymentRepository } from "@server/ports/payment.repository";
 import type { IPaymentProvider } from "@server/ports/payment.provider";
 import type { OrderService } from "@server/domain/order.service";
 import type { IMarketplaceEventBus, MarketplaceEvent } from "@server/ports/marketplace-events.port";
 import type { OrderDTO } from "@shared/contracts/order";
-import type { PaymentIntentDTO, PaymentRecordDTO } from "@shared/contracts/payment";
+import type {
+  CreatePaymentRequest,
+  PaymentIntentDTO,
+  PaymentRecordDTO,
+} from "@shared/contracts/payment";
 
 function makeOrder(overrides: Partial<OrderDTO> = {}): OrderDTO {
   return {
@@ -380,4 +385,102 @@ describe("PaymentService.checkExpiry", () => {
 
     expect(payments.updateStatus).not.toHaveBeenCalled();
   });
+});
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+describe("PaymentService.retryPayment", () => {
+  it("БАГ 3: retries even when no payment record exists yet (preparePayment failed before persisting one)", async () => {
+    const order = makeOrder({ paymentMethod: "ONLINE", paymentStatus: "awaiting" });
+    const orders = fakeOrders({ getOrder: vi.fn(async () => order) });
+    const payments = fakePayments({ getByOrderId: vi.fn(async () => null) });
+    const provider = fakeProvider();
+    const service = new PaymentService(payments, provider, orders, fakeEventBus(), APP_URL);
+
+    const result = await service.retryPayment("order-1", "user-1");
+
+    expect(orders.getOrder).toHaveBeenCalledWith("order-1", "user-1");
+    expect(provider.createPayment).toHaveBeenCalledWith(
+      expect.objectContaining({ idempotencyKey: expect.stringMatching(UUID_RE) }),
+    );
+    expect(result.paymentUrl).toBe("https://pay.example.com/session/1");
+  });
+
+  it("mints a fresh idempotency key, distinct from the previous failed attempt's", async () => {
+    const order = makeOrder({ paymentMethod: "ONLINE", paymentStatus: "failed" });
+    const orders = fakeOrders({ getOrder: vi.fn(async () => order) });
+    const previous = makePaymentRecord({ idempotencyKey: "old-failed-key", status: "failed" });
+    const payments = fakePayments({ getByOrderId: vi.fn(async () => previous) });
+    const createPayment = vi.fn(async (_request: CreatePaymentRequest) => makeIntent());
+    const provider = fakeProvider({ createPayment });
+    const service = new PaymentService(payments, provider, orders, fakeEventBus(), APP_URL);
+
+    await service.retryPayment("order-1", "user-1");
+
+    const call = createPayment.mock.calls[0][0];
+    expect(call.idempotencyKey).not.toBe("old-failed-key");
+    expect(call.idempotencyKey).toMatch(UUID_RE);
+  });
+
+  it("throws OrderNotFoundError when the order doesn't exist or doesn't belong to the caller", async () => {
+    const orders = fakeOrders({ getOrder: vi.fn(async () => null) });
+    const service = new PaymentService(
+      fakePayments(),
+      fakeProvider(),
+      orders,
+      fakeEventBus(),
+      APP_URL,
+    );
+
+    await expect(service.retryPayment("order-1", "user-1")).rejects.toBeInstanceOf(
+      OrderNotFoundError,
+    );
+  });
+
+  it("rejects a CASH order — nothing online was ever attempted", async () => {
+    const order = makeOrder({ paymentMethod: "CASH", paymentStatus: "unpaid" });
+    const orders = fakeOrders({ getOrder: vi.fn(async () => order) });
+    const provider = fakeProvider();
+    const service = new PaymentService(fakePayments(), provider, orders, fakeEventBus(), APP_URL);
+
+    await expect(service.retryPayment("order-1", "user-1")).rejects.toBeInstanceOf(
+      PaymentRetryNotAllowedError,
+    );
+    expect(provider.createPayment).not.toHaveBeenCalled();
+  });
+
+  it("rejects a cancelled order", async () => {
+    const order = makeOrder({
+      paymentMethod: "ONLINE",
+      paymentStatus: "awaiting",
+      status: "CANCELLED",
+    });
+    const orders = fakeOrders({ getOrder: vi.fn(async () => order) });
+    const service = new PaymentService(
+      fakePayments(),
+      fakeProvider(),
+      orders,
+      fakeEventBus(),
+      APP_URL,
+    );
+
+    await expect(service.retryPayment("order-1", "user-1")).rejects.toBeInstanceOf(
+      PaymentRetryNotAllowedError,
+    );
+  });
+
+  it.each(["paid", "refunded"] as const)(
+    "rejects an order whose payment already resolved to %s",
+    async (paymentStatus) => {
+      const order = makeOrder({ paymentMethod: "ONLINE", paymentStatus });
+      const orders = fakeOrders({ getOrder: vi.fn(async () => order) });
+      const provider = fakeProvider();
+      const service = new PaymentService(fakePayments(), provider, orders, fakeEventBus(), APP_URL);
+
+      await expect(service.retryPayment("order-1", "user-1")).rejects.toBeInstanceOf(
+        PaymentRetryNotAllowedError,
+      );
+      expect(provider.createPayment).not.toHaveBeenCalled();
+    },
+  );
 });

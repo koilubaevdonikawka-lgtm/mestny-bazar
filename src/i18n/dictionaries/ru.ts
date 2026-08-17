@@ -209,6 +209,8 @@ export const ru = {
     cancelConfirmDescription: "Заказ №{{number}} будет отменён. Это действие нельзя отменить.",
     cancelDeny: "Не отменять",
     cancelConfirm: "Да, отменить заказ",
+    retryPaymentButton: "Повторить платёж",
+    retryPaymentError: "Не удалось повторить платёж. Попробуйте ещё раз.",
   },
   addresses: {
     title: "Адреса доставки",

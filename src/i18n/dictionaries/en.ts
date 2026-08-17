@@ -208,6 +208,8 @@ export const en = {
     cancelConfirmDescription: "Order #{{number}} will be cancelled. This action cannot be undone.",
     cancelDeny: "Keep order",
     cancelConfirm: "Yes, cancel order",
+    retryPaymentButton: "Retry payment",
+    retryPaymentError: "Couldn't retry payment. Please try again.",
   },
   addresses: {
     title: "Delivery addresses",

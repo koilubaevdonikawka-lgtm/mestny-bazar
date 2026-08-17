@@ -25,3 +25,10 @@ export class PaymentAlreadyProcessedError extends Error {
     this.name = "PaymentAlreadyProcessedError";
   }
 }
+
+export class PaymentRetryNotAllowedError extends Error {
+  constructor(message = "This order's payment cannot be retried") {
+    super(message);
+    this.name = "PaymentRetryNotAllowedError";
+  }
+}
