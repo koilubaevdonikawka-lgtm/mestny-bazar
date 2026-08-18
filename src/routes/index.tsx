@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useResetOnAppForeground } from "@/hooks/useResetOnAppForeground";
 import { useSearchStore } from "@/stores/searchStore";
 import { useCheckoutStore } from "@/stores/checkoutStore";
 import { Truck, Loader2, ShoppingBasket, MessageCircle, CreditCard, Send } from "lucide-react";
@@ -85,6 +86,12 @@ function Home() {
   // that slug is ever renamed/removed, rather than defaulting to nothing.
   const selectedCategoryId = useCategoryStore((s) => s.activeCategoryId);
   const setSelectedCategoryId = useCategoryStore((s) => s.setActiveCategoryId);
+  // App returning from background (PWA/native) should land back on the
+  // default (leftmost) category, not silently keep whatever was selected
+  // before backgrounding — resetting to null re-derives defaultCategoryId
+  // below, same as a genuine first visit. Doesn't touch searchStore,
+  // cartStore, or checkoutStore — only this one piece of state.
+  useResetOnAppForeground(() => setSelectedCategoryId(null));
   const defaultCategoryId =
     topLevelCategories.find((c) => c.slug === "muka-krupy")?.id ??
     topLevelCategories[0]?.id ??

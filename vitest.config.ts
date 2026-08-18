@@ -9,6 +9,12 @@ export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
     environment: "node",
-    include: ["server/**/*.test.ts", "shared/**/*.test.ts"],
+    // src/hooks/**/*.test.ts only — deliberately narrow, not all of src/.
+    // This project's frontend layer has no test coverage at all (no jsdom,
+    // no @testing-library/react); adding either is out of scope here, so
+    // useResetOnAppForeground.test.ts exercises the hook's setup/teardown
+    // logic directly (a plain exported function, no React rendering
+    // involved) rather than through renderHook.
+    include: ["server/**/*.test.ts", "shared/**/*.test.ts", "src/hooks/**/*.test.ts"],
   },
 });
