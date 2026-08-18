@@ -24,9 +24,9 @@ export function SubcategoryCard({
     <Link
       to="/category/$categorySlug/subcategory/$subcategorySlug"
       params={{ categorySlug, subcategorySlug }}
-      className="group rounded-2xl border border-border/60 bg-card p-4 text-center transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)] hover:border-primary/40"
+      className="group overflow-hidden rounded-2xl border border-border/60 bg-card text-center transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)] hover:border-primary/40"
     >
-      <div className="aspect-square w-full overflow-hidden rounded-xl bg-secondary/40">
+      <div className="aspect-square w-full overflow-hidden rounded-t-2xl bg-secondary/40">
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -42,7 +42,7 @@ export function SubcategoryCard({
           </div>
         )}
       </div>
-      <div className="mt-2 font-serif text-base leading-tight text-primary line-clamp-2">
+      <div className="px-4 pt-2 pb-4 font-serif text-base leading-tight text-primary line-clamp-2">
         {name}
       </div>
     </Link>

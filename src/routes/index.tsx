@@ -302,7 +302,7 @@ function Home() {
           Обновляется при выборе другой основной категории в панели выше
           (activeSubcategories пересчитывается от activeCategoryId). */}
       {activeCategory && activeSubcategories.length > 0 && (
-        <section className="mx-auto max-w-7xl px-6 py-8 w-full sm:py-12">
+        <section className="mx-auto max-w-7xl px-3 py-8 w-full sm:px-6 sm:py-12">
           {/* Заголовок с названием категории убран — дублировал уже
               выбранную (подсвеченную зелёным) кнопку в панели категорий
               выше (задача: "удалить дублирующее описание категории"). */}
