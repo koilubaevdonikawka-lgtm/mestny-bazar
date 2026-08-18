@@ -24,11 +24,14 @@ export const Route = createFileRoute("/search")({
 });
 
 /**
- * Whole catalog loaded up front (single request, no cursor pagination) and
- * filtered/sorted entirely client-side. Deliberate for the current scale —
- * a handful of products total (checked directly against production before
- * building this) — not a general-purpose pattern; revisit with real
- * server-side pagination/virtualization if the catalog grows past this.
+ * Search filtering happens server-side (product.repository.ts's
+ * SEARCH_COLUMNS ilike match on name/description/manufacturer — see the
+ * `search` param passed to listProducts below). This constant only bounds
+ * how much of the (already server-filtered) result set is fetched in one
+ * request — no cursor pagination — deliberate for the current catalog
+ * scale (a handful of products total, checked directly against production);
+ * revisit with real server-side pagination/virtualization if it grows past
+ * this.
  *
  * 200 is the actual hard ceiling — shared/validation/common.schema.ts's
  * pageSizeSchema caps pageSize at 200 server-side (deliberate anti-abuse
@@ -69,8 +72,9 @@ function SearchPage() {
     isError: productsError,
     refetch: refetchProducts,
   } = useQuery({
-    queryKey: ["products", "search-page-all"],
-    queryFn: () => listProducts({ sortBy: "name", pageSize: ALL_PRODUCTS_PAGE_SIZE }),
+    queryKey: ["products", "search-page-all", debouncedSearch],
+    queryFn: () =>
+      listProducts({ sortBy: "name", pageSize: ALL_PRODUCTS_PAGE_SIZE, search: debouncedSearch }),
     staleTime: 60 * 1000,
   });
   const {
@@ -90,6 +94,12 @@ function SearchPage() {
     return map;
   }, [categories]);
 
+  // Source of truth is the server response (product.repository.ts's
+  // SEARCH_COLUMNS ilike match on name/description/manufacturer) — no
+  // client-side re-filtering. An empty debouncedSearch means the server
+  // applies no search filter at all (see product.repository.ts's
+  // `if (params.search?.trim())` guard), so the unfiltered full list still
+  // shows for the empty-query initial state, same as before.
   const rows = useMemo(() => {
     const products = productResult?.items ?? [];
     return products.map((product) => ({
@@ -97,17 +107,6 @@ function SearchPage() {
       path: resolveCategoryPath(product.categoryId, categoriesById),
     }));
   }, [productResult, categoriesById]);
-
-  const filteredRows = useMemo(() => {
-    if (!debouncedSearch) return rows;
-    return rows.filter(({ product, path }) => {
-      const haystack = [product.name, path.top?.name, path.sub?.name]
-        .filter((v): v is string => Boolean(v))
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(debouncedSearch);
-    });
-  }, [rows, debouncedSearch]);
 
   const translations = useTranslatedTexts(
     [...rows.map((r) => r.product.name), ...(categories ?? []).map((c) => c.name)],
@@ -186,7 +185,7 @@ function SearchPage() {
               {t("common.retry")}
             </Button>
           </div>
-        ) : filteredRows.length === 0 ? (
+        ) : rows.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-border py-16 text-center">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-secondary">
               <ShoppingBasket className="h-6 w-6 text-primary" />
@@ -200,7 +199,7 @@ function SearchPage() {
           </div>
         ) : (
           <ul className="flex flex-col divide-y divide-border/60 rounded-2xl border border-border/60 bg-card">
-            {filteredRows.map(({ product, path }) => (
+            {rows.map(({ product, path }) => (
               <li key={product.id}>
                 <Link
                   to="/product/$handle"
