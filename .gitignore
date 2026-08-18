@@ -19,6 +19,11 @@ dist-ssr
 # vitest --coverage report output
 coverage
 
+# Playwright E2E run artifacts (traces, screenshots, HTML report)
+test-results
+playwright-report
+blob-report
+
 # Environment files — real config/secrets, never commit. .env.example is a
 # template with no real values and must stay tracked.
 .env

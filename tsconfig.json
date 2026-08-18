@@ -5,7 +5,9 @@
     "shared/**/*.ts",
     "server/**/*.ts",
     "tasks/**/*.ts",
+    "e2e/**/*.ts",
     "vite.config.ts",
+    "playwright.config.ts",
     "eslint.config.js"
   ],
   "compilerOptions": {
