@@ -25,6 +25,14 @@ export const getOrderFn = createServerFn({ method: "GET" })
     return executeGetOrder(data.id);
   });
 
+/** No auth — see executeGetOrderStatus for the trust model. */
+export const getOrderStatusFn = createServerFn({ method: "GET" })
+  .validator((data: unknown) => uuidParamSchema.parse(data))
+  .handler(async ({ data }): Promise<OrderDTO> => {
+    const { executeGetOrderStatus } = await import("@server/functions/orders.executor");
+    return executeGetOrderStatus(data.id);
+  });
+
 export const cancelOrderFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => uuidParamSchema.parse(data))
   .handler(async ({ data }): Promise<OrderDTO> => {

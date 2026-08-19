@@ -19,6 +19,24 @@ export async function executeGetOrder(orderId: string): Promise<OrderDTO> {
   return order;
 }
 
+/**
+ * No auth gate — mirrors executeCheckPaymentStatus's existing trust model
+ * (server/functions/payment.executor.ts): orderId is a cryptographically
+ * strong UUID, and knowledge of it is treated as sufficient access, same as
+ * order-success.tsx already does for anonymous/guest checkouts. Returns the
+ * full OrderDTO (not just a status subset) because OrderTimeline — the
+ * component this feeds — is typed against the full DTO; the caller (cart)
+ * only renders the status/timeline portion of it, never the address/phone/
+ * items fields also present on the object.
+ */
+export async function executeGetOrderStatus(orderId: string): Promise<OrderDTO> {
+  const order = await getServices().orderService.getOrder(orderId);
+  if (!order) {
+    throw new OrderNotFoundError();
+  }
+  return order;
+}
+
 export async function executeCancelOrder(orderId: string): Promise<OrderDTO> {
   const userId = await requireUserIdFromRequest();
   return getServices().orderService.cancelOrder(orderId, userId);

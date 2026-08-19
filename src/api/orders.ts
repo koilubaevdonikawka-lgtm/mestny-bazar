@@ -4,6 +4,7 @@ import {
   cancelOrderFn,
   createOrderFn,
   getOrderFn,
+  getOrderStatusFn,
   listOrdersFn,
   retryPaymentFn,
 } from "@/api/orders.functions";
@@ -21,6 +22,11 @@ export async function listOrders(): Promise<OrderDTO[]> {
 /** Fetches one order by id for the authenticated user. userId is resolved server-side from JWT. */
 export async function getOrder(id: string): Promise<OrderDTO> {
   return getOrderFn({ data: { id } });
+}
+
+/** No-auth fetch by orderId — same trust model as order-success.tsx/checkPaymentStatus (knowledge of the UUID is the access control), so it also works for guest checkouts with no session at all. Used by CartDrawer to show the customer's last order status; never render the address/phone/items fields also present on the returned DTO from this call, only status/timeline. */
+export async function getOrderStatus(id: string): Promise<OrderDTO> {
+  return getOrderStatusFn({ data: { id } });
 }
 
 /** Cancels the caller's own order, if it hasn't entered assembly yet. */

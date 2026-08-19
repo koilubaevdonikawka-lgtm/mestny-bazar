@@ -27,12 +27,30 @@ import { useCartStore } from "@/stores/cartStore";
 import { useCheckoutStore } from "@/stores/checkoutStore";
 import { calculateDeliveryFee } from "@/api/delivery-pricing";
 import { listDeliveryZones } from "@/api/delivery-zone";
+import { getOrderStatus } from "@/api/orders";
 import { CartQuantityControl } from "@/components/CartQuantityControl";
+import { OrderTimeline } from "@/components/OrderTimeline";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
 import { useCloseOnBackButton } from "@/hooks/useCloseOnBackButton";
 import { useCreateOrder } from "@/hooks/useCreateOrder";
 import type { CartLineStatus } from "@shared/contracts/cart";
+import { OrderStatus } from "@shared/contracts/order";
+
+/**
+ * "Last placed order" — a cart-local concept, deliberately separate from
+ * checkoutStore (that store is the in-progress checkout draft and gets
+ * wiped by reset() on every new checkout; this must survive that). Plain
+ * localStorage rather than a new Zustand store field — this task's allowed
+ * files are CartDrawer.tsx and the no-auth order-status fetch, so a raw key
+ * here avoids touching cartStore.ts/checkoutStore.ts for a single string.
+ */
+const LAST_ORDER_ID_STORAGE_KEY = "platform-last-order-id";
+
+const TERMINAL_ORDER_STATUSES: ReadonlySet<OrderStatus> = new Set([
+  OrderStatus.DELIVERED,
+  OrderStatus.CANCELLED,
+]);
 
 interface CartDrawerProps {
   /**
@@ -58,6 +76,14 @@ export const CartDrawer = ({ iconOnly = false }: CartDrawerProps = {}) => {
   // of skipping over it and navigating the page underneath away.
   useCloseOnBackButton(isOpen, setIsOpen);
   const [lineWarnings, setLineWarnings] = useState<Record<string, string>>({});
+  // Read only on the client, after mount — never during the initial
+  // render — so this never disagrees with the server-rendered/hydration
+  // pass (localStorage doesn't exist server-side).
+  const [lastOrderId, setLastOrderId] = useState<string | null>(null);
+  const [orderStatusDismissed, setOrderStatusDismissed] = useState(false);
+  useEffect(() => {
+    setLastOrderId(localStorage.getItem(LAST_ORDER_ID_STORAGE_KEY));
+  }, []);
   const { items, isLoading, removeItem, validateCart, clearCart } = useCartStore();
   const {
     address,
@@ -96,6 +122,10 @@ export const CartDrawer = ({ iconOnly = false }: CartDrawerProps = {}) => {
   useEffect(() => {
     if (!isOpen) return;
     setLineWarnings({});
+    // A visually-dismissed non-terminal order status must resurface the
+    // next time the cart opens (п.3 of the task) — only a terminal status's
+    // dismiss clears lastOrderId itself (handleDismissOrderStatus below).
+    setOrderStatusDismissed(false);
     void validateCart().then((result) => {
       if (!result) return;
       const warnings: Record<string, string> = {};
@@ -107,6 +137,40 @@ export const CartDrawer = ({ iconOnly = false }: CartDrawerProps = {}) => {
       setLineWarnings(warnings);
     });
   }, [isOpen, validateCart, VALIDATION_MESSAGE]);
+
+  // Only fetched when the cart is actually empty and a last-order id is on
+  // hand — an in-progress cart (items.length > 0) always shows the normal
+  // items/checkout view instead, never this, so adding a new item while a
+  // previous order's status is showing switches back to checkout on its own
+  // (п.4 — simplest option of the two offered; a compact banner would be a
+  // new bit of UI not used anywhere else in the app, and risks the customer
+  // conflating the just-placed order's status with the new one being built).
+  const orderStatusQuery = useQuery({
+    queryKey: ["orders", "status", lastOrderId],
+    queryFn: () => getOrderStatus(lastOrderId!),
+    enabled: isOpen && items.length === 0 && !!lastOrderId,
+    retry: false,
+  });
+
+  // Stale/deleted orderId (or any other fetch failure) — fall back to the
+  // plain empty state instead of getting stuck retrying a dead reference.
+  useEffect(() => {
+    if (!orderStatusQuery.isError) return;
+    localStorage.removeItem(LAST_ORDER_ID_STORAGE_KEY);
+    setLastOrderId(null);
+  }, [orderStatusQuery.isError]);
+
+  const handleDismissOrderStatus = () => {
+    const status = orderStatusQuery.data?.status;
+    if (status && TERMINAL_ORDER_STATUSES.has(status)) {
+      // Terminal — this order is done; forget it for good.
+      localStorage.removeItem(LAST_ORDER_ID_STORAGE_KEY);
+      setLastOrderId(null);
+    }
+    // Non-terminal — only a visual dismiss for this viewing; the isOpen
+    // effect above resets this on the next open (п.3).
+    setOrderStatusDismissed(true);
+  };
 
   const { submitOrder, isSubmitting } = useCreateOrder();
 
@@ -121,7 +185,10 @@ export const CartDrawer = ({ iconOnly = false }: CartDrawerProps = {}) => {
         imageUrl: item.product.node.images?.edges?.[0]?.node?.url ?? null,
       },
     }));
-    await submitOrder(orderItems, async () => {
+    await submitOrder(orderItems, async (response) => {
+      localStorage.setItem(LAST_ORDER_ID_STORAGE_KEY, response.order.id);
+      setLastOrderId(response.order.id);
+      setOrderStatusDismissed(false);
       await clearCart();
       useCheckoutStore.getState().reset();
       setIsOpen(false);
@@ -129,6 +196,29 @@ export const CartDrawer = ({ iconOnly = false }: CartDrawerProps = {}) => {
   };
 
   const checkoutBusy = isLoading || isSubmitting;
+  const showOrderStatus = items.length === 0 && !!lastOrderId && !orderStatusDismissed;
+
+  // Этап №5 — beautiful, actionable empty state instead of just an icon +
+  // caption: heading, description, and a direct way back into the catalog
+  // (closes the sheet so it doesn't linger open over the home page after
+  // navigating). Factored out so both "genuinely empty" and "order status
+  // not available yet/anymore" fall back to the exact same markup.
+  const emptyCartState = (
+    <div className="flex-1 flex flex-col items-center justify-center gap-5 px-6 text-center">
+      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-secondary">
+        <ShoppingCart className="h-9 w-9 text-primary" />
+      </div>
+      <div>
+        <h3 className="font-serif text-xl">{t("cart.empty")}</h3>
+        <p className="mt-1 max-w-xs text-sm text-muted-foreground">{t("cart.emptyDescription")}</p>
+      </div>
+      <Button asChild size="lg" className="h-12 rounded-full px-8 gap-2">
+        <Link to="/" onClick={() => setIsOpen(false)}>
+          <ArrowLeft className="h-4 w-4" /> {t("cart.emptyCta")}
+        </Link>
+      </Button>
+    </div>
+  );
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -171,26 +261,39 @@ export const CartDrawer = ({ iconOnly = false }: CartDrawerProps = {}) => {
         </SheetHeader>
         <div className="flex flex-col flex-1 pt-4 min-h-0">
           {items.length === 0 ? (
-            // Этап №5 — beautiful, actionable empty state instead of just an
-            // icon + caption: heading, description, and a direct way back
-            // into the catalog (closes the sheet so it doesn't linger open
-            // over the home page after navigating).
-            <div className="flex-1 flex flex-col items-center justify-center gap-5 px-6 text-center">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-secondary">
-                <ShoppingCart className="h-9 w-9 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-serif text-xl">{t("cart.empty")}</h3>
-                <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-                  {t("cart.emptyDescription")}
-                </p>
-              </div>
-              <Button asChild size="lg" className="h-12 rounded-full px-8 gap-2">
-                <Link to="/" onClick={() => setIsOpen(false)}>
-                  <ArrowLeft className="h-4 w-4" /> {t("cart.emptyCta")}
-                </Link>
-              </Button>
-            </div>
+            showOrderStatus ? (
+              orderStatusQuery.isLoading ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : orderStatusQuery.data ? (
+                <div className="flex-1 overflow-y-auto px-6 py-4">
+                  <p className="text-center text-sm text-muted-foreground">
+                    {t("orders.orderNumber", { number: orderStatusQuery.data.orderNumber })}
+                  </p>
+                  <OrderTimeline order={orderStatusQuery.data} />
+                  <div className="mt-4 flex flex-col items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full"
+                      onClick={handleDismissOrderStatus}
+                    >
+                      {t("common.close")}
+                    </Button>
+                    <Button asChild size="lg" className="h-12 rounded-full px-8 gap-2">
+                      <Link to="/" onClick={() => setIsOpen(false)}>
+                        <ArrowLeft className="h-4 w-4" /> {t("cart.emptyCta")}
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                emptyCartState
+              )
+            ) : (
+              emptyCartState
+            )
           ) : (
             <>
               <div className="flex-1 overflow-y-auto pr-1 min-h-0">
