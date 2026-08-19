@@ -1,16 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
-import { ProductCard } from "@/components/ProductCard";
-import { Button } from "@/components/ui/button";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useResetOnAppForeground } from "@/hooks/useResetOnAppForeground";
-import { useSearchStore } from "@/stores/searchStore";
-import { Loader2, ShoppingBasket } from "lucide-react";
-import { fetchCatalogProducts } from "@/lib/catalog";
-import type { CatalogProductNode } from "@shared/lib/product-adapter";
 import { listCategories } from "@/api/category";
 import { listActiveBanners } from "@/api/design";
 import { BRAND } from "@/config/brand";
@@ -28,25 +21,9 @@ export const Route = createFileRoute("/")({
 function Home() {
   const { t, language } = useTranslation();
   const navigate = useNavigate();
-  const search = useSearchStore((s) => s.search);
-  // Search runs server-side (the full catalog, not just the loaded page) —
-  // debounce so typing doesn't fire a request per keystroke.
-  const debouncedSearch = useDebouncedValue(search.trim(), 300);
-
-  // useInfiniteQuery keys on debouncedSearch, so a new search term starts a
-  // fresh query (back to page one) instead of appending to the old results;
-  // already-fetched pages stay cached in data.pages and are never refetched
-  // just to render — fetchNextPage() only ever asks for the next cursor.
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ["products", debouncedSearch],
-    queryFn: ({ pageParam }) =>
-      fetchCatalogProducts({ search: debouncedSearch, cursor: pageParam }),
-    initialPageParam: null as string | null,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
-  });
 
   // Categories change rarely — a single unpaginated fetch, cached for a
-  // while, is enough (unlike the product list above).
+  // while, is enough.
   const { data: categories } = useQuery({
     queryKey: ["categories"],
     queryFn: listCategories,
@@ -132,19 +109,6 @@ function Home() {
     language,
   );
   const displayBrandName = pageTranslations[BRAND.name] ?? BRAND.name;
-
-  const products = useMemo(() => {
-    const seen = new Set<string>();
-    const merged: CatalogProductNode[] = [];
-    for (const page of data?.pages ?? []) {
-      for (const product of page.items) {
-        if (seen.has(product.node.id)) continue;
-        seen.add(product.node.id);
-        merged.push(product);
-      }
-    }
-    return merged;
-  }, [data]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -260,68 +224,6 @@ function Home() {
           />
         </section>
       )}
-
-      {/* Products */}
-      <section id="products" className="mx-auto max-w-7xl px-6 py-6 w-full flex-1 sm:py-12">
-        <div className="mb-5 sm:mb-10">
-          <h2 className="font-serif text-2xl tracking-tight sm:text-4xl md:text-5xl">
-            {t("home.productsHeading")}
-          </h2>
-          <p className="mt-2 text-muted-foreground">{t("home.productsSubheading")}</p>
-        </div>
-
-        {isLoading ? (
-          <div className="flex justify-center py-12 sm:py-24">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : products.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-border py-12 text-center sm:py-24">
-            <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
-              <ShoppingBasket className="h-6 w-6 text-primary" />
-            </div>
-            {debouncedSearch ? (
-              <>
-                <h3 className="font-serif text-2xl">{t("home.noResultsTitle")}</h3>
-                <p className="mt-2 text-muted-foreground max-w-md mx-auto">
-                  {t("home.noResultsDescription", { query: debouncedSearch })}
-                </p>
-              </>
-            ) : (
-              <>
-                <h3 className="font-serif text-2xl">{t("home.catalogEmptyTitle")}</h3>
-                <p className="mt-2 text-muted-foreground max-w-md mx-auto">
-                  {t("home.catalogEmptyDescription")}
-                </p>
-              </>
-            )}
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
-              {products.map((p) => (
-                <ProductCard key={p.node.id} product={p} />
-              ))}
-            </div>
-            {hasNextPage && (
-              <div className="mt-10 flex justify-center">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="h-12 px-8 rounded-full"
-                  onClick={() => void fetchNextPage()}
-                  disabled={isFetchingNextPage}
-                >
-                  {isFetchingNextPage ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    t("common.showMore")
-                  )}
-                </Button>
-              </div>
-            )}
-          </>
-        )}
-      </section>
 
       <SiteFooter />
     </div>
