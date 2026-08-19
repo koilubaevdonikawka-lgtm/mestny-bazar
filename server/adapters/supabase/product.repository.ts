@@ -62,6 +62,7 @@ interface ProductRow {
   category_id: string | null;
   manufacturer: string | null;
   country_of_origin: string | null;
+  weight_kg: number | null;
   /** Only present when fetched via PRODUCT_SELECT_WITH_CATEGORY (single-product reads). */
   categories?: CategoryEmbed | CategoryEmbed[] | null;
 }
@@ -84,6 +85,7 @@ function mapProduct(row: ProductRow): ProductDTO {
     categoryId: row.category_id,
     manufacturer: row.manufacturer,
     countryOfOrigin: row.country_of_origin,
+    weightKg: row.weight_kg == null ? null : Number(row.weight_kg),
     ...(categoryEmbed
       ? { category: { id: categoryEmbed.id, name: categoryEmbed.name, slug: categoryEmbed.slug } }
       : {}),
@@ -91,7 +93,7 @@ function mapProduct(row: ProductRow): ProductDTO {
 }
 
 const PRODUCT_SELECT =
-  "id, name, slug, description, price, currency, unit, image_url, image_urls, stock, category_id, manufacturer, country_of_origin";
+  "id, name, slug, description, price, currency, unit, image_url, image_urls, stock, category_id, manufacturer, country_of_origin, weight_kg";
 
 /** Adds the category name/slug — used only by single-product reads (the
  * product detail page needs to display the category), never by the listing

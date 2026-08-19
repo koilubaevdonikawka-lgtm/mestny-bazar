@@ -156,7 +156,22 @@ export interface DeliveryFeeQuote {
   eta: DeliveryEtaEstimate;
 }
 
+export interface DeliveryFeeItemRequest {
+  productId?: string;
+  productSlug?: string;
+  quantity: number;
+}
+
 export interface CalculateDeliveryFeeRequest {
   zoneId: string;
   subtotal: number;
+  /**
+   * Cart composition — the server resolves each product's real weightKg
+   * from the DB itself (never trusts a client-computed weight, CD-01) to
+   * compute the order's total weight for the weight-based delivery fee
+   * formula (docs/delivery/delivery-pricing.md). Optional so the existing
+   * admin delivery-fee preview tool (/admin/delivery, no cart context)
+   * keeps working unchanged — an omitted/empty list is treated as 0 kg.
+   */
+  items?: DeliveryFeeItemRequest[];
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DeliveryCalculator } from "@server/domain/delivery-calculator";
+import { DeliveryCalculator, sumOrderWeightKg } from "@server/domain/delivery-calculator";
 import type { DeliveryTariffDTO } from "@shared/contracts/delivery";
 
 function makeTariff(overrides: Partial<DeliveryTariffDTO> = {}): DeliveryTariffDTO {
@@ -23,60 +23,83 @@ function makeTariff(overrides: Partial<DeliveryTariffDTO> = {}): DeliveryTariffD
   };
 }
 
+/**
+ * Этап "весовая доставка" — these tests replace the old FIXED/BY_DISTANCE/
+ * minOrderForFreeDelivery suite: the calculator now always applies the
+ * fixed weight formula (60 сом up to and including 40 kg, +1 сом per extra
+ * kg rounded up), regardless of tariff.basePrice/pricingModel — see
+ * delivery-calculator.ts's class doc comment and the task report for the
+ * full rationale.
+ */
 describe("DeliveryCalculator", () => {
-  it("charges the tariff's base price for FIXED pricing", () => {
+  it("charges the base 60 for a weightless order (no weights set on any line)", () => {
     const quote = new DeliveryCalculator().calculate({
       zoneId: "zone-1",
       zoneName: "Центр",
-      tariff: makeTariff({ basePrice: 150 }),
+      tariff: makeTariff(),
       subtotal: 500,
+      totalWeightKg: 0,
     });
-    expect(quote.fee).toBe(150);
+    expect(quote.fee).toBe(60);
     expect(quote.isFree).toBe(false);
   });
 
-  it("waives the fee once subtotal meets minOrderForFreeDelivery", () => {
+  it("still charges exactly 60 at the 40 kg threshold itself", () => {
     const quote = new DeliveryCalculator().calculate({
       zoneId: "zone-1",
       zoneName: "Центр",
-      tariff: makeTariff({ basePrice: 150, minOrderForFreeDelivery: 2000 }),
-      subtotal: 2000,
+      tariff: makeTariff(),
+      subtotal: 500,
+      totalWeightKg: 40,
     });
-    expect(quote.fee).toBe(0);
-    expect(quote.isFree).toBe(true);
-    expect(quote.freeFrom).toBe(2000);
+    expect(quote.fee).toBe(60);
   });
 
-  it("still charges when subtotal is below the free-delivery threshold", () => {
+  it("adds 1 som per whole extra kg above 40", () => {
     const quote = new DeliveryCalculator().calculate({
       zoneId: "zone-1",
       zoneName: "Центр",
-      tariff: makeTariff({ basePrice: 150, minOrderForFreeDelivery: 2000 }),
-      subtotal: 1999,
+      tariff: makeTariff(),
+      subtotal: 500,
+      totalWeightKg: 45,
     });
-    expect(quote.fee).toBe(150);
+    expect(quote.fee).toBe(65);
+  });
+
+  it("rounds a fractional excess up to the next whole kg", () => {
+    const quote = new DeliveryCalculator().calculate({
+      zoneId: "zone-1",
+      zoneName: "Центр",
+      tariff: makeTariff(),
+      subtotal: 500,
+      totalWeightKg: 40.1,
+    });
+    expect(quote.fee).toBe(61);
+  });
+
+  it("ignores tariff.basePrice entirely — the weight formula is fixed and global", () => {
+    const quote = new DeliveryCalculator().calculate({
+      zoneId: "zone-1",
+      zoneName: "Центр",
+      tariff: makeTariff({ basePrice: 9999, pricingModel: "BY_DISTANCE", pricePerKm: 500 }),
+      subtotal: 500,
+      totalWeightKg: 0,
+      distanceKm: 10,
+    });
+    expect(quote.fee).toBe(60);
+  });
+
+  it("no longer waives the fee above minOrderForFreeDelivery — isFree is always false, freeFrom always null", () => {
+    const quote = new DeliveryCalculator().calculate({
+      zoneId: "zone-1",
+      zoneName: "Центр",
+      tariff: makeTariff({ minOrderForFreeDelivery: 2000 }),
+      subtotal: 5000,
+      totalWeightKg: 0,
+    });
+    expect(quote.fee).toBe(60);
     expect(quote.isFree).toBe(false);
-  });
-
-  it("computes BY_DISTANCE as basePrice + pricePerKm * distanceKm", () => {
-    const quote = new DeliveryCalculator().calculate({
-      zoneId: "zone-1",
-      zoneName: "Центр",
-      tariff: makeTariff({ pricingModel: "BY_DISTANCE", basePrice: 50, pricePerKm: 10 }),
-      subtotal: 500,
-      distanceKm: 4,
-    });
-    expect(quote.fee).toBe(90);
-  });
-
-  it("treats BY_DISTANCE with no distance supplied as base price only (no geocoding provider yet)", () => {
-    const quote = new DeliveryCalculator().calculate({
-      zoneId: "zone-1",
-      zoneName: "Центр",
-      tariff: makeTariff({ pricingModel: "BY_DISTANCE", basePrice: 50, pricePerKm: 10 }),
-      subtotal: 500,
-    });
-    expect(quote.fee).toBe(50);
+    expect(quote.freeFrom).toBeNull();
   });
 
   it("carries the tariff's ETA through to the quote", () => {
@@ -85,18 +108,32 @@ describe("DeliveryCalculator", () => {
       zoneName: "Центр",
       tariff: makeTariff({ etaMinMinutes: 20, etaMaxMinutes: 40 }),
       subtotal: 500,
+      totalWeightKg: 0,
     });
     expect(quote.eta).toEqual({ minMinutes: 20, maxMinutes: 40 });
   });
+});
 
-  it("never returns a negative fee", () => {
-    const quote = new DeliveryCalculator().calculate({
-      zoneId: "zone-1",
-      zoneName: "Центр",
-      tariff: makeTariff({ pricingModel: "BY_DISTANCE", basePrice: 0, pricePerKm: -5 }),
-      subtotal: 500,
-      distanceKm: 1,
-    });
-    expect(quote.fee).toBe(0);
+describe("sumOrderWeightKg", () => {
+  it("multiplies each line's weight by its quantity and sums", () => {
+    expect(
+      sumOrderWeightKg([
+        { weightKg: 2, quantity: 3 },
+        { weightKg: 1.5, quantity: 2 },
+      ]),
+    ).toBe(9);
+  });
+
+  it("treats a null weightKg as 0", () => {
+    expect(
+      sumOrderWeightKg([
+        { weightKg: null, quantity: 5 },
+        { weightKg: 2, quantity: 1 },
+      ]),
+    ).toBe(2);
+  });
+
+  it("returns 0 for an empty order", () => {
+    expect(sumOrderWeightKg([])).toBe(0);
   });
 });

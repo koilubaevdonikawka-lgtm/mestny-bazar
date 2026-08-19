@@ -35,6 +35,8 @@ export interface ProductDTO {
   categoryId: string | null;
   manufacturer: string | null;
   countryOfOrigin: string | null;
+  /** Kilograms — used for the weight-based delivery fee formula (docs/delivery/delivery-pricing.md). Null counts as 0 kg. */
+  weightKg: number | null;
   category?: Pick<CategoryDTO, "id" | "name" | "slug">;
 }
 

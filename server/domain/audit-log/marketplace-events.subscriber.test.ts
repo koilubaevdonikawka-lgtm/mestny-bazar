@@ -215,6 +215,7 @@ describe("subscribeAuditLog", () => {
       manufacturer: null,
       countryOfOrigin: null,
       sku: null,
+      weightKg: null,
       stock: 10,
       publicationStatus: "PUBLISHED" as const,
       categoryId: null,

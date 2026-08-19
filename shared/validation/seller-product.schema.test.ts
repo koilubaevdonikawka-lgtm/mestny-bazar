@@ -47,6 +47,30 @@ describe("createSellerProductRequestSchema", () => {
       createSellerProductRequestSchema.parse({ name: "Хлеб", price: 50, categoryId: "abc" }),
     ).toThrow();
   });
+
+  it("accepts a null weightKg (nullable — existing products without a set weight)", () => {
+    const result = createSellerProductRequestSchema.parse({
+      name: "Хлеб",
+      price: 50,
+      weightKg: null,
+    });
+    expect(result.weightKg).toBeNull();
+  });
+
+  it("accepts a valid non-negative weightKg", () => {
+    const result = createSellerProductRequestSchema.parse({
+      name: "Хлеб",
+      price: 50,
+      weightKg: 0.5,
+    });
+    expect(result.weightKg).toBe(0.5);
+  });
+
+  it("rejects a negative weightKg", () => {
+    expect(() =>
+      createSellerProductRequestSchema.parse({ name: "Хлеб", price: 50, weightKg: -1 }),
+    ).toThrow();
+  });
 });
 
 describe("updateSellerProductRequestSchema", () => {

@@ -17,6 +17,7 @@ import { CheckoutValidationError, ProductNotSynchronized } from "@server/domain/
 import { InventoryService } from "@server/domain/inventory.service";
 import { OrderService } from "@server/domain/order.service";
 import { PricingService } from "@server/domain/pricing.service";
+import { sumOrderWeightKg } from "@server/domain/delivery-calculator";
 import { CouponService } from "@server/domain/coupon.service";
 import { ProductVariantService } from "@server/domain/product-variant.service";
 import { VariantStockService } from "@server/domain/variant-stock.service";
@@ -61,7 +62,7 @@ export class CheckoutService {
       zoneId: addressZoneId,
     } = await this.resolveAddress(userId, request);
     const zoneId = await this.resolveZoneId(request, addressZoneId);
-    const { lineItems, currency } = await this.resolveLineItems(request.items);
+    const { lineItems, currency, totalWeightKg } = await this.resolveLineItems(request.items);
     const stockItems = lineItems.map((item) => ({
       productId: item.productId,
       quantity: item.quantity,
@@ -134,7 +135,7 @@ export class CheckoutService {
       // future Courier Platform can read them without re-deriving (item 9,
       // Промпт №021).
       const deliveryQuote = zoneId
-        ? await this.pricing.calculateDeliveryFee(zoneId, subtotal)
+        ? await this.pricing.calculateDeliveryFee(zoneId, subtotal, totalWeightKg)
         : null;
       const deliveryFee = deliveryQuote?.fee ?? 0;
       const total = this.pricing.calculateTotal(subtotal, deliveryFee, discountAmount);
@@ -368,7 +369,7 @@ export class CheckoutService {
    */
   private async resolveLineItems(
     items: CreateOrderItemRequest[],
-  ): Promise<{ lineItems: OrderLineItemInput[]; currency: string }> {
+  ): Promise<{ lineItems: OrderLineItemInput[]; currency: string; totalWeightKg: number }> {
     const ids: string[] = [];
     const slugs: string[] = [];
 
@@ -408,6 +409,7 @@ export class CheckoutService {
     const variantMap = new Map(variantEntries);
 
     const resolved: OrderLineItemInput[] = [];
+    const weightInputs: Array<{ weightKg: number | null; quantity: number }> = [];
     let currency: string | undefined;
 
     for (const item of items) {
@@ -437,6 +439,7 @@ export class CheckoutService {
       }
 
       currency ??= product.currency;
+      weightInputs.push({ weightKg: product.weightKg, quantity: item.quantity });
       resolved.push({
         productId: product.id,
         variantId,
@@ -463,7 +466,11 @@ export class CheckoutService {
     }
     await Promise.all(stockChecks);
 
-    return { lineItems: resolved, currency: currency ?? "KGS" };
+    return {
+      lineItems: resolved,
+      currency: currency ?? "KGS",
+      totalWeightKg: sumOrderWeightKg(weightInputs),
+    };
   }
 
   /**

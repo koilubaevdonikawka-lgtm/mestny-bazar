@@ -111,10 +111,29 @@ export const CartDrawer = ({ iconOnly = false }: CartDrawerProps = {}) => {
     enabled: isOpen,
   });
 
-  // Server-computed only (CD-01) — never a client-side estimate. docs/delivery/delivery-pricing.md.
+  // Server-computed only (CD-01) — never a client-side estimate, including
+  // the order's weight: items/quantities are sent so the server can look up
+  // each product's real weightKg itself (weight-based delivery formula,
+  // docs/delivery/delivery-pricing.md) rather than trusting a client-summed
+  // number. queryKey includes item identities/quantities so the preview
+  // refetches when the cart composition changes, not just its total price.
   const deliveryQuery = useQuery({
-    queryKey: ["delivery", "fee", zoneId, totalPrice],
-    queryFn: () => calculateDeliveryFee({ zoneId: zoneId!, subtotal: totalPrice }),
+    queryKey: [
+      "delivery",
+      "fee",
+      zoneId,
+      totalPrice,
+      items.map((item) => `${item.product.node.handle}:${item.quantity}`).join(","),
+    ],
+    queryFn: () =>
+      calculateDeliveryFee({
+        zoneId: zoneId!,
+        subtotal: totalPrice,
+        items: items.map((item) => ({
+          productSlug: item.product.node.handle,
+          quantity: item.quantity,
+        })),
+      }),
     enabled: isOpen && !!zoneId && totalItems > 0,
     retry: false,
   });

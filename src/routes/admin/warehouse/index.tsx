@@ -49,6 +49,7 @@ import {
 // напрямую из существующего маршрута, без копирования полей/JSX.
 import {
   emptyProductForm,
+  parseWeightKg,
   ProductFormFields,
   publicationStatusKey,
   toProductForm,
@@ -356,6 +357,11 @@ function AdminWarehousePage() {
       toast.error(t("admin.catalog.invalidPriceError"));
       return;
     }
+    const weightKg = parseWeightKg(newProductForm.weightKg);
+    if (weightKg === "invalid") {
+      toast.error(t("admin.catalog.invalidWeightError"));
+      return;
+    }
     createProductMutation.mutate({
       categoryId,
       name: newProductForm.name.trim(),
@@ -365,6 +371,7 @@ function AdminWarehousePage() {
       manufacturer: newProductForm.manufacturer.trim() || undefined,
       countryOfOrigin: newProductForm.countryOfOrigin.trim() || undefined,
       sku: newProductForm.sku.trim() || undefined,
+      weightKg,
       publicationStatus: newProductForm.publicationStatus,
       imageUrls: newProductForm.imageUrls,
     });
@@ -408,6 +415,11 @@ function AdminWarehousePage() {
       toast.error(t("admin.catalog.invalidPriceError"));
       return;
     }
+    const weightKg = parseWeightKg(editProductForm.weightKg);
+    if (weightKg === "invalid") {
+      toast.error(t("admin.catalog.invalidWeightError"));
+      return;
+    }
     updateProductMutation.mutate({
       id,
       name: editProductForm.name.trim(),
@@ -417,6 +429,7 @@ function AdminWarehousePage() {
       manufacturer: editProductForm.manufacturer.trim() || undefined,
       countryOfOrigin: editProductForm.countryOfOrigin.trim() || undefined,
       sku: editProductForm.sku.trim() || undefined,
+      weightKg,
       publicationStatus: editProductForm.publicationStatus,
       imageUrls: editProductForm.imageUrls,
     });

@@ -64,6 +64,7 @@ export class DeliveryPricingEngine implements IDeliveryPricingEngine {
       zoneName: zone.name,
       tariff,
       subtotal: context.subtotal,
+      totalWeightKg: context.totalWeightKg,
     });
   }
 }

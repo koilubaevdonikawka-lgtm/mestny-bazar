@@ -93,9 +93,9 @@ describe("DeliveryPricingEngine", () => {
       new DeliveryCalculator(),
     );
 
-    await expect(engine.calculate({ zoneId: "missing", subtotal: 100 })).rejects.toBeInstanceOf(
-      DeliveryZoneNotFoundError,
-    );
+    await expect(
+      engine.calculate({ zoneId: "missing", subtotal: 100, totalWeightKg: 0 }),
+    ).rejects.toBeInstanceOf(DeliveryZoneNotFoundError);
   });
 
   it("throws DeliveryNotAllowedError when no tariff applies", async () => {
@@ -107,9 +107,9 @@ describe("DeliveryPricingEngine", () => {
       new DeliveryCalculator(),
     );
 
-    await expect(engine.calculate({ zoneId: "zone-1", subtotal: 100 })).rejects.toBeInstanceOf(
-      DeliveryNotAllowedError,
-    );
+    await expect(
+      engine.calculate({ zoneId: "zone-1", subtotal: 100, totalWeightKg: 0 }),
+    ).rejects.toBeInstanceOf(DeliveryNotAllowedError);
   });
 
   it("asserts Zone Policy using the resolved tariff's minOrderAmount, not the zone's own data", async () => {
@@ -123,15 +123,15 @@ describe("DeliveryPricingEngine", () => {
       new DeliveryCalculator(),
     );
 
-    await expect(engine.calculate({ zoneId: "zone-1", subtotal: 100 })).rejects.toBeInstanceOf(
-      DeliveryNotAllowedError,
-    );
+    await expect(
+      engine.calculate({ zoneId: "zone-1", subtotal: 100, totalWeightKg: 0 }),
+    ).rejects.toBeInstanceOf(DeliveryNotAllowedError);
     expect(zonePolicy.assert).toHaveBeenCalledWith(
       expect.objectContaining({ minOrderAmount: 500, subtotal: 100 }),
     );
   });
 
-  it("returns a full quote when zone exists, tariff resolves, and zone policy allows", async () => {
+  it("returns a full quote when zone exists, tariff resolves, and zone policy allows — fee follows totalWeightKg, not tariff.basePrice", async () => {
     const tariff = makeTariff({ basePrice: 200 });
     const engine = new DeliveryPricingEngine(
       fakeZones(),
@@ -141,12 +141,12 @@ describe("DeliveryPricingEngine", () => {
       new DeliveryCalculator(),
     );
 
-    const quote = await engine.calculate({ zoneId: "zone-1", subtotal: 500 });
+    const quote = await engine.calculate({ zoneId: "zone-1", subtotal: 500, totalWeightKg: 50 });
     expect(quote).toMatchObject({
       zoneId: "zone-1",
       zoneName: "Центр",
       tariffId: "tariff-1",
-      fee: 200,
+      fee: 70,
     });
   });
 
@@ -160,7 +160,7 @@ describe("DeliveryPricingEngine", () => {
       new DeliveryCalculator(),
     );
 
-    await engine.calculate({ zoneId: "zone-1", subtotal: 500 });
+    await engine.calculate({ zoneId: "zone-1", subtotal: 500, totalWeightKg: 0 });
     expect(tariffPolicy.evaluate).toHaveBeenCalledWith(
       expect.objectContaining({ orderDate: expect.any(String) }),
     );

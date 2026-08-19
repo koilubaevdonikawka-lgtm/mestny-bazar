@@ -52,6 +52,7 @@ function makeProduct(overrides: Partial<ProductDTO> = {}): ProductDTO {
     categoryId: null,
     manufacturer: null,
     countryOfOrigin: null,
+    weightKg: null,
     ...overrides,
   };
 }
@@ -718,6 +719,36 @@ describe("CheckoutService.checkout — delivery zone resolution", () => {
     await checkout.checkout(null, makeRequest({ zoneId: "zone-42" }));
 
     expect(orderRepo.create).toHaveBeenCalledWith(expect.objectContaining({ zoneId: "zone-42" }));
+  });
+
+  it("computes totalWeightKg from the DB-resolved product's real weightKg, never from anything client-supplied (CD-01)", async () => {
+    const zoneRepo = fakeZoneRepository({
+      getById: vi.fn(async (id: string) => ({
+        id,
+        cityId: "city-1",
+        storeId: null,
+        name: "Zone",
+        sortOrder: 0,
+        isActive: true,
+      })),
+    });
+    const productRepo = fakeProductRepository({
+      getManyByIds: vi.fn(async () => [makeProduct({ weightKg: 15 })]),
+    });
+    const deliveryPricingEngine = fakeDeliveryPricingEngine();
+    const { checkout } = buildCheckoutService({ zoneRepo, productRepo, deliveryPricingEngine });
+
+    // CreateOrderItemRequest has no weight field at all — there is nothing
+    // for a malicious client to even attempt to pass here; quantity 3 x
+    // 15 kg = 45 kg is the only way this number can be produced.
+    await checkout.checkout(
+      null,
+      makeRequest({ zoneId: "zone-1", items: [{ productId: PRODUCT_ID, quantity: 3 }] }),
+    );
+
+    expect(deliveryPricingEngine.calculate).toHaveBeenCalledWith(
+      expect.objectContaining({ totalWeightKg: 45 }),
+    );
   });
 });
 

@@ -36,6 +36,7 @@ function makeSellerProduct(overrides: Partial<SellerProductDTO> = {}): SellerPro
     manufacturer: null,
     countryOfOrigin: null,
     sku: null,
+    weightKg: null,
     stock: 10,
     publicationStatus: "PUBLISHED",
     categoryId: null,

@@ -21,6 +21,8 @@ export interface SellerProductDTO {
   manufacturer: string | null;
   countryOfOrigin: string | null;
   sku: string | null;
+  /** Kilograms — used for the weight-based delivery fee formula (docs/delivery/delivery-pricing.md). Null counts as 0 kg. */
+  weightKg: number | null;
   stock: number;
   publicationStatus: ProductPublicationStatus;
   categoryId: string | null;
@@ -38,6 +40,7 @@ export interface CreateSellerProductRequest {
   manufacturer?: string;
   countryOfOrigin?: string;
   sku?: string;
+  weightKg?: number | null;
   stock?: number;
   categoryId?: string;
   /**

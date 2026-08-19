@@ -25,6 +25,7 @@ function makeProduct(overrides: Partial<SellerProductDTO> = {}): SellerProductDT
     manufacturer: null,
     countryOfOrigin: null,
     sku: null,
+    weightKg: null,
     stock: 5,
     publicationStatus: "DRAFT",
     categoryId: null,

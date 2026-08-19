@@ -1,5 +1,6 @@
 import { Store } from "lucide-react";
 import { BRAND } from "@/config/brand";
+import { CONTACT } from "@/config/contact";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
 
@@ -33,6 +34,12 @@ export function SiteFooter() {
           <ul className="space-y-2 text-muted-foreground">
             <li>{t("footer.workingHours")}</li>
             <li>{t("footer.paymentInfo")}</li>
+            <li>{t("footer.deliveryPricingInfo")}</li>
+            <li>
+              <a href={`mailto:${CONTACT.email}`} className="hover:text-foreground">
+                {CONTACT.email}
+              </a>
+            </li>
           </ul>
         </div>
       </div>

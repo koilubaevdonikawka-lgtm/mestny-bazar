@@ -261,6 +261,8 @@ export const ky = {
     contactsHeading: "Байланыш",
     workingHours: "Дүй–Жек, 8:00–22:00",
     paymentInfo: "Төлөм: онлайн же накталай",
+    deliveryPricingInfo:
+      "Жеткирүү: 40 кг чейинки заказ үчүн 60 сом, ар бир кошумча килограмм үчүн +1 сом",
     copyright: "© {{year}} {{brand}}. Бардык укуктар корголгон.",
   },
   account: {
@@ -490,6 +492,8 @@ export const ky = {
       manufacturerLabel: "Өндүрүүчү (милдеттүү эмес)",
       countryLabel: "Чыгарылган өлкө (милдеттүү эмес)",
       skuLabel: "Артикул же штрихкод (колдонулса)",
+      weightLabel: "Салмагы, кг (жеткирүү баасын эсептөө үчүн)",
+      weightPlaceholder: "мисалы, 0.5",
       publicationStatusLabel: "Жарыялоо статусу",
       productStatusDraft: "Долбоор",
       productStatusPublished: "Жарыяланды",
@@ -502,6 +506,7 @@ export const ky = {
       skuCharacteristic: "Артикул: {{value}}",
       productNameMinLengthError: "Товардын аталышы кеминде 2 белгиден турушу керек",
       invalidPriceError: "Туура баа көрсөтүңүз",
+      invalidWeightError: "Туура салмак көрсөтүңүз (терс эмес сан) же бош калтырыңыз",
       productCreatedAndEditingToast: "Товар түзүлдү — түзөтүү үчүн ачылды",
       productCreatedToast: "Товар түзүлдү",
       productCreateError: "Товарды түзүү мүмкүн болбоду",

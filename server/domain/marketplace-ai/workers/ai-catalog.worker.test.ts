@@ -58,6 +58,7 @@ function fakeProduct(overrides: Partial<SellerProductDTO> = {}): SellerProductDT
     manufacturer: null,
     countryOfOrigin: null,
     sku: null,
+    weightKg: null,
     stock: 10,
     publicationStatus: ProductPublicationStatus.PUBLISHED,
     categoryId: null,

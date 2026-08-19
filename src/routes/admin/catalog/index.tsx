@@ -95,6 +95,8 @@ export interface ProductFormState {
   manufacturer: string;
   countryOfOrigin: string;
   sku: string;
+  /** Kilograms, empty string = not set (nullable — see docs/delivery/delivery-pricing.md). */
+  weightKg: string;
   publicationStatus: ProductPublicationStatus;
   imageUrls: string[];
 }
@@ -107,11 +109,23 @@ export const emptyProductForm = (): ProductFormState => ({
   manufacturer: "",
   countryOfOrigin: "",
   sku: "",
+  weightKg: "",
   publicationStatus: ProductPublicationStatus.PUBLISHED,
   imageUrls: [],
 });
 
 const ADMIN_PRODUCTS_PAGE_SIZE = 50;
+
+/** Empty input means "not set" (nullable weightKg), matching how price
+ * parsing already treats a non-empty invalid string as a hard error rather
+ * than silently falling back to a default. */
+export function parseWeightKg(raw: string): number | null | "invalid" {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const value = Number(trimmed);
+  if (!Number.isFinite(value) || value < 0) return "invalid";
+  return value;
+}
 
 export function toProductForm(product: SellerProductDTO): ProductFormState {
   return {
@@ -122,6 +136,7 @@ export function toProductForm(product: SellerProductDTO): ProductFormState {
     manufacturer: product.manufacturer ?? "",
     countryOfOrigin: product.countryOfOrigin ?? "",
     sku: product.sku ?? "",
+    weightKg: product.weightKg == null ? "" : String(product.weightKg),
     publicationStatus: product.publicationStatus,
     imageUrls: product.imageUrls,
   };
@@ -432,6 +447,11 @@ function AdminCatalogPage() {
       toast.error(t("admin.catalog.invalidPriceError"));
       return;
     }
+    const weightKg = parseWeightKg(productForm.weightKg);
+    if (weightKg === "invalid") {
+      toast.error(t("admin.catalog.invalidWeightError"));
+      return;
+    }
     createAndEditRef.current = andEdit;
     createProductMutation.mutate({
       categoryId,
@@ -442,6 +462,7 @@ function AdminCatalogPage() {
       manufacturer: productForm.manufacturer.trim() || undefined,
       countryOfOrigin: productForm.countryOfOrigin.trim() || undefined,
       sku: productForm.sku.trim() || undefined,
+      weightKg,
       publicationStatus: productForm.publicationStatus,
       imageUrls: productForm.imageUrls,
     });
@@ -458,6 +479,11 @@ function AdminCatalogPage() {
       toast.error(t("admin.catalog.invalidPriceError"));
       return;
     }
+    const weightKg = parseWeightKg(editProductForm.weightKg);
+    if (weightKg === "invalid") {
+      toast.error(t("admin.catalog.invalidWeightError"));
+      return;
+    }
     updateProductMutation.mutate({
       id,
       name: editProductForm.name.trim(),
@@ -467,6 +493,7 @@ function AdminCatalogPage() {
       manufacturer: editProductForm.manufacturer.trim() || undefined,
       countryOfOrigin: editProductForm.countryOfOrigin.trim() || undefined,
       sku: editProductForm.sku.trim() || undefined,
+      weightKg,
       publicationStatus: editProductForm.publicationStatus,
       imageUrls: editProductForm.imageUrls,
     });
@@ -1215,6 +1242,21 @@ export function ProductFormFields({
             onChange={(e) => setForm({ ...form, sku: e.target.value })}
           />
         </div>
+        <div className="grid gap-2">
+          <Label htmlFor={`${idPrefix}-weight`}>{t("admin.catalog.weightLabel")}</Label>
+          <Input
+            id={`${idPrefix}-weight`}
+            type="number"
+            min="0"
+            step="0.001"
+            placeholder={t("admin.catalog.weightPlaceholder")}
+            value={form.weightKg}
+            onChange={(e) => setForm({ ...form, weightKg: e.target.value })}
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
           <Label htmlFor={`${idPrefix}-status`}>{t("admin.catalog.publicationStatusLabel")}</Label>
           <select

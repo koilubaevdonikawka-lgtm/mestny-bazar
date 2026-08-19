@@ -261,6 +261,8 @@ export const ru = {
     contactsHeading: "Контакты",
     workingHours: "Пн–Вс, 8:00–22:00",
     paymentInfo: "Оплата: онлайн или наличными",
+    deliveryPricingInfo:
+      "Доставка: 60 сом за заказ до 40 кг, далее +1 сом за каждый дополнительный килограмм",
     copyright: "© {{year}} {{brand}}. Все права защищены.",
   },
   account: {
@@ -492,6 +494,8 @@ export const ru = {
       manufacturerLabel: "Производитель (при необходимости)",
       countryLabel: "Страна происхождения (при необходимости)",
       skuLabel: "Артикул или штрихкод (если используется)",
+      weightLabel: "Вес, кг (для расчёта доставки)",
+      weightPlaceholder: "например, 0.5",
       publicationStatusLabel: "Статус публикации",
       productStatusDraft: "Черновик",
       productStatusPublished: "Опубликован",
@@ -504,6 +508,7 @@ export const ru = {
       skuCharacteristic: "Артикул: {{value}}",
       productNameMinLengthError: "Название товара должно содержать минимум 2 символа",
       invalidPriceError: "Укажите корректную цену",
+      invalidWeightError: "Укажите корректный вес (неотрицательное число) или оставьте поле пустым",
       productCreatedAndEditingToast: "Товар создан — открыт для редактирования",
       productCreatedToast: "Товар создан",
       productCreateError: "Не удалось создать товар",

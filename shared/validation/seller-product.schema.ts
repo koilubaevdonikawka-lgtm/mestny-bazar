@@ -21,6 +21,7 @@ export const createSellerProductRequestSchema = z.object({
   manufacturer: z.string().trim().max(200).optional(),
   countryOfOrigin: z.string().trim().max(200).optional(),
   sku: z.string().trim().max(100).optional(),
+  weightKg: z.number().finite().min(0).max(100_000).nullable().optional(),
   stock: z.number().int().min(0).max(1_000_000).optional(),
   categoryId: z.string().uuid().optional(),
   publicationStatus: z.nativeEnum(ProductPublicationStatus).optional(),

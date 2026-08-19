@@ -3,4 +3,6 @@ export const CONTACT = {
   whatsapp: "996700000000",
   // Telegram username (t.me/<telegram>) — real, active account, do not rename
   telegram: "kantbazar",
+  // Contact email shown in the site footer (and admin panel, via the shared SiteFooter)
+  email: "koilubaevdonikawka@gmail.com",
 } as const;

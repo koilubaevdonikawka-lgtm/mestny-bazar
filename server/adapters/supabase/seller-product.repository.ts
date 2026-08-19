@@ -12,7 +12,7 @@ import { supabaseAdmin } from "@server/adapters/supabase/client";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 
 const PRODUCT_SELECT =
-  "id, name, slug, description, price, currency, unit, image_url, image_urls, manufacturer, country_of_origin, sku, stock, publication_status, category_id";
+  "id, name, slug, description, price, currency, unit, image_url, image_urls, manufacturer, country_of_origin, sku, weight_kg, stock, publication_status, category_id";
 
 function mapRow(row: {
   id: string;
@@ -27,6 +27,7 @@ function mapRow(row: {
   manufacturer: string | null;
   country_of_origin: string | null;
   sku: string | null;
+  weight_kg: number | null;
   stock: number;
   publication_status: ProductPublicationStatus;
   category_id: string | null;
@@ -44,6 +45,7 @@ function mapRow(row: {
     manufacturer: row.manufacturer,
     countryOfOrigin: row.country_of_origin,
     sku: row.sku,
+    weightKg: row.weight_kg == null ? null : Number(row.weight_kg),
     stock: Number(row.stock),
     publicationStatus: row.publication_status,
     categoryId: row.category_id,
@@ -130,6 +132,7 @@ export class SupabaseSellerProductRepository implements ISellerProductRepository
         manufacturer: data.manufacturer ?? null,
         country_of_origin: data.countryOfOrigin ?? null,
         sku: data.sku ?? null,
+        weight_kg: data.weightKg ?? null,
         stock: data.stock ?? 0,
         publication_status: status,
         is_active: isActiveForCatalog(status),
@@ -163,6 +166,7 @@ export class SupabaseSellerProductRepository implements ISellerProductRepository
     if (data.manufacturer !== undefined) patch.manufacturer = data.manufacturer;
     if (data.countryOfOrigin !== undefined) patch.country_of_origin = data.countryOfOrigin;
     if (data.sku !== undefined) patch.sku = data.sku;
+    if (data.weightKg !== undefined) patch.weight_kg = data.weightKg;
     if (data.stock !== undefined) patch.stock = data.stock;
     if (data.categoryId !== undefined) patch.category_id = data.categoryId;
     if (data.publicationStatus !== undefined) {
