@@ -261,7 +261,8 @@ export const en = {
     contactsHeading: "Contacts",
     workingHours: "Mon–Sun, 8:00 AM–10:00 PM",
     paymentInfo: "Payment: online or cash",
-    deliveryPricingInfo: "Delivery: 60 KGS for orders up to 40 kg, +1 KGS per extra kilogram",
+    deliveryPricingInfo:
+      "Delivery: 60 KGS for orders up to 40 kg, +2 KGS per extra kilogram in Kant",
     copyright: "© {{year}} {{brand}}. All rights reserved.",
   },
   account: {
