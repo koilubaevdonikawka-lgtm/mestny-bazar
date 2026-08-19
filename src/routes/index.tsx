@@ -1,33 +1,19 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ProductCard } from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { toast } from "sonner";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useResetOnAppForeground } from "@/hooks/useResetOnAppForeground";
 import { useSearchStore } from "@/stores/searchStore";
-import { useCheckoutStore } from "@/stores/checkoutStore";
-import { Truck, Loader2, ShoppingBasket, MessageCircle, CreditCard, Send } from "lucide-react";
+import { Loader2, ShoppingBasket } from "lucide-react";
 import { fetchCatalogProducts } from "@/lib/catalog";
 import type { CatalogProductNode } from "@shared/lib/product-adapter";
 import { listCategories } from "@/api/category";
 import { listActiveBanners } from "@/api/design";
-import { listDeliveryZones } from "@/api/delivery-zone";
 import { BRAND } from "@/config/brand";
-import { CONTACT } from "@/config/contact";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { DEFAULT_LANGUAGE } from "@/i18n/languages";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
@@ -159,50 +145,6 @@ function Home() {
     }
     return merged;
   }, [data]);
-
-  const [phone, setPhone] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [addressOpen, setAddressOpen] = useState(false);
-  const { address, setAddress, zoneId, setZoneId, setPaymentMethod, setCustomerPhone } =
-    useCheckoutStore();
-
-  const { data: deliveryZones } = useQuery({
-    queryKey: ["delivery", "zones"],
-    queryFn: listDeliveryZones,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const handleSaveAddress = () => {
-    if (address.trim().length < 5) {
-      toast.error(t("home.enterFullAddressError"));
-      return;
-    }
-    setAddress(address.trim());
-    toast.success(t("home.addressSavedToast"));
-    setAddressOpen(false);
-  };
-
-  const normalizePhone = (raw: string) => raw.replace(/[^\d]/g, "");
-
-  const buildMessage = (clientPhone: string) =>
-    t("home.subscribeMessageTemplate", { phone: clientPhone });
-
-  const handleSubscribe = (channel: "whatsapp" | "telegram") => {
-    const clientPhone = normalizePhone(phone);
-    if (clientPhone.length < 9) {
-      toast.error(t("home.invalidPhoneError"));
-      return;
-    }
-    const text = encodeURIComponent(buildMessage(clientPhone));
-    const url =
-      channel === "whatsapp"
-        ? `https://wa.me/${CONTACT.whatsapp}?text=${text}`
-        : `https://t.me/${CONTACT.telegram}?text=${text}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-    toast.success(t("home.subscribeMessageToast"));
-    setDialogOpen(false);
-    setPhone("");
-  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -379,175 +321,6 @@ function Home() {
             )}
           </>
         )}
-      </section>
-
-      {/* Delivery & Payment */}
-      <section id="delivery" className="mx-auto max-w-7xl px-6 pb-24 grid gap-6 md:grid-cols-3">
-        <Dialog open={addressOpen} onOpenChange={setAddressOpen}>
-          <DialogTrigger asChild>
-            <button
-              type="button"
-              className="text-left rounded-2xl bg-card border border-border/60 p-8 transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-card)] hover:border-primary/40 cursor-pointer"
-            >
-              <div className="h-11 w-11 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                <Truck className="h-5 w-5" />
-              </div>
-              <h3 className="mt-5 font-serif text-2xl">{t("checkout.address")}</h3>
-            </button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="font-serif text-2xl">{t("checkout.address")}</DialogTitle>
-              <DialogDescription>{t("home.addressDialogDescription")}</DialogDescription>
-            </DialogHeader>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSaveAddress();
-              }}
-              className="grid gap-4 mt-2"
-            >
-              <div className="grid gap-2">
-                <Label htmlFor="delivery-address">{t("home.addressFieldLabel")}</Label>
-                <Input
-                  id="delivery-address"
-                  type="text"
-                  autoComplete="street-address"
-                  placeholder={t("home.addressPlaceholder")}
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="h-12 rounded-full px-5"
-                  maxLength={200}
-                />
-                <p className="text-xs text-muted-foreground">{t("home.addressHint")}</p>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="delivery-zone">{t("home.deliveryZoneLabel")}</Label>
-                <select
-                  id="delivery-zone"
-                  value={zoneId ?? ""}
-                  onChange={(e) => setZoneId(e.target.value || null)}
-                  className="h-12 rounded-full border border-input bg-background px-5 text-sm"
-                >
-                  <option value="">{t("home.zoneNotSelected")}</option>
-                  {(deliveryZones ?? []).map((zone) => (
-                    <option key={zone.id} value={zone.id}>
-                      {zone.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-muted-foreground">{t("home.deliveryZoneHint")}</p>
-              </div>
-              <Button type="submit" size="lg" className="h-14 rounded-full text-base">
-                {t("home.saveAddressButton")}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
-        <Dialog>
-          <DialogTrigger asChild>
-            <button
-              type="button"
-              className="text-left rounded-2xl bg-card border border-border/60 p-8 transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-card)] hover:border-primary/40 cursor-pointer"
-            >
-              <div className="h-11 w-11 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                <CreditCard className="h-5 w-5" />
-              </div>
-              <h3 className="mt-5 font-serif text-2xl">{t("checkout.paymentMethod")}</h3>
-            </button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="font-serif text-2xl">
-                {t("home.choosePaymentMethodTitle")}
-              </DialogTitle>
-              <DialogDescription>{t("home.paymentMethodDialogDescription")}</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-3 mt-2">
-              <Button
-                size="lg"
-                className="h-14 rounded-full text-base"
-                onClick={() => {
-                  setPaymentMethod("ONLINE");
-                  toast.info(t("home.onlinePaymentSelectedToast"));
-                }}
-              >
-                <CreditCard className="h-5 w-5" /> {t("home.payOnlineButton")}
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-14 rounded-full text-base"
-                onClick={() => {
-                  setPaymentMethod("CASH");
-                  toast.success(t("home.cashPaymentSelectedToast"));
-                }}
-              >
-                {t("home.payCashButton")}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <button
-              type="button"
-              className="text-left rounded-2xl bg-card border border-border/60 p-8 transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-card)] hover:border-primary/40 cursor-pointer"
-            >
-              <div className="h-11 w-11 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                <MessageCircle className="h-5 w-5" />
-              </div>
-              <h3 className="mt-5 font-serif text-2xl">{t("home.orderNotificationsTitle")}</h3>
-            </button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="font-serif text-2xl">
-                {t("home.notificationsDialogTitle")}
-              </DialogTitle>
-              <DialogDescription>{t("home.notificationsDialogDescription")}</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={(e) => e.preventDefault()} className="grid gap-4 mt-2">
-              <div className="grid gap-2">
-                <Label htmlFor="subscribe-phone">{t("home.phoneLabel")}</Label>
-                <Input
-                  id="subscribe-phone"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  placeholder={t("home.phonePlaceholder")}
-                  value={phone}
-                  onChange={(e) => {
-                    setPhone(e.target.value);
-                    setCustomerPhone(e.target.value);
-                  }}
-                  className="h-12 rounded-full px-5"
-                  maxLength={20}
-                />
-                <p className="text-xs text-muted-foreground">{t("home.phoneHint")}</p>
-              </div>
-              <div className="grid gap-3">
-                <Button
-                  type="submit"
-                  size="lg"
-                  onClick={() => handleSubscribe("whatsapp")}
-                  className="h-14 rounded-full bg-[#25D366] hover:bg-[#25D366]/90 text-white text-base"
-                >
-                  <MessageCircle className="h-5 w-5" /> {t("home.getViaWhatsapp")}
-                </Button>
-                <Button
-                  type="button"
-                  size="lg"
-                  onClick={() => handleSubscribe("telegram")}
-                  className="h-14 rounded-full bg-[#229ED9] hover:bg-[#229ED9]/90 text-white text-base"
-                >
-                  <Send className="h-5 w-5" /> {t("home.getViaTelegram")}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
       </section>
 
       <SiteFooter />
