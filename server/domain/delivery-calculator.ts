@@ -17,37 +17,43 @@ export interface DeliveryCalculatorInput {
 }
 
 /** 60 сом покрывает заказ весом до 40 кг включительно; каждый следующий
- * (частичный — округляется вверх) килограмм добавляет ещё 1 сом. Продуктовое
- * решение этапа "весовая доставка" — фиксированная глобальная формула, не
- * настраиваемая по тарифу/зоне (см. отчёт задачи). */
+ * (частичный — округляется вверх) килограмм добавляет доплату за кг — по
+ * умолчанию 1 сом, если у резолвленного тарифа не задан свой
+ * weightExtraFeePerKg (этап "весовая доставка по городу" — например, Кант:
+ * 2 сом/кг). База (60 сом / порог 40 кг) остаётся глобальной и одинаковой
+ * для всех тарифов/городов — не читается с tariff. */
 const WEIGHT_INCLUDED_KG = 40;
 const BASE_FEE = 60;
-const PRICE_PER_EXTRA_KG = 1;
+const DEFAULT_PRICE_PER_EXTRA_KG = 1;
 
 /**
  * Pure, side-effect-free — no DB/network access, mirrors PricingService's
  * existing calculateSubtotal/calculateTotal. docs/delivery/delivery-pricing.md
  * — "Delivery Calculator".
  *
- * Этап "весовая доставка": fee is now always the fixed weight formula below
- * — tariff.basePrice/pricingModel/pricePerKm are deliberately not read here
+ * Этап "весовая доставка": fee is always the weight formula below —
+ * tariff.basePrice/pricingModel/pricePerKm are deliberately not read here
  * anymore (still stored and admin-editable, simply unused by this
- * calculation for now — see the task report for the full rationale).
- * minOrderForFreeDelivery is likewise no longer applied — isFree is always
- * false and freeFrom always null in the returned quote, so as not to
- * advertise a threshold that no longer zeroes the fee; the tariff's stored
- * value itself is untouched, ready for a future re-enable.
+ * calculation for now — see the task report for the full rationale); the
+ * one tariff field it does read is weightExtraFeePerKg (the per-extra-kg
+ * rate — null falls back to the 1 som/kg default, so no existing tariff
+ * needs backfilling). minOrderForFreeDelivery is likewise no longer
+ * applied — isFree is always false and freeFrom always null in the
+ * returned quote, so as not to advertise a threshold that no longer
+ * zeroes the fee; the tariff's stored value itself is untouched, ready for
+ * a future re-enable.
  */
 export class DeliveryCalculator {
   calculate(input: DeliveryCalculatorInput): DeliveryFeeQuote {
     const { tariff, subtotal, totalWeightKg } = input;
+    const pricePerExtraKg = tariff.weightExtraFeePerKg ?? DEFAULT_PRICE_PER_EXTRA_KG;
 
     return {
       zoneId: input.zoneId,
       zoneName: input.zoneName,
       tariffId: tariff.id,
       tariffName: tariff.name,
-      fee: this.calculateWeightBasedFee(totalWeightKg),
+      fee: this.calculateWeightBasedFee(totalWeightKg, pricePerExtraKg),
       freeFrom: null,
       subtotal,
       isFree: false,
@@ -55,10 +61,10 @@ export class DeliveryCalculator {
     };
   }
 
-  private calculateWeightBasedFee(totalWeightKg: number): number {
+  private calculateWeightBasedFee(totalWeightKg: number, pricePerExtraKg: number): number {
     if (totalWeightKg <= WEIGHT_INCLUDED_KG) return BASE_FEE;
     const extraKg = Math.ceil(totalWeightKg - WEIGHT_INCLUDED_KG);
-    return BASE_FEE + extraKg * PRICE_PER_EXTRA_KG;
+    return BASE_FEE + extraKg * pricePerExtraKg;
   }
 }
 

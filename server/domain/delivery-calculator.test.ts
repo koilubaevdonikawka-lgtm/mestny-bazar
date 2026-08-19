@@ -13,6 +13,7 @@ function makeTariff(overrides: Partial<DeliveryTariffDTO> = {}): DeliveryTariffD
     pricePerKm: null,
     minOrderForFreeDelivery: null,
     minOrderAmount: null,
+    weightExtraFeePerKg: null,
     etaMinMinutes: 30,
     etaMaxMinutes: 60,
     validFrom: null,
@@ -100,6 +101,39 @@ describe("DeliveryCalculator", () => {
     expect(quote.fee).toBe(60);
     expect(quote.isFree).toBe(false);
     expect(quote.freeFrom).toBeNull();
+  });
+
+  it("uses the resolved tariff's weightExtraFeePerKg for the per-kg overage rate (Кант — 2 сом/кг)", () => {
+    const quote = new DeliveryCalculator().calculate({
+      zoneId: "zone-kant",
+      zoneName: "Кант",
+      tariff: makeTariff({ weightExtraFeePerKg: 2 }),
+      subtotal: 500,
+      totalWeightKg: 45,
+    });
+    expect(quote.fee).toBe(70); // 60 + ceil(45-40) * 2
+  });
+
+  it("falls back to the 1 som/kg default when weightExtraFeePerKg is null (every other zone, unchanged)", () => {
+    const quote = new DeliveryCalculator().calculate({
+      zoneId: "zone-1",
+      zoneName: "Центр",
+      tariff: makeTariff({ weightExtraFeePerKg: null }),
+      subtotal: 500,
+      totalWeightKg: 45,
+    });
+    expect(quote.fee).toBe(65); // 60 + ceil(45-40) * 1
+  });
+
+  it("a custom per-kg rate never changes the base 60 fee at or under the 40 kg threshold", () => {
+    const quote = new DeliveryCalculator().calculate({
+      zoneId: "zone-kant",
+      zoneName: "Кант",
+      tariff: makeTariff({ weightExtraFeePerKg: 2 }),
+      subtotal: 500,
+      totalWeightKg: 40,
+    });
+    expect(quote.fee).toBe(60);
   });
 
   it("carries the tariff's ETA through to the quote", () => {

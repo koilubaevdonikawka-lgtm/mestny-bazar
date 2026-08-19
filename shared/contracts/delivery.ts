@@ -97,6 +97,14 @@ export interface DeliveryTariffDTO {
   pricePerKm: number | null;
   minOrderForFreeDelivery: number | null;
   minOrderAmount: number | null;
+  /**
+   * Доплата (сом) за каждый доп. килограмм сверх включённых 40 кг в весовой
+   * формуле (DeliveryCalculator) — этап "весовая доставка по городу". Не то
+   * же самое, что pricePerKm (BY_DISTANCE — цена за километр расстояния).
+   * null = использовать дефолт 1 сом/кг — ни один существующий тариф не
+   * требует обязательного заполнения.
+   */
+  weightExtraFeePerKg: number | null;
   etaMinMinutes: number | null;
   etaMaxMinutes: number | null;
   validFrom: string | null;
@@ -126,6 +134,7 @@ export interface CreateDeliveryTariffRequest {
   pricePerKm?: number | null;
   minOrderForFreeDelivery?: number | null;
   minOrderAmount?: number | null;
+  weightExtraFeePerKg?: number | null;
   etaMinMinutes?: number | null;
   etaMaxMinutes?: number | null;
   validFrom?: string | null;
