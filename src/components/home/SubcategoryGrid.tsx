@@ -19,7 +19,11 @@ export interface SubcategoryGridProps {
  * если подкатегорий много. */
 export function SubcategoryGrid({ categorySlug, subcategories }: SubcategoryGridProps) {
   return (
-    <div className="grid grid-cols-2 gap-4 max-h-[65vh] overflow-y-auto p-1">
+    // Этап: убрать лишний отступ между рядами карточек (было gap-4=16px и
+    // по вертикали, и по горизонтали, измерено на проде) — только
+    // вертикальный (между рядами) сужен до gap-y-2=8px; горизонтальный
+    // (между двумя карточками одного ряда) не размечен, оставлен gap-x-4.
+    <div className="grid grid-cols-2 gap-x-4 gap-y-2 max-h-[65vh] overflow-y-auto p-1">
       {subcategories.map((sub) => (
         <SubcategoryCard
           key={sub.id}
