@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { FinikPaymentAdapter, buildCanonicalString } from "@server/adapters/payment/finik.adapter";
+import { FinikPaymentAdapter } from "@server/adapters/payment/finik.adapter";
+import { Signer } from "@mancho.devs/authorizer";
 import { RetryableError } from "@shared/lib/with-retry";
 
 let privateKeyPem: string;
@@ -11,6 +12,18 @@ const CONFIG_BASE = {
   environment: "beta" as const,
 };
 const BETA_ENDPOINT = "https://beta.api.acquiring.averspay.kg/v1/payment";
+const WEBHOOK_HOST = "mesnyibazar.com";
+const WEBHOOK_PATH = "/api/webhooks/finik";
+
+const REQUEST = {
+  orderId: "order-1",
+  orderNumber: 1001,
+  amount: 500,
+  currency: "KGS",
+  idempotencyKey: "idem-1",
+  returnUrl: "https://mesnyibazar.com/order-success",
+  webhookUrl: "https://mesnyibazar.com/api/webhooks/finik",
+};
 
 function stubFetch(handler: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) {
   const spy = vi.fn(handler);
@@ -50,27 +63,20 @@ async function generateRsaKeyPair(): Promise<{ privateKeyPem: string; publicKeyP
   };
 }
 
-async function signWithTestKey(canonical: string): Promise<string> {
-  const pemBody = privateKeyPem
-    .replace(/-----BEGIN [^-]+-----/, "")
-    .replace(/-----END [^-]+-----/, "")
-    .replace(/\s+/g, "");
-  const binary = atob(pemBody);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  const key = await crypto.subtle.importKey(
-    "pkcs8",
-    bytes.buffer,
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const signature = await crypto.subtle.sign(
-    { name: "RSASSA-PKCS1-v1_5" },
-    key,
-    new TextEncoder().encode(canonical),
-  );
-  return bufferToBase64(signature);
+/** Signs a webhook body exactly the way the real Finik server would, using the same official library our adapter verifies against. */
+async function signWebhookBody(
+  body: Record<string, unknown>,
+  timestamp: string,
+  privateKey: string,
+): Promise<string> {
+  const signer = new Signer({
+    body,
+    headers: { Host: WEBHOOK_HOST, "x-api-timestamp": timestamp },
+    httpMethod: "POST",
+    path: WEBHOOK_PATH,
+    queryStringParameters: null,
+  });
+  return signer.sign(privateKey);
 }
 
 beforeAll(async () => {
@@ -84,88 +90,12 @@ afterEach(() => {
 });
 
 describe("FinikPaymentAdapter.createPayment", () => {
-  it("POSTs to the official Beta endpoint with signature/x-api-key/x-api-timestamp headers", async () => {
+  it("POSTs to the official Beta endpoint with redirect:manual and signature/x-api-key/x-api-timestamp headers", async () => {
     const fetchSpy = stubFetch(
-      async () => new Response(JSON.stringify({ paymentId: "provider-1" }), { status: 200 }),
-    );
-    const adapter = new FinikPaymentAdapter({
-      ...CONFIG_BASE,
-      rsaPrivateKeyPem: privateKeyPem,
-      webhookPublicKeyPem: publicKeyPem,
-    });
-
-    await adapter.createPayment({
-      orderId: "order-1",
-      orderNumber: 1001,
-      amount: 500,
-      currency: "KGS",
-      idempotencyKey: "idem-1",
-      returnUrl: "https://mesnyibazar.com/order-success",
-    });
-
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchSpy.mock.calls[0];
-    expect(url).toBe(BETA_ENDPOINT);
-    expect(init?.method).toBe("POST");
-    const headers = init?.headers as Record<string, string>;
-    expect(headers["x-api-key"]).toBe("test-api-key");
-    expect(typeof headers["x-api-timestamp"]).toBe("string");
-    expect(typeof headers.signature).toBe("string");
-  });
-
-  it("omits merchant_id from the request body when not configured (Промпт №079 — not officially confirmed)", async () => {
-    const fetchSpy = stubFetch(
-      async () => new Response(JSON.stringify({ paymentId: "provider-1" }), { status: 200 }),
-    );
-    const { merchantId: _unused, ...configWithoutMerchantId } = CONFIG_BASE;
-    const adapter = new FinikPaymentAdapter({
-      ...configWithoutMerchantId,
-      rsaPrivateKeyPem: privateKeyPem,
-      webhookPublicKeyPem: publicKeyPem,
-    });
-
-    await adapter.createPayment({
-      orderId: "order-1",
-      orderNumber: 1001,
-      amount: 500,
-      currency: "KGS",
-      idempotencyKey: "idem-1",
-      returnUrl: "https://mesnyibazar.com/order-success",
-    });
-
-    const [, init] = fetchSpy.mock.calls[0];
-    const sentBody = JSON.parse(init?.body as string);
-    expect(sentBody).not.toHaveProperty("merchant_id");
-  });
-
-  it("reads paymentId from the JSON body when present", async () => {
-    stubFetch(
-      async () => new Response(JSON.stringify({ paymentId: "provider-1" }), { status: 200 }),
-    );
-    const adapter = new FinikPaymentAdapter({
-      ...CONFIG_BASE,
-      rsaPrivateKeyPem: privateKeyPem,
-      webhookPublicKeyPem: publicKeyPem,
-    });
-
-    const result = await adapter.createPayment({
-      orderId: "order-1",
-      orderNumber: 1001,
-      amount: 500,
-      currency: "KGS",
-      idempotencyKey: "idem-1",
-      returnUrl: "https://mesnyibazar.com/order-success",
-    });
-
-    expect(result.providerPaymentId).toBe("provider-1");
-  });
-
-  it("falls back to extracting paymentId from the Location header when the body has none", async () => {
-    stubFetch(
       async () =>
-        new Response("{}", {
-          status: 200,
-          headers: { location: "https://checkout.finik.kg/payments/provider-2" },
+        new Response(null, {
+          status: 302,
+          headers: { location: "https://checkout.finik.kg/pay/abc" },
         }),
     );
     const adapter = new FinikPaymentAdapter({
@@ -174,17 +104,106 @@ describe("FinikPaymentAdapter.createPayment", () => {
       webhookPublicKeyPem: publicKeyPem,
     });
 
-    const result = await adapter.createPayment({
-      orderId: "order-1",
-      orderNumber: 1001,
-      amount: 500,
-      currency: "KGS",
-      idempotencyKey: "idem-1",
-      returnUrl: "https://mesnyibazar.com/order-success",
+    await adapter.createPayment(REQUEST);
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe(BETA_ENDPOINT);
+    expect(init?.method).toBe("POST");
+    expect(init?.redirect).toBe("manual");
+    const headers = init?.headers as Record<string, string>;
+    expect(headers["x-api-key"]).toBe("test-api-key");
+    expect(typeof headers["x-api-timestamp"]).toBe("string");
+    expect(typeof headers.signature).toBe("string");
+  });
+
+  it("sends the real Amount/CardType/PaymentId/RedirectUrl/Data body shape, with webhookUrl inside Data", async () => {
+    const fetchSpy = stubFetch(
+      async () =>
+        new Response(null, {
+          status: 302,
+          headers: { location: "https://checkout.finik.kg/pay/abc" },
+        }),
+    );
+    const adapter = new FinikPaymentAdapter({
+      ...CONFIG_BASE,
+      rsaPrivateKeyPem: privateKeyPem,
+      webhookPublicKeyPem: publicKeyPem,
     });
 
-    expect(result.providerPaymentId).toBe("provider-2");
-    expect(result.paymentUrl).toBe("https://checkout.finik.kg/payments/provider-2");
+    await adapter.createPayment(REQUEST);
+
+    const [, init] = fetchSpy.mock.calls[0];
+    const sentBody = JSON.parse(init?.body as string);
+    expect(sentBody).toMatchObject({
+      Amount: 500,
+      PaymentId: "idem-1",
+      RedirectUrl: "https://mesnyibazar.com/order-success",
+      Data: {
+        webhookUrl: "https://mesnyibazar.com/api/webhooks/finik",
+        orderId: "order-1",
+        orderNumber: 1001,
+        currency: "KGS",
+        merchantId: "merchant-1",
+      },
+    });
+    expect(sentBody).toHaveProperty("CardType");
+  });
+
+  it("omits merchantId from Data when not configured (Промпт №079 — not officially confirmed)", async () => {
+    const fetchSpy = stubFetch(
+      async () =>
+        new Response(null, {
+          status: 302,
+          headers: { location: "https://checkout.finik.kg/pay/abc" },
+        }),
+    );
+    const { merchantId: _unused, ...configWithoutMerchantId } = CONFIG_BASE;
+    const adapter = new FinikPaymentAdapter({
+      ...configWithoutMerchantId,
+      rsaPrivateKeyPem: privateKeyPem,
+      webhookPublicKeyPem: publicKeyPem,
+    });
+
+    await adapter.createPayment(REQUEST);
+
+    const [, init] = fetchSpy.mock.calls[0];
+    const sentBody = JSON.parse(init?.body as string);
+    expect(sentBody.Data).not.toHaveProperty("merchantId");
+  });
+
+  it("uses the checkout idempotency key as both PaymentId and the resulting providerPaymentId — no response-body parsing needed", async () => {
+    stubFetch(
+      async () =>
+        new Response(null, {
+          status: 302,
+          headers: { location: "https://checkout.finik.kg/pay/abc" },
+        }),
+    );
+    const adapter = new FinikPaymentAdapter({
+      ...CONFIG_BASE,
+      rsaPrivateKeyPem: privateKeyPem,
+      webhookPublicKeyPem: publicKeyPem,
+    });
+
+    const result = await adapter.createPayment(REQUEST);
+
+    expect(result.providerPaymentId).toBe("idem-1");
+    expect(result.id).toBe("idem-1");
+    expect(result.paymentUrl).toBe("https://checkout.finik.kg/pay/abc");
+  });
+
+  it("throws when the response is a redirect with no Location header", async () => {
+    stubFetch(async () => new Response(null, { status: 302 }));
+    const adapter = new FinikPaymentAdapter({
+      ...CONFIG_BASE,
+      rsaPrivateKeyPem: privateKeyPem,
+      webhookPublicKeyPem: publicKeyPem,
+    });
+
+    await expect(adapter.createPayment(REQUEST)).rejects.toMatchObject({
+      message: expect.stringContaining("Location"),
+    });
   });
 
   it("throws a non-retryable error with a distinct message on 401", async () => {
@@ -195,16 +214,9 @@ describe("FinikPaymentAdapter.createPayment", () => {
       webhookPublicKeyPem: publicKeyPem,
     });
 
-    await expect(
-      adapter.createPayment({
-        orderId: "order-1",
-        orderNumber: 1001,
-        amount: 500,
-        currency: "KGS",
-        idempotencyKey: "idem-1",
-        returnUrl: "https://mesnyibazar.com/order-success",
-      }),
-    ).rejects.toMatchObject({ message: expect.stringContaining("authentication/authorization") });
+    await expect(adapter.createPayment(REQUEST)).rejects.toMatchObject({
+      message: expect.stringContaining("authentication/authorization"),
+    });
   });
 
   it("throws a non-retryable error on 403", async () => {
@@ -215,16 +227,7 @@ describe("FinikPaymentAdapter.createPayment", () => {
       webhookPublicKeyPem: publicKeyPem,
     });
 
-    await expect(
-      adapter.createPayment({
-        orderId: "order-1",
-        orderNumber: 1001,
-        amount: 500,
-        currency: "KGS",
-        idempotencyKey: "idem-1",
-        returnUrl: "https://mesnyibazar.com/order-success",
-      }),
-    ).rejects.not.toBeInstanceOf(RetryableError);
+    await expect(adapter.createPayment(REQUEST)).rejects.not.toBeInstanceOf(RetryableError);
   });
 
   it("throws a non-retryable error on 400", async () => {
@@ -235,16 +238,7 @@ describe("FinikPaymentAdapter.createPayment", () => {
       webhookPublicKeyPem: publicKeyPem,
     });
 
-    await expect(
-      adapter.createPayment({
-        orderId: "order-1",
-        orderNumber: 1001,
-        amount: 500,
-        currency: "KGS",
-        idempotencyKey: "idem-1",
-        returnUrl: "https://mesnyibazar.com/order-success",
-      }),
-    ).rejects.not.toBeInstanceOf(RetryableError);
+    await expect(adapter.createPayment(REQUEST)).rejects.not.toBeInstanceOf(RetryableError);
   });
 
   it("throws a RetryableError on a 5xx response", async () => {
@@ -255,16 +249,7 @@ describe("FinikPaymentAdapter.createPayment", () => {
       webhookPublicKeyPem: publicKeyPem,
     });
 
-    await expect(
-      adapter.createPayment({
-        orderId: "order-1",
-        orderNumber: 1001,
-        amount: 500,
-        currency: "KGS",
-        idempotencyKey: "idem-1",
-        returnUrl: "https://mesnyibazar.com/order-success",
-      }),
-    ).rejects.toBeInstanceOf(RetryableError);
+    await expect(adapter.createPayment(REQUEST)).rejects.toBeInstanceOf(RetryableError);
   });
 
   it("throws a RetryableError when the network request itself fails", async () => {
@@ -277,21 +262,16 @@ describe("FinikPaymentAdapter.createPayment", () => {
       webhookPublicKeyPem: publicKeyPem,
     });
 
-    await expect(
-      adapter.createPayment({
-        orderId: "order-1",
-        orderNumber: 1001,
-        amount: 500,
-        currency: "KGS",
-        idempotencyKey: "idem-1",
-        returnUrl: "https://mesnyibazar.com/order-success",
-      }),
-    ).rejects.toBeInstanceOf(RetryableError);
+    await expect(adapter.createPayment(REQUEST)).rejects.toBeInstanceOf(RetryableError);
   });
 
   it("POSTs to the Production endpoint when configured for production", async () => {
     const fetchSpy = stubFetch(
-      async () => new Response(JSON.stringify({ paymentId: "provider-1" }), { status: 200 }),
+      async () =>
+        new Response(null, {
+          status: 302,
+          headers: { location: "https://checkout.finik.kg/pay/abc" },
+        }),
     );
     const adapter = new FinikPaymentAdapter({
       ...CONFIG_BASE,
@@ -300,42 +280,32 @@ describe("FinikPaymentAdapter.createPayment", () => {
       webhookPublicKeyPem: publicKeyPem,
     });
 
-    await adapter.createPayment({
-      orderId: "order-1",
-      orderNumber: 1001,
-      amount: 500,
-      currency: "KGS",
-      idempotencyKey: "idem-1",
-      returnUrl: "https://mesnyibazar.com/order-success",
-    });
+    await adapter.createPayment(REQUEST);
 
     expect(fetchSpy.mock.calls[0][0]).toBe("https://api.acquiring.averspay.kg/v1/payment");
   });
 });
 
-describe("FinikPaymentAdapter.verifyWebhook (RSA, SHA256withRSA)", () => {
+describe("FinikPaymentAdapter.verifyWebhook (@mancho.devs/authorizer Signer, RSA SHA256)", () => {
   it("returns true for a signature genuinely produced by the matching private key", async () => {
     const adapter = new FinikPaymentAdapter({
       ...CONFIG_BASE,
       rsaPrivateKeyPem: privateKeyPem,
       webhookPublicKeyPem: publicKeyPem,
     });
-    const rawBody = JSON.stringify({ id: "provider-1", order_id: "order-1", status: "paid" });
+    const body = { id: "txn-1", status: "success", fields: { paymentId: "idem-1" } };
+    const rawBody = JSON.stringify(body);
     const timestamp = String(Math.floor(Date.now() / 1000));
-    const canonical = buildCanonicalString({
-      headers: { "x-api-timestamp": timestamp },
-      query: {},
-      body: rawBody,
-    });
-    const signature = await signWithTestKey(canonical);
+    const signature = await signWebhookBody(body, timestamp, privateKeyPem);
 
     const result = await adapter.verifyWebhook({
-      providerPaymentId: "provider-1",
-      orderId: "order-1",
-      status: "paid",
       rawBody,
       signature,
-      timestamp,
+      httpMethod: "POST",
+      path: WEBHOOK_PATH,
+      host: WEBHOOK_HOST,
+      headers: { "x-api-timestamp": timestamp },
+      queryStringParameters: null,
     });
 
     expect(result).toBe(true);
@@ -348,42 +318,19 @@ describe("FinikPaymentAdapter.verifyWebhook (RSA, SHA256withRSA)", () => {
       rsaPrivateKeyPem: privateKeyPem,
       webhookPublicKeyPem: publicKeyPem,
     });
-    const rawBody = JSON.stringify({ id: "provider-1", order_id: "order-1", status: "paid" });
+    const body = { id: "txn-1", status: "success", fields: { paymentId: "idem-1" } };
+    const rawBody = JSON.stringify(body);
     const timestamp = String(Math.floor(Date.now() / 1000));
-    const canonical = buildCanonicalString({
-      headers: { "x-api-timestamp": timestamp },
-      query: {},
-      body: rawBody,
-    });
-
-    const pemBody = otherPair.privateKeyPem
-      .replace(/-----BEGIN [^-]+-----/, "")
-      .replace(/-----END [^-]+-----/, "")
-      .replace(/\s+/g, "");
-    const binary = atob(pemBody);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    const key = await crypto.subtle.importKey(
-      "pkcs8",
-      bytes.buffer,
-      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-      false,
-      ["sign"],
-    );
-    const sig = await crypto.subtle.sign(
-      { name: "RSASSA-PKCS1-v1_5" },
-      key,
-      new TextEncoder().encode(canonical),
-    );
-    const signature = bufferToBase64(sig);
+    const signature = await signWebhookBody(body, timestamp, otherPair.privateKeyPem);
 
     const result = await adapter.verifyWebhook({
-      providerPaymentId: "provider-1",
-      orderId: "order-1",
-      status: "paid",
       rawBody,
       signature,
-      timestamp,
+      httpMethod: "POST",
+      path: WEBHOOK_PATH,
+      host: WEBHOOK_HOST,
+      headers: { "x-api-timestamp": timestamp },
+      queryStringParameters: null,
     });
 
     expect(result).toBe(false);
@@ -395,27 +342,23 @@ describe("FinikPaymentAdapter.verifyWebhook (RSA, SHA256withRSA)", () => {
       rsaPrivateKeyPem: privateKeyPem,
       webhookPublicKeyPem: publicKeyPem,
     });
-    const originalBody = JSON.stringify({ id: "provider-1", order_id: "order-1", status: "paid" });
+    const originalBody = { id: "txn-1", status: "success", fields: { paymentId: "idem-1" } };
     const timestamp = String(Math.floor(Date.now() / 1000));
-    const canonical = buildCanonicalString({
-      headers: { "x-api-timestamp": timestamp },
-      query: {},
-      body: originalBody,
-    });
-    const signature = await signWithTestKey(canonical);
-    const tamperedBody = JSON.stringify({
-      id: "provider-1",
-      order_id: "order-1",
-      status: "failed",
+    const signature = await signWebhookBody(originalBody, timestamp, privateKeyPem);
+    const tamperedRawBody = JSON.stringify({
+      id: "txn-1",
+      status: "success",
+      fields: { paymentId: "someone-elses-payment" },
     });
 
     const result = await adapter.verifyWebhook({
-      providerPaymentId: "provider-1",
-      orderId: "order-1",
-      status: "failed",
-      rawBody: tamperedBody,
+      rawBody: tamperedRawBody,
       signature,
-      timestamp,
+      httpMethod: "POST",
+      path: WEBHOOK_PATH,
+      host: WEBHOOK_HOST,
+      headers: { "x-api-timestamp": timestamp },
+      queryStringParameters: null,
     });
 
     expect(result).toBe(false);
@@ -427,22 +370,19 @@ describe("FinikPaymentAdapter.verifyWebhook (RSA, SHA256withRSA)", () => {
       rsaPrivateKeyPem: privateKeyPem,
       webhookPublicKeyPem: publicKeyPem,
     });
-    const rawBody = JSON.stringify({ id: "provider-1", order_id: "order-1", status: "paid" });
+    const body = { id: "txn-1", status: "success", fields: { paymentId: "idem-1" } };
+    const rawBody = JSON.stringify(body);
     const staleTimestamp = String(Math.floor(Date.now() / 1000) - 11);
-    const canonical = buildCanonicalString({
-      headers: { "x-api-timestamp": staleTimestamp },
-      query: {},
-      body: rawBody,
-    });
-    const signature = await signWithTestKey(canonical);
+    const signature = await signWebhookBody(body, staleTimestamp, privateKeyPem);
 
     const result = await adapter.verifyWebhook({
-      providerPaymentId: "provider-1",
-      orderId: "order-1",
-      status: "paid",
       rawBody,
       signature,
-      timestamp: staleTimestamp,
+      httpMethod: "POST",
+      path: WEBHOOK_PATH,
+      host: WEBHOOK_HOST,
+      headers: { "x-api-timestamp": staleTimestamp },
+      queryStringParameters: null,
     });
 
     expect(result).toBe(false);
@@ -456,18 +396,19 @@ describe("FinikPaymentAdapter.verifyWebhook (RSA, SHA256withRSA)", () => {
     });
 
     const result = await adapter.verifyWebhook({
-      providerPaymentId: "provider-1",
-      orderId: "order-1",
-      status: "paid",
       rawBody: "{}",
       signature: null,
-      timestamp: String(Math.floor(Date.now() / 1000)),
+      httpMethod: "POST",
+      path: WEBHOOK_PATH,
+      host: WEBHOOK_HOST,
+      headers: { "x-api-timestamp": String(Math.floor(Date.now() / 1000)) },
+      queryStringParameters: null,
     });
 
     expect(result).toBe(false);
   });
 
-  it("returns false when no timestamp is provided", async () => {
+  it("returns false when no x-api-timestamp header is provided", async () => {
     const adapter = new FinikPaymentAdapter({
       ...CONFIG_BASE,
       rsaPrivateKeyPem: privateKeyPem,
@@ -475,12 +416,13 @@ describe("FinikPaymentAdapter.verifyWebhook (RSA, SHA256withRSA)", () => {
     });
 
     const result = await adapter.verifyWebhook({
-      providerPaymentId: "provider-1",
-      orderId: "order-1",
-      status: "paid",
       rawBody: "{}",
       signature: "irrelevant",
-      timestamp: null,
+      httpMethod: "POST",
+      path: WEBHOOK_PATH,
+      host: WEBHOOK_HOST,
+      headers: {},
+      queryStringParameters: null,
     });
 
     expect(result).toBe(false);
@@ -488,34 +430,7 @@ describe("FinikPaymentAdapter.verifyWebhook (RSA, SHA256withRSA)", () => {
 });
 
 describe("FinikPaymentAdapter.getStatus", () => {
-  it("returns null on a 404 (unknown provider payment id)", async () => {
-    stubFetch(async () => new Response("", { status: 404 }));
-    const adapter = new FinikPaymentAdapter({
-      ...CONFIG_BASE,
-      rsaPrivateKeyPem: privateKeyPem,
-      webhookPublicKeyPem: publicKeyPem,
-    });
-
-    const result = await adapter.getStatus("unknown-id");
-
-    expect(result).toBeNull();
-  });
-
-  it("maps a successful response into a PaymentIntentDTO", async () => {
-    stubFetch(
-      async () =>
-        new Response(
-          JSON.stringify({
-            id: "provider-1",
-            order_id: "order-1",
-            amount: 500,
-            currency: "KGS",
-            status: "paid",
-            redirect_url: null,
-          }),
-          { status: 200 },
-        ),
-    );
+  it("always returns null — Finik's documented API has no status-check endpoint (Промпт №080)", async () => {
     const adapter = new FinikPaymentAdapter({
       ...CONFIG_BASE,
       rsaPrivateKeyPem: privateKeyPem,
@@ -524,24 +439,21 @@ describe("FinikPaymentAdapter.getStatus", () => {
 
     const result = await adapter.getStatus("provider-1");
 
-    expect(result?.status).toBe("paid");
-    expect(result?.orderId).toBe("order-1");
+    expect(result).toBeNull();
   });
-});
 
-describe("buildCanonicalString", () => {
-  it("sorts header keys, query keys, and JSON body keys deterministically", () => {
-    const a = buildCanonicalString({
-      headers: { b: "2", a: "1" },
-      query: { z: "9", y: "8" },
-      body: JSON.stringify({ b: 2, a: 1 }),
+  it("never makes a network call", async () => {
+    const fetchSpy = stubFetch(async () => {
+      throw new Error("getStatus must not call fetch — no documented endpoint exists");
     });
-    const b = buildCanonicalString({
-      headers: { a: "1", b: "2" },
-      query: { y: "8", z: "9" },
-      body: JSON.stringify({ a: 1, b: 2 }),
+    const adapter = new FinikPaymentAdapter({
+      ...CONFIG_BASE,
+      rsaPrivateKeyPem: privateKeyPem,
+      webhookPublicKeyPem: publicKeyPem,
     });
 
-    expect(a).toBe(b);
+    await adapter.getStatus("provider-1");
+
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

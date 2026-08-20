@@ -9,6 +9,7 @@ import { runWithRequestContext } from "@shared/observability/request-context";
 import { isDeclaredBodyTooLarge } from "@shared/http/request-limits";
 import { isH3SwallowedErrorBody } from "@shared/http/h3-swallowed-error";
 import { createRetryableLazy } from "@shared/lib/retryable-lazy";
+import { FINIK_WEBHOOK_PATH } from "@shared/contracts/payment";
 
 const REQUEST_ID_HEADER = "x-request-id";
 // TanStack Start's own router owns every other path in this app — API routes
@@ -17,11 +18,13 @@ const REQUEST_ID_HEADER = "x-request-id";
 // against the dev server) not to be active in this Vite-plugin-nested Nitro
 // setup. This is the only mechanism confirmed to make a raw HTTP webhook
 // endpoint reachable here — intercepted before the router ever sees it.
-// `/api/webhooks/finik` is our own URL, not Finik-dictated. Header names
-// below are confirmed from Finik's official documentation (Промпт №077).
-const FINIK_WEBHOOK_PATH = "/api/webhooks/finik";
+// `/api/webhooks/finik` is our own URL, not Finik-dictated — the single
+// shared constant also backs `Data.webhookUrl` in payment.service.ts, so
+// the two can never drift apart. The `signature` header carries the
+// signature itself; every `x-api-*` header is part of what gets signed
+// (Промпт №080, via @mancho.devs/authorizer's Signer).
 const FINIK_SIGNATURE_HEADER = "signature";
-const FINIK_TIMESTAMP_HEADER = "x-api-timestamp";
+const X_API_HEADER_PREFIX = "x-api-";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -57,7 +60,18 @@ async function handleFinikWebhookRequest(request: Request, requestId: string): P
     // bytes Finik signed, not a re-serialized JSON.parse/stringify round trip.
     const rawBody = await request.text();
     const signature = request.headers.get(FINIK_SIGNATURE_HEADER);
-    const timestamp = request.headers.get(FINIK_TIMESTAMP_HEADER);
+    const url = new URL(request.url);
+    const xApiHeaders: Record<string, string> = {};
+    for (const [key, value] of request.headers.entries()) {
+      if (key.toLowerCase().startsWith(X_API_HEADER_PREFIX)) xApiHeaders[key.toLowerCase()] = value;
+    }
+    const requestMeta = {
+      httpMethod: request.method,
+      path: url.pathname,
+      host: request.headers.get("host") ?? url.host,
+      headers: xApiHeaders,
+      queryStringParameters: url.search ? Object.fromEntries(url.searchParams.entries()) : null,
+    };
     // Dynamic import, matching this file's existing getServerEntry() idiom —
     // src/server.ts is the framework-mandated Worker entry filename (not
     // renameable to *.server.ts), so it stays structurally "src/**" despite
@@ -68,7 +82,7 @@ async function handleFinikWebhookRequest(request: Request, requestId: string): P
     const { getServices } = await import("@server/di/container");
     const { handlePaymentWebhook } = await import("@server/domain/payment-webhook-handler");
     const { paymentService } = getServices();
-    const result = await handlePaymentWebhook(rawBody, signature, timestamp, paymentService);
+    const result = await handlePaymentWebhook(rawBody, signature, requestMeta, paymentService);
     response = new Response(result.body, {
       status: result.status,
       headers: { "content-type": "application/json" },

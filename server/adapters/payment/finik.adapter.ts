@@ -1,10 +1,11 @@
 import type { CreatePaymentRequest, PaymentIntentDTO } from "@shared/contracts/payment";
 import type { IPaymentProvider, PaymentWebhookPayload } from "@server/ports/payment.provider";
 import { RetryableError } from "@shared/lib/with-retry";
+import { Signer } from "@mancho.devs/authorizer";
 
 const FINIK_FETCH_TIMEOUT_MS = 10_000;
 
-/** Signature validity window per Finik's official documentation (Промпт №077). */
+/** Signature validity window per Finik's official documentation (Промпт №077) — kept as a defense-in-depth replay guard on top of Signer.verify(), which the library itself does not check. */
 const SIGNATURE_MAX_AGE_SECONDS = 10;
 
 export type FinikEnvironment = "beta" | "production";
@@ -12,8 +13,6 @@ export type FinikEnvironment = "beta" | "production";
 /**
  * Official Finik Payments Gateway endpoints (Промпт №077, provided directly
  * by the project owner from Finik's official documentation — not inferred).
- * `getStatus`'s sub-path is NOT part of this documented endpoint (only
- * "create payment" was given) — see the getStatus method's own note.
  */
 const FINIK_CREATE_PAYMENT_ENDPOINT: Record<FinikEnvironment, string> = {
   beta: "https://beta.api.acquiring.averspay.kg/v1/payment",
@@ -31,144 +30,148 @@ export interface FinikAdapterConfig {
   environment: FinikEnvironment;
 }
 
-const RSA_ALGORITHM = { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" } as const;
+/**
+ * Wrangler secrets (`wrangler secret put`) store a multi-line PEM as a
+ * single line with literal two-character `\n` sequences — not real
+ * whitespace, so it survives untouched into the PEM text unless converted
+ * back to real newlines first. `@mancho.devs/authorizer`'s `Signer` expects
+ * a normal, real-newline PEM string (it hands it to `node-jose`'s
+ * `JWK.createKeyStore().add(pem, 'pem')`), so this must run before every
+ * `sign()`/`verify()` call — same gotcha the previous WebCrypto-based
+ * implementation guarded against in its own `pemToBytes()`.
+ */
+function normalizePem(pem: string): string {
+  return pem.replace(/\\n/g, "\n");
+}
 
 /**
- * Finik payment adapter — final implementation (Промпт №078) against the
- * official Finik documentation the project owner supplied (Промпт №077
- * superseded the Промпт №075 HMAC placeholder with these confirmed facts):
+ * Finik payment adapter — rebuilt (Промпт №080) against the real API
+ * contract the project owner supplied from Finik's official documentation,
+ * superseding the Промпт №077/078 self-built canonical-string implementation
+ * with the official `@mancho.devs/authorizer` `Signer` (Finik's own
+ * documented recommended signing library) for both outgoing request
+ * signatures and incoming webhook verification — CONFIRMED, replaces the
+ * self-built `buildCanonicalString()` this file used to carry.
  *
- *   - Algorithm: SHA256withRSA (RSASSA-PKCS1-v1_5 + SHA-256) — CONFIRMED.
- *   - Signature transport: Base64 — CONFIRMED.
- *   - Required headers: `signature`, `x-api-key`, `x-api-timestamp` — CONFIRMED.
- *   - Signature validity window: 10 seconds — CONFIRMED (also the sole
- *     replay-protection mechanism, since a captured signature becomes
- *     unusable after 10s regardless of payload content).
- *   - Webhook is the ONLY source of payment confirmation — CONFIRMED
- *     (createPayment/getStatus below never return "paid"; matches how
- *     PaymentService already only calls OrderService.confirmPayment from
- *     handleWebhook, untouched by this file).
- *   - Beta/Production endpoints — CONFIRMED, hardcoded above (official
- *     values, not configurable typo-prone strings).
- *
- * One documented rule has no worked example to check byte-for-byte
- * (canonical-string delimiter/ordering for "sorted headers + sorted JSON +
- * sorted query", buildCanonicalString() below) — per explicit project-owner
- * instruction, this is not blocking: it is implemented exactly as the
- * documented rule states (deterministic alphabetical sort at every level,
- * Base64-encoded RSA signature over the result) and validated by the first
- * real Beta transaction rather than a synthetic vector. If that transaction
- * shows a mismatch, the fix stays isolated to buildCanonicalString() —
- * nothing else in this codebase (PaymentService, repository, webhook
- * handler, DI) depends on its exact shape.
+ * Still not confirmed by a worked example / real transaction:
+ *   - `CardType`'s accepted values — Finik's docs list it as a required
+ *     body field but the project owner's message did not include an enum.
+ *     Sent as an empty string until the first real Beta transaction (below)
+ *     reveals whether that is accepted or whether Finik rejects it — same
+ *     "validated by the first real transaction, isolated fix" pattern this
+ *     file has followed since Промпт №077.
+ *   - `merchantId` placement inside `Data` — still not officially confirmed
+ *     (Промпт №079), carried into the new `Data` metadata bucket unchanged.
  */
 export class FinikPaymentAdapter implements IPaymentProvider {
   constructor(private readonly config: FinikAdapterConfig) {}
 
   async createPayment(request: CreatePaymentRequest): Promise<PaymentIntentDTO> {
     const endpoint = FINIK_CREATE_PAYMENT_ENDPOINT[this.config.environment];
-    const body = sortKeysDeep({
-      ...(this.config.merchantId ? { merchant_id: this.config.merchantId } : {}),
-      order_id: request.orderId,
-      order_number: request.orderNumber,
-      amount: request.amount,
-      currency: request.currency,
-      idempotency_key: request.idempotencyKey,
-      return_url: request.returnUrl,
-    });
+    const body = {
+      Amount: request.amount,
+      // Not confirmed which values Finik accepts (see class doc) — empty
+      // string until the real Beta transaction proves otherwise.
+      CardType: "",
+      // WE choose this id and Finik echoes it back as `fields.paymentId` on
+      // the success webhook — reusing the checkout idempotency key means one
+      // value both prevents a duplicate call to Finik (initiatePayment's own
+      // getByIdempotencyKey short-circuit, untouched by this file) AND is
+      // what the webhook handler looks the local payment record up by
+      // (IPaymentRepository.getByProviderPaymentId).
+      PaymentId: request.idempotencyKey,
+      RedirectUrl: request.returnUrl,
+      Data: {
+        webhookUrl: request.webhookUrl,
+        orderId: request.orderId,
+        orderNumber: request.orderNumber,
+        currency: request.currency,
+        ...(this.config.merchantId ? { merchantId: this.config.merchantId } : {}),
+      },
+    };
 
-    const response = await this.signedFetch("POST", endpoint, body);
-    await this.assertSuccessful(response, "createPayment");
+    // Finik's success response is a redirect to the hosted payment page, not
+    // a 2xx JSON body (Промпт №080) — `redirect: "manual"` stops `fetch`
+    // from silently following it so the Location header is still readable.
+    const response = await this.signedFetch(endpoint, body);
 
-    const location = response.headers.get("location") ?? response.headers.get("Location");
-    const jsonBody = await safeReadJson<{ paymentId?: string; id?: string }>(response);
-    const paymentId = jsonBody?.paymentId ?? jsonBody?.id ?? extractIdFromLocation(location);
-
-    if (!paymentId) {
-      throw new Error(
-        "Finik createPayment response had no paymentId (checked JSON body and Location header) — verify response shape against official docs",
-      );
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location") ?? response.headers.get("Location");
+      if (!location) {
+        throw new Error(
+          `Finik createPayment returned HTTP ${response.status} with no Location header — cannot redirect the customer`,
+        );
+      }
+      return {
+        id: request.idempotencyKey,
+        orderId: request.orderId,
+        amount: request.amount,
+        currency: request.currency,
+        status: "awaiting",
+        paymentUrl: location,
+        providerPaymentId: request.idempotencyKey,
+        createdAt: new Date().toISOString(),
+      };
     }
 
-    return {
-      id: paymentId,
-      orderId: request.orderId,
-      amount: request.amount,
-      currency: request.currency,
-      status: "awaiting",
-      paymentUrl: location,
-      providerPaymentId: paymentId,
-      createdAt: new Date().toISOString(),
-    };
+    // Any non-redirect response is an error class — assertSuccessful always
+    // throws here (it has no "this status is fine" branch left to hit).
+    await this.assertSuccessful(response, "createPayment");
+    throw new Error(
+      `Finik createPayment returned an unexpected HTTP ${response.status} without a redirect`,
+    );
   }
 
   async verifyWebhook(payload: PaymentWebhookPayload): Promise<boolean> {
-    if (!payload.signature || !payload.timestamp) return false;
-    if (!isTimestampFresh(payload.timestamp)) return false;
+    if (!payload.signature) return false;
+    const timestamp = payload.headers["x-api-timestamp"];
+    if (!timestamp || !isTimestampFresh(timestamp)) return false;
 
-    const canonical = buildCanonicalString({
-      headers: { "x-api-timestamp": payload.timestamp },
-      query: {},
-      body: payload.rawBody,
-    });
+    let bodyObject: Record<string, unknown> | null;
+    try {
+      bodyObject = payload.rawBody
+        ? (JSON.parse(payload.rawBody) as Record<string, unknown>)
+        : null;
+    } catch {
+      return false;
+    }
 
     try {
-      const key = await importRsaPublicKey(this.config.webhookPublicKeyPem);
-      const signatureBytes = base64ToBytes(payload.signature).slice();
-      return await crypto.subtle.verify(
-        RSA_ALGORITHM,
-        key,
-        signatureBytes,
-        new TextEncoder().encode(canonical),
-      );
+      const signer = new Signer({
+        body: bodyObject,
+        headers: { Host: payload.host, ...payload.headers },
+        httpMethod: payload.httpMethod,
+        path: payload.path,
+        queryStringParameters: payload.queryStringParameters,
+      });
+      return await signer.verify(normalizePem(this.config.webhookPublicKeyPem), payload.signature);
     } catch {
       return false;
     }
   }
 
   /**
-   * getStatus's endpoint sub-path is NOT part of the documented endpoint
-   * (only "create payment" was provided) — this appends the provider
-   * payment id to the create-payment endpoint as the most common REST
-   * convention, but REQUIRES FINAL VERIFICATION against official docs.
+   * Finik's official documentation (Промпт №080) describes only two
+   * mechanisms: create-payment, and the success-only webhook — no
+   * status-check/polling endpoint exists. The previous implementation's
+   * `getStatus()` (Промпт №077) called a guessed, undocumented sub-path that
+   * was never confirmed and would fail against the real API. Rather than
+   * keep hitting a fictional URL (unpredictable failures, wasted retries),
+   * this is now an intentional no-op: it returns `null` immediately, which
+   * `PaymentService.recheckStatus()` already treats as "nothing new to
+   * reconcile, leave the payment as-is" — so the order-success return-page
+   * best-effort recheck (Промпт №075 item 10) keeps working exactly as
+   * before, it just can no longer actively confirm a payment ahead of the
+   * webhook arriving. Given Finik's own redelivery policy retries a webhook
+   * for up to 24 hours, the webhook remains a reliable eventual source of
+   * truth even when this returns nothing new immediately.
    */
-  async getStatus(providerPaymentId: string): Promise<PaymentIntentDTO | null> {
-    const endpoint = `${FINIK_CREATE_PAYMENT_ENDPOINT[this.config.environment]}/${encodeURIComponent(providerPaymentId)}`;
-    const response = await this.signedFetch("GET", endpoint, undefined);
-
-    if (response.status === 404) return null;
-    await this.assertSuccessful(response, "getStatus");
-
-    const body = await safeReadJson<{
-      id?: string;
-      paymentId?: string;
-      order_id: string;
-      amount: number;
-      currency: string;
-      status: string;
-      redirect_url?: string | null;
-      created_at?: string;
-    }>(response);
-
-    if (!body) return null;
-    const id = body.paymentId ?? body.id ?? providerPaymentId;
-
-    return {
-      id,
-      orderId: body.order_id,
-      amount: body.amount,
-      currency: body.currency,
-      status: mapProviderStatus(body.status),
-      paymentUrl: body.redirect_url ?? null,
-      providerPaymentId: id,
-      createdAt: body.created_at ?? new Date().toISOString(),
-    };
+  async getStatus(_providerPaymentId: string): Promise<PaymentIntentDTO | null> {
+    return null;
   }
 
   /** 401/403 mean a misconfigured key/signature — never retryable, distinct diagnostic message. 400 means a rejected request shape — never retryable. 5xx is the only retryable class. */
   private async assertSuccessful(response: Response, operation: string): Promise<void> {
-    if (response.ok) return;
-
     if (response.status === 401 || response.status === 403) {
       throw new Error(
         `Finik ${operation} rejected the request: HTTP ${response.status} (authentication/authorization) — check FINIK_API_KEY / FINIK_RSA_PRIVATE_KEY configuration and signature generation`,
@@ -182,36 +185,30 @@ export class FinikPaymentAdapter implements IPaymentProvider {
     throw response.status >= 500 ? new RetryableError(message) : new Error(message);
   }
 
-  private async signedFetch(method: "GET" | "POST", url: string, body: unknown): Promise<Response> {
+  /** The only outgoing call this adapter makes is createPayment's POST — no GET/status endpoint exists (see getStatus's own note). */
+  private async signedFetch(url: string, body: unknown): Promise<Response> {
     const timestamp = String(Math.floor(Date.now() / 1000));
-    const bodyString = body !== undefined ? JSON.stringify(body) : "";
-    const canonical = buildCanonicalString({
-      headers: { "x-api-key": this.config.apiKey, "x-api-timestamp": timestamp },
-      query: {},
-      body: bodyString,
+    const { pathname, host } = new URL(url);
+    const signer = new Signer({
+      body: (body as Record<string, unknown> | undefined) ?? null,
+      headers: { Host: host, "x-api-key": this.config.apiKey, "x-api-timestamp": timestamp },
+      httpMethod: "POST",
+      path: pathname,
+      queryStringParameters: null,
     });
-    const signature = await this.signCanonicalString(canonical);
+    const signature = await signer.sign(normalizePem(this.config.rsaPrivateKeyPem));
 
     return this.fetchWithTimeout(url, {
-      method,
+      method: "POST",
+      redirect: "manual",
       headers: {
         "content-type": "application/json",
         "x-api-key": this.config.apiKey,
         "x-api-timestamp": timestamp,
         signature,
       },
-      body: body !== undefined ? bodyString : undefined,
+      body: JSON.stringify(body),
     });
-  }
-
-  private async signCanonicalString(canonical: string): Promise<string> {
-    const key = await importRsaPrivateKey(this.config.rsaPrivateKeyPem);
-    const signature = await crypto.subtle.sign(
-      RSA_ALGORITHM,
-      key,
-      new TextEncoder().encode(canonical),
-    );
-    return bytesToBase64(new Uint8Array(signature));
   }
 
   private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
@@ -223,127 +220,9 @@ export class FinikPaymentAdapter implements IPaymentProvider {
   }
 }
 
-/**
- * Final implementation of the documented canonical-string rule ("каноническая
- * строка / сортировка заголовков / сортировка JSON / сортировка query /
- * Base64", Промпт №077/№078): sorts header keys, query keys, and JSON body
- * keys (recursively) alphabetically, joins each block, concatenates the
- * three blocks with "\n". No worked byte-for-byte example was supplied with
- * the documentation, so this is validated against the first real Beta
- * transaction rather than a synthetic vector (explicit project-owner
- * instruction, Промпт №078) — isolated to this one function, so a mismatch
- * found there is a one-function fix, not an architecture change. Exported
- * only so tests can build a matching signature without duplicating this logic.
- */
-export function buildCanonicalString(parts: {
-  headers: Record<string, string>;
-  query: Record<string, string>;
-  body: string;
-}): string {
-  const headerBlock = Object.keys(parts.headers)
-    .sort()
-    .map((key) => `${key}:${parts.headers[key]}`)
-    .join("\n");
-  const queryBlock = Object.keys(parts.query)
-    .sort()
-    .map((key) => `${key}=${parts.query[key]}`)
-    .join("&");
-  const bodyBlock = canonicalizeJsonString(parts.body);
-
-  return [headerBlock, queryBlock, bodyBlock].join("\n");
-}
-
-function canonicalizeJsonString(rawJson: string): string {
-  if (!rawJson) return "";
-  try {
-    return JSON.stringify(sortKeysDeep(JSON.parse(rawJson)));
-  } catch {
-    return rawJson;
-  }
-}
-
-function sortKeysDeep(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sortKeysDeep);
-  if (value && typeof value === "object") {
-    const entries = Object.keys(value as Record<string, unknown>)
-      .sort()
-      .map((key) => [key, sortKeysDeep((value as Record<string, unknown>)[key])] as const);
-    return Object.fromEntries(entries);
-  }
-  return value;
-}
-
 function isTimestampFresh(timestampHeader: string): boolean {
   const timestamp = Number(timestampHeader);
   if (!Number.isFinite(timestamp)) return false;
   const nowSeconds = Math.floor(Date.now() / 1000);
   return Math.abs(nowSeconds - timestamp) <= SIGNATURE_MAX_AGE_SECONDS;
-}
-
-function extractIdFromLocation(location: string | null): string | undefined {
-  if (!location) return undefined;
-  try {
-    const url = new URL(location);
-    const segments = url.pathname.split("/").filter(Boolean);
-    return segments[segments.length - 1];
-  } catch {
-    return undefined;
-  }
-}
-
-async function safeReadJson<T>(response: Response): Promise<T | null> {
-  try {
-    return (await response.json()) as T;
-  } catch {
-    return null;
-  }
-}
-
-function pemToBytes(pem: string): ArrayBuffer {
-  const base64 = pem
-    .replace(/-----BEGIN [^-]+-----/, "")
-    .replace(/-----END [^-]+-----/, "")
-    // Literal two-character "\n" (backslash + n) — how a multi-line PEM is
-    // stored in a single-line secret (e.g. `wrangler secret put`) — is not
-    // a whitespace character and survives \s+ below untouched, which then
-    // breaks atob(). Strip it before stripping real whitespace.
-    .replace(/\\n/g, "")
-    .replace(/\s+/g, "");
-  return base64ToBytes(base64).buffer as ArrayBuffer;
-}
-
-function base64ToBytes(base64: string): Uint8Array {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
-async function importRsaPrivateKey(pem: string): Promise<CryptoKey> {
-  return crypto.subtle.importKey("pkcs8", pemToBytes(pem), RSA_ALGORITHM, false, ["sign"]);
-}
-
-async function importRsaPublicKey(pem: string): Promise<CryptoKey> {
-  return crypto.subtle.importKey("spki", pemToBytes(pem), RSA_ALGORITHM, false, ["verify"]);
-}
-
-function mapProviderStatus(rawStatus: string): PaymentIntentDTO["status"] {
-  switch (rawStatus) {
-    case "paid":
-    case "succeeded":
-      return "paid";
-    case "failed":
-    case "cancelled":
-      return "failed";
-    case "refunded":
-      return "refunded";
-    default:
-      return "awaiting";
-  }
 }

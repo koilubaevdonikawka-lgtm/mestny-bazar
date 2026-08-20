@@ -8,18 +8,33 @@ describe("finikWebhookPayloadSchema", () => {
   it("accepts a well-formed payload", () => {
     const result = finikWebhookPayloadSchema.safeParse({
       id: "provider-1",
-      order_id: "order-1",
-      status: "paid",
+      transactionId: "txn-1",
+      status: "success",
+      amount: 500,
+      requestDate: "2026-08-20T10:00:00Z",
+      transactionDate: "2026-08-20T10:00:05Z",
+      fields: { paymentId: "idem-1", amount: 500 },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a payload without the optional transactionId/service (falls back to id)", () => {
+    const result = finikWebhookPayloadSchema.safeParse({
+      id: "provider-1",
+      status: "success",
+      fields: { paymentId: "idem-1" },
     });
 
     expect(result.success).toBe(true);
   });
 
   it.each([
-    { id: "", order_id: "order-1", status: "paid" },
-    { id: "provider-1", order_id: "", status: "paid" },
-    { id: "provider-1", order_id: "order-1", status: "" },
-    { order_id: "order-1", status: "paid" },
+    { id: "", status: "success", fields: { paymentId: "idem-1" } },
+    { id: "provider-1", status: "", fields: { paymentId: "idem-1" } },
+    { id: "provider-1", status: "success", fields: { paymentId: "" } },
+    { id: "provider-1", status: "success" },
+    { status: "success", fields: { paymentId: "idem-1" } },
   ])("rejects a malformed payload %#", (payload) => {
     expect(finikWebhookPayloadSchema.safeParse(payload).success).toBe(false);
   });

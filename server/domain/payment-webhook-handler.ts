@@ -7,25 +7,43 @@ export interface WebhookHandlerResult {
   body: string;
 }
 
+/** Everything about the raw incoming HTTP request `IPaymentProvider.verifyWebhook()` needs to rebuild Finik's canonical string — built by `src/server.ts` from the real `Request`. */
+export interface FinikWebhookRequestMeta {
+  httpMethod: string;
+  path: string;
+  host: string;
+  /** Only the `x-api-*` subset — the signing library itself filters to that prefix. */
+  headers: Record<string, string>;
+  queryStringParameters: Record<string, string> | null;
+}
+
 /**
- * Maps Finik's raw status vocabulary to the binary "paid"/"failed" the
- * webhook payload interface expects (Промпт №075). Confirm the real status
- * strings against Finik's docs — see finik.adapter.ts's own note.
+ * Finik's webhook fires only on a successful payment (Промпт №080) — there
+ * is no "payment failed" delivery at all; an abandoned/declined attempt is
+ * inferred from the webhook never arriving (PaymentService.checkExpiry's
+ * existing 30-minute sweep, untouched by this change). `status` is still
+ * present on every payload Finik does send, so this stays a defensive
+ * classifier rather than an unconditional "paid": anything other than the
+ * two documented success spellings is treated as not-yet-confirmed rather
+ * than trusted blindly.
  */
 function mapFinikWebhookStatus(rawStatus: string): "paid" | "failed" {
-  return rawStatus === "paid" || rawStatus === "succeeded" ? "paid" : "failed";
+  const normalized = rawStatus.trim().toLowerCase();
+  return normalized === "success" || normalized === "succeeded" ? "paid" : "failed";
 }
 
 /**
  * Pure, HTTP-shape-agnostic webhook handler — all real logic lives here so
  * it stays unit-testable without touching src/server.ts or a real request.
  * Parses the raw body structurally first (never trusts field values before
- * PaymentService verifies the signature over the exact raw bytes).
+ * PaymentService verifies the signature over the exact raw bytes). There is
+ * no `order_id` in Finik's real payload — the local payment is identified by
+ * `fields.paymentId` (Промпт №080).
  */
 export async function handlePaymentWebhook(
   rawBody: string,
   signatureHeader: string | null,
-  timestampHeader: string | null,
+  requestMeta: FinikWebhookRequestMeta,
   paymentService: PaymentService,
 ): Promise<WebhookHandlerResult> {
   let parsed;
@@ -36,11 +54,22 @@ export async function handlePaymentWebhook(
     return { status: 400, body: JSON.stringify({ error: "invalid_payload" }) };
   }
 
-  const result = await paymentService.handleWebhook(rawBody, signatureHeader, timestampHeader, {
-    providerPaymentId: parsed.id,
-    orderId: parsed.order_id,
-    status: mapFinikWebhookStatus(parsed.status),
-  });
+  const result = await paymentService.handleWebhook(
+    {
+      rawBody,
+      signature: signatureHeader,
+      httpMethod: requestMeta.httpMethod,
+      path: requestMeta.path,
+      host: requestMeta.host,
+      headers: requestMeta.headers,
+      queryStringParameters: requestMeta.queryStringParameters,
+    },
+    {
+      providerPaymentId: parsed.fields.paymentId,
+      transactionId: parsed.transactionId ?? parsed.id,
+      status: mapFinikWebhookStatus(parsed.status),
+    },
+  );
 
   if (!result.accepted) {
     const status = result.reason === "invalid_signature" ? 401 : 400;

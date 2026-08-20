@@ -1,5 +1,13 @@
 export type PaymentProviderStatus = "pending" | "awaiting" | "paid" | "failed" | "refunded";
 
+/**
+ * Our own webhook receiver path — not Finik-dictated, but a single shared
+ * constant so `src/server.ts` (the literal route it intercepts) and
+ * `payment.service.ts` (which must tell Finik where to POST, via
+ * `Data.webhookUrl`) can never drift apart.
+ */
+export const FINIK_WEBHOOK_PATH = "/api/webhooks/finik";
+
 export interface PaymentIntentDTO {
   id: string;
   orderId: string;
@@ -19,6 +27,8 @@ export interface CreatePaymentRequest {
   idempotencyKey: string;
   /** Where the provider redirects the customer's browser after payment (Промпт №075 item 4, "возврат пользователя"). */
   returnUrl: string;
+  /** Absolute URL Finik POSTs the payment-confirmed webhook to — goes in `Data.webhookUrl` (Промпт №080). */
+  webhookUrl: string;
 }
 
 /** Persisted payment record status — the durable lifecycle state in `payments`. */

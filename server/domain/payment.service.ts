@@ -1,10 +1,11 @@
 import type { IPaymentRepository } from "@server/ports/payment.repository";
-import type { IPaymentProvider } from "@server/ports/payment.provider";
+import type { IPaymentProvider, PaymentWebhookPayload } from "@server/ports/payment.provider";
 import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
 import type { OrderService } from "@server/domain/order.service";
 import type { OrderDTO } from "@shared/contracts/order";
 import { OrderStatus } from "@shared/contracts/order";
 import type { PaymentRecordDTO } from "@shared/contracts/payment";
+import { FINIK_WEBHOOK_PATH } from "@shared/contracts/payment";
 import { withRetry } from "@shared/lib/with-retry";
 import {
   PaymentNotFoundError,
@@ -24,7 +25,8 @@ export interface InitiatePaymentResult {
 
 export interface ResolvedWebhookPayload {
   providerPaymentId: string;
-  orderId: string;
+  /** Finik's redelivery identifier for this specific webhook delivery (falls back to `id` — Промпт №080). Logged for traceability; the terminal-status check below is what actually makes redelivery a no-op. */
+  transactionId: string;
   status: "paid" | "failed";
 }
 
@@ -60,6 +62,7 @@ export class PaymentService {
     }
 
     const returnUrl = `${this.appUrl}/order-success?orderId=${order.id}&orderNumber=${order.orderNumber}`;
+    const webhookUrl = `${this.appUrl}${FINIK_WEBHOOK_PATH}`;
 
     let intent;
     try {
@@ -72,6 +75,7 @@ export class PaymentService {
             currency: order.currency,
             idempotencyKey,
             returnUrl,
+            webhookUrl,
           }),
         PAYMENT_RETRY_OPTIONS,
       );
@@ -156,57 +160,59 @@ export class PaymentService {
     return this.initiatePayment(order, newIdempotencyKey);
   }
 
-  /** Signature must be verified before anything in `resolved` is trusted. */
+  /**
+   * Signature must be verified before anything in `resolved` is trusted.
+   * `webhookRequest` carries the raw request shape `IPaymentProvider.
+   * verifyWebhook()` needs (method/path/host/headers/query/body) — Finik has
+   * no `order_id` in the payload at all, so the local payment record is
+   * looked up by `providerPaymentId` (the `PaymentId` we chose and sent when
+   * creating the payment, echoed back as `fields.paymentId`) instead.
+   */
   async handleWebhook(
-    rawBody: string,
-    signature: string | null,
-    timestamp: string | null,
+    webhookRequest: PaymentWebhookPayload,
     resolved: ResolvedWebhookPayload,
   ): Promise<WebhookOutcome> {
-    const isValid = await this.provider.verifyWebhook({
-      providerPaymentId: resolved.providerPaymentId,
-      orderId: resolved.orderId,
-      status: resolved.status,
-      rawBody,
-      signature,
-      timestamp,
-    });
+    const isValid = await this.provider.verifyWebhook(webhookRequest);
 
     if (!isValid) {
-      const suspect = await this.payments.getByOrderId(resolved.orderId);
+      const suspect = await this.payments.getByProviderPaymentId(resolved.providerPaymentId);
       if (suspect) await this.payments.logEvent(suspect.id, "signature_invalid");
-      logger.warn("payment:webhook-invalid-signature", { orderId: resolved.orderId });
+      logger.warn("payment:webhook-invalid-signature", {
+        providerPaymentId: resolved.providerPaymentId,
+      });
       return { accepted: false, reason: "invalid_signature" };
     }
 
-    const payment = await this.payments.getByOrderId(resolved.orderId);
+    const payment = await this.payments.getByProviderPaymentId(resolved.providerPaymentId);
     if (!payment) {
-      logger.error("payment:webhook-unknown-order", { orderId: resolved.orderId });
+      logger.error("payment:webhook-unknown-payment", {
+        providerPaymentId: resolved.providerPaymentId,
+      });
       return { accepted: false, reason: "unknown_order" };
     }
 
-    await this.payments.logEvent(payment.id, "webhook_received", { status: resolved.status });
+    await this.payments.logEvent(payment.id, "webhook_received", {
+      status: resolved.status,
+      transactionId: resolved.transactionId,
+    });
 
     // Idempotent: a redelivered webhook for an already-terminal payment is a
-    // no-op — closes "защита от двойной оплаты" for webhook retries.
+    // no-op — closes "защита от двойной оплаты" for webhook retries (Finik
+    // redelivers the identical payload for up to 24h, Промпт №080).
     if (payment.status === "paid" || payment.status === "failed" || payment.status === "refunded") {
       return { accepted: true };
     }
 
-    if (resolved.providerPaymentId && !payment.providerPaymentId) {
-      await this.payments.markProviderPaymentId(payment.id, resolved.providerPaymentId);
-    }
-
-    const order = await this.orders.getOrder(resolved.orderId);
+    const order = await this.orders.getOrder(payment.orderId);
     if (!order) {
-      logger.error("payment:webhook-order-not-found", { orderId: resolved.orderId });
+      logger.error("payment:webhook-order-not-found", { orderId: payment.orderId });
       return { accepted: false, reason: "unknown_order" };
     }
 
     if (resolved.status === "paid") {
       await this.payments.updateStatus(payment.id, "paid");
       await this.payments.logEvent(payment.id, "confirmed");
-      const paidOrder = await this.orders.confirmPayment(resolved.orderId);
+      const paidOrder = await this.orders.confirmPayment(payment.orderId);
       await this.events.publish({
         type: "payment.confirmed",
         order: paidOrder,

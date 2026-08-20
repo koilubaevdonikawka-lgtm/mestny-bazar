@@ -218,15 +218,27 @@ describe("PaymentService.initiatePayment", () => {
   });
 });
 
+const WEBHOOK_REQUEST = {
+  rawBody: "raw",
+  signature: "sig",
+  httpMethod: "POST",
+  path: "/api/webhooks/finik",
+  host: "mesnyibazar.com",
+  headers: { "x-api-timestamp": "1700000000" },
+  queryStringParameters: null,
+};
+
 describe("PaymentService.handleWebhook", () => {
   it("rejects and logs signature_invalid when the signature does not verify", async () => {
-    const payments = fakePayments();
+    const payments = fakePayments({
+      getByProviderPaymentId: vi.fn(async () => makePaymentRecord()),
+    });
     const provider = fakeProvider({ verifyWebhook: vi.fn(async () => false) });
     const service = new PaymentService(payments, provider, fakeOrders(), fakeEventBus(), APP_URL);
 
-    const result = await service.handleWebhook("raw", "bad-sig", "1700000000", {
+    const result = await service.handleWebhook(WEBHOOK_REQUEST, {
       providerPaymentId: "provider-payment-1",
-      orderId: "order-1",
+      transactionId: "txn-1",
       status: "paid",
     });
 
@@ -236,15 +248,15 @@ describe("PaymentService.handleWebhook", () => {
 
   it("confirms payment and transitions the order to PAID on a valid paid webhook", async () => {
     const payments = fakePayments({
-      getByOrderId: vi.fn(async () => makePaymentRecord({ status: "awaiting" })),
+      getByProviderPaymentId: vi.fn(async () => makePaymentRecord({ status: "awaiting" })),
     });
     const orders = fakeOrders();
     const events = fakeEventBus();
     const service = new PaymentService(payments, fakeProvider(), orders, events, APP_URL);
 
-    const result = await service.handleWebhook("raw", "good-sig", "1700000000", {
+    const result = await service.handleWebhook(WEBHOOK_REQUEST, {
       providerPaymentId: "provider-payment-1",
-      orderId: "order-1",
+      transactionId: "txn-1",
       status: "paid",
     });
 
@@ -258,14 +270,14 @@ describe("PaymentService.handleWebhook", () => {
 
   it("is idempotent — a redelivered webhook for an already-paid payment is a no-op", async () => {
     const payments = fakePayments({
-      getByOrderId: vi.fn(async () => makePaymentRecord({ status: "paid" })),
+      getByProviderPaymentId: vi.fn(async () => makePaymentRecord({ status: "paid" })),
     });
     const orders = fakeOrders();
     const service = new PaymentService(payments, fakeProvider(), orders, fakeEventBus(), APP_URL);
 
-    const result = await service.handleWebhook("raw", "good-sig", "1700000000", {
+    const result = await service.handleWebhook(WEBHOOK_REQUEST, {
       providerPaymentId: "provider-payment-1",
-      orderId: "order-1",
+      transactionId: "txn-1",
       status: "paid",
     });
 
@@ -276,15 +288,15 @@ describe("PaymentService.handleWebhook", () => {
 
   it("marks the payment failed on a valid failed webhook, without confirming the order", async () => {
     const payments = fakePayments({
-      getByOrderId: vi.fn(async () => makePaymentRecord({ status: "awaiting" })),
+      getByProviderPaymentId: vi.fn(async () => makePaymentRecord({ status: "awaiting" })),
     });
     const orders = fakeOrders();
     const events = fakeEventBus();
     const service = new PaymentService(payments, fakeProvider(), orders, events, APP_URL);
 
-    const result = await service.handleWebhook("raw", "good-sig", "1700000000", {
+    const result = await service.handleWebhook(WEBHOOK_REQUEST, {
       providerPaymentId: "provider-payment-1",
-      orderId: "order-1",
+      transactionId: "txn-1",
       status: "failed",
     });
 
@@ -296,8 +308,10 @@ describe("PaymentService.handleWebhook", () => {
     );
   });
 
-  it("rejects with unknown_order when no local payment record matches", async () => {
-    const payments = fakePayments({ getByOrderId: vi.fn(async () => null) });
+  it("logs the transactionId on webhook_received (redelivery traceability)", async () => {
+    const payments = fakePayments({
+      getByProviderPaymentId: vi.fn(async () => makePaymentRecord({ status: "awaiting" })),
+    });
     const service = new PaymentService(
       payments,
       fakeProvider(),
@@ -306,9 +320,32 @@ describe("PaymentService.handleWebhook", () => {
       APP_URL,
     );
 
-    const result = await service.handleWebhook("raw", "good-sig", "1700000000", {
+    await service.handleWebhook(WEBHOOK_REQUEST, {
       providerPaymentId: "provider-payment-1",
-      orderId: "ghost-order",
+      transactionId: "txn-42",
+      status: "paid",
+    });
+
+    expect(payments.logEvent).toHaveBeenCalledWith(
+      "payment-1",
+      "webhook_received",
+      expect.objectContaining({ transactionId: "txn-42" }),
+    );
+  });
+
+  it("rejects with unknown_order when no local payment record matches providerPaymentId", async () => {
+    const payments = fakePayments({ getByProviderPaymentId: vi.fn(async () => null) });
+    const service = new PaymentService(
+      payments,
+      fakeProvider(),
+      fakeOrders(),
+      fakeEventBus(),
+      APP_URL,
+    );
+
+    const result = await service.handleWebhook(WEBHOOK_REQUEST, {
+      providerPaymentId: "ghost-payment",
+      transactionId: "txn-1",
       status: "paid",
     });
 
