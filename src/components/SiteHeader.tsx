@@ -2,9 +2,20 @@ import { useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
 import { CartDrawer } from "./CartDrawer";
 import { AccountMenu } from "./AccountMenu";
 import { SearchBar } from "./SearchBar";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Info, Store } from "lucide-react";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useTranslation } from "@/i18n/LanguageProvider";
+import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
+import { BRAND } from "@/config/brand";
+import { CONTACT } from "@/config/contact";
 
 interface SiteHeaderProps {
   /**
@@ -60,7 +71,7 @@ export function SiteHeader({
   showAccountMenu = true,
   cartIconOnly = false,
 }: SiteHeaderProps = {}) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const router = useRouter();
   const navigate = useNavigate();
   // Задача №1 — standard "← Назад" replacing the previous Home-icon button:
@@ -69,6 +80,16 @@ export function SiteHeader({
   // home page only when there's nothing to go back to (direct/external
   // entry). Same pattern already used on the product page (Этап №7/8).
   const canGoBack = useCanGoBack();
+  // "Информация" modal (Этап: логотип из шапки в модалку) — same content
+  // SiteFooter's contacts column already shows (footer.tagline/
+  // workingHours/paymentInfo/deliveryPricingInfo, CONTACT.email), reused
+  // as-is rather than duplicated with new translation strings. Gated on
+  // cartIconOnly — the existing flag every customer-facing page already
+  // passes (per its own doc comment below) and no non-customer page does,
+  // so this appears everywhere the customer header does without needing to
+  // touch any of those route files individually.
+  const brandTranslations = useTranslatedTexts([BRAND.name], language);
+  const displayBrandName = brandTranslations[BRAND.name] ?? BRAND.name;
 
   return (
     <header
@@ -114,6 +135,40 @@ export function SiteHeader({
         </nav>
         {showLanguageSwitcher && <LanguageSwitcher />}
         {showAccountMenu && <AccountMenu hideSignInCta={hideSignInButton} />}
+        {cartIconOnly && (
+          <Dialog>
+            <DialogTrigger asChild>
+              <button
+                type="button"
+                aria-label={t("footer.contactsHeading")}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-secondary"
+              >
+                <Info className="h-5 w-5" />
+              </button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <div className="flex items-center gap-2">
+                  <span className="h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                    <Store className="h-4 w-4" />
+                  </span>
+                  <DialogTitle className="font-serif text-xl">{displayBrandName}</DialogTitle>
+                </div>
+                <DialogDescription>{t("footer.tagline")}</DialogDescription>
+              </DialogHeader>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>{t("footer.workingHours")}</li>
+                <li>{t("footer.paymentInfo")}</li>
+                <li>{t("footer.deliveryPricingInfo")}</li>
+                <li>
+                  <a href={`mailto:${CONTACT.email}`} className="hover:text-foreground">
+                    {CONTACT.email}
+                  </a>
+                </li>
+              </ul>
+            </DialogContent>
+          </Dialog>
+        )}
         {showCart && <CartDrawer iconOnly={cartIconOnly} />}
       </div>
     </header>

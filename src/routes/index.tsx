@@ -2,11 +2,9 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
 import { useResetOnAppForeground } from "@/hooks/useResetOnAppForeground";
 import { listCategories } from "@/api/category";
 import { listActiveBanners } from "@/api/design";
-import { BRAND } from "@/config/brand";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { DEFAULT_LANGUAGE } from "@/i18n/languages";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
@@ -95,11 +93,9 @@ function Home() {
   const banner = banners?.[0] ?? null;
 
   // One shared call to the universal translation hook for every dynamic
-  // text this page displays (brand name, category names, active banner) —
-  // Промпт №097.
+  // text this page displays (category names, active banner) — Промпт №097.
   const pageTranslations = useTranslatedTexts(
     [
-      BRAND.name,
       // All categories (not just top-level) — the second nav row below
       // shows whichever category's subcategories are active, so their names
       // need to already be translated, not just the first-selected one's.
@@ -108,7 +104,6 @@ function Home() {
     ],
     language,
   );
-  const displayBrandName = pageTranslations[BRAND.name] ?? BRAND.name;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -159,20 +154,13 @@ function Home() {
         </nav>
       )}
 
-      {/* Hero — spacing halved (было pt/pb-8/16/24, стало 4/8/12) —
-          задача "оптимизировать spacing": расстояние между панелью
-          категорий и логотипом было визуально избыточным. */}
+      {/* Баннер — единственное, что осталось в этой секции: логотип/название
+          бренда убраны из шапки главной страницы (Этап: "Информация" в
+          шапке вместо логотипа/футера) — теперь доступны через модалку
+          "Информация" в SiteHeader, а не отдельным блоком здесь. */}
       <section className="relative overflow-hidden">
-        <div className="mx-auto max-w-7xl px-6 pt-4 pb-4 text-center sm:pt-8 sm:pb-8 md:pt-12 md:pb-12">
-          <div className="inline-block rounded-2xl bg-primary px-6 py-3 shadow-[var(--shadow-card)] md:px-12 md:py-6">
-            <h1 className="font-serif text-3xl leading-[1.02] tracking-tight text-primary-foreground sm:text-5xl md:text-7xl">
-              «{displayBrandName}»
-            </h1>
-          </div>
-        </div>
-
         {banner && (
-          <div className="mx-auto max-w-4xl px-6 pb-16">
+          <div className="mx-auto max-w-4xl px-6 pt-6 pb-16 sm:pt-10">
             <a
               href={banner.linkUrl ?? "#categories"}
               className="block overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[var(--shadow-card)] transition-transform hover:-translate-y-1"
@@ -200,8 +188,8 @@ function Home() {
         )}
       </section>
 
-      {/* Подкатегории выбранной основной категории — в центре экрана, под
-          логотипом, вертикальной сеткой (2 колонки, своя прокрутка).
+      {/* Подкатегории выбранной основной категории — вертикальной сеткой
+          (2 колонки, своя прокрутка), под панелью категорий/баннером.
           Клик по подкатегории ведёт на отдельную страницу товаров
           (/category/$categorySlug/subcategory/$subcategorySlug), не на
           общий /category/$slug — Этап: трёхуровневая навигация.
@@ -224,8 +212,6 @@ function Home() {
           />
         </section>
       )}
-
-      <SiteFooter />
     </div>
   );
 }
