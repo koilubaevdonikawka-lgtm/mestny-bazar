@@ -487,6 +487,8 @@ export const ru = {
       noProductsInCategory: "Товаров в этой категории пока нет.",
       newProductHeading: "Новый товар",
       productNameLabel: "Наименование товара",
+      productPhotoBackgroundHint:
+        "Загружайте фото с уже чистым, ровным фоном — автоматическая обработка фона временно отключена.",
       productDescriptionLabel: "Описание товара",
       priceLabel: "Цена (KGS)",
       unitLabel: "Единица измерения",

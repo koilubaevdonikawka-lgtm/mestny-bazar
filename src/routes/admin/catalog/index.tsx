@@ -1177,6 +1177,7 @@ export function ProductFormFields({
         values={form.imageUrls}
         onChange={(imageUrls) => setForm({ ...form, imageUrls })}
         context="product"
+        hint={t("admin.catalog.productPhotoBackgroundHint")}
       />
 
       <div className="grid gap-2">

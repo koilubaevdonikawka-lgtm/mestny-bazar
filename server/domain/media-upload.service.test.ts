@@ -129,18 +129,56 @@ describe("MediaUploadService.uploadImage", () => {
     expect(result).toEqual({ url: "https://cdn/example.png" });
   });
 
-  it("runs product photos through the AI image provider and stores the processed result", async () => {
+  it("uploads product photos to the media bucket unprocessed — AI background removal is temporarily disabled (Промпт №107)", async () => {
     const categoryStorage = fakeStorage();
     const mediaStorage = fakeStorage();
+    const aiImageProvider = fakeAiImageProvider();
+    const service = new MediaUploadService(categoryStorage, mediaStorage, aiImageProvider);
+    const file = fakeFile("raw-upload");
+
+    await service.uploadImage({
+      context: MediaUploadContext.PRODUCT,
+      contentType: "image/png",
+      size: 1024,
+      data: file,
+    });
+
+    expect(aiImageProvider.removeBackground).not.toHaveBeenCalled();
+    const [, uploadedData, uploadedContentType] = (mediaStorage.upload as ReturnType<typeof vi.fn>)
+      .mock.calls[0];
+    expect(uploadedData).toBe(file);
+    expect(uploadedContentType).toBe("image/png");
+  });
+});
+
+// processProductPhoto() itself is unchanged and still fully functional — only
+// uploadImage() no longer calls it (Промпт №107, see media-upload.service.ts's
+// own comment). Called directly here (bypassing the private-method boundary)
+// so these two tests keep proving the AI path still works if ever re-wired,
+// without needing uploadImage() to still route through it.
+describe("MediaUploadService.processProductPhoto (kept, not wired into uploadImage — Промпт №107)", () => {
+  type UploadImageInput = Parameters<MediaUploadService["uploadImage"]>[0];
+
+  function processProductPhoto(service: MediaUploadService, input: UploadImageInput) {
+    return (
+      service as unknown as {
+        processProductPhoto: (
+          input: UploadImageInput,
+        ) => Promise<{ data: Buffer; contentType: string }>;
+      }
+    ).processProductPhoto(input);
+  }
+
+  it("runs product photos through the AI image provider and returns the processed result", async () => {
     const aiImageProvider = fakeAiImageProvider({
       removeBackground: vi.fn(async () => ({
         imageData: Buffer.from("white-background-version"),
         mimeType: "image/webp",
       })),
     });
-    const service = new MediaUploadService(categoryStorage, mediaStorage, aiImageProvider);
+    const service = new MediaUploadService(fakeStorage(), fakeStorage(), aiImageProvider);
 
-    await service.uploadImage({
+    const result = await processProductPhoto(service, {
       context: MediaUploadContext.PRODUCT,
       contentType: "image/png",
       size: 1024,
@@ -148,30 +186,25 @@ describe("MediaUploadService.uploadImage", () => {
     });
 
     expect(aiImageProvider.removeBackground).toHaveBeenCalledTimes(1);
-    const [, uploadedData, uploadedContentType] = (mediaStorage.upload as ReturnType<typeof vi.fn>)
-      .mock.calls[0];
-    expect(Buffer.from(uploadedData as Buffer).toString()).toBe("white-background-version");
-    expect(uploadedContentType).toBe("image/webp");
+    expect(result.data.toString()).toBe("white-background-version");
+    expect(result.contentType).toBe("image/webp");
   });
 
-  it("throws MediaUploadProcessingError and never uploads when background removal fails", async () => {
-    const categoryStorage = fakeStorage();
-    const mediaStorage = fakeStorage();
+  it("throws MediaUploadProcessingError when background removal fails", async () => {
     const aiImageProvider = fakeAiImageProvider({
       removeBackground: vi.fn(async () => {
         throw new Error("provider not configured");
       }),
     });
-    const service = new MediaUploadService(categoryStorage, mediaStorage, aiImageProvider);
+    const service = new MediaUploadService(fakeStorage(), fakeStorage(), aiImageProvider);
 
     await expect(
-      service.uploadImage({
+      processProductPhoto(service, {
         context: MediaUploadContext.PRODUCT,
         contentType: "image/png",
         size: 1024,
         data: fakeFile(),
       }),
     ).rejects.toBeInstanceOf(MediaUploadProcessingError);
-    expect(mediaStorage.upload).not.toHaveBeenCalled();
   });
 });

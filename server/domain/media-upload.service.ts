@@ -41,11 +41,11 @@ function isAllowedMimeType(value: string): value is MediaUploadMimeType {
  * prefix, so existing objects/URLs are unaffected); everything else goes into
  * the new marketplace-media bucket under a context-prefixed path.
  *
- * PRODUCT context only (Промпт №101): before storing, the photo is run
- * through the existing AI image provider (same Port → Adapter mechanism as
- * text translation, server/ports/ai-image-provider.port.ts) to remove the
- * background, replace it with clean white, and center the product — a
- * single automatic step, no separate admin action, no second upload path.
+ * PRODUCT context (Промпт №101) used to also run the photo through the AI
+ * image provider before storing (remove the background, replace it with
+ * clean white, center the product) — temporarily disabled (Промпт №107,
+ * see processProductPhoto()'s own comment); every context, including
+ * PRODUCT, currently stores the uploaded file as-is.
  */
 export class MediaUploadService {
   constructor(
@@ -67,15 +67,22 @@ export class MediaUploadService {
     const path = isCategory ? `${randomUUID()}.${ext}` : `${input.context}/${randomUUID()}.${ext}`;
     const storage = isCategory ? this.categoryStorage : this.mediaStorage;
 
-    const { data, contentType } =
-      input.context === MediaUploadContext.PRODUCT
-        ? await this.processProductPhoto(input)
-        : { data: input.data, contentType: input.contentType };
-
-    const { url } = await storage.upload(path, data, contentType);
+    // PRODUCT used to route through processProductPhoto() (AI background
+    // removal) here — temporarily disabled, see that method's own comment.
+    // Every context, PRODUCT included, now takes this same direct path.
+    const { url } = await storage.upload(path, input.data, input.contentType);
     return { url };
   }
 
+  /**
+   * Temporarily disabled (Промпт №107) — решение владельца продукта:
+   * автоматическая очистка фона добавляла внешнюю зависимость от Gemini и
+   * была источником сбоев загрузки; вместо неё — ручная загрузка уже
+   * очищенных фото (см. подсказку в форме, MultiImageUploadField). Код
+   * сохранён для возможного возврата в будущем, не вызывается из
+   * uploadImage() — сам aiImageProvider остаётся в конструкторе именно
+   * ради этого метода.
+   */
   private async processProductPhoto(
     input: UploadImageInput,
   ): Promise<{ data: Buffer; contentType: string }> {

@@ -485,6 +485,8 @@ export const ky = {
       noProductsInCategory: "Бул категорияда азырынча товар жок.",
       newProductHeading: "Жаңы товар",
       productNameLabel: "Товардын аталышы",
+      productPhotoBackgroundHint:
+        "Фотону тазаланган, бир түстүү фон менен жүктөңүз — фонду автоматтык иштетүү убактылуу өчүрүлгөн.",
       productDescriptionLabel: "Товардын сүрөттөлүшү",
       priceLabel: "Баасы (KGS)",
       unitLabel: "Өлчөө бирдиги",

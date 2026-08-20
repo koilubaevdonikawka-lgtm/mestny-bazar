@@ -15,6 +15,8 @@ interface MultiImageUploadFieldProps {
   onChange: (urls: string[]) => void;
   context: MediaUploadContext;
   label?: string;
+  /** Small muted caption under the label — e.g. product's "prepare the background yourself" note (Промпт №107). Omitted entirely for contexts that don't need one, so category/banner/courier stay unchanged. */
+  hint?: string;
   disabled?: boolean;
 }
 
@@ -29,6 +31,7 @@ export function MultiImageUploadField({
   onChange,
   context,
   label = "Фотографии товара",
+  hint,
   disabled,
 }: MultiImageUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -63,6 +66,7 @@ export function MultiImageUploadField({
   return (
     <div className="grid gap-2">
       <span className="text-sm font-medium leading-none">{label}</span>
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
       <div className="flex flex-wrap items-center gap-3">
         {values.map((url, index) => (
           <div

@@ -483,6 +483,8 @@ export const en = {
       noProductsInCategory: "No products in this category yet.",
       newProductHeading: "New product",
       productNameLabel: "Product name",
+      productPhotoBackgroundHint:
+        "Upload photos with an already clean, even background — automatic background processing is temporarily disabled.",
       productDescriptionLabel: "Product description",
       priceLabel: "Price (KGS)",
       unitLabel: "Unit",
