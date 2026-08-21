@@ -130,12 +130,17 @@ export default {
       // same 301 as a GET. Only fires for the exact Cloudflare technical
       // host, so mesnyibazar.com and any dev/local host are untouched.
       if (request.headers.get("host") === WORKER_TECHNICAL_HOST) {
-        const { getServerEnv } = await import("@server/config/env");
-        const appUrl = getServerEnv().APP_URL ?? "https://mesnyibazar.com";
+        // Hardcoded, not env.APP_URL: a live check right after first deploying
+        // this redirect showed the deployed Worker's APP_URL secret actually
+        // points at an unrelated leftover domain (daily-goodies-shop.lovable.app,
+        // not mesnyibazar.com) — silently wrong until this redirect made it
+        // externally observable. Never trust that value for a public redirect
+        // target without re-verifying it live; the real domain is the one
+        // fixed, known-correct fact here.
         const url = new URL(request.url);
         const response = new Response(null, {
           status: 301,
-          headers: { Location: `${appUrl}${url.pathname}${url.search}` },
+          headers: { Location: `https://mesnyibazar.com${url.pathname}${url.search}` },
         });
         response.headers.set(REQUEST_ID_HEADER, requestId);
         return response;
