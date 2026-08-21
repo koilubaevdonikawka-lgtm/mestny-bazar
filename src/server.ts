@@ -26,6 +26,15 @@ const REQUEST_ID_HEADER = "x-request-id";
 const FINIK_SIGNATURE_HEADER = "signature";
 const X_API_HEADER_PREFIX = "x-api-";
 
+// Cloudflare's own auto-generated technical domain for this Worker (confirmed
+// from real `wrangler deploy` output, not guessed — see wrangler.json's
+// generated `name`). The browser treats this and mesnyibazar.com as two
+// unrelated origins — a session/login on one is invisible on the other —
+// so the technical domain must always bounce to the real one. Exact string
+// equality, never "anything != mesnyibazar.com": a host check that broad
+// would also redirect localhost/wrangler-dev during local development.
+const WORKER_TECHNICAL_HOST = "koilubaevdonikawka-lgtm-mestny-bazar.koilubaevdonikawka.workers.dev";
+
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };
@@ -114,6 +123,22 @@ export default {
       }
       if (request.method === "POST" && new URL(request.url).pathname === FINIK_WEBHOOK_PATH) {
         return handleFinikWebhookRequest(request, requestId);
+      }
+      // Applies to every method — a POST/PUT hitting the technical domain
+      // (only realistically a mistyped/bookmarked URL, never Finik: that
+      // path is already returned above before this check runs) gets the
+      // same 301 as a GET. Only fires for the exact Cloudflare technical
+      // host, so mesnyibazar.com and any dev/local host are untouched.
+      if (request.headers.get("host") === WORKER_TECHNICAL_HOST) {
+        const { getServerEnv } = await import("@server/config/env");
+        const appUrl = getServerEnv().APP_URL ?? "https://mesnyibazar.com";
+        const url = new URL(request.url);
+        const response = new Response(null, {
+          status: 301,
+          headers: { Location: `${appUrl}${url.pathname}${url.search}` },
+        });
+        response.headers.set(REQUEST_ID_HEADER, requestId);
+        return response;
       }
       try {
         const handler = await getServerEntry();
