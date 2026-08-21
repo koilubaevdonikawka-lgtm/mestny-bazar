@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { CartDrawer } from "./CartDrawer";
 import { AccountMenu } from "./AccountMenu";
 import { SearchBar } from "./SearchBar";
-import { ArrowLeft, Info, LogOut, Store } from "lucide-react";
+import { ArrowLeft, Info, LogIn, LogOut, Store } from "lucide-react";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ import {
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
+import { signInWithGoogle } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { WELCOME_SEEN_KEY } from "@/components/WelcomeGate";
 import { BRAND } from "@/config/brand";
@@ -92,6 +93,14 @@ export function SiteHeader({
     window.localStorage.removeItem(WELCOME_SEEN_KEY);
     toast.success(t("account.signedOutToast"));
     setInfoOpen(false);
+  };
+  // Same reasoning as handleSignOut above, mirroring AccountMenu's
+  // handleSignIn exactly — this dialog is the only sign-in entry point left
+  // on customer pages too. Not closed on click: signInWithGoogle() navigates
+  // away to Google and back, so there's nothing left open to close by the
+  // time control would return here.
+  const handleSignIn = async () => {
+    await signInWithGoogle();
   };
   // Задача №1 — standard "← Назад" replacing the previous Home-icon button:
   // real back navigation when there's an in-app previous screen to return
@@ -205,6 +214,18 @@ export function SiteHeader({
                   >
                     <LogOut className="h-4 w-4" />
                     {t("account.signOutFromDialog")}
+                  </Button>
+                </div>
+              )}
+              {isAuthenticated === false && (
+                <div className="mt-2 border-t border-border/60 pt-4">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2 px-0 text-sm text-muted-foreground hover:text-foreground"
+                    onClick={() => void handleSignIn()}
+                  >
+                    <LogIn className="h-4 w-4" />
+                    {t("common.signIn")}
                   </Button>
                 </div>
               )}
