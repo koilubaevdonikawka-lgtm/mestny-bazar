@@ -1,8 +1,19 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   assignAdminScope,
   assignRole,
@@ -18,6 +29,14 @@ import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { ArrowLeft, Loader2, LogIn, ShieldAlert, Users as UsersIcon } from "lucide-react";
 import { toast } from "sonner";
 
+// Roles/scopes render as a dense row of adjacent click-to-toggle badges — a
+// stray click on the wrong one silently changed another admin's access with
+// no way back except knowing to undo it manually. Every toggle now confirms
+// through this single shared dialog before the mutation ever fires.
+type PendingToggle =
+  | { kind: "role"; userId: string; userName: string; role: UserRole; hasRole: boolean }
+  | { kind: "scope"; userId: string; userName: string; scope: AdminScope; hasScope: boolean };
+
 export const Route = createFileRoute("/admin/users/")({
   component: AdminUsersPage,
 });
@@ -28,6 +47,7 @@ const ALL_SCOPES: AdminScope[] = ["finance", "marketing"];
 function AdminUsersPage() {
   const { isAuthenticated } = useSupabaseSession();
   const queryClient = useQueryClient();
+  const [pendingToggle, setPendingToggle] = useState<PendingToggle | null>(null);
 
   const {
     data: users,
@@ -75,6 +95,43 @@ function AdminUsersPage() {
   const handleSignIn = async () => {
     await signInWithGoogle();
   };
+
+  const confirmPendingToggle = () => {
+    if (!pendingToggle) return;
+    if (pendingToggle.kind === "role") {
+      const { userId, role, hasRole } = pendingToggle;
+      if (hasRole) {
+        revokeRoleMutation.mutate({ userId, role });
+      } else {
+        assignRoleMutation.mutate({ userId, role });
+      }
+    } else {
+      const { userId, scope, hasScope } = pendingToggle;
+      if (hasScope) {
+        revokeScopeMutation.mutate({ userId, scope });
+      } else {
+        assignScopeMutation.mutate({ userId, scope });
+      }
+    }
+    setPendingToggle(null);
+  };
+
+  const pendingToggleText =
+    pendingToggle?.kind === "role"
+      ? {
+          title: pendingToggle.hasRole ? "Отозвать роль?" : "Назначить роль?",
+          description: pendingToggle.hasRole
+            ? `Отозвать роль "${pendingToggle.role}" у пользователя ${pendingToggle.userName}?`
+            : `Назначить роль "${pendingToggle.role}" пользователю ${pendingToggle.userName}?`,
+        }
+      : pendingToggle?.kind === "scope"
+        ? {
+            title: pendingToggle.hasScope ? "Убрать область доступа?" : "Включить область доступа?",
+            description: pendingToggle.hasScope
+              ? `Убрать scope "${pendingToggle.scope}" у пользователя ${pendingToggle.userName}?`
+              : `Включить scope "${pendingToggle.scope}" для пользователя ${pendingToggle.userName}?`,
+          }
+        : null;
 
   if (isAuthenticated === null) {
     return (
@@ -200,9 +257,13 @@ function AdminUsersPage() {
                           variant={has ? "secondary" : "outline"}
                           className="cursor-pointer select-none"
                           onClick={() =>
-                            has
-                              ? revokeRoleMutation.mutate({ userId: user.id, role })
-                              : assignRoleMutation.mutate({ userId: user.id, role })
+                            setPendingToggle({
+                              kind: "role",
+                              userId: user.id,
+                              userName: user.fullName ?? user.id,
+                              role,
+                              hasRole: has,
+                            })
                           }
                         >
                           {role}
@@ -221,9 +282,13 @@ function AdminUsersPage() {
                             variant={has ? "default" : "outline"}
                             className="cursor-pointer select-none"
                             onClick={() =>
-                              has
-                                ? revokeScopeMutation.mutate({ userId: user.id, scope })
-                                : assignScopeMutation.mutate({ userId: user.id, scope })
+                              setPendingToggle({
+                                kind: "scope",
+                                userId: user.id,
+                                userName: user.fullName ?? user.id,
+                                scope,
+                                hasScope: has,
+                              })
                             }
                           >
                             admin-{scope}
@@ -238,6 +303,22 @@ function AdminUsersPage() {
           )}
         </section>
       </div>
+
+      <AlertDialog
+        open={pendingToggle !== null}
+        onOpenChange={(open) => !open && setPendingToggle(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{pendingToggleText?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{pendingToggleText?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPendingToggle}>Подтвердить</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }
