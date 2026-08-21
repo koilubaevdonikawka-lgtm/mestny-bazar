@@ -160,9 +160,20 @@ export function SiteHeader({
               <button
                 type="button"
                 aria-label={t("footer.contactsHeading")}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-secondary"
+                className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-secondary"
               >
                 <Info className="h-5 w-5" />
+                {/* Only visible sign-in status cue on customer pages now that
+                    showAccountMenu={false} hides the avatar entirely — a
+                    small dot, not a second AccountMenu. Absence of the dot
+                    (guest) is itself the "not signed in" signal, same pattern
+                    as any presence indicator. */}
+                {isAuthenticated === true && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-background"
+                  />
+                )}
               </button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
