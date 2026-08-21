@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { CartDrawer } from "./CartDrawer";
 import { AccountMenu } from "./AccountMenu";
 import { SearchBar } from "./SearchBar";
-import { ArrowLeft, Info, Store } from "lucide-react";
+import { ArrowLeft, Info, LogOut, Store } from "lucide-react";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +17,9 @@ import {
 } from "@/components/ui/dialog";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
+import { useSupabaseSession } from "@/hooks/useSupabaseSession";
+import { supabase } from "@/integrations/supabase/client";
+import { WELCOME_SEEN_KEY } from "@/components/WelcomeGate";
 import { BRAND } from "@/config/brand";
 import { CONTACT } from "@/config/contact";
 
@@ -72,8 +78,21 @@ export function SiteHeader({
   cartIconOnly = false,
 }: SiteHeaderProps = {}) {
   const { t, language } = useTranslation();
+  const { isAuthenticated } = useSupabaseSession();
   const router = useRouter();
   const navigate = useNavigate();
+  const [infoOpen, setInfoOpen] = useState(false);
+
+  // Every customer-facing page passes showAccountMenu={false} (avatar/dropdown
+  // fully hidden there) — this "Информация" dialog is currently the only
+  // visible place left for a signed-in customer to sign out at all, so it
+  // reuses AccountMenu's exact handleSignOut pattern instead of inventing one.
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    window.localStorage.removeItem(WELCOME_SEEN_KEY);
+    toast.success(t("account.signedOutToast"));
+    setInfoOpen(false);
+  };
   // Задача №1 — standard "← Назад" replacing the previous Home-icon button:
   // real back navigation when there's an in-app previous screen to return
   // to (true history.back(), not just a link to "/"), falling back to the
@@ -136,7 +155,7 @@ export function SiteHeader({
         {showLanguageSwitcher && <LanguageSwitcher />}
         {showAccountMenu && <AccountMenu hideSignInCta={hideSignInButton} />}
         {cartIconOnly && (
-          <Dialog>
+          <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
             <DialogTrigger asChild>
               <button
                 type="button"
@@ -166,6 +185,18 @@ export function SiteHeader({
                   </a>
                 </li>
               </ul>
+              {isAuthenticated === true && (
+                <div className="mt-2 border-t border-border/60 pt-4">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start gap-2 px-0 text-sm text-muted-foreground hover:text-foreground"
+                    onClick={() => void handleSignOut()}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    {t("account.signOutFromDialog")}
+                  </Button>
+                </div>
+              )}
             </DialogContent>
           </Dialog>
         )}

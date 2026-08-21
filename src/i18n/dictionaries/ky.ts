@@ -268,6 +268,7 @@ export const ky = {
   account: {
     menuAriaLabel: "Аккаунт",
     signedOutToast: "Сиз аккаунттан чыктыңыз",
+    signOutFromDialog: "Аккаунттан чыгуу",
   },
   auth: {
     signInPrompt: "Улантуу үчүн кириңиз",

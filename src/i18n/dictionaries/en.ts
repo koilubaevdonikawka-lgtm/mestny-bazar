@@ -268,6 +268,7 @@ export const en = {
   account: {
     menuAriaLabel: "Account",
     signedOutToast: "You have signed out",
+    signOutFromDialog: "Sign out of account",
   },
   auth: {
     signInPrompt: "Sign in to continue",

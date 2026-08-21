@@ -268,6 +268,7 @@ export const ru = {
   account: {
     menuAriaLabel: "Аккаунт",
     signedOutToast: "Вы вышли из аккаунта",
+    signOutFromDialog: "Выйти из аккаунта",
   },
   auth: {
     signInPrompt: "Войдите, чтобы продолжить",
