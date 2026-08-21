@@ -20,12 +20,45 @@ const COURIER_ASSIGNMENT_ELIGIBLE_STATUSES: OrderStatus[] = [
 ];
 
 /**
+ * Whether the cascade's 2-minute buffer has actually elapsed — CASH keeps
+ * measuring from order creation (unchanged); ONLINE never fires while still
+ * CREATED (payment not yet confirmed) and, once PAID, measures from paidAt
+ * instead of createdAt. paidAt is expected to be set whenever status is PAID
+ * (order.repository.ts's updatePaymentStatus stamps it in the same write
+ * that flips payment_status to "paid") — a PAID order with a null paidAt is
+ * treated as not yet eligible rather than falling back to createdAt, since
+ * that fallback would silently reintroduce the exact bug this fixes.
+ */
+function isCascadeBufferElapsed(order: OrderDTO): boolean {
+  if (!CASCADE_ELIGIBLE_STATUSES.includes(order.status)) return false;
+
+  if (order.paymentMethod === "ONLINE") {
+    if (order.status !== OrderStatus.PAID) return false;
+    return !!order.paidAt && !isWithinCancellationWindow(order.paidAt);
+  }
+
+  return !isWithinCancellationWindow(order.createdAt);
+}
+
+/**
  * Buffer-as-gate for the operational cascade (docs/admin-platform/platform-lifecycle.md,
  * §3). The platform has no scheduler/cron — this is a lazy, idempotent sweep:
  * called redundantly on staff-facing order reads, it is a no-op until the
  * order's 2-minute cancellation window has actually elapsed, and fires the
  * cascade exactly once even under concurrent callers (IOrderCascadeRepository.claim
  * is the atomic idempotency boundary).
+ *
+ * For an ONLINE order the buffer must start from confirmed PAYMENT, not order
+ * creation (Аудит Finik-готовности этой сессии): CREATED means the customer
+ * clicked "Оформить" but Finik's webhook hasn't confirmed payment yet — the
+ * cascade (which notifies the warehouse to start assembling) must never fire
+ * for money that may still fail/expire within the next up-to-30 minutes
+ * (PaymentService.PAYMENT_EXPIRY_MS). Only once status flips to PAID (and
+ * OrderDTO.paidAt — server/adapters/supabase/order.repository.ts's
+ * updatePaymentStatus already stamps it at that exact moment, no migration
+ * needed) does the same 2-minute buffer apply, now measured from paidAt.
+ * A CASH order has no such window to wait out — its buffer is unchanged,
+ * still measured from createdAt.
  *
  * Also opportunistically (re-)attempts courier auto-assignment for orders that
  * are ready for one but don't have one yet — the same lazy, self-healing pattern:
@@ -41,10 +74,7 @@ export class OrderLifecycleCascadeService {
   ) {}
 
   async checkAndTrigger(order: OrderDTO): Promise<void> {
-    if (
-      CASCADE_ELIGIBLE_STATUSES.includes(order.status) &&
-      !isWithinCancellationWindow(order.createdAt)
-    ) {
+    if (isCascadeBufferElapsed(order)) {
       const claimed = await this.cascades.claim(order.id);
       if (claimed) {
         await this.events.publish({ type: "order.operational_cascade_started", order });

@@ -188,6 +188,85 @@ describe("OrderLifecycleCascadeService.checkAndTrigger — buffer gate", () => {
   });
 });
 
+describe("OrderLifecycleCascadeService.checkAndTrigger — ONLINE payment gates the buffer on paidAt, not createdAt", () => {
+  it("never fires for an ONLINE order still CREATED (payment not yet confirmed), no matter how old", async () => {
+    const cascadeRepo = fakeCascadeRepo();
+    const events = fakeEventBus();
+    const service = buildService({ cascadeRepo, events });
+
+    await service.checkAndTrigger(
+      makeOrder({
+        paymentMethod: "ONLINE",
+        status: OrderStatus.CREATED,
+        createdAt: EXPIRED_CREATED_AT,
+        paidAt: null,
+      }),
+    );
+
+    expect(cascadeRepo.claim).not.toHaveBeenCalled();
+    expect(events.publish).not.toHaveBeenCalled();
+  });
+
+  it("does not fire for a PAID ONLINE order while still within the buffer measured from paidAt", async () => {
+    const cascadeRepo = fakeCascadeRepo();
+    const events = fakeEventBus();
+    const service = buildService({ cascadeRepo, events });
+
+    await service.checkAndTrigger(
+      makeOrder({
+        paymentMethod: "ONLINE",
+        status: OrderStatus.PAID,
+        createdAt: EXPIRED_CREATED_AT,
+        paidAt: FRESH_CREATED_AT,
+      }),
+    );
+
+    expect(cascadeRepo.claim).not.toHaveBeenCalled();
+    expect(events.publish).not.toHaveBeenCalled();
+  });
+
+  it("fires for a PAID ONLINE order once the buffer has elapsed since paidAt", async () => {
+    const cascadeRepo = fakeCascadeRepo();
+    const events = fakeEventBus();
+    const service = buildService({ cascadeRepo, events });
+    const order = makeOrder({
+      paymentMethod: "ONLINE",
+      status: OrderStatus.PAID,
+      // createdAt is fresh (order created moments ago) — only paidAt being
+      // old enough must matter, proving the buffer measures from paidAt
+      // and not createdAt.
+      createdAt: FRESH_CREATED_AT,
+      paidAt: EXPIRED_CREATED_AT,
+    });
+
+    await service.checkAndTrigger(order);
+
+    expect(cascadeRepo.claim).toHaveBeenCalledWith(order.id);
+    expect(events.publish).toHaveBeenCalledWith({
+      type: "order.operational_cascade_started",
+      order,
+    });
+  });
+
+  it("does not fire for a PAID ONLINE order with a missing paidAt (defensive — never falls back to createdAt)", async () => {
+    const cascadeRepo = fakeCascadeRepo();
+    const events = fakeEventBus();
+    const service = buildService({ cascadeRepo, events });
+
+    await service.checkAndTrigger(
+      makeOrder({
+        paymentMethod: "ONLINE",
+        status: OrderStatus.PAID,
+        createdAt: EXPIRED_CREATED_AT,
+        paidAt: null,
+      }),
+    );
+
+    expect(cascadeRepo.claim).not.toHaveBeenCalled();
+    expect(events.publish).not.toHaveBeenCalled();
+  });
+});
+
 describe("OrderLifecycleCascadeService.checkAndTrigger — courier auto-assignment", () => {
   it("attempts assignment for a CONFIRMED order without a courier yet", async () => {
     const orderRepo = fakeOrderRepo();
