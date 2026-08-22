@@ -3,6 +3,7 @@ import type { IPaymentProvider, PaymentWebhookPayload } from "@server/ports/paym
 import { RetryableError } from "@shared/lib/with-retry";
 import { Signer } from "@mancho.devs/authorizer";
 import { BRAND } from "@/config/brand";
+import { logger } from "@shared/observability/logger";
 
 const FINIK_FETCH_TIMEOUT_MS = 10_000;
 
@@ -107,6 +108,23 @@ export class FinikPaymentAdapter implements IPaymentProvider {
     // a 2xx JSON body (Промпт №080) — `redirect: "manual"` stops `fetch`
     // from silently following it so the Location header is still readable.
     const response = await this.signedFetch(endpoint, body);
+
+    // TEMPORARY diagnostic (Промпт №083) — logs Finik's raw createPayment
+    // response (their status/headers/body only, never our own request
+    // secrets) so a real "awaiting status, empty paymentUrl" production case
+    // can be inspected via `wrangler tail`. Placed unconditionally right
+    // after the fetch, before either branch below, specifically because
+    // assertSuccessful() always throws for every non-redirect status (see
+    // its own comment) — a log placed after that call would never run.
+    // Not to be removed without explicit instruction.
+    logger.info("finik:create-payment-raw-response", {
+      status: response.status,
+      headers: Object.fromEntries(response.headers.entries()),
+      body: await response
+        .clone()
+        .json()
+        .catch(() => null),
+    });
 
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get("location") ?? response.headers.get("Location");
