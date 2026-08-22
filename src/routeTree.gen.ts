@@ -22,6 +22,7 @@ import { Route as CartRouteImport } from './routes/cart'
 import { Route as BootstrapRouteImport } from './routes/bootstrap'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProfileIndexRouteImport } from './routes/profile/index'
 import { Route as OrdersIndexRouteImport } from './routes/orders/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as ProfileAddressesRouteImport } from './routes/profile/addresses'
@@ -123,6 +124,11 @@ const AdminRoute = AdminRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileIndexRoute = ProfileIndexRouteImport.update({
+  id: '/profile/',
+  path: '/profile/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrdersIndexRoute = OrdersIndexRouteImport.update({
@@ -333,6 +339,7 @@ export interface FileRoutesByFullPath {
   '/profile/addresses': typeof ProfileAddressesRoute
   '/admin/': typeof AdminIndexRoute
   '/orders/': typeof OrdersIndexRoute
+  '/profile/': typeof ProfileIndexRoute
   '/admin/couriers/$id': typeof AdminCouriersIdRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/courier/orders/$id': typeof CourierOrdersIdRoute
@@ -384,6 +391,7 @@ export interface FileRoutesByTo {
   '/profile/addresses': typeof ProfileAddressesRoute
   '/admin': typeof AdminIndexRoute
   '/orders': typeof OrdersIndexRoute
+  '/profile': typeof ProfileIndexRoute
   '/admin/couriers/$id': typeof AdminCouriersIdRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/courier/orders/$id': typeof CourierOrdersIdRoute
@@ -437,6 +445,7 @@ export interface FileRoutesById {
   '/profile/addresses': typeof ProfileAddressesRoute
   '/admin/': typeof AdminIndexRoute
   '/orders/': typeof OrdersIndexRoute
+  '/profile/': typeof ProfileIndexRoute
   '/admin/couriers/$id': typeof AdminCouriersIdRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/courier/orders/$id': typeof CourierOrdersIdRoute
@@ -491,6 +500,7 @@ export interface FileRouteTypes {
     | '/profile/addresses'
     | '/admin/'
     | '/orders/'
+    | '/profile/'
     | '/admin/couriers/$id'
     | '/admin/orders/$id'
     | '/courier/orders/$id'
@@ -542,6 +552,7 @@ export interface FileRouteTypes {
     | '/profile/addresses'
     | '/admin'
     | '/orders'
+    | '/profile'
     | '/admin/couriers/$id'
     | '/admin/orders/$id'
     | '/courier/orders/$id'
@@ -594,6 +605,7 @@ export interface FileRouteTypes {
     | '/profile/addresses'
     | '/admin/'
     | '/orders/'
+    | '/profile/'
     | '/admin/couriers/$id'
     | '/admin/orders/$id'
     | '/courier/orders/$id'
@@ -646,6 +658,7 @@ export interface RootRouteChildren {
   ProductHandleRoute: typeof ProductHandleRoute
   ProfileAddressesRoute: typeof ProfileAddressesRoute
   OrdersIndexRoute: typeof OrdersIndexRoute
+  ProfileIndexRoute: typeof ProfileIndexRoute
   CategoryCategorySlugSubcategorySubcategorySlugRoute: typeof CategoryCategorySlugSubcategorySubcategorySlugRoute
 }
 
@@ -740,6 +753,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile/': {
+      id: '/profile/'
+      path: '/profile'
+      fullPath: '/profile/'
+      preLoaderRoute: typeof ProfileIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/orders/': {
@@ -1120,6 +1140,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProductHandleRoute: ProductHandleRoute,
   ProfileAddressesRoute: ProfileAddressesRoute,
   OrdersIndexRoute: OrdersIndexRoute,
+  ProfileIndexRoute: ProfileIndexRoute,
   CategoryCategorySlugSubcategorySubcategorySlugRoute:
     CategoryCategorySlugSubcategorySubcategorySlugRoute,
 }
