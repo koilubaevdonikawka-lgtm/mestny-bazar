@@ -201,21 +201,23 @@ export class FinikPaymentAdapter implements IPaymentProvider {
 
   /** The only outgoing call this adapter makes is createPayment's POST — no GET/status endpoint exists (see getStatus's own note). */
   private async signedFetch(url: string, body: unknown): Promise<Response> {
-    // Seconds, per Finik's documented contract (Промпт №077) — reverted here
-    // (Промпт №091) after the milliseconds experiment (Промпт №085) produced
-    // 4/4 stable failures with a DIFFERENT error ("invalid signature"
-    // instead of "expired timestamp"), which points at a broken signature
-    // under that value rather than a units mismatch. Current working
-    // hypothesis (Промпт №091): seconds themselves aren't the problem — a
-    // real clock skew between this Worker and Finik is, specifically a cold/
-    // idle Worker isolate returning an imprecise Date.now() on its first
-    // call after a pause (Cloudflare's documented Spectre/side-channel
-    // timing-attack mitigation for isolates). The two diagnostic fields
-    // added below (sentTimestamp/sentTimestampAsDate) exist to let a human
-    // compare the timestamp this Worker actually sent against Finik's own
-    // `date` response header for the same request, isolating clock skew
-    // from everything else already ruled out.
-    const timestamp = String(Math.floor(Date.now() / 1000));
+    // Milliseconds again (Промпт №097) — Finik's documentation and worked
+    // example specify `Date.now().toString()`. Промпт №097's own stated
+    // reason for retesting this — that the earlier milliseconds attempt
+    // (Промпт №085) ran against a still-wrong request body, making its 4/4
+    // "invalid signature" result unreliable — does NOT hold up against this
+    // repo's own commit history: the body was already rebuilt into its
+    // current shape (CardType/Data.accountId/name_en/webhookUrl) at commits
+    // b76939f (18:58) and 33495b3 (19:16), a full hour-plus BEFORE the
+    // milliseconds experiment at 7b781a3 (20:40). Nothing in the outgoing
+    // request/signing path has changed since that 4/4 failure besides this
+    // timestamp reverting to seconds (Промпт №091) and two read-only
+    // diagnostic fields — so this retest is very likely to reproduce the
+    // same "invalid signature" result, not a new one. Flagged to the
+    // architect; proceeding with the requested change regardless, since
+    // it's narrow, reversible, and the deploy was pre-authorized pending
+    // this report.
+    const timestamp = Date.now().toString();
     // TEMPORARY diagnostic (Промпт №084) — measures wall-clock time between
     // minting x-api-timestamp and Finik actually receiving/validating it, to
     // test the hypothesis that a cold-start node-jose RSA key import inside
@@ -231,6 +233,15 @@ export class FinikPaymentAdapter implements IPaymentProvider {
       headers: { Host: host, "x-api-key": this.config.apiKey, "x-api-timestamp": timestamp },
       httpMethod: "POST",
       path: pathname,
+      // Промпт №097 asked for `undefined` here to match the official
+      // example's exact literal — left as `null` instead: the installed
+      // @mancho.devs/authorizer's own RequestData type declares this field
+      // as `QueryStringParameters | null` (not optional, no `undefined` in
+      // the union), so `undefined` fails typecheck outright. Functionally
+      // moot either way — the library's own getQueryStringParamsData() does
+      // `this.requestData.queryStringParameters ?? {}`, which treats `null`
+      // and `undefined` identically — so this can't be the cause of the
+      // signature failures regardless of which literal is used.
       queryStringParameters: null,
     });
     const signature = await signer.sign(normalizePem(this.config.rsaPrivateKeyPem));
