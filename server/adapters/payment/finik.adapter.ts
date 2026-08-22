@@ -218,7 +218,11 @@ export class FinikPaymentAdapter implements IPaymentProvider {
 
   /** The only outgoing call this adapter makes is createPayment's POST — no GET/status endpoint exists (see getStatus's own note). */
   private async signedFetch(url: string, body: unknown): Promise<Response> {
-    const timestamp = String(Math.floor(Date.now() / 1000));
+    // TEMPORARY experiment (Промпт №085) — testing whether Finik expects
+    // milliseconds instead of seconds for x-api-timestamp. Revert to seconds
+    // if this does not resolve the 401. Not to be left in this state without
+    // explicit confirmation either way.
+    const timestamp = String(Date.now());
     // TEMPORARY diagnostic (Промпт №084) — measures wall-clock time between
     // minting x-api-timestamp and Finik actually receiving/validating it, to
     // test the hypothesis that a cold-start node-jose RSA key import inside
