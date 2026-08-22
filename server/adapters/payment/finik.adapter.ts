@@ -219,6 +219,15 @@ export class FinikPaymentAdapter implements IPaymentProvider {
   /** The only outgoing call this adapter makes is createPayment's POST — no GET/status endpoint exists (see getStatus's own note). */
   private async signedFetch(url: string, body: unknown): Promise<Response> {
     const timestamp = String(Math.floor(Date.now() / 1000));
+    // TEMPORARY diagnostic (Промпт №084) — measures wall-clock time between
+    // minting x-api-timestamp and Finik actually receiving/validating it, to
+    // test the hypothesis that a cold-start node-jose RSA key import inside
+    // Signer.sign() delays the request enough for Finik's own timestamp
+    // window to reject it as expired (HTTP 401 "An expired timestamp is
+    // provided", Промпт №083). Logs numeric millisecond deltas only — never
+    // the timestamp value, the signature, or any key material. Not to be
+    // removed without explicit instruction.
+    const tsGeneratedAt = Date.now();
     const { pathname, host } = new URL(url);
     const signer = new Signer({
       body: (body as Record<string, unknown> | undefined) ?? null,
@@ -228,8 +237,10 @@ export class FinikPaymentAdapter implements IPaymentProvider {
       queryStringParameters: null,
     });
     const signature = await signer.sign(normalizePem(this.config.rsaPrivateKeyPem));
+    const afterSignAt = Date.now();
 
-    return this.fetchWithTimeout(url, {
+    const beforeFetchAt = Date.now();
+    const response = await this.fetchWithTimeout(url, {
       method: "POST",
       redirect: "manual",
       headers: {
@@ -240,6 +251,15 @@ export class FinikPaymentAdapter implements IPaymentProvider {
       },
       body: JSON.stringify(body),
     });
+    const afterFetchAt = Date.now();
+
+    logger.info("finik:timestamp-timing", {
+      signMs: afterSignAt - tsGeneratedAt,
+      totalBeforeSendMs: beforeFetchAt - tsGeneratedAt,
+      roundTripMs: afterFetchAt - beforeFetchAt,
+    });
+
+    return response;
   }
 
   private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
