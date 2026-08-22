@@ -17,6 +17,7 @@ import { Route as SearchRouteImport } from './routes/search'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as OrderSuccessRouteImport } from './routes/order-success'
 import { Route as CourierRouteImport } from './routes/courier'
+import { Route as CartRouteImport } from './routes/cart'
 import { Route as BootstrapRouteImport } from './routes/bootstrap'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -96,6 +97,11 @@ const OrderSuccessRoute = OrderSuccessRouteImport.update({
 const CourierRoute = CourierRouteImport.update({
   id: '/courier',
   path: '/courier',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CartRoute = CartRouteImport.update({
+  id: '/cart',
+  path: '/cart',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BootstrapRoute = BootstrapRouteImport.update({
@@ -304,6 +310,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/bootstrap': typeof BootstrapRoute
+  '/cart': typeof CartRoute
   '/courier': typeof CourierRouteWithChildren
   '/order-success': typeof OrderSuccessRoute
   '/privacy': typeof PrivacyRoute
@@ -353,6 +360,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bootstrap': typeof BootstrapRoute
+  '/cart': typeof CartRoute
   '/courier': typeof CourierRouteWithChildren
   '/order-success': typeof OrderSuccessRoute
   '/privacy': typeof PrivacyRoute
@@ -404,6 +412,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/bootstrap': typeof BootstrapRoute
+  '/cart': typeof CartRoute
   '/courier': typeof CourierRouteWithChildren
   '/order-success': typeof OrderSuccessRoute
   '/privacy': typeof PrivacyRoute
@@ -456,6 +465,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/bootstrap'
+    | '/cart'
     | '/courier'
     | '/order-success'
     | '/privacy'
@@ -505,6 +515,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/bootstrap'
+    | '/cart'
     | '/courier'
     | '/order-success'
     | '/privacy'
@@ -555,6 +566,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/bootstrap'
+    | '/cart'
     | '/courier'
     | '/order-success'
     | '/privacy'
@@ -606,6 +618,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   BootstrapRoute: typeof BootstrapRoute
+  CartRoute: typeof CartRoute
   CourierRoute: typeof CourierRouteWithChildren
   OrderSuccessRoute: typeof OrderSuccessRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -679,6 +692,13 @@ declare module '@tanstack/react-router' {
       path: '/courier'
       fullPath: '/courier'
       preLoaderRoute: typeof CourierRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cart': {
+      id: '/cart'
+      path: '/cart'
+      fullPath: '/cart'
+      preLoaderRoute: typeof CartRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bootstrap': {
@@ -1064,6 +1084,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   BootstrapRoute: BootstrapRoute,
+  CartRoute: CartRoute,
   CourierRoute: CourierRouteWithChildren,
   OrderSuccessRoute: OrderSuccessRoute,
   PrivacyRoute: PrivacyRoute,
