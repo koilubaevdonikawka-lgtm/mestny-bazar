@@ -18,6 +18,17 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Google OAuth deep-link return (src/lib/auth.ts, com.mesnyibazar.app://auth-callback)
+                 — Google blocks sign-in inside this app's own embedded WebView, so the flow
+                 hands off to the system browser; this intent-filter is what lets the OS route
+                 the browser's redirect back into this app instead of just opening the browser. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.mesnyibazar.app" android:host="auth-callback" />
+            </intent-filter>
         </activity>
 
         <provider

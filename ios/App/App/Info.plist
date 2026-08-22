@@ -24,6 +24,19 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Google OAuth deep-link return (src/lib/auth.ts, com.mesnyibazar.app://auth-callback)
+	     — Google blocks sign-in inside this app's own embedded WKWebView, so the flow hands
+	     off to SFSafariViewController/system browser; this scheme registration is what lets
+	     iOS route that browser's redirect back into this app. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.mesnyibazar.app</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Камера используется, чтобы сделать фото товара или профиля прямо в приложении.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
