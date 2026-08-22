@@ -270,6 +270,11 @@ export const ky = {
     signedOutToast: "Сиз аккаунттан чыктыңыз",
     signOutFromDialog: "Аккаунттан чыгуу",
   },
+  push: {
+    enableButton: "Билдирмелерди күйгүзүү",
+    grantedToast: "Билдирмелер күйгүзүлдү",
+    deniedToast: "Билдирмелерге тыюу салынды. Түзмөктүн жөндөөлөрүнөн күйгүзүңүз.",
+  },
   auth: {
     signInPrompt: "Улантуу үчүн кириңиз",
     signInWithGoogle: "Google аркылуу кирүү",

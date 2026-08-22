@@ -270,6 +270,11 @@ export const en = {
     signedOutToast: "You have signed out",
     signOutFromDialog: "Sign out of account",
   },
+  push: {
+    enableButton: "Enable notifications",
+    grantedToast: "Notifications enabled",
+    deniedToast: "Notifications denied. Enable them in your device settings.",
+  },
   auth: {
     signInPrompt: "Sign in to continue",
     signInWithGoogle: "Sign in with Google",

@@ -95,6 +95,7 @@ import { SupabasePaymentRepository } from "@server/adapters/supabase/payment.rep
 import { PaymentService } from "@server/domain/payment.service";
 import type { IPaymentRepository } from "@server/ports/payment.repository";
 import { SupabaseAddressRepository } from "@server/adapters/supabase/address.repository";
+import { SupabaseDeviceTokenRepository } from "@server/adapters/supabase/device-token.repository";
 import { SupabaseCartRepository } from "@server/adapters/supabase/cart.repository";
 import { SupabaseCategoryRepository } from "@server/adapters/supabase/category.repository";
 import { SupabaseAdminCategoryRepository } from "@server/adapters/supabase/category-admin.repository";
@@ -134,6 +135,7 @@ import { SupabaseStorageAdapter } from "@server/adapters/supabase/storage.servic
 import { SupabaseCourierProfileRepository } from "@server/adapters/supabase/courier-profile.repository";
 import { SupabaseRbacRepository } from "@server/adapters/supabase/rbac.repository";
 import type { IAddressRepository } from "@server/ports/address.repository";
+import type { IDeviceTokenRepository } from "@server/ports/device-token.repository";
 import type { ICartRepository } from "@server/ports/cart.repository";
 import type { ICategoryRepository } from "@server/ports/category.repository";
 import type { IAdminCategoryRepository } from "@server/ports/category-admin.repository";
@@ -187,6 +189,7 @@ import { CourierStartDeliveryRule } from "@server/domain/order-lifecycle/rules/c
 import { CourierArriveRule } from "@server/domain/order-lifecycle/rules/courier-arrive.rule";
 import { CourierCompleteDeliveryRule } from "@server/domain/order-lifecycle/rules/courier-complete-delivery.rule";
 import { AddressService } from "@server/domain/address.service";
+import { DeviceTokenService } from "@server/domain/device-token.service";
 import { AdminOrderService } from "@server/domain/admin-order.service";
 import { WarehouseOrderService } from "@server/domain/warehouse-order.service";
 import { CourierOrderService } from "@server/domain/courier-order.service";
@@ -272,6 +275,7 @@ export interface ServiceContainer {
   ownershipTransferService: OwnershipTransferService;
   roleResolutionService: RoleResolutionService;
   addressService: AddressService;
+  deviceTokenService: DeviceTokenService;
   notificationService: NotificationService;
   notificationCenter: INotificationCenter;
   catalogProducts: IProductRepository;
@@ -281,6 +285,7 @@ export interface ServiceContainer {
   orderCascadeService: OrderLifecycleCascadeService;
   sellerProducts: ISellerProductRepository;
   addresses: IAddressRepository;
+  deviceTokens: IDeviceTokenRepository;
   cities: ICityRepository;
   cityService: CityService;
   stores: IStoreRepository;
@@ -378,6 +383,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const platformOwnership: IPlatformOwnershipRepository = new SupabasePlatformOwnershipRepository();
   const bootstrapRepo: IBootstrapRepository = new SupabaseBootstrapRepository();
   const addresses = new SupabaseAddressRepository();
+  const deviceTokens = new SupabaseDeviceTokenRepository();
   const carts = new SupabaseCartRepository();
   const settings: ISettingsRepository = new SupabaseSettingsRepository();
   const cities: ICityRepository = new SupabaseCityRepository();
@@ -492,6 +498,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
   });
 
   const addressService = new AddressService(addresses);
+  const deviceTokenService = new DeviceTokenService(deviceTokens);
   // Reuses orderProducts — the same product repository CheckoutService
   // validates against, so a cart line and an order line item are validated
   // against identical truth (both Supabase, per ADR-002).
@@ -806,6 +813,8 @@ export function createServices(env: ServerEnv): ServiceContainer {
     customerStatus,
     sellerProductService,
     addressService,
+    deviceTokens,
+    deviceTokenService,
     notificationService,
     notificationCenter,
     checkout,

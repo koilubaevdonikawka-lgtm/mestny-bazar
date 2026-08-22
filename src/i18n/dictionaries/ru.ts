@@ -270,6 +270,11 @@ export const ru = {
     signedOutToast: "Вы вышли из аккаунта",
     signOutFromDialog: "Выйти из аккаунта",
   },
+  push: {
+    enableButton: "Включить уведомления",
+    grantedToast: "Уведомления включены",
+    deniedToast: "Уведомления запрещены. Включите их в настройках устройства.",
+  },
   auth: {
     signInPrompt: "Войдите, чтобы продолжить",
     signInWithGoogle: "Войти через Google",

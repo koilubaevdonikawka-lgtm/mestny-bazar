@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { CartDrawer } from "./CartDrawer";
 import { AccountMenu } from "./AccountMenu";
 import { SearchBar } from "./SearchBar";
-import { ArrowLeft, Info, LogIn, LogOut, Store } from "lucide-react";
+import { ArrowLeft, Bell, Info, LogIn, LogOut, Store } from "lucide-react";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ import {
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
+import { isNativePlatform, getPushNotificationCapability } from "@/lib/capabilities";
 import { signInWithGoogle } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { WELCOME_SEEN_KEY } from "@/components/WelcomeGate";
@@ -93,6 +94,19 @@ export function SiteHeader({
     window.localStorage.removeItem(WELCOME_SEEN_KEY);
     toast.success(t("account.signedOutToast"));
     setInfoOpen(false);
+  };
+  // Asked in context (this dialog, once signed in) rather than immediately on
+  // launch — standard mobile practice, and this dialog is already the
+  // established native-only settings surface (see the "Информация" comment
+  // below). Native-only: getPushNotificationCapability() resolves to the
+  // unsupported web stub everywhere else, so isSupported() is false there.
+  const handleEnableNotifications = async () => {
+    const status = await getPushNotificationCapability().requestPermission();
+    if (status === "granted") {
+      toast.success(t("push.grantedToast"));
+    } else if (status === "denied") {
+      toast.error(t("push.deniedToast"));
+    }
   };
   // Same reasoning as handleSignOut above, mirroring AccountMenu's
   // handleSignIn exactly — this dialog is the only sign-in entry point left
@@ -224,6 +238,16 @@ export function SiteHeader({
                     <LogOut className="h-4 w-4" />
                     {t("account.signOutFromDialog")}
                   </Button>
+                  {isNativePlatform() && (
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start gap-2 px-0 text-sm text-muted-foreground hover:text-foreground"
+                      onClick={() => void handleEnableNotifications()}
+                    >
+                      <Bell className="h-4 w-4" />
+                      {t("push.enableButton")}
+                    </Button>
+                  )}
                 </div>
               )}
               {isAuthenticated === false && (

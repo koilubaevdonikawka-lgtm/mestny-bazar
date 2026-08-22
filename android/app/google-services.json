@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "457512261679",
+    "project_id": "mestny-bazar",
+    "storage_bucket": "mestny-bazar.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:457512261679:android:c8af2b1640accfbfe98eda",
+        "android_client_info": {
+          "package_name": "com.mesnyibazar.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAmqI2z4D9Py_IXur_jhtD7TI0JV84wzZk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

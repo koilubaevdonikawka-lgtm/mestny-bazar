@@ -25,7 +25,7 @@ import { webGeolocation } from "./web/geolocation";
 import { webShare } from "./web/share";
 import { webCamera, webGallery } from "./web/image-picker";
 import { nativeDeepLinks } from "./native/deep-links";
-import { unsupportedPush } from "./push";
+import { nativePush } from "./push";
 import type {
   GeolocationCapability,
   ShareCapability,
@@ -40,4 +40,4 @@ export const getShareCapability = (): ShareCapability => webShare;
 export const getCameraCapability = (): CameraCapability => webCamera;
 export const getGalleryCapability = (): GalleryCapability => webGallery;
 export const getDeepLinkCapability = (): DeepLinkCapability => nativeDeepLinks;
-export const getPushNotificationCapability = (): PushNotificationCapability => unsupportedPush;
+export const getPushNotificationCapability = (): PushNotificationCapability => nativePush;
