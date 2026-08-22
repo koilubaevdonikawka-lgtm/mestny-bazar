@@ -30,10 +30,19 @@ import { LanguageProvider, useTranslation } from "@/i18n/LanguageProvider";
  * `backButton` event from @capacitor/app never fires on web, so this is a
  * no-op there regardless of the isNativePlatform() guard.
  *
- * canGoBack is read through a ref, not a dependency, so the effect wires the
- * native listener exactly once for the component's lifetime instead of
- * tearing it down and re-subscribing on every navigation — the ref always
- * reflects the latest value by the time a real back-button press reads it.
+ * canGoBack AND router are both read through refs, updated every render, not
+ * effect dependencies — useRouter() returns a fresh, unmemoized object from
+ * context on every render/navigation (confirmed against the installed
+ * @tanstack/react-router@1.170.16: useRouter is a bare
+ * `React.useContext(routerContext)`, no memoization at all), so depending on
+ * it re-subscribed the native listener on every navigation instead of once
+ * — confirmed live via Chrome remote inspector as a repeating
+ * addListener/removeListener/addListener sequence, which also meant the
+ * `exitPrimed` closure got thrown away and recreated before a real second
+ * back-press could ever see it. The effect below now runs exactly once
+ * ([] deps) for the component's lifetime; the refs guarantee it still reads
+ * the current canGoBack/router value whenever a real back-button event
+ * fires, however much later that is.
  */
 const EXIT_CONFIRM_WINDOW_MS = 2000;
 
@@ -42,6 +51,8 @@ function useAndroidBackButton(): void {
   const canGoBack = useCanGoBack();
   const canGoBackRef = useRef(canGoBack);
   canGoBackRef.current = canGoBack;
+  const routerRef = useRef(router);
+  routerRef.current = router;
 
   useEffect(() => {
     if (!isNativePlatform()) return;
@@ -55,7 +66,7 @@ function useAndroidBackButton(): void {
       if (cancelled) return;
       void App.addListener("backButton", () => {
         if (canGoBackRef.current) {
-          router.history.back();
+          routerRef.current.history.back();
           return;
         }
         if (exitPrimed) {
@@ -81,7 +92,9 @@ function useAndroidBackButton(): void {
       removeListener?.();
       if (resetTimer) clearTimeout(resetTimer);
     };
-  }, [router]);
+    // Intentionally empty — see the doc comment above. router/canGoBack are
+    // read through refs specifically so this never needs to depend on them.
+  }, []);
 }
 
 function NotFoundComponent() {
