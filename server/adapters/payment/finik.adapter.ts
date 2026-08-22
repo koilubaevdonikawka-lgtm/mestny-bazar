@@ -109,23 +109,6 @@ export class FinikPaymentAdapter implements IPaymentProvider {
     // from silently following it so the Location header is still readable.
     const response = await this.signedFetch(endpoint, body);
 
-    // TEMPORARY diagnostic (Промпт №083) — logs Finik's raw createPayment
-    // response (their status/headers/body only, never our own request
-    // secrets) so a real "awaiting status, empty paymentUrl" production case
-    // can be inspected via `wrangler tail`. Placed unconditionally right
-    // after the fetch, before either branch below, specifically because
-    // assertSuccessful() always throws for every non-redirect status (see
-    // its own comment) — a log placed after that call would never run.
-    // Not to be removed without explicit instruction.
-    logger.info("finik:create-payment-raw-response", {
-      status: response.status,
-      headers: Object.fromEntries(response.headers.entries()),
-      body: await response
-        .clone()
-        .json()
-        .catch(() => null),
-    });
-
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get("location") ?? response.headers.get("Location");
       if (!location) {
@@ -218,11 +201,21 @@ export class FinikPaymentAdapter implements IPaymentProvider {
 
   /** The only outgoing call this adapter makes is createPayment's POST — no GET/status endpoint exists (see getStatus's own note). */
   private async signedFetch(url: string, body: unknown): Promise<Response> {
-    // TEMPORARY experiment (Промпт №085) — testing whether Finik expects
-    // milliseconds instead of seconds for x-api-timestamp. Revert to seconds
-    // if this does not resolve the 401. Not to be left in this state without
-    // explicit confirmation either way.
-    const timestamp = String(Date.now());
+    // Seconds, per Finik's documented contract (Промпт №077) — reverted here
+    // (Промпт №091) after the milliseconds experiment (Промпт №085) produced
+    // 4/4 stable failures with a DIFFERENT error ("invalid signature"
+    // instead of "expired timestamp"), which points at a broken signature
+    // under that value rather than a units mismatch. Current working
+    // hypothesis (Промпт №091): seconds themselves aren't the problem — a
+    // real clock skew between this Worker and Finik is, specifically a cold/
+    // idle Worker isolate returning an imprecise Date.now() on its first
+    // call after a pause (Cloudflare's documented Spectre/side-channel
+    // timing-attack mitigation for isolates). The two diagnostic fields
+    // added below (sentTimestamp/sentTimestampAsDate) exist to let a human
+    // compare the timestamp this Worker actually sent against Finik's own
+    // `date` response header for the same request, isolating clock skew
+    // from everything else already ruled out.
+    const timestamp = String(Math.floor(Date.now() / 1000));
     // TEMPORARY diagnostic (Промпт №084) — measures wall-clock time between
     // minting x-api-timestamp and Finik actually receiving/validating it, to
     // test the hypothesis that a cold-start node-jose RSA key import inside
@@ -261,6 +254,24 @@ export class FinikPaymentAdapter implements IPaymentProvider {
       signMs: afterSignAt - tsGeneratedAt,
       totalBeforeSendMs: beforeFetchAt - tsGeneratedAt,
       roundTripMs: afterFetchAt - beforeFetchAt,
+    });
+
+    // TEMPORARY diagnostic (Промпт №083, moved here in Промпт №091 so the
+    // request's own `timestamp` is in scope) — logs Finik's raw
+    // createPayment response (their status/headers/body only, never our own
+    // request secrets) plus the exact timestamp value this request sent and
+    // its human-readable UTC equivalent, so a real production case can be
+    // inspected via `wrangler tail`. Not to be removed without explicit
+    // instruction.
+    logger.info("finik:create-payment-raw-response", {
+      status: response.status,
+      headers: Object.fromEntries(response.headers.entries()),
+      body: await response
+        .clone()
+        .json()
+        .catch(() => null),
+      sentTimestamp: timestamp,
+      sentTimestampAsDate: new Date(Number(timestamp) * 1000).toISOString(),
     });
 
     return response;
