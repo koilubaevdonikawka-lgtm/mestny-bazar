@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { getAccessProfile } from "@/api/access-profile";
 import { resolveWorkspaceRedirect } from "@/lib/workspace";
+import { isNativePlatform } from "@/lib/capabilities/platform";
 
 /**
  * Access barrier for /seller/* — see admin.tsx for the full rationale.
@@ -12,6 +13,13 @@ import { resolveWorkspaceRedirect } from "@/lib/workspace";
  */
 export const Route = createFileRoute("/seller")({
   beforeLoad: async () => {
+    // Product decision: the published mobile app ships the customer
+    // storefront only — never the Seller Workspace, even for an account
+    // that genuinely holds the "seller" role. See admin.tsx for the full
+    // rationale.
+    if (isNativePlatform()) {
+      throw redirect({ href: "/" });
+    }
     const profile = await getAccessProfile().catch(() => null);
     if (!profile?.workspaces.includes("seller")) {
       throw redirect({ href: resolveWorkspaceRedirect(profile?.workspaces ?? ["customer"]) });

@@ -4,7 +4,20 @@ import { Loader2 } from "lucide-react";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { getAccessProfile } from "@/api/access-profile";
 import { WORKSPACE_PATH } from "@/lib/workspace";
+import { isNativePlatform } from "@/lib/capabilities/platform";
 import type { WorkspaceId } from "@shared/contracts/access-profile";
+
+/**
+ * Product decision: only the customer storefront ships in the published
+ * mobile app — administration/seller/warehouse/courier stay web-only, even
+ * for an account that genuinely holds those roles (confirmed live on device
+ * this session: full workspace picker appeared after Google sign-in). This
+ * page is the picker itself; the matching beforeLoad gate on each staff
+ * root route (admin.tsx/seller.tsx/warehouse.tsx/courier.tsx) is the
+ * defense-in-depth backstop for anyone who reaches one of those URLs
+ * directly instead of through here.
+ */
+const NATIVE_ALLOWED_WORKSPACES: WorkspaceId[] = ["customer"];
 
 export const Route = createFileRoute("/workspace")({
   component: WorkspaceSelectionPage,
@@ -37,11 +50,20 @@ function WorkspaceSelectionPage() {
     if (!isAuthenticated) return;
     getAccessProfile()
       .then((profile) => {
-        if (profile.workspaces.length === 1) {
-          void navigate({ href: WORKSPACE_PATH[profile.workspaces[0]], replace: true });
+        // Native narrows to the customer workspace only, regardless of how
+        // many staff roles the account actually holds — "customer" is
+        // always present (Role Resolution always includes it), so this
+        // filtered list is always exactly one entry on native, which
+        // immediately redirects below without ever rendering the picker.
+        const workspaces = isNativePlatform()
+          ? profile.workspaces.filter((workspace) => NATIVE_ALLOWED_WORKSPACES.includes(workspace))
+          : profile.workspaces;
+
+        if (workspaces.length === 1) {
+          void navigate({ href: WORKSPACE_PATH[workspaces[0]], replace: true });
           return;
         }
-        setWorkspaces(profile.workspaces);
+        setWorkspaces(workspaces);
       })
       .catch(() => setError(true));
   }, [isAuthenticated, navigate]);

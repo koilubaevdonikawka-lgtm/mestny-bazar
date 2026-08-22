@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { getAccessProfile } from "@/api/access-profile";
 import { resolveWorkspaceRedirect } from "@/lib/workspace";
+import { isNativePlatform } from "@/lib/capabilities/platform";
 
 /**
  * Access barrier (docs/architecture/PLATFORM_ACCESS_ARCHITECTURE.md §10 п.2,
@@ -20,6 +21,14 @@ import { resolveWorkspaceRedirect } from "@/lib/workspace";
  */
 export const Route = createFileRoute("/admin")({
   beforeLoad: async () => {
+    // Product decision: the published mobile app ships the customer
+    // storefront only — never the Administration Workspace, even for an
+    // account that genuinely holds the "admin" role. Checked before any
+    // role lookup at all, so it applies unconditionally to every native
+    // request that reaches this URL, direct link or not.
+    if (isNativePlatform()) {
+      throw redirect({ href: "/" });
+    }
     const profile = await getAccessProfile().catch(() => null);
     if (!profile?.workspaces.includes("administration")) {
       throw redirect({ href: resolveWorkspaceRedirect(profile?.workspaces ?? ["customer"]) });
