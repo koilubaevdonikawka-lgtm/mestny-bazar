@@ -9,7 +9,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Toaster, toast } from "sonner";
 
 import appCss from "../styles.css?url";
@@ -19,7 +19,25 @@ import { useAuthErrorToast } from "@/hooks/useAuthErrorToast";
 import { usePlatformNavigationGate } from "@/hooks/usePlatformNavigationGate";
 import { useServiceWorkerRegistration } from "@/hooks/useServiceWorkerRegistration";
 import { isNativePlatform } from "@/lib/capabilities/platform";
+import { BottomTabBar, BOTTOM_TAB_BAR_HEIGHT_REM } from "@/components/BottomTabBar";
 import { LanguageProvider, useTranslation } from "@/i18n/LanguageProvider";
+
+/**
+ * Whether to show the native bottom tab bar — computed client-side only,
+ * after mount (starts `false`, matching SSR's always-`false` output
+ * exactly, same reasoning as useSupabaseSession's isAuthenticated starting
+ * `null`) so this never causes a hydration mismatch between the
+ * server-rendered HTML and the real client value. On an actual native
+ * device this flips to `true` a moment after mount; on web it's always
+ * `false`, so nothing here is ever visible or reserves layout space there.
+ */
+function useShowBottomTabBar(): boolean {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    setShow(isNativePlatform());
+  }, []);
+  return show;
+}
 
 /**
  * Standard Android UX: the hardware/gesture Back button should exit the app
@@ -225,12 +243,29 @@ function RootComponent() {
   usePlatformNavigationGate();
   useServiceWorkerRegistration();
   useAndroidBackButton();
+  const showBottomTabBar = useShowBottomTabBar();
 
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
+        {/* Reserves exactly the tab bar's own height (+ its safe-area inset)
+            at the bottom of the scrollable content so the fixed bar below
+            never covers a page's last element — every page already renders
+            its own full-height layout via Outlet, so this wraps it rather
+            than requiring each page to add the padding itself. */}
+        <div
+          style={
+            showBottomTabBar
+              ? {
+                  paddingBottom: `calc(${BOTTOM_TAB_BAR_HEIGHT_REM}rem + env(safe-area-inset-bottom))`,
+                }
+              : undefined
+          }
+        >
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+        </div>
+        {showBottomTabBar && <BottomTabBar />}
         <Toaster richColors position="top-center" />
       </LanguageProvider>
     </QueryClientProvider>
