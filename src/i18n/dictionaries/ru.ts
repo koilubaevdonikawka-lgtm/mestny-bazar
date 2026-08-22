@@ -254,6 +254,7 @@ export const ru = {
     paymentPendingDescription: "Ожидаем подтверждение оплаты — это может занять пару минут.",
     deliveryConfirmationDescription: "Мы свяжемся с вами для подтверждения доставки.",
     backToShop: "Вернуться в магазин",
+    retryPaymentSignInPrompt: "Войдите в аккаунт, чтобы повторить оплату",
   },
   footer: {
     tagline: "Продукты с доставкой. Оплата онлайн или наличными при получении.",

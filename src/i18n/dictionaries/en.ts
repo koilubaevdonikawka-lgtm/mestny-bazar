@@ -254,6 +254,7 @@ export const en = {
       "Waiting for payment confirmation — this can take a couple of minutes.",
     deliveryConfirmationDescription: "We'll contact you to confirm delivery.",
     backToShop: "Back to the shop",
+    retryPaymentSignInPrompt: "Sign in to your account to retry payment",
   },
   footer: {
     tagline: "Groceries with delivery. Pay online or with cash on delivery.",
