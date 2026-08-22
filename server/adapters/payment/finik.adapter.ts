@@ -55,17 +55,26 @@ function normalizePem(pem: string): string {
  * self-built `buildCanonicalString()` this file used to carry.
  *
  * Request body shape confirmed (Промпт №081) by a real successful Finik
- * Playground transaction under the project owner's own account — the
- * project owner's own account confirmed exactly this shape works:
+ * Playground transaction under the project owner's own account:
  * `{ Amount, CardType: "FINIK_QR", Data: { accountId, name_en }, PaymentId,
  * RedirectUrl }`. `CardType` is `"FINIK_QR"` (previously sent as an empty
  * string, unconfirmed); `Data.accountId` is `config.merchantId` (previously
  * an unconfirmed, optional field placed under the same name); `Data.name_en`
  * is the project's own `BRAND.name` (the merchant/store display name).
- * `webhookUrl`/`orderId`/`orderNumber`/`currency` — sent inside `Data` by the
- * pre-Промпт №081 implementation — are not part of the confirmed working
- * example and have been dropped; see this adapter's test file and the task
- * report for the `webhookUrl` webhook-delivery caveat this raises.
+ *
+ * `Data.webhookUrl` (Промпт №082) is back after briefly being dropped in
+ * Промпт №081 — that Playground example never included it because it only
+ * exercised key/signature validity, not a full payment cycle, so its absence
+ * from the example was never a confirmed "Finik doesn't want this field"
+ * signal — dropping it was an editorial mistake in Промпт №081, not a
+ * Finik-confirmed decision. `webhookUrl` is the only documented mechanism by
+ * which Finik learns where to POST the payment-confirmed webhook
+ * (`shared/contracts/payment.ts`) — without it a payment can succeed at
+ * Finik while this site never learns about it. `orderId`/`orderNumber`/
+ * `currency` — also dropped in Промпт №081 — stay dropped: neither part of
+ * the confirmed example nor carrying webhookUrl's same unconditional
+ * architectural necessity (the payment is already uniquely identified via
+ * `PaymentId`).
  */
 export class FinikPaymentAdapter implements IPaymentProvider {
   constructor(private readonly config: FinikAdapterConfig) {}
@@ -78,6 +87,7 @@ export class FinikPaymentAdapter implements IPaymentProvider {
       Data: {
         accountId: this.config.merchantId,
         name_en: BRAND.name,
+        webhookUrl: request.webhookUrl,
       },
       // WE choose this id and Finik echoes it back as `fields.paymentId` on
       // the success webhook — reusing the checkout idempotency key means one

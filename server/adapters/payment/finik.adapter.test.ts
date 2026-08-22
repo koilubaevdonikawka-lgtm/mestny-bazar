@@ -118,7 +118,7 @@ describe("FinikPaymentAdapter.createPayment", () => {
     expect(typeof headers.signature).toBe("string");
   });
 
-  it("sends exactly the confirmed-working Finik Playground body shape (Промпт №081)", async () => {
+  it("sends the confirmed Finik Playground body shape plus Data.webhookUrl (Промпт №081/082)", async () => {
     const fetchSpy = stubFetch(
       async () =>
         new Response(null, {
@@ -142,6 +142,7 @@ describe("FinikPaymentAdapter.createPayment", () => {
       Data: {
         accountId: "merchant-1",
         name_en: BRAND.name,
+        webhookUrl: "https://mesnyibazar.com/api/webhooks/finik",
       },
       PaymentId: "idem-1",
       RedirectUrl: "https://mesnyibazar.com/order-success",
