@@ -4,11 +4,13 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useCanGoBack,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Toaster } from "sonner";
+import { useEffect, useRef } from "react";
+import { Toaster, toast } from "sonner";
 
 import appCss from "../styles.css?url";
 import { BRAND } from "@/config/brand";
@@ -16,7 +18,71 @@ import { useCartSync } from "@/hooks/useCartSync";
 import { useAuthErrorToast } from "@/hooks/useAuthErrorToast";
 import { usePlatformNavigationGate } from "@/hooks/usePlatformNavigationGate";
 import { useServiceWorkerRegistration } from "@/hooks/useServiceWorkerRegistration";
+import { isNativePlatform } from "@/lib/capabilities/platform";
 import { LanguageProvider, useTranslation } from "@/i18n/LanguageProvider";
+
+/**
+ * Standard Android UX: the hardware/gesture Back button should exit the app
+ * from the root screen (with a "press again to confirm" guard against
+ * accidental exits), not silently do nothing — it already navigates
+ * correctly everywhere there's router history (same canGoBack/history.back()
+ * pattern SiteHeader's own "← Назад" button uses). Native-only: the
+ * `backButton` event from @capacitor/app never fires on web, so this is a
+ * no-op there regardless of the isNativePlatform() guard.
+ *
+ * canGoBack is read through a ref, not a dependency, so the effect wires the
+ * native listener exactly once for the component's lifetime instead of
+ * tearing it down and re-subscribing on every navigation — the ref always
+ * reflects the latest value by the time a real back-button press reads it.
+ */
+const EXIT_CONFIRM_WINDOW_MS = 2000;
+
+function useAndroidBackButton(): void {
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
+  const canGoBackRef = useRef(canGoBack);
+  canGoBackRef.current = canGoBack;
+
+  useEffect(() => {
+    if (!isNativePlatform()) return;
+
+    let cancelled = false;
+    let removeListener: (() => void) | null = null;
+    let exitPrimed = false;
+    let resetTimer: ReturnType<typeof setTimeout> | undefined;
+
+    void import("@capacitor/app").then(({ App }) => {
+      if (cancelled) return;
+      void App.addListener("backButton", () => {
+        if (canGoBackRef.current) {
+          router.history.back();
+          return;
+        }
+        if (exitPrimed) {
+          void App.exitApp();
+          return;
+        }
+        exitPrimed = true;
+        toast("Нажмите «Назад» ещё раз, чтобы выйти");
+        resetTimer = setTimeout(() => {
+          exitPrimed = false;
+        }, EXIT_CONFIRM_WINDOW_MS);
+      }).then((listener) => {
+        if (cancelled) {
+          void listener.remove();
+        } else {
+          removeListener = () => void listener.remove();
+        }
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      removeListener?.();
+      if (resetTimer) clearTimeout(resetTimer);
+    };
+  }, [router]);
+}
 
 function NotFoundComponent() {
   const { t } = useTranslation();
@@ -145,6 +211,7 @@ function RootComponent() {
   useAuthErrorToast();
   usePlatformNavigationGate();
   useServiceWorkerRegistration();
+  useAndroidBackButton();
 
   return (
     <QueryClientProvider client={queryClient}>
