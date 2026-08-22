@@ -21,11 +21,17 @@ export function createPaymentProvider(env: ServerEnv): IPaymentProvider {
     FINIK_ENVIRONMENT,
   } = env;
 
-  // FINIK_MERCHANT_ID is intentionally not gated here — it was never
-  // confirmed by official Finik documentation (Промпт №079), unlike the
-  // other four values. finik.adapter.ts omits it from the request body
-  // entirely when absent.
-  if (FINIK_API_KEY && FINIK_RSA_PRIVATE_KEY && FINIK_WEBHOOK_PUBLIC_KEY && FINIK_ENVIRONMENT) {
+  // FINIK_MERCHANT_ID is now gated here too — confirmed required (Промпт
+  // №081, a real successful Finik Playground transaction), goes in
+  // Data.accountId on every createPayment call, so the adapter can no
+  // longer be constructed without it.
+  if (
+    FINIK_API_KEY &&
+    FINIK_RSA_PRIVATE_KEY &&
+    FINIK_WEBHOOK_PUBLIC_KEY &&
+    FINIK_MERCHANT_ID &&
+    FINIK_ENVIRONMENT
+  ) {
     return new FinikPaymentAdapter({
       apiKey: FINIK_API_KEY,
       rsaPrivateKeyPem: FINIK_RSA_PRIVATE_KEY,

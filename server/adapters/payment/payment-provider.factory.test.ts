@@ -34,7 +34,7 @@ describe("createPaymentProvider", () => {
     expect(provider).toBeInstanceOf(StubPaymentProvider);
   });
 
-  it("returns FinikPaymentAdapter even without FINIK_MERCHANT_ID — not confirmed by official documentation (Промпт №079)", () => {
+  it("returns StubPaymentProvider without FINIK_MERCHANT_ID — confirmed required (Промпт №081, goes in Data.accountId)", () => {
     const provider = createPaymentProvider(
       makeEnv({
         FINIK_API_KEY: "api-key",
@@ -44,7 +44,7 @@ describe("createPaymentProvider", () => {
       }),
     );
 
-    expect(provider).toBeInstanceOf(FinikPaymentAdapter);
+    expect(provider).toBeInstanceOf(StubPaymentProvider);
   });
 
   it("returns StubPaymentProvider when nothing is configured", () => {

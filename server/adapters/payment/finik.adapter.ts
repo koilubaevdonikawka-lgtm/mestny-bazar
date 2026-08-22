@@ -2,6 +2,7 @@ import type { CreatePaymentRequest, PaymentIntentDTO } from "@shared/contracts/p
 import type { IPaymentProvider, PaymentWebhookPayload } from "@server/ports/payment.provider";
 import { RetryableError } from "@shared/lib/with-retry";
 import { Signer } from "@mancho.devs/authorizer";
+import { BRAND } from "@/config/brand";
 
 const FINIK_FETCH_TIMEOUT_MS = 10_000;
 
@@ -25,8 +26,8 @@ export interface FinikAdapterConfig {
   rsaPrivateKeyPem: string;
   /** PEM-encoded RSA public key (SPKI) — Finik's, verifies incoming webhook signatures. */
   webhookPublicKeyPem: string;
-  /** Not confirmed by official documentation (Промпт №079) — carried over from the pre-documentation Промпт №075 assumption. Optional; omitted from the request body entirely when absent. */
-  merchantId?: string;
+  /** Confirmed (Промпт №081) via a real successful Finik Playground transaction under the project owner's own account — goes in `Data.accountId`, the merchant-account identifier Finik's create-payment call requires. Required, not optional: the confirmed working request always includes it. */
+  merchantId: string;
   environment: FinikEnvironment;
 }
 
@@ -53,15 +54,18 @@ function normalizePem(pem: string): string {
  * signatures and incoming webhook verification — CONFIRMED, replaces the
  * self-built `buildCanonicalString()` this file used to carry.
  *
- * Still not confirmed by a worked example / real transaction:
- *   - `CardType`'s accepted values — Finik's docs list it as a required
- *     body field but the project owner's message did not include an enum.
- *     Sent as an empty string until the first real Beta transaction (below)
- *     reveals whether that is accepted or whether Finik rejects it — same
- *     "validated by the first real transaction, isolated fix" pattern this
- *     file has followed since Промпт №077.
- *   - `merchantId` placement inside `Data` — still not officially confirmed
- *     (Промпт №079), carried into the new `Data` metadata bucket unchanged.
+ * Request body shape confirmed (Промпт №081) by a real successful Finik
+ * Playground transaction under the project owner's own account — the
+ * project owner's own account confirmed exactly this shape works:
+ * `{ Amount, CardType: "FINIK_QR", Data: { accountId, name_en }, PaymentId,
+ * RedirectUrl }`. `CardType` is `"FINIK_QR"` (previously sent as an empty
+ * string, unconfirmed); `Data.accountId` is `config.merchantId` (previously
+ * an unconfirmed, optional field placed under the same name); `Data.name_en`
+ * is the project's own `BRAND.name` (the merchant/store display name).
+ * `webhookUrl`/`orderId`/`orderNumber`/`currency` — sent inside `Data` by the
+ * pre-Промпт №081 implementation — are not part of the confirmed working
+ * example and have been dropped; see this adapter's test file and the task
+ * report for the `webhookUrl` webhook-delivery caveat this raises.
  */
 export class FinikPaymentAdapter implements IPaymentProvider {
   constructor(private readonly config: FinikAdapterConfig) {}
@@ -70,24 +74,23 @@ export class FinikPaymentAdapter implements IPaymentProvider {
     const endpoint = FINIK_CREATE_PAYMENT_ENDPOINT[this.config.environment];
     const body = {
       Amount: request.amount,
-      // Not confirmed which values Finik accepts (see class doc) — empty
-      // string until the real Beta transaction proves otherwise.
-      CardType: "",
+      CardType: "FINIK_QR",
+      Data: {
+        accountId: this.config.merchantId,
+        name_en: BRAND.name,
+      },
       // WE choose this id and Finik echoes it back as `fields.paymentId` on
       // the success webhook — reusing the checkout idempotency key means one
       // value both prevents a duplicate call to Finik (initiatePayment's own
       // getByIdempotencyKey short-circuit, untouched by this file) AND is
       // what the webhook handler looks the local payment record up by
-      // (IPaymentRepository.getByProviderPaymentId).
+      // (IPaymentRepository.getByProviderPaymentId). Distinct from
+      // Data.accountId (the merchant, not the payment) even though the
+      // confirmed Playground example happened to use the same UUID for
+      // both — that was the project owner's own test value, not a
+      // requirement that the two fields be equal.
       PaymentId: request.idempotencyKey,
       RedirectUrl: request.returnUrl,
-      Data: {
-        webhookUrl: request.webhookUrl,
-        orderId: request.orderId,
-        orderNumber: request.orderNumber,
-        currency: request.currency,
-        ...(this.config.merchantId ? { merchantId: this.config.merchantId } : {}),
-      },
     };
 
     // Finik's success response is a redirect to the hosted payment page, not

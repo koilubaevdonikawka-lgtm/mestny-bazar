@@ -2,6 +2,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { FinikPaymentAdapter } from "@server/adapters/payment/finik.adapter";
 import { Signer } from "@mancho.devs/authorizer";
 import { RetryableError } from "@shared/lib/with-retry";
+import { BRAND } from "@/config/brand";
 
 let privateKeyPem: string;
 let publicKeyPem: string;
@@ -117,7 +118,7 @@ describe("FinikPaymentAdapter.createPayment", () => {
     expect(typeof headers.signature).toBe("string");
   });
 
-  it("sends the real Amount/CardType/PaymentId/RedirectUrl/Data body shape, with webhookUrl inside Data", async () => {
+  it("sends exactly the confirmed-working Finik Playground body shape (Промпт №081)", async () => {
     const fetchSpy = stubFetch(
       async () =>
         new Response(null, {
@@ -135,41 +136,16 @@ describe("FinikPaymentAdapter.createPayment", () => {
 
     const [, init] = fetchSpy.mock.calls[0];
     const sentBody = JSON.parse(init?.body as string);
-    expect(sentBody).toMatchObject({
+    expect(sentBody).toEqual({
       Amount: 500,
+      CardType: "FINIK_QR",
+      Data: {
+        accountId: "merchant-1",
+        name_en: BRAND.name,
+      },
       PaymentId: "idem-1",
       RedirectUrl: "https://mesnyibazar.com/order-success",
-      Data: {
-        webhookUrl: "https://mesnyibazar.com/api/webhooks/finik",
-        orderId: "order-1",
-        orderNumber: 1001,
-        currency: "KGS",
-        merchantId: "merchant-1",
-      },
     });
-    expect(sentBody).toHaveProperty("CardType");
-  });
-
-  it("omits merchantId from Data when not configured (Промпт №079 — not officially confirmed)", async () => {
-    const fetchSpy = stubFetch(
-      async () =>
-        new Response(null, {
-          status: 302,
-          headers: { location: "https://checkout.finik.kg/pay/abc" },
-        }),
-    );
-    const { merchantId: _unused, ...configWithoutMerchantId } = CONFIG_BASE;
-    const adapter = new FinikPaymentAdapter({
-      ...configWithoutMerchantId,
-      rsaPrivateKeyPem: privateKeyPem,
-      webhookPublicKeyPem: publicKeyPem,
-    });
-
-    await adapter.createPayment(REQUEST);
-
-    const [, init] = fetchSpy.mock.calls[0];
-    const sentBody = JSON.parse(init?.body as string);
-    expect(sentBody.Data).not.toHaveProperty("merchantId");
   });
 
   it("uses the checkout idempotency key as both PaymentId and the resulting providerPaymentId — no response-body parsing needed", async () => {
