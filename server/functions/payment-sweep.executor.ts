@@ -12,10 +12,13 @@ export interface SweepExpiredPaymentsResult {
  * Cron Trigger via Nitro's `scheduledTasks`, see tasks/payment/sweep-expired.ts)
  * rather than only on-read, so a payment nobody ever returns to check on
  * (abandoned checkout, no return-page visit) still transitions to `expired`
- * and its reserved stock isn't held indefinitely. `PaymentService.checkExpiry`
- * itself re-validates status/expiry per item, so this stays correct even if
- * the underlying query races with a payment being confirmed concurrently.
- * One item's failure must not abort the rest of the batch.
+ * and its reserved stock isn't held indefinitely (Промпт №087 —
+ * `PaymentService.sweepExpiry` is what actually releases the stock and
+ * cancels the order once a payment expires; `checkExpiry` itself, which it
+ * calls internally, only flips the payment row's own status). `checkExpiry`
+ * re-validates status/expiry per item, so this stays correct even if the
+ * underlying query races with a payment being confirmed concurrently. One
+ * item's failure must not abort the rest of the batch.
  */
 export async function executeSweepExpiredPayments(): Promise<SweepExpiredPaymentsResult> {
   const { paymentRepository, paymentService } = getServices();
@@ -26,7 +29,7 @@ export async function executeSweepExpiredPayments(): Promise<SweepExpiredPayment
 
   for (const payment of candidates) {
     try {
-      const result = await paymentService.checkExpiry(payment);
+      const result = await paymentService.sweepExpiry(payment);
       if (result.status === "expired") swept++;
     } catch (error) {
       failed++;

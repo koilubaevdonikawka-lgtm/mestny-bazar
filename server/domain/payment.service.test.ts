@@ -7,6 +7,10 @@ import type { IPaymentRepository } from "@server/ports/payment.repository";
 import type { IPaymentProvider } from "@server/ports/payment.provider";
 import type { OrderService } from "@server/domain/order.service";
 import type { IMarketplaceEventBus, MarketplaceEvent } from "@server/ports/marketplace-events.port";
+import type { IOrderRepository } from "@server/ports/order.repository";
+import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
+import type { InventoryService } from "@server/domain/inventory.service";
+import type { VariantStockService } from "@server/domain/variant-stock.service";
 import type { OrderDTO } from "@shared/contracts/order";
 import type {
   CreatePaymentRequest,
@@ -116,14 +120,64 @@ function fakeEventBus(overrides: Partial<IMarketplaceEventBus> = {}): IMarketpla
   };
 }
 
+/** sweepExpiry()'s own dependencies (Промпт №087) — irrelevant to every pre-existing test in this file (none of them exercise sweepExpiry), so these are just enough of a stub to satisfy the constructor. */
+function fakeOrderRepository(overrides: Partial<IOrderRepository> = {}): IOrderRepository {
+  return {
+    updateStatus: vi.fn(async () => makeOrder({ status: "CANCELLED" })),
+    ...overrides,
+  } as unknown as IOrderRepository;
+}
+
+function fakeOrderLifecycle(overrides: Partial<IOrderLifecyclePolicy> = {}): IOrderLifecyclePolicy {
+  return {
+    canTransition: vi.fn(() => ({ allowed: true })),
+    assertCanTransition: vi.fn(),
+    ...overrides,
+  };
+}
+
+function fakeInventory(overrides: Partial<InventoryService> = {}): InventoryService {
+  return {
+    releaseStock: vi.fn(async () => {}),
+    ...overrides,
+  } as unknown as InventoryService;
+}
+
+function fakeVariantStock(overrides: Partial<VariantStockService> = {}): VariantStockService {
+  return {
+    releaseStock: vi.fn(async () => {}),
+    ...overrides,
+  } as unknown as VariantStockService;
+}
+
 const APP_URL = "https://mesnyibazar.com";
+
+function makeService(
+  payments: IPaymentRepository,
+  provider: IPaymentProvider,
+  orders: OrderService,
+  events: IMarketplaceEventBus,
+  appUrl: string,
+): PaymentService {
+  return new PaymentService(
+    payments,
+    provider,
+    orders,
+    events,
+    appUrl,
+    fakeOrderRepository(),
+    fakeOrderLifecycle(),
+    fakeInventory(),
+    fakeVariantStock(),
+  );
+}
 
 describe("PaymentService.initiatePayment", () => {
   it("returns the existing payment untouched when the idempotency key was already used", async () => {
     const existing = makePaymentRecord();
     const payments = fakePayments({ getByIdempotencyKey: vi.fn(async () => existing) });
     const provider = fakeProvider();
-    const service = new PaymentService(payments, provider, fakeOrders(), fakeEventBus(), APP_URL);
+    const service = makeService(payments, provider, fakeOrders(), fakeEventBus(), APP_URL);
 
     const result = await service.initiatePayment(makeOrder(), "idem-1");
 
@@ -135,7 +189,7 @@ describe("PaymentService.initiatePayment", () => {
     const payments = fakePayments();
     const provider = fakeProvider();
     const events = fakeEventBus();
-    const service = new PaymentService(payments, provider, fakeOrders(), events, APP_URL);
+    const service = makeService(payments, provider, fakeOrders(), events, APP_URL);
 
     const result = await service.initiatePayment(makeOrder(), "idem-1");
 
@@ -165,13 +219,7 @@ describe("PaymentService.initiatePayment", () => {
         return makeIntent();
       }),
     });
-    const service = new PaymentService(
-      fakePayments(),
-      provider,
-      fakeOrders(),
-      fakeEventBus(),
-      APP_URL,
-    );
+    const service = makeService(fakePayments(), provider, fakeOrders(), fakeEventBus(), APP_URL);
 
     await service.initiatePayment(makeOrder(), "idem-1");
 
@@ -184,13 +232,7 @@ describe("PaymentService.initiatePayment", () => {
         throw new RetryableError("provider down");
       }),
     });
-    const service = new PaymentService(
-      fakePayments(),
-      provider,
-      fakeOrders(),
-      fakeEventBus(),
-      APP_URL,
-    );
+    const service = makeService(fakePayments(), provider, fakeOrders(), fakeEventBus(), APP_URL);
 
     await expect(service.initiatePayment(makeOrder(), "idem-1")).rejects.toBeInstanceOf(
       PaymentProviderError,
@@ -203,13 +245,7 @@ describe("PaymentService.initiatePayment", () => {
         throw new Error("bad request");
       }),
     });
-    const service = new PaymentService(
-      fakePayments(),
-      provider,
-      fakeOrders(),
-      fakeEventBus(),
-      APP_URL,
-    );
+    const service = makeService(fakePayments(), provider, fakeOrders(), fakeEventBus(), APP_URL);
 
     await expect(service.initiatePayment(makeOrder(), "idem-1")).rejects.toBeInstanceOf(
       PaymentProviderError,
@@ -234,7 +270,7 @@ describe("PaymentService.handleWebhook", () => {
       getByProviderPaymentId: vi.fn(async () => makePaymentRecord()),
     });
     const provider = fakeProvider({ verifyWebhook: vi.fn(async () => false) });
-    const service = new PaymentService(payments, provider, fakeOrders(), fakeEventBus(), APP_URL);
+    const service = makeService(payments, provider, fakeOrders(), fakeEventBus(), APP_URL);
 
     const result = await service.handleWebhook(WEBHOOK_REQUEST, {
       providerPaymentId: "provider-payment-1",
@@ -252,7 +288,7 @@ describe("PaymentService.handleWebhook", () => {
     });
     const orders = fakeOrders();
     const events = fakeEventBus();
-    const service = new PaymentService(payments, fakeProvider(), orders, events, APP_URL);
+    const service = makeService(payments, fakeProvider(), orders, events, APP_URL);
 
     const result = await service.handleWebhook(WEBHOOK_REQUEST, {
       providerPaymentId: "provider-payment-1",
@@ -273,7 +309,7 @@ describe("PaymentService.handleWebhook", () => {
       getByProviderPaymentId: vi.fn(async () => makePaymentRecord({ status: "paid" })),
     });
     const orders = fakeOrders();
-    const service = new PaymentService(payments, fakeProvider(), orders, fakeEventBus(), APP_URL);
+    const service = makeService(payments, fakeProvider(), orders, fakeEventBus(), APP_URL);
 
     const result = await service.handleWebhook(WEBHOOK_REQUEST, {
       providerPaymentId: "provider-payment-1",
@@ -292,7 +328,7 @@ describe("PaymentService.handleWebhook", () => {
     });
     const orders = fakeOrders();
     const events = fakeEventBus();
-    const service = new PaymentService(payments, fakeProvider(), orders, events, APP_URL);
+    const service = makeService(payments, fakeProvider(), orders, events, APP_URL);
 
     const result = await service.handleWebhook(WEBHOOK_REQUEST, {
       providerPaymentId: "provider-payment-1",
@@ -312,13 +348,7 @@ describe("PaymentService.handleWebhook", () => {
     const payments = fakePayments({
       getByProviderPaymentId: vi.fn(async () => makePaymentRecord({ status: "awaiting" })),
     });
-    const service = new PaymentService(
-      payments,
-      fakeProvider(),
-      fakeOrders(),
-      fakeEventBus(),
-      APP_URL,
-    );
+    const service = makeService(payments, fakeProvider(), fakeOrders(), fakeEventBus(), APP_URL);
 
     await service.handleWebhook(WEBHOOK_REQUEST, {
       providerPaymentId: "provider-payment-1",
@@ -335,13 +365,7 @@ describe("PaymentService.handleWebhook", () => {
 
   it("rejects with unknown_order when no local payment record matches providerPaymentId", async () => {
     const payments = fakePayments({ getByProviderPaymentId: vi.fn(async () => null) });
-    const service = new PaymentService(
-      payments,
-      fakeProvider(),
-      fakeOrders(),
-      fakeEventBus(),
-      APP_URL,
-    );
+    const service = makeService(payments, fakeProvider(), fakeOrders(), fakeEventBus(), APP_URL);
 
     const result = await service.handleWebhook(WEBHOOK_REQUEST, {
       providerPaymentId: "ghost-payment",
@@ -360,7 +384,7 @@ describe("PaymentService.recheckStatus", () => {
     });
     const provider = fakeProvider({ getStatus: vi.fn(async () => makeIntent({ status: "paid" })) });
     const orders = fakeOrders();
-    const service = new PaymentService(payments, provider, orders, fakeEventBus(), APP_URL);
+    const service = makeService(payments, provider, orders, fakeEventBus(), APP_URL);
 
     await service.recheckStatus("payment-1");
 
@@ -373,7 +397,7 @@ describe("PaymentService.recheckStatus", () => {
       getById: vi.fn(async () => makePaymentRecord({ status: "paid" })),
     });
     const provider = fakeProvider();
-    const service = new PaymentService(payments, provider, fakeOrders(), fakeEventBus(), APP_URL);
+    const service = makeService(payments, provider, fakeOrders(), fakeEventBus(), APP_URL);
 
     await service.recheckStatus("payment-1");
 
@@ -386,13 +410,7 @@ describe("PaymentService.checkExpiry", () => {
     const payments = fakePayments({
       updateStatus: vi.fn(async () => makePaymentRecord({ status: "expired" })),
     });
-    const service = new PaymentService(
-      payments,
-      fakeProvider(),
-      fakeOrders(),
-      fakeEventBus(),
-      APP_URL,
-    );
+    const service = makeService(payments, fakeProvider(), fakeOrders(), fakeEventBus(), APP_URL);
     const expired = makePaymentRecord({
       status: "awaiting",
       expiresAt: new Date(Date.now() - 1000).toISOString(),
@@ -406,13 +424,7 @@ describe("PaymentService.checkExpiry", () => {
 
   it("leaves a not-yet-expired payment untouched", async () => {
     const payments = fakePayments();
-    const service = new PaymentService(
-      payments,
-      fakeProvider(),
-      fakeOrders(),
-      fakeEventBus(),
-      APP_URL,
-    );
+    const service = makeService(payments, fakeProvider(), fakeOrders(), fakeEventBus(), APP_URL);
     const active = makePaymentRecord({
       status: "awaiting",
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
@@ -424,6 +436,197 @@ describe("PaymentService.checkExpiry", () => {
   });
 });
 
+describe("PaymentService.sweepExpiry", () => {
+  const expiredCandidate = makePaymentRecord({
+    status: "awaiting",
+    expiresAt: new Date(Date.now() - 1000).toISOString(),
+  });
+
+  it("releases product + variant stock, cancels the order, and publishes payment.expired", async () => {
+    const payments = fakePayments({
+      updateStatus: vi.fn(async () => makePaymentRecord({ status: "expired" })),
+    });
+    const order = makeOrder({
+      status: "CREATED",
+      items: [
+        {
+          id: "item-1",
+          productId: "product-1",
+          variantId: null,
+          productName: "Мука",
+          productImageUrl: null,
+          quantity: 2,
+          unitPrice: 100,
+          lineTotal: 200,
+        },
+        {
+          id: "item-2",
+          productId: "product-2",
+          variantId: "variant-1",
+          productName: "Масло",
+          productImageUrl: null,
+          quantity: 1,
+          unitPrice: 300,
+          lineTotal: 300,
+        },
+      ],
+    });
+    const orders = fakeOrders({ getOrder: vi.fn(async () => order) });
+    const orderRepository = fakeOrderRepository({
+      updateStatus: vi.fn(async () => makeOrder({ ...order, status: "CANCELLED" })),
+    });
+    const orderLifecycle = fakeOrderLifecycle();
+    const inventory = fakeInventory();
+    const variantStock = fakeVariantStock();
+    const events = fakeEventBus();
+    const service = new PaymentService(
+      payments,
+      fakeProvider(),
+      orders,
+      events,
+      APP_URL,
+      orderRepository,
+      orderLifecycle,
+      inventory,
+      variantStock,
+    );
+
+    const result = await service.sweepExpiry(expiredCandidate);
+
+    expect(result.status).toBe("expired");
+    expect(orderLifecycle.canTransition).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId: "order-1",
+        currentStatus: "CREATED",
+        targetStatus: "CANCELLED",
+        reason: "payment_expired",
+      }),
+    );
+    expect(orderRepository.updateStatus).toHaveBeenCalledWith("order-1", "CREATED", "CANCELLED");
+    expect(inventory.releaseStock).toHaveBeenCalledWith([
+      { productId: "product-1", quantity: 2 },
+      { productId: "product-2", quantity: 1 },
+    ]);
+    expect(variantStock.releaseStock).toHaveBeenCalledWith([
+      { variantId: "variant-1", quantity: 1 },
+    ]);
+    expect(events.publish).toHaveBeenCalledWith({
+      type: "payment.expired",
+      order: expect.objectContaining({ status: "CANCELLED" }),
+      paymentId: "payment-1",
+    });
+  });
+
+  it("does not cascade for a payment that was already expired before this call", async () => {
+    const alreadyExpired = makePaymentRecord({ status: "expired" });
+    const payments = fakePayments();
+    const orders = fakeOrders();
+    const orderRepository = fakeOrderRepository();
+    const inventory = fakeInventory();
+    const variantStock = fakeVariantStock();
+    const service = new PaymentService(
+      payments,
+      fakeProvider(),
+      orders,
+      fakeEventBus(),
+      APP_URL,
+      orderRepository,
+      fakeOrderLifecycle(),
+      inventory,
+      variantStock,
+    );
+
+    await service.sweepExpiry(alreadyExpired);
+
+    expect(orders.getOrder).not.toHaveBeenCalled();
+    expect(orderRepository.updateStatus).not.toHaveBeenCalled();
+    expect(inventory.releaseStock).not.toHaveBeenCalled();
+    expect(variantStock.releaseStock).not.toHaveBeenCalled();
+  });
+
+  it("does not cascade when checkExpiry leaves the payment unchanged (not actually past expiry)", async () => {
+    const notYetExpired = makePaymentRecord({
+      status: "awaiting",
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+    const payments = fakePayments();
+    const orders = fakeOrders();
+    const service = new PaymentService(
+      payments,
+      fakeProvider(),
+      orders,
+      fakeEventBus(),
+      APP_URL,
+      fakeOrderRepository(),
+      fakeOrderLifecycle(),
+      fakeInventory(),
+      fakeVariantStock(),
+    );
+
+    await service.sweepExpiry(notYetExpired);
+
+    expect(orders.getOrder).not.toHaveBeenCalled();
+  });
+
+  it("skips the cascade without error when the order-lifecycle policy denies the transition (e.g. already cancelled by the customer)", async () => {
+    const payments = fakePayments({
+      updateStatus: vi.fn(async () => makePaymentRecord({ status: "expired" })),
+    });
+    const order = makeOrder({ status: "CANCELLED" });
+    const orders = fakeOrders({ getOrder: vi.fn(async () => order) });
+    const orderRepository = fakeOrderRepository();
+    const orderLifecycle = fakeOrderLifecycle({
+      canTransition: vi.fn(() => ({ allowed: false, denialCode: "TERMINAL_STATE" })),
+    });
+    const inventory = fakeInventory();
+    const variantStock = fakeVariantStock();
+    const events = fakeEventBus();
+    const service = new PaymentService(
+      payments,
+      fakeProvider(),
+      orders,
+      events,
+      APP_URL,
+      orderRepository,
+      orderLifecycle,
+      inventory,
+      variantStock,
+    );
+
+    const result = await service.sweepExpiry(expiredCandidate);
+
+    expect(result.status).toBe("expired");
+    expect(orderRepository.updateStatus).not.toHaveBeenCalled();
+    expect(inventory.releaseStock).not.toHaveBeenCalled();
+    expect(variantStock.releaseStock).not.toHaveBeenCalled();
+    expect(events.publish).not.toHaveBeenCalled();
+  });
+
+  it("returns the expired payment record without crashing when the order can't be found", async () => {
+    const payments = fakePayments({
+      updateStatus: vi.fn(async () => makePaymentRecord({ status: "expired" })),
+    });
+    const orders = fakeOrders({ getOrder: vi.fn(async () => null) });
+    const orderRepository = fakeOrderRepository();
+    const service = new PaymentService(
+      payments,
+      fakeProvider(),
+      orders,
+      fakeEventBus(),
+      APP_URL,
+      orderRepository,
+      fakeOrderLifecycle(),
+      fakeInventory(),
+      fakeVariantStock(),
+    );
+
+    const result = await service.sweepExpiry(expiredCandidate);
+
+    expect(result.status).toBe("expired");
+    expect(orderRepository.updateStatus).not.toHaveBeenCalled();
+  });
+});
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 describe("PaymentService.retryPayment", () => {
@@ -432,7 +635,7 @@ describe("PaymentService.retryPayment", () => {
     const orders = fakeOrders({ getOrder: vi.fn(async () => order) });
     const payments = fakePayments({ getByOrderId: vi.fn(async () => null) });
     const provider = fakeProvider();
-    const service = new PaymentService(payments, provider, orders, fakeEventBus(), APP_URL);
+    const service = makeService(payments, provider, orders, fakeEventBus(), APP_URL);
 
     const result = await service.retryPayment("order-1", "user-1");
 
@@ -450,7 +653,7 @@ describe("PaymentService.retryPayment", () => {
     const payments = fakePayments({ getByOrderId: vi.fn(async () => previous) });
     const createPayment = vi.fn(async (_request: CreatePaymentRequest) => makeIntent());
     const provider = fakeProvider({ createPayment });
-    const service = new PaymentService(payments, provider, orders, fakeEventBus(), APP_URL);
+    const service = makeService(payments, provider, orders, fakeEventBus(), APP_URL);
 
     await service.retryPayment("order-1", "user-1");
 
@@ -461,13 +664,7 @@ describe("PaymentService.retryPayment", () => {
 
   it("throws OrderNotFoundError when the order doesn't exist or doesn't belong to the caller", async () => {
     const orders = fakeOrders({ getOrder: vi.fn(async () => null) });
-    const service = new PaymentService(
-      fakePayments(),
-      fakeProvider(),
-      orders,
-      fakeEventBus(),
-      APP_URL,
-    );
+    const service = makeService(fakePayments(), fakeProvider(), orders, fakeEventBus(), APP_URL);
 
     await expect(service.retryPayment("order-1", "user-1")).rejects.toBeInstanceOf(
       OrderNotFoundError,
@@ -478,7 +675,7 @@ describe("PaymentService.retryPayment", () => {
     const order = makeOrder({ paymentMethod: "CASH", paymentStatus: "unpaid" });
     const orders = fakeOrders({ getOrder: vi.fn(async () => order) });
     const provider = fakeProvider();
-    const service = new PaymentService(fakePayments(), provider, orders, fakeEventBus(), APP_URL);
+    const service = makeService(fakePayments(), provider, orders, fakeEventBus(), APP_URL);
 
     await expect(service.retryPayment("order-1", "user-1")).rejects.toBeInstanceOf(
       PaymentRetryNotAllowedError,
@@ -493,13 +690,7 @@ describe("PaymentService.retryPayment", () => {
       status: "CANCELLED",
     });
     const orders = fakeOrders({ getOrder: vi.fn(async () => order) });
-    const service = new PaymentService(
-      fakePayments(),
-      fakeProvider(),
-      orders,
-      fakeEventBus(),
-      APP_URL,
-    );
+    const service = makeService(fakePayments(), fakeProvider(), orders, fakeEventBus(), APP_URL);
 
     await expect(service.retryPayment("order-1", "user-1")).rejects.toBeInstanceOf(
       PaymentRetryNotAllowedError,
@@ -512,7 +703,7 @@ describe("PaymentService.retryPayment", () => {
       const order = makeOrder({ paymentMethod: "ONLINE", paymentStatus });
       const orders = fakeOrders({ getOrder: vi.fn(async () => order) });
       const provider = fakeProvider();
-      const service = new PaymentService(fakePayments(), provider, orders, fakeEventBus(), APP_URL);
+      const service = makeService(fakePayments(), provider, orders, fakeEventBus(), APP_URL);
 
       await expect(service.retryPayment("order-1", "user-1")).rejects.toBeInstanceOf(
         PaymentRetryNotAllowedError,

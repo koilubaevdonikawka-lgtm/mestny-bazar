@@ -178,6 +178,7 @@ import { CashRequiresAuthenticationRule } from "@server/domain/payment-policy/ru
 import { OnlineAllowedRule } from "@server/domain/payment-policy/rules/online-allowed.rule";
 import { BootstrapCreatedRule } from "@server/domain/order-lifecycle/rules/bootstrap-created.rule";
 import { PaymentConfirmedRule } from "@server/domain/order-lifecycle/rules/payment-confirmed.rule";
+import { PaymentExpiredCancelRule } from "@server/domain/order-lifecycle/rules/payment-expired-cancel.rule";
 import { TerminalStateGuardRule } from "@server/domain/order-lifecycle/rules/terminal-state-guard.rule";
 import { AdminConfirmOrderRule } from "@server/domain/order-lifecycle/rules/admin-confirm-order.rule";
 import { AdminCancelOrderRule } from "@server/domain/order-lifecycle/rules/admin-cancel-order.rule";
@@ -437,6 +438,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     new CourierCompleteDeliveryRule(),
     new BootstrapCreatedRule(),
     new PaymentConfirmedRule(),
+    new PaymentExpiredCancelRule(),
   ]);
 
   // Product publication: seller create + publish/hide transitions.
@@ -659,6 +661,10 @@ export function createServices(env: ServerEnv): ServiceContainer {
     orderService,
     marketplaceEvents,
     env.APP_URL ?? "https://mesnyibazar.com",
+    orders,
+    orderLifecycle,
+    inventory,
+    variantStockService,
   );
   const checkoutPayment: ICheckoutPaymentHandler = new CheckoutPaymentHandler(paymentService);
   const notificationCenter = new NotificationCenter(orderEvents, notifications);
