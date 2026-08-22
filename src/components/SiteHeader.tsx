@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
+import { Link, useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { CartDrawer } from "./CartDrawer";
 import { AccountMenu } from "./AccountMenu";
@@ -203,6 +203,15 @@ export function SiteHeader({
                   <a href={`mailto:${CONTACT.email}`} className="hover:text-foreground">
                     {CONTACT.email}
                   </a>
+                </li>
+                <li>
+                  <Link
+                    to="/privacy"
+                    className="hover:text-foreground"
+                    onClick={() => setInfoOpen(false)}
+                  >
+                    {t("privacy.linkLabel")}
+                  </Link>
                 </li>
               </ul>
               {isAuthenticated === true && (

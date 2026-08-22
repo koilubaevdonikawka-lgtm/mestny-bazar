@@ -548,4 +548,24 @@ export const en = {
     signUpButton: "Sign up",
     continueAsGuestButton: "Continue without an account",
   },
+  privacy: {
+    linkLabel: "Privacy Policy",
+    title: "Privacy Policy",
+    lastUpdated: "Last updated: August 22, 2026",
+    intro:
+      "«Mestny Bazar» (Местный Базар) is a grocery delivery service. This page honestly explains what data we collect when you use the website and app, why, and who has access to it.",
+    signIn:
+      "You can only sign in with Google (Google OAuth) — there is no separate email/password registration in this project. When you sign in, we receive and store your name and email from your Google account; the sign-in itself is handled by Supabase Auth.",
+    dataCollected:
+      "When placing an order, you provide your name, phone number, and delivery address (entered manually, never determined automatically via geolocation) — this is needed to fulfill and deliver your order. We also keep your order history: items, amount, status, and chosen payment method.",
+    dataNotCollected:
+      "In the current version of the app, we do not collect geolocation, do not use the device's camera or photo gallery, and do not send push notifications — this functionality isn't wired up in the project. This may change in future versions; this page will be updated in advance if it does.",
+    thirdParties:
+      "The following parties have access to your data: Supabase (database hosting and Google sign-in processing), Google (when you authenticate with your Google account), and Finik/AversPay (online payment processing). When paying online via Finik, only the order amount, order number/ID, and currency are sent — your name, phone number, and delivery address are never sent to Finik.",
+    retention:
+      "There is currently no separate automated data-deletion policy — data is kept for as long as your account exists. To request deletion of your data, write to the email below.",
+    contact: "For questions about how your personal data is handled, write to:",
+    disclaimer:
+      "This document is not legal advice — it is an honest technical description of what the system actually does. Before officially publishing to Google Play / the App Store, it is recommended to have this text reviewed by a lawyer.",
+  },
 } satisfies Dictionary;

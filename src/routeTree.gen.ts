@@ -14,6 +14,7 @@ import { Route as WarehouseRouteImport } from './routes/warehouse'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SellerRouteImport } from './routes/seller'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as OrderSuccessRouteImport } from './routes/order-success'
 import { Route as CourierRouteImport } from './routes/courier'
 import { Route as BootstrapRouteImport } from './routes/bootstrap'
@@ -80,6 +81,11 @@ const SellerRoute = SellerRouteImport.update({
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
   path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrderSuccessRoute = OrderSuccessRouteImport.update({
@@ -300,6 +306,7 @@ export interface FileRoutesByFullPath {
   '/bootstrap': typeof BootstrapRoute
   '/courier': typeof CourierRouteWithChildren
   '/order-success': typeof OrderSuccessRoute
+  '/privacy': typeof PrivacyRoute
   '/search': typeof SearchRoute
   '/seller': typeof SellerRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -348,6 +355,7 @@ export interface FileRoutesByTo {
   '/bootstrap': typeof BootstrapRoute
   '/courier': typeof CourierRouteWithChildren
   '/order-success': typeof OrderSuccessRoute
+  '/privacy': typeof PrivacyRoute
   '/search': typeof SearchRoute
   '/seller': typeof SellerRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -398,6 +406,7 @@ export interface FileRoutesById {
   '/bootstrap': typeof BootstrapRoute
   '/courier': typeof CourierRouteWithChildren
   '/order-success': typeof OrderSuccessRoute
+  '/privacy': typeof PrivacyRoute
   '/search': typeof SearchRoute
   '/seller': typeof SellerRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -449,6 +458,7 @@ export interface FileRouteTypes {
     | '/bootstrap'
     | '/courier'
     | '/order-success'
+    | '/privacy'
     | '/search'
     | '/seller'
     | '/sitemap.xml'
@@ -497,6 +507,7 @@ export interface FileRouteTypes {
     | '/bootstrap'
     | '/courier'
     | '/order-success'
+    | '/privacy'
     | '/search'
     | '/seller'
     | '/sitemap.xml'
@@ -546,6 +557,7 @@ export interface FileRouteTypes {
     | '/bootstrap'
     | '/courier'
     | '/order-success'
+    | '/privacy'
     | '/search'
     | '/seller'
     | '/sitemap.xml'
@@ -596,6 +608,7 @@ export interface RootRouteChildren {
   BootstrapRoute: typeof BootstrapRoute
   CourierRoute: typeof CourierRouteWithChildren
   OrderSuccessRoute: typeof OrderSuccessRoute
+  PrivacyRoute: typeof PrivacyRoute
   SearchRoute: typeof SearchRoute
   SellerRoute: typeof SellerRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -645,6 +658,13 @@ declare module '@tanstack/react-router' {
       path: '/search'
       fullPath: '/search'
       preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/order-success': {
@@ -1046,6 +1066,7 @@ const rootRouteChildren: RootRouteChildren = {
   BootstrapRoute: BootstrapRoute,
   CourierRoute: CourierRouteWithChildren,
   OrderSuccessRoute: OrderSuccessRoute,
+  PrivacyRoute: PrivacyRoute,
   SearchRoute: SearchRoute,
   SellerRoute: SellerRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
