@@ -11,9 +11,20 @@ describe("finikWebhookPayloadSchema", () => {
       transactionId: "txn-1",
       status: "success",
       amount: 500,
-      requestDate: "2026-08-20T10:00:00Z",
-      transactionDate: "2026-08-20T10:00:05Z",
+      requestDate: 1787414985000,
+      transactionDate: 1787414985005,
+      service: { id: "VISA" },
       fields: { paymentId: "idem-1", amount: 500 },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts fields carrying extra Finik-defined keys beyond paymentId/amount", () => {
+    const result = finikWebhookPayloadSchema.safeParse({
+      id: "provider-1",
+      status: "success",
+      fields: { paymentId: "idem-1", amount: 500, cardMask: "4111********1111" },
     });
 
     expect(result.success).toBe(true);
