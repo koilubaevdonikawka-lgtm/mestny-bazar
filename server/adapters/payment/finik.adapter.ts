@@ -139,7 +139,22 @@ export class FinikPaymentAdapter implements IPaymentProvider {
   async verifyWebhook(payload: PaymentWebhookPayload): Promise<boolean> {
     if (!payload.signature) return false;
     const timestamp = payload.headers["x-api-timestamp"];
-    if (!timestamp || !isTimestampFresh(timestamp)) return false;
+    // TEMPORARY diagnostic (Промпт №114) — proves/disproves, with real
+    // numbers, whether the incoming webhook's `x-api-timestamp` is seconds or
+    // milliseconds, and whether isTimestampFresh() below is comparing the
+    // wrong units. Logs only the raw header value (public request metadata
+    // already sent to us, no secret) and Date.now() — never the signature or
+    // any key material. Not to be removed without explicit instruction.
+    const nowAtVerifyMs = Date.now();
+    const isFresh = timestamp ? isTimestampFresh(timestamp) : false;
+    logger.info("finik:webhook-timestamp-debug", {
+      rawTimestampHeader: timestamp ?? null,
+      nowMs: nowAtVerifyMs,
+      diffAssumingHeaderIsMs: timestamp ? nowAtVerifyMs - Number(timestamp) : null,
+      diffAssumingHeaderIsSeconds: timestamp ? nowAtVerifyMs - Number(timestamp) * 1000 : null,
+      isTimestampFreshResult: isFresh,
+    });
+    if (!timestamp || !isFresh) return false;
 
     let bodyObject: Record<string, unknown> | null;
     try {
