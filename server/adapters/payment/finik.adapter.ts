@@ -291,6 +291,79 @@ export class FinikPaymentAdapter implements IPaymentProvider {
         logger.warn("finik:webhook-experimental-unsorted-body-verify-error", { error });
       }
 
+      // EXPERIMENTAL, TEMPORARY diagnostic (Промпт №119) — Задача №118 found
+      // Задача №117's unsorted-key-order hypothesis ALSO false (2/2 real
+      // webhooks), even against the official key. Next candidate: every
+      // canonical string built so far — including №118's — used
+      // `JSON.stringify(bodyObject)`, where `bodyObject` came from
+      // `JSON.parse(payload.rawBody)`. A parse→stringify round trip is NOT
+      // guaranteed byte-identical to the original text: JS's JSON.stringify
+      // never escapes "/" as "\/" (many other JSON encoders do, e.g. PHP's
+      // default json_encode, some Java/Kotlin serializers), and number
+      // formatting can differ. This checks whether that round trip actually
+      // changed anything for THIS real payload, and tests two body variants
+      // built from raw substrings of `payload.rawBody` itself (never
+      // re-serialized): (a) as-received order, (b) top-level entries
+      // reordered alphabetically by key while keeping each entry's original
+      // raw bytes untouched. Logs only booleans, a rawBodyRoundTripsExactly
+      // flag, and (if it differs) the byte index/snippet of the first
+      // divergence — never the signature or key material. Does NOT affect
+      // `configuredKeyResult`, the return value, or any order/payment state.
+      // Not to be switched on in production without an explicit, separate
+      // architect decision. Not to be removed without explicit instruction.
+      try {
+        const roundTripped = bodyObject !== null ? JSON.stringify(bodyObject) : "";
+        const rawTrimmed = (payload.rawBody ?? "").trim();
+        const rawBodyRoundTripsExactly = rawTrimmed === roundTripped;
+
+        let firstDiffIndex: number | null = null;
+        let rawSnippet: string | null = null;
+        let roundTrippedSnippet: string | null = null;
+        if (!rawBodyRoundTripsExactly) {
+          const maxLen = Math.max(rawTrimmed.length, roundTripped.length);
+          for (let i = 0; i < maxLen; i++) {
+            if (rawTrimmed[i] !== roundTripped[i]) {
+              firstDiffIndex = i;
+              break;
+            }
+          }
+          const from = Math.max(0, (firstDiffIndex ?? 0) - 20);
+          rawSnippet = rawTrimmed.slice(from, (firstDiffIndex ?? 0) + 20);
+          roundTrippedSnippet = roundTripped.slice(from, (firstDiffIndex ?? 0) + 20);
+        }
+
+        const rawAsIsData = buildCanonicalStringWithRawBody(payload, rawTrimmed);
+        const rawAsIsResult = verifyWithNodeCrypto(
+          normalizePem(FINIK_OFFICIAL_PRODUCTION_WEBHOOK_PUBLIC_KEY_DIAGNOSTIC),
+          rawAsIsData,
+          payload.signature,
+        );
+
+        let rawSortedResult: boolean | "parse-error" = "parse-error";
+        try {
+          const rawSortedBody = buildRawSortedTopLevelBody(rawTrimmed);
+          const rawSortedData = buildCanonicalStringWithRawBody(payload, rawSortedBody);
+          rawSortedResult = verifyWithNodeCrypto(
+            normalizePem(FINIK_OFFICIAL_PRODUCTION_WEBHOOK_PUBLIC_KEY_DIAGNOSTIC),
+            rawSortedData,
+            payload.signature,
+          );
+        } catch {
+          rawSortedResult = "parse-error";
+        }
+
+        logger.info("finik:webhook-experimental-raw-body-verify", {
+          rawBodyRoundTripsExactly,
+          firstDiffIndex,
+          rawSnippet,
+          roundTrippedSnippet,
+          rawAsIsResult,
+          rawSortedResult,
+        });
+      } catch (error) {
+        logger.warn("finik:webhook-experimental-raw-body-verify-error", { error });
+      }
+
       return configuredKeyResult;
     } catch {
       return false;
@@ -475,6 +548,22 @@ function buildUnsortedCanonicalString(
   payload: PaymentWebhookPayload,
   bodyObject: Record<string, unknown> | null,
 ): string {
+  const jsonBody = bodyObject ? JSON.stringify(bodyObject) : "";
+  return buildCanonicalStringWithRawBody(payload, jsonBody);
+}
+
+/**
+ * EXPERIMENTAL, TEMPORARY (Промпт №119) — same method/path/headers/query
+ * recipe as Signer.getData()/buildUnsortedCanonicalString(), factored out so
+ * the body portion can be supplied as an already-serialized string (a raw
+ * substring of the original request text, or a hand-reordered version of it)
+ * instead of an object that would need re-serializing — re-serializing via
+ * JSON.stringify is exactly the step under suspicion in this task (it is not
+ * guaranteed byte-identical to what Finik originally sent: no "\/" escaping,
+ * possible number-formatting differences). Not to be removed without
+ * explicit instruction.
+ */
+function buildCanonicalStringWithRawBody(payload: PaymentWebhookPayload, bodyText: string): string {
   const method = payload.httpMethod.toLowerCase();
   const path = decodeURI(payload.path ?? "");
   const xApiHeaderKeys = Object.keys(payload.headers)
@@ -489,12 +578,102 @@ function buildUnsortedCanonicalString(
   const queryString = queryKeys
     .map((key) => `${encodeURI(decodeURI(key))}=${encodeURI(decodeURI(queryParams[key] ?? ""))}`)
     .join("&");
-  const jsonBody = bodyObject ? JSON.stringify(bodyObject) : "";
 
   const parts = [method, path, headersData];
   if (queryString) parts.push(queryString);
-  parts.push(jsonBody);
+  parts.push(bodyText);
   return parts.join("\n");
+}
+
+/**
+ * EXPERIMENTAL, TEMPORARY (Промпт №119) — splits a JSON object's TEXT
+ * (already-serialized string, e.g. `payload.rawBody` itself) into its
+ * top-level key/value pairs using a minimal brace/bracket/string-aware
+ * scanner — never JSON.parse + re-stringify, so each entry's original raw
+ * bytes (escaping, whitespace, number formatting, nested key order) survive
+ * completely untouched. Only the ORDER of top-level entries is changed
+ * (alphabetical by key name), mirroring what a byte-faithful version of
+ * @mancho.devs/authorizer's getJsonBody() sort would do if it preserved raw
+ * text instead of round-tripping through JSON.stringify. Not to be removed
+ * without explicit instruction.
+ */
+function buildRawSortedTopLevelBody(objectText: string): string {
+  const trimmed = objectText.trim();
+  const inner = trimmed.slice(1, -1); // strip outer { }
+
+  const spans: Array<[number, number]> = [];
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let entryStart = 0;
+  for (let i = 0; i < inner.length; i++) {
+    const ch = inner[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === "{" || ch === "[") {
+      depth++;
+      continue;
+    }
+    if (ch === "}" || ch === "]") {
+      depth--;
+      continue;
+    }
+    if (ch === "," && depth === 0) {
+      spans.push([entryStart, i]);
+      entryStart = i + 1;
+    }
+  }
+  spans.push([entryStart, inner.length]);
+
+  const entries = spans
+    .map(([start, end]) => inner.slice(start, end))
+    .filter((raw) => raw.trim().length > 0)
+    .map((raw) => {
+      let depth2 = 0;
+      let inString2 = false;
+      let escaped2 = false;
+      let colonIdx = -1;
+      for (let i = 0; i < raw.length; i++) {
+        const ch = raw[i];
+        if (inString2) {
+          if (escaped2) escaped2 = false;
+          else if (ch === "\\") escaped2 = true;
+          else if (ch === '"') inString2 = false;
+          continue;
+        }
+        if (ch === '"') {
+          inString2 = true;
+          continue;
+        }
+        if (ch === "{" || ch === "[") {
+          depth2++;
+          continue;
+        }
+        if (ch === "}" || ch === "]") {
+          depth2--;
+          continue;
+        }
+        if (ch === ":" && depth2 === 0) {
+          colonIdx = i;
+          break;
+        }
+      }
+      const rawKeyText = raw.slice(0, colonIdx).trim();
+      const rawValueText = raw.slice(colonIdx + 1).trim();
+      const key = JSON.parse(rawKeyText) as string;
+      return { key, rawKeyText, rawValueText };
+    });
+
+  const sorted = [...entries].sort((a, b) => a.key.localeCompare(b.key));
+  return "{" + sorted.map((e) => `${e.rawKeyText}:${e.rawValueText}`).join(",") + "}";
 }
 
 /**
