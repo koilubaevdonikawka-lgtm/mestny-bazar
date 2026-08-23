@@ -1,3 +1,4 @@
+import { createVerify } from "node:crypto";
 import type { CreatePaymentRequest, PaymentIntentDTO } from "@shared/contracts/payment";
 import type { IPaymentProvider, PaymentWebhookPayload } from "@server/ports/payment.provider";
 import { RetryableError } from "@shared/lib/with-retry";
@@ -255,6 +256,41 @@ export class FinikPaymentAdapter implements IPaymentProvider {
         xApiHeaders: payload.headers,
         queryStringParameters: payload.queryStringParameters,
       });
+
+      // EXPERIMENTAL, TEMPORARY diagnostic (Промпт №118) — Задача №117 found
+      // Finik's real webhook body arrives with a non-alphabetical top-level
+      // key order (e.g. ["fields","amount","transactionDate",...]), but
+      // @mancho.devs/authorizer's getJsonBody() force-sorts it alphabetically
+      // before hashing — a plausible cause of configuredKeyResult/
+      // officialProdKeyResult both being false independent of key material.
+      // This block tests that hypothesis in PARALLEL, using the exact same
+      // canonical-string recipe as Signer.getData() (method + path + headers
+      // + [query] + JSON body) but WITHOUT the body re-sort — built by hand,
+      // verified via Node's own crypto.createVerify() (not routed through
+      // the library, since the library's getJsonBody() cannot be bypassed
+      // from the outside). Runs against the official production public key
+      // only (Промпт №116) — never the currently configured secret, to keep
+      // this strictly a hypothesis test. Its result is logged ONLY — it does
+      // NOT influence `configuredKeyResult`, the return value below, or any
+      // order/payment state. Not a replacement for the real verification
+      // path. Not to be switched on in production without an explicit,
+      // separate architect decision. Not to be removed without explicit
+      // instruction.
+      try {
+        const experimentalData = buildUnsortedCanonicalString(payload, bodyObject);
+        const experimentalResult = verifyWithNodeCrypto(
+          normalizePem(FINIK_OFFICIAL_PRODUCTION_WEBHOOK_PUBLIC_KEY_DIAGNOSTIC),
+          experimentalData,
+          payload.signature,
+        );
+        logger.info("finik:webhook-experimental-unsorted-body-verify", {
+          experimentalResult,
+          experimentalCanonicalString: experimentalData,
+        });
+      } catch (error) {
+        logger.warn("finik:webhook-experimental-unsorted-body-verify-error", { error });
+      }
+
       return configuredKeyResult;
     } catch {
       return false;
@@ -423,4 +459,61 @@ function isTimestampFresh(timestampHeader: string): boolean {
   const timestampMs = Number(timestampHeader);
   if (!Number.isFinite(timestampMs)) return false;
   return Math.abs(Date.now() - timestampMs) <= SIGNATURE_MAX_AGE_MS;
+}
+
+/**
+ * EXPERIMENTAL, TEMPORARY (Промпт №118) — replicates
+ * @mancho.devs/authorizer's Signer.getData() recipe exactly (method + path +
+ * `host:...&x-api-*:...` headers + optional query string + JSON body),
+ * EXCEPT the body is serialized in its original, as-received key order
+ * instead of the library's forced top-level alphabetical sort. Built by hand
+ * because the library offers no option to skip that sort — there is no
+ * supported way to hand it a pre-built body string. Not to be removed
+ * without explicit instruction.
+ */
+function buildUnsortedCanonicalString(
+  payload: PaymentWebhookPayload,
+  bodyObject: Record<string, unknown> | null,
+): string {
+  const method = payload.httpMethod.toLowerCase();
+  const path = decodeURI(payload.path ?? "");
+  const xApiHeaderKeys = Object.keys(payload.headers)
+    .filter((key) => key.toLowerCase().startsWith("x-api-"))
+    .sort();
+  const headersData = [
+    `host:${payload.host}`,
+    ...xApiHeaderKeys.map((key) => `${key.toLowerCase()}:${payload.headers[key]}`),
+  ].join("&");
+  const queryParams = payload.queryStringParameters ?? {};
+  const queryKeys = Object.keys(queryParams).sort();
+  const queryString = queryKeys
+    .map((key) => `${encodeURI(decodeURI(key))}=${encodeURI(decodeURI(queryParams[key] ?? ""))}`)
+    .join("&");
+  const jsonBody = bodyObject ? JSON.stringify(bodyObject) : "";
+
+  const parts = [method, path, headersData];
+  if (queryString) parts.push(queryString);
+  parts.push(jsonBody);
+  return parts.join("\n");
+}
+
+/**
+ * EXPERIMENTAL, TEMPORARY (Промпт №118) — verifies directly via Node's own
+ * `crypto.createVerify`, bypassing @mancho.devs/authorizer entirely (its
+ * `verify()` always calls its own `getData()` internally — there is no way
+ * to hand it a pre-built canonical string). Not to be removed without
+ * explicit instruction.
+ */
+function verifyWithNodeCrypto(
+  publicKeyPem: string,
+  data: string,
+  signatureBase64: string,
+): boolean {
+  try {
+    const verifier = createVerify("SHA256");
+    verifier.update(data);
+    return verifier.verify(publicKeyPem, signatureBase64, "base64");
+  } catch {
+    return false;
+  }
 }
