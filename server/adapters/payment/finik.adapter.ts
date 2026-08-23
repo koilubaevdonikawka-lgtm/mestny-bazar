@@ -195,6 +195,26 @@ export class FinikPaymentAdapter implements IPaymentProvider {
       return false;
     }
 
+    // TEMPORARY diagnostic (Промпт №117) — confirms/disproves whether
+    // `bodyObject` here is the raw parse of Finik's own bytes (it is — see
+    // the JSON.parse(payload.rawBody) immediately above, a separate parse
+    // from finikWebhookPayloadSchema's, never touched by Zod) with its
+    // ORIGINAL top-level key order, before @mancho.devs/authorizer's
+    // getJsonBody() force-sorts the top level alphabetically for the
+    // canonical string. If Finik's own original top-level order was not
+    // already alphabetical, this forced re-sort would diverge from whatever
+    // Finik actually hashed when signing. Logs only key names (no values,
+    // no signature, no key material). Not to be removed without explicit
+    // instruction.
+    logger.info("finik:webhook-body-key-order-debug", {
+      rawTopLevelKeyOrder: bodyObject ? Object.keys(bodyObject) : null,
+      isAlreadyAlphabetical: bodyObject
+        ? Object.keys(bodyObject).every(
+            (key, i, arr) => i === 0 || arr[i - 1].localeCompare(key) <= 0,
+          )
+        : null,
+    });
+
     try {
       const signer = new Signer({
         body: bodyObject,
