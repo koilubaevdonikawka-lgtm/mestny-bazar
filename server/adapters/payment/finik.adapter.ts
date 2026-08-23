@@ -400,6 +400,64 @@ export class FinikPaymentAdapter implements IPaymentProvider {
         logger.warn("finik:webhook-experimental-recursive-sort-verify-error", { error });
       }
 
+      // EXPERIMENTAL, TEMPORARY diagnostic (Промпт №123) — Задачи №117-121
+      // exhausted every sort-order variant (top-level, unsorted, recursive,
+      // raw-byte-preserving) and all failed identically. New hypothesis:
+      // the mismatch isn't ORDER but COMPOSITION — Finik's documented example
+      // payload (id, accountId, amount, fields, item, net, receiptNumber,
+      // requestDate, service, status, transactionDate, transactionId,
+      // transactionType, data) has 6 top-level fields our real payload never
+      // carries (item, net, receiptNumber, requestDate, transactionType,
+      // top-level accountId), while our real payload carries `clientId`,
+      // which the example never lists — maybe the signature is computed
+      // over Finik's internal, narrower transaction object, and what
+      // actually reaches us through their API Gateway is enriched
+      // afterward. Tests two variants against the official production
+      // public key: (a) INTERSECTION — only fields present in both the
+      // documented example and the real payload, `fields` reduced to just
+      // `amount` (per the task's explicit field list); (b) SUPERSET — the
+      // real payload plus the 6 documented-but-missing fields inserted as
+      // `null` placeholders (their true values are unknown — this is a
+      // speculative shot, not a confirmed reconstruction). Logs only the two
+      // boolean results and both canonical strings — never the signature or
+      // key material. Does NOT affect `configuredKeyResult`, the return
+      // value, or any order/payment state, and does NOT touch the
+      // №118/№119/№121 experiments above. Not to be switched on in
+      // production without an explicit, separate architect decision. Not to
+      // be removed without explicit instruction.
+      try {
+        const intersectionBody = buildDocExampleIntersectionBody(bodyObject);
+        const intersectionData = buildCanonicalStringWithRawBody(
+          payload,
+          intersectionBody ? JSON.stringify(intersectionBody) : "",
+        );
+        const intersectionResult = verifyWithNodeCrypto(
+          normalizePem(FINIK_OFFICIAL_PRODUCTION_WEBHOOK_PUBLIC_KEY_DIAGNOSTIC),
+          intersectionData,
+          payload.signature,
+        );
+
+        const supersetBody = buildDocExampleSupersetBody(bodyObject);
+        const supersetData = buildCanonicalStringWithRawBody(
+          payload,
+          supersetBody ? JSON.stringify(supersetBody) : "",
+        );
+        const supersetResult = verifyWithNodeCrypto(
+          normalizePem(FINIK_OFFICIAL_PRODUCTION_WEBHOOK_PUBLIC_KEY_DIAGNOSTIC),
+          supersetData,
+          payload.signature,
+        );
+
+        logger.info("finik:webhook-experimental-field-composition-verify", {
+          intersectionResult,
+          intersectionCanonicalString: intersectionData,
+          supersetResult,
+          supersetCanonicalString: supersetData,
+        });
+      } catch (error) {
+        logger.warn("finik:webhook-experimental-field-composition-verify-error", { error });
+      }
+
       return configuredKeyResult;
     } catch {
       return false;
@@ -736,6 +794,66 @@ function deepSortKeysRecursively(value: unknown): unknown {
     return Object.fromEntries(sortedEntries);
   }
   return value;
+}
+
+/**
+ * EXPERIMENTAL, TEMPORARY (Промпт №123) — reduces a real webhook body down
+ * to only the fields that also appear (by name) in Finik's documented
+ * example payload (`id, accountId, amount, fields, item, net,
+ * receiptNumber, requestDate, service, status, transactionDate,
+ * transactionId, transactionType, data`) — dropping `clientId` (present in
+ * reality, absent from the example) and reducing `fields` down to just
+ * `amount` per the task's explicit field list. `data` is kept as-is (the
+ * example lists it as present but gives no sub-schema to reduce against).
+ * Not to be removed without explicit instruction.
+ */
+function buildDocExampleIntersectionBody(
+  bodyObject: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  if (!bodyObject) return null;
+  const fields = (bodyObject.fields ?? {}) as Record<string, unknown>;
+  return {
+    amount: bodyObject.amount,
+    id: bodyObject.id,
+    status: bodyObject.status,
+    transactionDate: bodyObject.transactionDate,
+    transactionId: bodyObject.transactionId,
+    fields: { amount: fields.amount },
+    data: bodyObject.data,
+  };
+}
+
+/**
+ * EXPERIMENTAL, TEMPORARY (Промпт №123) — the inverse of
+ * buildDocExampleIntersectionBody(): keeps every real field untouched and
+ * inserts the 6 fields the documented example lists but the real payload
+ * never carries (`item`, `net`, `receiptNumber`, `requestDate`,
+ * `transactionType`, top-level `accountId`) as `null` placeholders, in the
+ * example's own listed order. Their true values are unknown — this is a
+ * speculative reconstruction, not a confirmed one. Not to be removed
+ * without explicit instruction.
+ */
+function buildDocExampleSupersetBody(
+  bodyObject: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  if (!bodyObject) return null;
+  return {
+    id: bodyObject.id,
+    accountId: null,
+    amount: bodyObject.amount,
+    fields: bodyObject.fields,
+    item: null,
+    net: null,
+    receiptNumber: null,
+    requestDate: null,
+    status: bodyObject.status,
+    transactionDate: bodyObject.transactionDate,
+    transactionId: bodyObject.transactionId,
+    transactionType: null,
+    data: bodyObject.data,
+    // Present in the real payload but not in the documented example.
+    clientId: bodyObject.clientId,
+  };
 }
 
 /**
