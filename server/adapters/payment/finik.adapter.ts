@@ -264,10 +264,17 @@ export class FinikPaymentAdapter implements IPaymentProvider {
       "x-api-timestamp": timestamp,
       signature,
     };
+    // signature deliberately excluded from this log — the task explicitly
+    // forbids logging the final signature; everything else here is the
+    // same public request metadata already sent to Finik.
     logger.info("finik:canonical-string-debug", {
       canonicalString,
       signerHeaders: { Host: host, "x-api-key": this.config.apiKey, "x-api-timestamp": timestamp },
-      fetchHeaders,
+      fetchHeadersWithoutSignature: {
+        "content-type": fetchHeaders["content-type"],
+        "x-api-key": fetchHeaders["x-api-key"],
+        "x-api-timestamp": fetchHeaders["x-api-timestamp"],
+      },
     });
 
     const beforeFetchAt = Date.now();
