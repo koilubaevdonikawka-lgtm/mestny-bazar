@@ -272,7 +272,7 @@ describe("FinikPaymentAdapter.verifyWebhook (@mancho.devs/authorizer Signer, RSA
     });
     const body = { id: "txn-1", status: "success", fields: { paymentId: "idem-1" } };
     const rawBody = JSON.stringify(body);
-    const timestamp = String(Math.floor(Date.now() / 1000));
+    const timestamp = String(Date.now());
     const signature = await signWebhookBody(body, timestamp, privateKeyPem);
 
     const result = await adapter.verifyWebhook({
@@ -297,7 +297,7 @@ describe("FinikPaymentAdapter.verifyWebhook (@mancho.devs/authorizer Signer, RSA
     });
     const body = { id: "txn-1", status: "success", fields: { paymentId: "idem-1" } };
     const rawBody = JSON.stringify(body);
-    const timestamp = String(Math.floor(Date.now() / 1000));
+    const timestamp = String(Date.now());
     const signature = await signWebhookBody(body, timestamp, otherPair.privateKeyPem);
 
     const result = await adapter.verifyWebhook({
@@ -320,7 +320,7 @@ describe("FinikPaymentAdapter.verifyWebhook (@mancho.devs/authorizer Signer, RSA
       webhookPublicKeyPem: publicKeyPem,
     });
     const originalBody = { id: "txn-1", status: "success", fields: { paymentId: "idem-1" } };
-    const timestamp = String(Math.floor(Date.now() / 1000));
+    const timestamp = String(Date.now());
     const signature = await signWebhookBody(originalBody, timestamp, privateKeyPem);
     const tamperedRawBody = JSON.stringify({
       id: "txn-1",
@@ -349,7 +349,7 @@ describe("FinikPaymentAdapter.verifyWebhook (@mancho.devs/authorizer Signer, RSA
     });
     const body = { id: "txn-1", status: "success", fields: { paymentId: "idem-1" } };
     const rawBody = JSON.stringify(body);
-    const staleTimestamp = String(Math.floor(Date.now() / 1000) - 11);
+    const staleTimestamp = String(Date.now() - 11_000);
     const signature = await signWebhookBody(body, staleTimestamp, privateKeyPem);
 
     const result = await adapter.verifyWebhook({

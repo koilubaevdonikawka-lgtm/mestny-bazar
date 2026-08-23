@@ -7,8 +7,19 @@ import { logger } from "@shared/observability/logger";
 
 const FINIK_FETCH_TIMEOUT_MS = 10_000;
 
-/** Signature validity window per Finik's official documentation (Промпт №077) — kept as a defense-in-depth replay guard on top of Signer.verify(), which the library itself does not check. */
-const SIGNATURE_MAX_AGE_SECONDS = 10;
+/**
+ * Signature validity window per Finik's official documentation (Промпт №077)
+ * — kept as a defense-in-depth replay guard on top of Signer.verify(), which
+ * the library itself does not check. Same 10-second window as originally
+ * intended, now expressed in milliseconds (Промпт №115) to match the units
+ * `x-api-timestamp` actually carries — confirmed via live production
+ * captures (Промпт №114) that the header is milliseconds
+ * (e.g. "1787484423472", a 13-digit value), not seconds; the previous
+ * `Math.floor(Date.now() / 1000)` compared it against seconds, which
+ * rejected every real (even sub-second-old) webhook before signer.verify()
+ * ever ran.
+ */
+const SIGNATURE_MAX_AGE_MS = 10_000;
 
 export type FinikEnvironment = "beta" | "production";
 
@@ -338,8 +349,7 @@ export class FinikPaymentAdapter implements IPaymentProvider {
 }
 
 function isTimestampFresh(timestampHeader: string): boolean {
-  const timestamp = Number(timestampHeader);
-  if (!Number.isFinite(timestamp)) return false;
-  const nowSeconds = Math.floor(Date.now() / 1000);
-  return Math.abs(nowSeconds - timestamp) <= SIGNATURE_MAX_AGE_SECONDS;
+  const timestampMs = Number(timestampHeader);
+  if (!Number.isFinite(timestampMs)) return false;
+  return Math.abs(Date.now() - timestampMs) <= SIGNATURE_MAX_AGE_MS;
 }
