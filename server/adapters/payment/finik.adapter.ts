@@ -364,6 +364,42 @@ export class FinikPaymentAdapter implements IPaymentProvider {
         logger.warn("finik:webhook-experimental-raw-body-verify-error", { error });
       }
 
+      // EXPERIMENTAL, TEMPORARY diagnostic (Промпт №121) — Finik's own docs
+      // ("Другие языки" section) say only "sort the JSON object by object
+      // keys" without saying "top level only". Задачи №117-119 only ever
+      // tested: top-level-sorted (the library's own behavior), completely
+      // unsorted, and raw-byte-preserving variants of those two — never a
+      // FULL recursive sort (every nesting level, including inside `data`
+      // and `fields`, sorted alphabetically). Tests that specific gap here,
+      // in parallel, against the official production public key only.
+      // Logs only the boolean result and the resulting canonical string —
+      // never the signature or key material. Does NOT affect
+      // `configuredKeyResult`, the return value, or any order/payment
+      // state, and does NOT touch the №118/№119 experiments above. Not to
+      // be switched on in production without an explicit, separate
+      // architect decision. Not to be removed without explicit instruction.
+      try {
+        const recursivelySortedBody = bodyObject ? deepSortKeysRecursively(bodyObject) : null;
+        const recursivelySortedJson = recursivelySortedBody
+          ? JSON.stringify(recursivelySortedBody)
+          : "";
+        const recursivelySortedData = buildCanonicalStringWithRawBody(
+          payload,
+          recursivelySortedJson,
+        );
+        const recursivelySortedResult = verifyWithNodeCrypto(
+          normalizePem(FINIK_OFFICIAL_PRODUCTION_WEBHOOK_PUBLIC_KEY_DIAGNOSTIC),
+          recursivelySortedData,
+          payload.signature,
+        );
+        logger.info("finik:webhook-experimental-recursive-sort-verify", {
+          recursivelySortedResult,
+          recursivelySortedCanonicalString: recursivelySortedData,
+        });
+      } catch (error) {
+        logger.warn("finik:webhook-experimental-recursive-sort-verify-error", { error });
+      }
+
       return configuredKeyResult;
     } catch {
       return false;
@@ -674,6 +710,32 @@ function buildRawSortedTopLevelBody(objectText: string): string {
 
   const sorted = [...entries].sort((a, b) => a.key.localeCompare(b.key));
   return "{" + sorted.map((e) => `${e.rawKeyText}:${e.rawValueText}`).join(",") + "}";
+}
+
+/**
+ * EXPERIMENTAL, TEMPORARY (Промпт №121) — recursively sorts object keys
+ * alphabetically at EVERY nesting level (unlike @mancho.devs/authorizer's
+ * getJsonBody(), which only sorts the top level, and unlike Задачи №117-119's
+ * experiments, which never went past the top level either way). Arrays are
+ * walked element-by-element but never reordered — only object keys are
+ * sorted, at any depth. Values themselves (numbers, strings, booleans) are
+ * never modified, only key order changes; the resulting object is then
+ * JSON.stringify'd normally (this specific input was already confirmed
+ * byte-round-trip-safe for this payload in Задача №119, so re-serializing is
+ * not itself a source of divergence here). Not to be removed without
+ * explicit instruction.
+ */
+function deepSortKeysRecursively(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(deepSortKeysRecursively);
+  }
+  if (value !== null && typeof value === "object") {
+    const sortedEntries = Object.entries(value as Record<string, unknown>)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, nested]) => [key, deepSortKeysRecursively(nested)] as const);
+    return Object.fromEntries(sortedEntries);
+  }
+  return value;
 }
 
 /**
