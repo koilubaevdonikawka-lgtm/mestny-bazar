@@ -244,19 +244,37 @@ export class FinikPaymentAdapter implements IPaymentProvider {
       // signature failures regardless of which literal is used.
       queryStringParameters: null,
     });
+    // TEMPORARY diagnostic (Промпт №103) — extracts the exact canonical
+    // string @mancho.devs/authorizer builds for THIS request, before
+    // signing, for manual byte-for-byte comparison against Finik's
+    // documented algorithm. getData() is `protected` in the library's
+    // TypeScript source, but the compiled JS carries no real access
+    // control (protected is erased at build time), so the direct call
+    // below works at runtime — same object, no separate copy of the
+    // library's logic to drift out of sync. Contains no key material or
+    // signature, only the same public request metadata already sent to
+    // Finik. Not to be removed without explicit instruction.
+    const canonicalString = (signer as unknown as { getData(): string }).getData();
     const signature = await signer.sign(normalizePem(this.config.rsaPrivateKeyPem));
     const afterSignAt = Date.now();
+
+    const fetchHeaders = {
+      "content-type": "application/json",
+      "x-api-key": this.config.apiKey,
+      "x-api-timestamp": timestamp,
+      signature,
+    };
+    logger.info("finik:canonical-string-debug", {
+      canonicalString,
+      signerHeaders: { Host: host, "x-api-key": this.config.apiKey, "x-api-timestamp": timestamp },
+      fetchHeaders,
+    });
 
     const beforeFetchAt = Date.now();
     const response = await this.fetchWithTimeout(url, {
       method: "POST",
       redirect: "manual",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": this.config.apiKey,
-        "x-api-timestamp": timestamp,
-        signature,
-      },
+      headers: fetchHeaders,
       body: JSON.stringify(body),
     });
     const afterFetchAt = Date.now();
