@@ -21,6 +21,25 @@ const FINIK_FETCH_TIMEOUT_MS = 10_000;
  */
 const SIGNATURE_MAX_AGE_MS = 10_000;
 
+/**
+ * TEMPORARY diagnostic (Промпт №116) — Finik's official PRODUCTION webhook
+ * public key, supplied directly by the architect (not secret — this is the
+ * public half of Finik's own signing key pair, safe to hold in source). Used
+ * only as a control in verifyWebhook() to test whether the currently
+ * configured `FINIK_WEBHOOK_PUBLIC_KEY` secret matches it, since Cloudflare
+ * Worker secrets cannot be read back to compare directly. Not to be removed
+ * without explicit instruction.
+ */
+const FINIK_OFFICIAL_PRODUCTION_WEBHOOK_PUBLIC_KEY_DIAGNOSTIC = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAhnJSKxpIOWt6dFIGFi9e
+JPUBrIqYPuiyIBseRNpsyYEZ/myaqrlT7Ky2IT6eBt261+M/uM6N9vRzSyToluc1
+vtQdN2//z6dsaEFb2Ifb0KG6LrYNtHDhsA7H5CT/qZhags4MhQE3uYxjFAIwRpYU
+NdWQVi3rwZlQbip1bM3sYrN+dQFW4GHQKSoFontMROE91uQI8nGUm/UqRKn2PBUD
+Zt5KItnvjsHFEj8twsGZJrZHvLuqWlRwQmk1PF3yZLbThMC9KDRzzm57TpooI6kg
+v97mQZhhBsnP9UHdZp2ZNQH+ov9EfxW+6gyGkSvzutgioBGTZ7tT/DkalUVAHiN8
+pQIDAQAB
+-----END PUBLIC KEY-----`;
+
 export type FinikEnvironment = "beta" | "production";
 
 /**
@@ -184,7 +203,39 @@ export class FinikPaymentAdapter implements IPaymentProvider {
         path: payload.path,
         queryStringParameters: payload.queryStringParameters,
       });
-      return await signer.verify(normalizePem(this.config.webhookPublicKeyPem), payload.signature);
+      const configuredKeyResult = await signer.verify(
+        normalizePem(this.config.webhookPublicKeyPem),
+        payload.signature,
+      );
+      // TEMPORARY diagnostic (Промпт №116) — re-verifies the SAME real
+      // signature against the official Finik production public key supplied
+      // directly by the architect (not the configured secret, which cannot
+      // be read back from Cloudflare to compare), as a control to prove or
+      // disprove a stale/mismatched FINIK_WEBHOOK_PUBLIC_KEY without ever
+      // needing to read the current secret's value. Only the two boolean
+      // outcomes and the public request metadata (canonical string, host,
+      // path, x-api-* headers) are logged — never the signature or any key
+      // material. Not to be removed without explicit instruction.
+      let officialKeyResult: boolean | "error" = "error";
+      try {
+        officialKeyResult = await signer.verify(
+          normalizePem(FINIK_OFFICIAL_PRODUCTION_WEBHOOK_PUBLIC_KEY_DIAGNOSTIC),
+          payload.signature,
+        );
+      } catch {
+        officialKeyResult = "error";
+      }
+      const canonicalString = (signer as unknown as { getData(): string }).getData();
+      logger.info("finik:webhook-verify-debug", {
+        configuredKeyResult,
+        officialProdKeyResult: officialKeyResult,
+        canonicalString,
+        host: payload.host,
+        path: payload.path,
+        xApiHeaders: payload.headers,
+        queryStringParameters: payload.queryStringParameters,
+      });
+      return configuredKeyResult;
     } catch {
       return false;
     }
