@@ -24,6 +24,14 @@ export const serverEnvSchema = z.object({
   FINIK_MERCHANT_ID: z.string().optional(),
   FINIK_ENVIRONMENT: z.enum(["beta", "production"]).optional(),
 
+  // Задача №133 — Composition Root feature flag (docs/principles/11-feature-flags.md):
+  // gates whether CustomerCancelOrderRule (server/domain/order-lifecycle/
+  // rules/customer-cancel-order.rule.ts) is active. Domain rules never read
+  // env directly — server/di/container.ts reads this once and passes a
+  // plain boolean into the rule's constructor. Absent/anything but "true"
+  // means disabled (self-cancellation off by default).
+  FEATURE_CUSTOMER_CANCELLATION: z.enum(["true", "false"]).optional(),
+
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_ADMIN_CHAT_ID: z.string().optional(),
   TELEGRAM_WAREHOUSE_CHAT_ID: z.string().optional(),

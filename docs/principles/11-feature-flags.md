@@ -7,7 +7,9 @@
 
 ## Текущие флаги
 
-Нет активных флагов. `FEATURE_CATALOG_SOURCE`/`VITE_FEATURE_CATALOG_SOURCE` и `FEATURE_CHECKOUT_SOURCE`/`VITE_FEATURE_CHECKOUT_SOURCE` были единственными и удалены целиком по завершении миграции каталога — [ADR-002](../architecture/adr/ADR-002-complete-shopify-catalog-migration.md). `SupabaseProductRepository` — безусловная, единственная реализация `IProductRepository` в `server/di/container.ts`.
+- `FEATURE_CUSTOMER_CANCELLATION` / `VITE_FEATURE_CUSTOMER_CANCELLATION` (Задача №133, по умолчанию выключено) — включает/выключает самостоятельную отмену заказа покупателем (2-минутное окно). Composition Root (`server/di/container.ts`) читает серверный флаг и передаёт булево значение в конструктор `CustomerCancelOrderRule` — сам rule env не читает. Клиентский `VITE_`-флаг (`src/components/CancelOrderButton.tsx`) отдельно скрывает таймер/кнопку в UI покупателя; сервер всё равно перепроверяет через rule независимо от UI. Временная приглушка по решению архитектора — вся логика отмены (rule, окно, UI) остаётся в коде нетронутой, включается обратно одним значением.
+
+`FEATURE_CATALOG_SOURCE`/`VITE_FEATURE_CATALOG_SOURCE` и `FEATURE_CHECKOUT_SOURCE`/`VITE_FEATURE_CHECKOUT_SOURCE` были удалены целиком по завершении миграции каталога — [ADR-002](../architecture/adr/ADR-002-complete-shopify-catalog-migration.md). `SupabaseProductRepository` — безусловная, единственная реализация `IProductRepository` в `server/di/container.ts`.
 
 ## Правила
 

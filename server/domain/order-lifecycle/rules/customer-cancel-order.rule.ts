@@ -16,15 +16,35 @@ import { isWithinCancellationWindow } from "@shared/lib/order-cancellation";
  */
 const CUSTOMER_CANCELLABLE_STATUSES: OrderStatus[] = [OrderStatus.CREATED, OrderStatus.PAID];
 
-/** Customer cancels their own order, within a short window after creation and before an admin has accepted it. */
+/**
+ * Customer cancels their own order, within a short window after creation and
+ * before an admin has accepted it.
+ *
+ * Задача №133 — gated by `FEATURE_CUSTOMER_CANCELLATION` (Composition Root
+ * only, server/di/container.ts — this class itself never reads env, per
+ * docs/principles/11-feature-flags.md's "domain service не читает env
+ * напрямую"). Temporarily muted by the architect; all the logic below stays
+ * intact and ready to re-enable by flipping the flag back to "true" — no
+ * code deletion.
+ */
 export class CustomerCancelOrderRule implements OrderLifecycleRule {
   readonly order = OrderLifecycleOrder.ROLE_PERMISSION;
+
+  constructor(private readonly enabled: boolean = false) {}
 
   applies(context: OrderLifecycleContext): boolean {
     return context.reason === "customer_cancel" && context.targetStatus === OrderStatus.CANCELLED;
   }
 
   evaluate(context: OrderLifecycleContext): OrderLifecycleResult {
+    if (!this.enabled) {
+      return {
+        allowed: false,
+        denialCode: "CANCELLATION_DISABLED",
+        message: "Self-service order cancellation is currently unavailable",
+      };
+    }
+
     if (!context.actor.id) {
       return {
         allowed: false,

@@ -429,7 +429,10 @@ export function createServices(env: ServerEnv): ServiceContainer {
     new TerminalStateGuardRule(),
     new AdminConfirmOrderRule(),
     new AdminCancelOrderRule(),
-    new CustomerCancelOrderRule(),
+    // Задача №133 — flag defaults to disabled (anything but the literal
+    // "true" string is off); flip FEATURE_CUSTOMER_CANCELLATION back to
+    // "true" to re-enable self-service cancellation.
+    new CustomerCancelOrderRule(env.FEATURE_CUSTOMER_CANCELLATION === "true"),
     new WarehouseStartAssemblyRule(),
     new WarehouseCompleteAssemblyRule(),
     new CourierAcceptOrderRule(),

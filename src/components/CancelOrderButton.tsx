@@ -19,6 +19,16 @@ import { useTranslation } from "@/i18n/LanguageProvider";
 
 const CANCELLABLE_STATUSES: OrderStatus[] = [OrderStatus.CREATED, OrderStatus.PAID];
 
+/**
+ * Задача №133 — client mirror of the server's FEATURE_CUSTOMER_CANCELLATION
+ * flag (server/di/container.ts gates CustomerCancelOrderRule with it).
+ * Built into the client bundle at build time like the project's earlier
+ * VITE_FEATURE_* flags; the server independently re-checks via the rule
+ * regardless of what this renders — this only controls whether the
+ * countdown/button appear at all.
+ */
+const CUSTOMER_CANCELLATION_ENABLED = import.meta.env.VITE_FEATURE_CUSTOMER_CANCELLATION === "true";
+
 interface CancelOrderButtonProps {
   order: OrderDTO;
   isPending: boolean;
@@ -42,6 +52,7 @@ export function CancelOrderButton({ order, isPending, onConfirm }: CancelOrderBu
     return () => clearInterval(interval);
   }, [order.createdAt]);
 
+  if (!CUSTOMER_CANCELLATION_ENABLED) return null;
   if (!CANCELLABLE_STATUSES.includes(order.status)) return null;
   if (remainingMs <= 0) return null;
 

@@ -187,7 +187,10 @@ describe("AdminCancelOrderRule", () => {
 });
 
 describe("CustomerCancelOrderRule", () => {
-  const rule = new CustomerCancelOrderRule();
+  // Задача №133 — explicitly enabled here so the pre-existing tests below
+  // keep exercising the rule's real logic untouched; the feature-flag gate
+  // itself is covered separately below.
+  const rule = new CustomerCancelOrderRule(true);
   const FROZEN_NOW = Date.parse("2026-01-01T00:02:00.000Z");
 
   beforeEach(() => {
@@ -216,6 +219,22 @@ describe("CustomerCancelOrderRule", () => {
   it("requires an authenticated actor", () => {
     const result = rule.evaluate(ctx({ ...applyCtx, actor: { id: null } }));
     expect(result).toMatchObject({ allowed: false, denialCode: "AUTHENTICATION_REQUIRED" });
+  });
+
+  it("Задача №133 — denies with CANCELLATION_DISABLED when the feature flag is off, before any other check", () => {
+    const disabledRule = new CustomerCancelOrderRule(false);
+    const result = disabledRule.evaluate(
+      ctx({ ...applyCtx, actor: { id: "u1" }, currentStatus: OrderStatus.CREATED }),
+    );
+    expect(result).toMatchObject({ allowed: false, denialCode: "CANCELLATION_DISABLED" });
+  });
+
+  it("Задача №133 — defaults to disabled when constructed with no argument", () => {
+    const defaultRule = new CustomerCancelOrderRule();
+    const result = defaultRule.evaluate(
+      ctx({ ...applyCtx, actor: { id: "u1" }, currentStatus: OrderStatus.CREATED }),
+    );
+    expect(result).toMatchObject({ allowed: false, denialCode: "CANCELLATION_DISABLED" });
   });
 
   it("allows cancelling from CREATED or PAID, within the window", () => {
