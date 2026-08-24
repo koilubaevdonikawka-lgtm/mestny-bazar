@@ -367,6 +367,37 @@ export class SupabaseOrderRepository implements IOrderRepository {
     return order;
   }
 
+  async confirmPaid(id: string, fromStatus: OrderStatus): Promise<OrderDTO> {
+    const { data, error } = await supabaseAdmin
+      .from("orders")
+      .update({
+        status: toDbOrderStatus(OrderStatusEnum.PAID),
+        payment_status: "paid",
+        paid_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .eq("status", toDbOrderStatus(fromStatus))
+      .select("id");
+
+    if (error) {
+      throw new Error(`Failed to confirm payment: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      // Same optimistic-concurrency semantics as updateStatus — either the
+      // order doesn't exist, or its status no longer matches fromStatus.
+      const current = await this.getById(id);
+      if (!current) throw new OrderNotFoundError();
+      throw new OrderConcurrentModificationError(
+        `Order ${id} is now "${current.status}", expected "${fromStatus}" — another action already changed it`,
+      );
+    }
+
+    const order = await this.getById(id);
+    if (!order) throw new Error(`Order ${id} not found after payment confirmation`);
+    return order;
+  }
+
   async countByStatuses(statuses: OrderStatus[]): Promise<number> {
     if (statuses.length === 0) return 0;
 

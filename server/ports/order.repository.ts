@@ -57,6 +57,19 @@ export interface IOrderRepository {
    */
   updateStatus(id: string, fromStatus: OrderStatus, toStatus: OrderStatus): Promise<OrderDTO>;
   updatePaymentStatus(id: string, paymentStatus: PaymentStatus): Promise<OrderDTO>;
+  /**
+   * Задача №132 — single atomic write for the CREATED/PAID→PAID payment
+   * confirmation, setting `status`, `payment_status`, and `paid_at` all in
+   * one UPDATE statement (same optimistic-concurrency guard as
+   * updateStatus: only applies if the row's status still matches
+   * `fromStatus`). Replaces the previous two-separate-calls sequence
+   * (updateStatus then updatePaymentStatus) in OrderService.confirmPayment(),
+   * which could leave an order stuck with status=PAID but
+   * payment_status!="paid" if the process was interrupted between the two
+   * writes (order #104, Задача №131) — a single statement makes that
+   * partial state impossible to produce going forward.
+   */
+  confirmPaid(id: string, fromStatus: OrderStatus): Promise<OrderDTO>;
   /** Count only — Dashboard KPI cards (dashboard.md), avoids fetching full order rows. */
   countByStatuses(statuses: OrderStatus[]): Promise<number>;
   /** Orders created since server-computed UTC midnight, excluding CANCELLED — Dashboard KPI cards. */

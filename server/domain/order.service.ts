@@ -71,11 +71,34 @@ export class OrderService {
     return cancelled;
   }
 
-  /** Webhook-confirmed online payment (Промпт №075). Idempotent — a redelivered webhook for an already-paid order is a no-op. */
+  /**
+   * Webhook-confirmed online payment (Промпт №075). Idempotent — a
+   * redelivered webhook for an already-paid order is a no-op.
+   *
+   * Задача №132 — the idempotency check must look at BOTH `status` and
+   * `paymentStatus`: a prior call using the old two-separate-writes
+   * sequence (updateStatus then updatePaymentStatus) could be interrupted
+   * between them, leaving status=PAID but paymentStatus!="paid" (order
+   * #104). Checking only paymentStatus (as this used to) would miss that
+   * partial state and re-attempt the CREATED→PAID transition, which
+   * PaymentConfirmedRule correctly denies once status is no longer
+   * CREATED. When status is already PAID, the transition itself is done —
+   * only the missing field needs finishing, never assertCanTransition
+   * again. The main path now uses confirmPaid(), a single atomic UPDATE
+   * (status + paymentStatus + paidAt together), so this partial state
+   * cannot be produced going forward — this branch only exists to heal
+   * orders left over from before that fix.
+   */
   async confirmPayment(orderId: string): Promise<OrderDTO> {
     const order = await this.orders.getById(orderId);
     if (!order) throw new OrderNotFoundError();
-    if (order.paymentStatus === "paid") return order;
+    if (order.status === OrderStatus.PAID && order.paymentStatus === "paid") return order;
+
+    if (order.status === OrderStatus.PAID) {
+      const paid = await this.orders.updatePaymentStatus(orderId, "paid");
+      await this.events.publish({ type: "order.paid", order: paid });
+      return paid;
+    }
 
     this.orderLifecycle.assertCanTransition({
       orderId,
@@ -86,8 +109,7 @@ export class OrderService {
       orderCreatedAt: order.createdAt,
     });
 
-    await this.orders.updateStatus(orderId, order.status, OrderStatus.PAID);
-    const paid = await this.orders.updatePaymentStatus(orderId, "paid");
+    const paid = await this.orders.confirmPaid(orderId, order.status);
 
     await this.events.publish({ type: "order.paid", order: paid });
 

@@ -63,6 +63,7 @@ function fakeRepo(overrides: Partial<IOrderRepository> = {}): IOrderRepository {
     listByStatuses: vi.fn(async () => []),
     updateStatus: vi.fn(async (_id, _from, status) => makeOrder({ status })),
     updatePaymentStatus: vi.fn(async () => makeOrder()),
+    confirmPaid: vi.fn(async () => makeOrder({ status: OrderStatus.PAID, paymentStatus: "paid" })),
     countByStatuses: vi.fn(async () => 0),
     getTodaySummary: vi.fn(async () => ({ orderCount: 0, revenue: 0 })),
 
@@ -308,15 +309,40 @@ describe("OrderService", () => {
       await expect(service.confirmPayment("missing")).rejects.toBeInstanceOf(OrderNotFoundError);
     });
 
-    it("is idempotent — a no-op returning the order as-is when already paid", async () => {
+    it("is idempotent — a no-op returning the order as-is when already fully paid (status + paymentStatus)", async () => {
       const { service, repo, events } = buildService({
-        repo: fakeRepo({ getById: vi.fn(async () => makeOrder({ paymentStatus: "paid" })) }),
+        repo: fakeRepo({
+          getById: vi.fn(async () =>
+            makeOrder({ status: OrderStatus.PAID, paymentStatus: "paid" }),
+          ),
+        }),
       });
 
       await service.confirmPayment("order-1");
 
-      expect(repo.updateStatus).not.toHaveBeenCalled();
+      expect(repo.confirmPaid).not.toHaveBeenCalled();
+      expect(repo.updatePaymentStatus).not.toHaveBeenCalled();
       expect(events.publish).not.toHaveBeenCalled();
+    });
+
+    it("Задача №132 — heals a partial confirmation (status already PAID, paymentStatus not yet) by finishing only the missing field, without re-asserting the transition", async () => {
+      const healed = makeOrder({ status: OrderStatus.PAID, paymentStatus: "paid" });
+      const { service, repo, lifecycle, events } = buildService({
+        repo: fakeRepo({
+          getById: vi.fn(async () =>
+            makeOrder({ status: OrderStatus.PAID, paymentStatus: "unpaid" }),
+          ),
+          updatePaymentStatus: vi.fn(async () => healed),
+        }),
+      });
+
+      const result = await service.confirmPayment("order-1");
+
+      expect(lifecycle.assertCanTransition).not.toHaveBeenCalled();
+      expect(repo.confirmPaid).not.toHaveBeenCalled();
+      expect(repo.updatePaymentStatus).toHaveBeenCalledWith("order-1", "paid");
+      expect(events.publish).toHaveBeenCalledWith({ type: "order.paid", order: healed });
+      expect(result).toEqual(healed);
     });
 
     it("asserts the payment_confirmed CREATED -> PAID transition before updating anything", async () => {
@@ -336,23 +362,20 @@ describe("OrderService", () => {
       );
     });
 
-    it("updates both order status and payment status, then publishes order.paid", async () => {
+    it("Задача №132 — confirms via a single atomic confirmPaid() write, then publishes order.paid", async () => {
       const paid = makeOrder({ status: OrderStatus.PAID, paymentStatus: "paid" });
       const { service, repo, events } = buildService({
         repo: fakeRepo({
           getById: vi.fn(async () => makeOrder({ status: OrderStatus.CREATED })),
-          updatePaymentStatus: vi.fn(async () => paid),
+          confirmPaid: vi.fn(async () => paid),
         }),
       });
 
       const result = await service.confirmPayment("order-1");
 
-      expect(repo.updateStatus).toHaveBeenCalledWith(
-        "order-1",
-        OrderStatus.CREATED,
-        OrderStatus.PAID,
-      );
-      expect(repo.updatePaymentStatus).toHaveBeenCalledWith("order-1", "paid");
+      expect(repo.confirmPaid).toHaveBeenCalledWith("order-1", OrderStatus.CREATED);
+      expect(repo.updateStatus).not.toHaveBeenCalled();
+      expect(repo.updatePaymentStatus).not.toHaveBeenCalled();
       expect(events.publish).toHaveBeenCalledWith({ type: "order.paid", order: paid });
       expect(result).toEqual(paid);
     });
@@ -370,7 +393,7 @@ describe("OrderService", () => {
       });
 
       await expect(service.confirmPayment("order-1")).rejects.toThrow("denied");
-      expect(repo.updateStatus).not.toHaveBeenCalled();
+      expect(repo.confirmPaid).not.toHaveBeenCalled();
       expect(events.publish).not.toHaveBeenCalled();
     });
   });
