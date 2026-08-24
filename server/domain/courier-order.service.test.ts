@@ -135,6 +135,50 @@ describe("CourierOrderService", () => {
     expect(courierStatus.touch).toHaveBeenCalledWith(courier.id);
   });
 
+  it("Задача №135 — getOrder returns the order when it's assigned to this courier", async () => {
+    const repo = fakeRepo({
+      getById: vi.fn(async () => makeOrder({ assignedCourierId: courier.id })),
+    });
+    const service = buildService({ repo });
+
+    await expect(service.getOrder("order-1", courier)).resolves.toMatchObject({
+      assignedCourierId: courier.id,
+    });
+  });
+
+  it("Задача №135 — getOrder returns an unclaimed READY_FOR_DELIVERY order (acceptOrder's own free-claim case)", async () => {
+    const repo = fakeRepo({
+      getById: vi.fn(async () =>
+        makeOrder({ assignedCourierId: null, status: OrderStatus.READY_FOR_DELIVERY }),
+      ),
+    });
+    const service = buildService({ repo });
+
+    await expect(service.getOrder("order-1", courier)).resolves.toMatchObject({
+      assignedCourierId: null,
+    });
+  });
+
+  it("Задача №135 — getOrder throws ForbiddenError for an order assigned to a different courier", async () => {
+    const repo = fakeRepo({
+      getById: vi.fn(async () => makeOrder({ assignedCourierId: "someone-else" })),
+    });
+    const service = buildService({ repo });
+
+    await expect(service.getOrder("order-1", courier)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("Задача №135 — getOrder throws ForbiddenError for an unclaimed order NOT in READY_FOR_DELIVERY", async () => {
+    const repo = fakeRepo({
+      getById: vi.fn(async () =>
+        makeOrder({ assignedCourierId: null, status: OrderStatus.ASSEMBLING }),
+      ),
+    });
+    const service = buildService({ repo });
+
+    await expect(service.getOrder("order-1", courier)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
   it("acceptOrder validates the transition and persists the assignment when the order is unassigned", async () => {
     const repo = fakeRepo({ getById: vi.fn(async () => makeOrder({ assignedCourierId: null })) });
     const lifecycle = fakeLifecycle();
@@ -192,7 +236,9 @@ describe("CourierOrderService", () => {
   });
 
   it("startDelivery updates status to OUT_FOR_DELIVERY and publishes order.out_for_delivery", async () => {
-    const repo = fakeRepo();
+    const repo = fakeRepo({
+      getById: vi.fn(async () => makeOrder({ assignedCourierId: courier.id })),
+    });
     const events = fakeEventBus();
     const service = buildService({ repo, events });
 
@@ -205,6 +251,30 @@ describe("CourierOrderService", () => {
     expect(events.publish).toHaveBeenCalledWith(
       expect.objectContaining({ type: "order.out_for_delivery" }),
     );
+  });
+
+  it("Задача №135 — startDelivery passes assignedCourierId through to the lifecycle policy", async () => {
+    const repo = fakeRepo({
+      getById: vi.fn(async () => makeOrder({ assignedCourierId: courier.id })),
+    });
+    const lifecycle = fakeLifecycle();
+    const service = buildService({ repo, lifecycle });
+
+    await service.startDelivery("order-1", courier);
+
+    expect(lifecycle.assertCanTransition).toHaveBeenCalledWith(
+      expect.objectContaining({ assignedCourierId: courier.id }),
+    );
+  });
+
+  it("Задача №135 — startDelivery is rejected end-to-end when the order is assigned to a different courier", async () => {
+    const repo = fakeRepo({
+      getById: vi.fn(async () => makeOrder({ assignedCourierId: "someone-else" })),
+    });
+    const service = buildService({ repo });
+
+    await expect(service.startDelivery("order-1", courier)).rejects.toBeInstanceOf(ForbiddenError);
+    expect(repo.updateStatus).not.toHaveBeenCalled();
   });
 
   it("markArrival does not update status when the lifecycle policy denies it", async () => {

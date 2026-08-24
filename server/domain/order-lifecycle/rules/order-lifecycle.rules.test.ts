@@ -434,7 +434,11 @@ describe("CourierAcceptOrderRule", () => {
 describe("CourierStartDeliveryRule", () => {
   const rule = new CourierStartDeliveryRule();
   const courier = { id: "c1", roles: ["courier" as const] };
-  const applyCtx = { reason: "courier_start_delivery", targetStatus: OrderStatus.OUT_FOR_DELIVERY };
+  const applyCtx = {
+    reason: "courier_start_delivery",
+    targetStatus: OrderStatus.OUT_FOR_DELIVERY,
+    assignedCourierId: courier.id,
+  };
 
   it("applies only to courier_start_delivery -> OUT_FOR_DELIVERY", () => {
     expect(rule.applies(ctx(applyCtx))).toBe(true);
@@ -448,7 +452,19 @@ describe("CourierStartDeliveryRule", () => {
     expect(result).toMatchObject({ allowed: false, denialCode: "COURIER_ROLE_REQUIRED" });
   });
 
-  it("allows from READY_FOR_DELIVERY", () => {
+  it("Задача №135 — denies when the order is assigned to a different courier", () => {
+    const result = rule.evaluate(
+      ctx({
+        ...applyCtx,
+        actor: courier,
+        currentStatus: OrderStatus.READY_FOR_DELIVERY,
+        assignedCourierId: "someone-else",
+      }),
+    );
+    expect(result).toMatchObject({ allowed: false, denialCode: "COURIER_NOT_ASSIGNED" });
+  });
+
+  it("allows from READY_FOR_DELIVERY when assigned to this courier", () => {
     expect(
       rule.evaluate(
         ctx({ ...applyCtx, actor: courier, currentStatus: OrderStatus.READY_FOR_DELIVERY }),
@@ -470,7 +486,11 @@ describe("CourierStartDeliveryRule", () => {
 describe("CourierArriveRule", () => {
   const rule = new CourierArriveRule();
   const courier = { id: "c1", roles: ["courier" as const] };
-  const applyCtx = { reason: "courier_arrive", targetStatus: OrderStatus.ARRIVED };
+  const applyCtx = {
+    reason: "courier_arrive",
+    targetStatus: OrderStatus.ARRIVED,
+    assignedCourierId: courier.id,
+  };
 
   it("applies only to courier_arrive -> ARRIVED", () => {
     expect(rule.applies(ctx(applyCtx))).toBe(true);
@@ -486,7 +506,19 @@ describe("CourierArriveRule", () => {
     expect(result).toMatchObject({ allowed: false, denialCode: "COURIER_ROLE_REQUIRED" });
   });
 
-  it("allows only from OUT_FOR_DELIVERY", () => {
+  it("Задача №135 — denies when the order is assigned to a different courier", () => {
+    const result = rule.evaluate(
+      ctx({
+        ...applyCtx,
+        actor: courier,
+        currentStatus: OrderStatus.OUT_FOR_DELIVERY,
+        assignedCourierId: "someone-else",
+      }),
+    );
+    expect(result).toMatchObject({ allowed: false, denialCode: "COURIER_NOT_ASSIGNED" });
+  });
+
+  it("allows only from OUT_FOR_DELIVERY when assigned to this courier", () => {
     expect(
       rule.evaluate(
         ctx({ ...applyCtx, actor: courier, currentStatus: OrderStatus.OUT_FOR_DELIVERY }),
@@ -502,7 +534,11 @@ describe("CourierArriveRule", () => {
 describe("CourierCompleteDeliveryRule", () => {
   const rule = new CourierCompleteDeliveryRule();
   const courier = { id: "c1", roles: ["courier" as const] };
-  const applyCtx = { reason: "courier_complete_delivery", targetStatus: OrderStatus.DELIVERED };
+  const applyCtx = {
+    reason: "courier_complete_delivery",
+    targetStatus: OrderStatus.DELIVERED,
+    assignedCourierId: courier.id,
+  };
 
   it("applies only to courier_complete_delivery -> DELIVERED", () => {
     expect(rule.applies(ctx(applyCtx))).toBe(true);
@@ -518,7 +554,19 @@ describe("CourierCompleteDeliveryRule", () => {
     expect(result).toMatchObject({ allowed: false, denialCode: "COURIER_ROLE_REQUIRED" });
   });
 
-  it("allows from ARRIVED or OUT_FOR_DELIVERY", () => {
+  it("Задача №135 — denies when the order is assigned to a different courier", () => {
+    const result = rule.evaluate(
+      ctx({
+        ...applyCtx,
+        actor: courier,
+        currentStatus: OrderStatus.ARRIVED,
+        assignedCourierId: "someone-else",
+      }),
+    );
+    expect(result).toMatchObject({ allowed: false, denialCode: "COURIER_NOT_ASSIGNED" });
+  });
+
+  it("allows from ARRIVED or OUT_FOR_DELIVERY when assigned to this courier", () => {
     expect(
       rule.evaluate(ctx({ ...applyCtx, actor: courier, currentStatus: OrderStatus.ARRIVED }))
         .allowed,

@@ -9,8 +9,8 @@ export async function executeListCourierOrders(): Promise<OrderDTO[]> {
 }
 
 export async function executeGetCourierOrder(orderId: string): Promise<OrderDTO> {
-  await requireCourierFromRequest();
-  return getServices().courierOrderService.getOrder(orderId);
+  const { userId, roles } = await requireCourierFromRequest();
+  return getServices().courierOrderService.getOrder(orderId, { id: userId, roles });
 }
 
 export async function executeAcceptCourierOrder(orderId: string): Promise<OrderDTO> {

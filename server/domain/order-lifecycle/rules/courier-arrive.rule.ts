@@ -11,7 +11,11 @@ function isCourier(actor: OrderLifecycleActor): boolean {
   return actor.roles?.includes("courier") ?? false;
 }
 
-/** Courier marks arrival: OUT_FOR_DELIVERY → ARRIVED. */
+/**
+ * Courier marks arrival: OUT_FOR_DELIVERY → ARRIVED.
+ * Задача №135 — must be THIS courier's own assigned order (Задача №134
+ * found this rule only checked the role, never ownership).
+ */
 export class CourierArriveRule implements OrderLifecycleRule {
   readonly order = OrderLifecycleOrder.ROLE_PERMISSION;
 
@@ -25,6 +29,14 @@ export class CourierArriveRule implements OrderLifecycleRule {
         allowed: false,
         denialCode: "COURIER_ROLE_REQUIRED",
         message: "Courier role is required to mark arrival",
+      };
+    }
+
+    if (context.assignedCourierId !== context.actor.id) {
+      return {
+        allowed: false,
+        denialCode: "COURIER_NOT_ASSIGNED",
+        message: "This order is assigned to a different courier",
       };
     }
 

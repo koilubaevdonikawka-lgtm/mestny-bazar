@@ -11,7 +11,12 @@ function isCourier(actor: OrderLifecycleActor): boolean {
   return actor.roles?.includes("courier") ?? false;
 }
 
-/** Courier starts delivery: READY_FOR_DELIVERY → OUT_FOR_DELIVERY. */
+/**
+ * Courier starts delivery: READY_FOR_DELIVERY → OUT_FOR_DELIVERY.
+ * Задача №135 — must be THIS courier's own assigned order, not just any
+ * order held by any authenticated courier (Задача №134 found this rule only
+ * checked the role, never ownership).
+ */
 export class CourierStartDeliveryRule implements OrderLifecycleRule {
   readonly order = OrderLifecycleOrder.ROLE_PERMISSION;
 
@@ -28,6 +33,14 @@ export class CourierStartDeliveryRule implements OrderLifecycleRule {
         allowed: false,
         denialCode: "COURIER_ROLE_REQUIRED",
         message: "Courier role is required to start delivery",
+      };
+    }
+
+    if (context.assignedCourierId !== context.actor.id) {
+      return {
+        allowed: false,
+        denialCode: "COURIER_NOT_ASSIGNED",
+        message: "This order is assigned to a different courier",
       };
     }
 

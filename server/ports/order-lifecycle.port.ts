@@ -21,6 +21,8 @@ export interface OrderLifecycleContext {
   reason?: string;
   /** order.created_at (DB) — the only source of truth for time-boxed rules (e.g. customer self-cancellation). Never a client-supplied elapsed time. */
   orderCreatedAt?: string;
+  /** Задача №135 — order.assignedCourierId (DB), for courier-ownership rules (Courier{StartDelivery,Arrive,CompleteDelivery}Rule) to check the acting courier actually owns this order, not just holds the courier role. */
+  assignedCourierId?: string | null;
 }
 
 export interface OrderLifecycleResult {

@@ -33,9 +33,26 @@ export class CourierOrderService {
     return this.orders.listByStatusesForCourier(DELIVERY_QUEUE_STATUSES, actor.id);
   }
 
-  async getOrder(id: string): Promise<OrderDTO> {
+  /**
+   * Задача №135 — a courier may view: an order already assigned to them, or
+   * an unassigned order still in the READY_FOR_DELIVERY acceptance queue
+   * (the same "free claim" case acceptOrder() itself allows, per couriers.md
+   * — a courier told an order id out-of-band can look it up before
+   * deciding to accept it). Any other courier's already-assigned order is
+   * not visible — closes the Задача №134 gap where getOrder() returned any
+   * order to any authenticated courier.
+   */
+  async getOrder(id: string, actor: CourierActor): Promise<OrderDTO> {
     const order = await this.orders.getById(id);
     if (!order) throw new OrderNotFoundError();
+
+    const isOwnOrder = order.assignedCourierId === actor.id;
+    const isUnclaimedAndAcceptable =
+      !order.assignedCourierId && order.status === OrderStatus.READY_FOR_DELIVERY;
+    if (!isOwnOrder && !isUnclaimedAndAcceptable) {
+      throw new ForbiddenError("Access denied — order is assigned to a different courier");
+    }
+
     return order;
   }
 
@@ -47,7 +64,7 @@ export class CourierOrderService {
    * has no courier yet or is already assigned to this same courier.
    */
   async acceptOrder(orderId: string, actor: CourierActor): Promise<OrderDTO> {
-    const order = await this.getOrder(orderId);
+    const order = await this.getOrder(orderId, actor);
 
     this.orderLifecycle.assertCanTransition({
       orderId,
@@ -106,7 +123,7 @@ export class CourierOrderService {
     reason: string,
     actor: CourierActor,
   ): Promise<OrderDTO> {
-    const order = await this.getOrder(orderId);
+    const order = await this.getOrder(orderId, actor);
 
     this.orderLifecycle.assertCanTransition({
       orderId,
@@ -114,6 +131,7 @@ export class CourierOrderService {
       targetStatus,
       actor: { id: actor.id, roles: actor.roles },
       reason,
+      assignedCourierId: order.assignedCourierId,
     });
 
     return this.orders.updateStatus(orderId, order.status, targetStatus);
