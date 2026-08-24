@@ -39,6 +39,16 @@ function AdminOrderDetailPage() {
     queryFn: () => getAdminOrder(id),
     enabled: isAuthenticated === true,
     retry: false,
+    // Задача №130 — an admin watching this exact order (e.g. right after a
+    // customer starts an online payment) sees the paid status land on its
+    // own. 5s: tighter than the list page since only one record is fetched
+    // and this is the page where "did it just get paid" matters most. A
+    // background refetch never re-triggers the `isLoading` full-page
+    // spinner below (only the very first, uncached fetch does), so this
+    // can't interrupt an in-flight confirm/cancel mutation's own toast.
+    // Paused while the tab is in the background.
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
   });
 
   const invalidate = () => {

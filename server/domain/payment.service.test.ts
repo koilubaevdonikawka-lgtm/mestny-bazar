@@ -304,7 +304,7 @@ describe("PaymentService.handleWebhook", () => {
     );
   });
 
-  it("is idempotent — a redelivered webhook for an already-paid payment is a no-op", async () => {
+  it("is idempotent — a redelivered webhook for an already-paid payment retries confirmPayment (safe no-op) without re-marking the payment (Задача №129)", async () => {
     const payments = fakePayments({
       getByProviderPaymentId: vi.fn(async () => makePaymentRecord({ status: "paid" })),
     });
@@ -318,8 +318,33 @@ describe("PaymentService.handleWebhook", () => {
     });
 
     expect(result).toEqual({ accepted: true });
-    expect(orders.confirmPayment).not.toHaveBeenCalled();
+    // Always retried, not skipped — OrderService.confirmPayment() has its own
+    // idempotency guard (returns immediately if the order is already paid),
+    // so retrying it here on every redelivery is what actually completes a
+    // confirmation that a previous, interrupted delivery left unfinished.
+    expect(orders.confirmPayment).toHaveBeenCalledWith("order-1");
     expect(payments.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it("retries a still-incomplete order confirmation on redelivery without crashing the handler (Задача №129)", async () => {
+    const payments = fakePayments({
+      getByProviderPaymentId: vi.fn(async () => makePaymentRecord({ status: "paid" })),
+    });
+    const orders = fakeOrders({
+      confirmPayment: vi.fn(async () => {
+        throw new Error("order still not confirmed");
+      }),
+    });
+    const service = makeService(payments, fakeProvider(), orders, fakeEventBus(), APP_URL);
+
+    const result = await service.handleWebhook(WEBHOOK_REQUEST, {
+      providerPaymentId: "provider-payment-1",
+      transactionId: "txn-1",
+      status: "paid",
+    });
+
+    expect(result).toEqual({ accepted: true });
+    expect(orders.confirmPayment).toHaveBeenCalledWith("order-1");
   });
 
   it("marks the payment failed on a valid failed webhook, without confirming the order", async () => {

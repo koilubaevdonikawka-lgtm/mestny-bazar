@@ -34,6 +34,15 @@ function AdminOrdersPage() {
     queryFn: () => listAdminOrders({ page, pageSize: PAGE_SIZE }),
     enabled: isAuthenticated === true,
     retry: false,
+    // Задача №130 — so a new order or a payment confirmation (e.g. a webhook
+    // landing seconds after the customer pays) shows up without a manual
+    // refresh. 8s: frequent enough to feel live for an admin watching this
+    // list, without hammering the server — a background refetch here never
+    // shows the loading spinner (React Query only sets `isLoading` for the
+    // very first, uncached fetch), so pagination/scroll position is
+    // untouched. Paused while the tab is in the background.
+    refetchInterval: 8000,
+    refetchIntervalInBackground: false,
   });
   const orders = data?.items ?? [];
 

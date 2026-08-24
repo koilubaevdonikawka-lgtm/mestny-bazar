@@ -205,10 +205,32 @@ export class PaymentService {
       transactionId: resolved.transactionId,
     });
 
-    // Idempotent: a redelivered webhook for an already-terminal payment is a
-    // no-op — closes "защита от двойной оплаты" for webhook retries (Finik
-    // redelivers the identical payload for up to 24h, Промпт №080).
-    if (payment.status === "paid" || payment.status === "failed" || payment.status === "refunded") {
+    // Idempotent: a redelivered webhook for an already-failed/refunded payment
+    // is a pure no-op — there's no further order-side action for either
+    // terminal state ("защита от двойной оплаты", Finik redelivers the
+    // identical payload for up to 24h, Промпт №080).
+    if (payment.status === "failed" || payment.status === "refunded") {
+      return { accepted: true };
+    }
+
+    // Задача №129 — a previous delivery may have already marked the payment
+    // "paid" but been cut off (client disconnect / Worker request cancelled)
+    // before orders.confirmPayment() ran to completion, leaving the order
+    // itself stuck out of sync forever (this exact early-return used to stop
+    // here unconditionally). Retrying confirmPayment() on every redelivery
+    // is safe — it has its own idempotency guard (`if (order.paymentStatus
+    // === "paid") return order`) — so this always completes the missing step
+    // if needed, and is a cheap no-op once it has already succeeded.
+    if (payment.status === "paid") {
+      try {
+        await this.orders.confirmPayment(payment.orderId);
+      } catch (error) {
+        logger.error("payment:webhook-redelivery-confirm-retry-failed", {
+          orderId: payment.orderId,
+          paymentId: payment.id,
+          error,
+        });
+      }
       return { accepted: true };
     }
 
