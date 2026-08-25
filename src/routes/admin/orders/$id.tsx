@@ -194,59 +194,15 @@ function AdminOrderDetailPage() {
           </div>
         </div>
 
-        {(canConfirm || canCancel) && (
+        {canConfirm && (
           <div className="mt-6 flex flex-wrap gap-3">
-            {canConfirm && (
-              <Button disabled={isBusy} onClick={() => confirmMutation.mutate()}>
-                {confirmMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  t("admin.orders.confirmButton")
-                )}
-              </Button>
-            )}
-            {canCancel && order.paymentStatus === "paid" ? (
-              // Задача №140 — an already-paid order has no automatic refund
-              // path (Задача №137) — cancelling it silently would leave the
-              // admin unaware the customer's money is still with the
-              // merchant. Requires one explicit extra confirmation step;
-              // unpaid orders keep the plain one-click cancel below.
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" disabled={isBusy}>
-                    {cancelMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      t("admin.orders.cancelButton")
-                    )}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>{t("admin.orders.cancelPaidWarningTitle")}</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {t("admin.orders.cancelPaidWarningDescription")}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>{t("admin.orders.cancelPaidWarningDeny")}</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => cancelMutation.mutate()}>
-                      {t("admin.orders.cancelPaidWarningConfirm")}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            ) : (
-              canCancel && (
-                <Button variant="outline" disabled={isBusy} onClick={() => cancelMutation.mutate()}>
-                  {cancelMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    t("admin.orders.cancelButton")
-                  )}
-                </Button>
-              )
-            )}
+            <Button disabled={isBusy} onClick={() => confirmMutation.mutate()}>
+              {confirmMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                t("admin.orders.confirmButton")
+              )}
+            </Button>
           </div>
         )}
 
@@ -325,6 +281,65 @@ function AdminOrderDetailPage() {
             </div>
           </div>
         </section>
+
+        {canCancel && (
+          // Задача №141 — cancel is kept available but visually demoted to
+          // the very bottom of the page, separated from the frequently-used
+          // confirm action above, so it doesn't compete for attention.
+          <div className="mt-10 pt-6 border-t border-border/60 flex justify-end">
+            {order.paymentStatus === "paid" ? (
+              // Задача №140 — an already-paid order has no automatic refund
+              // path (Задача №137) — cancelling it silently would leave the
+              // admin unaware the customer's money is still with the
+              // merchant. Requires one explicit extra confirmation step;
+              // unpaid orders keep the plain one-click cancel below.
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={isBusy}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    {cancelMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      t("admin.orders.cancelButton")
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t("admin.orders.cancelPaidWarningTitle")}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("admin.orders.cancelPaidWarningDescription")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t("admin.orders.cancelPaidWarningDeny")}</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => cancelMutation.mutate()}>
+                      {t("admin.orders.cancelPaidWarningConfirm")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={isBusy}
+                onClick={() => cancelMutation.mutate()}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                {cancelMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  t("admin.orders.cancelButton")
+                )}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </PageShell>
   );
