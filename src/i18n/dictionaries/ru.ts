@@ -58,7 +58,13 @@ export const ru = {
     catalogEmptyDescription: "Под каждую категорию добавим товары с ценами и фотографиями.",
     addressDialogDescription: "Укажите адрес, куда курьер привезёт ваш заказ.",
     addressFieldLabel: "Адрес",
-    addressPlaceholder: "г. Кант, ул. Ленина 12, кв. 5",
+    // Задача №154 — was a realistic-looking full address ("г. Кант, ул.
+    // Ленина 12, кв. 5"), visually indistinguishable from a real typed
+    // value: a customer who never touched the field saw what looked like
+    // an already-filled address and tried to check out with it, only to
+    // hit "No default delivery address" server-side. Must read as an
+    // instruction, never as something that could pass for real input.
+    addressPlaceholder: "Введите адрес доставки",
     addressHint: "Город, улица, дом, квартира и ориентир при необходимости.",
     deliveryZoneLabel: "Зона доставки",
     zoneNotSelected: "Не выбрана",

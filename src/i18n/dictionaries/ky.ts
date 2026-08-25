@@ -55,7 +55,7 @@ export const ky = {
     catalogEmptyDescription: "Ар бир категорияга баасы жана сүрөттөрү менен товарларды кошобуз.",
     addressDialogDescription: "Курьер буйрутманы жеткирүүчү даректи көрсөтүңүз.",
     addressFieldLabel: "Дарек",
-    addressPlaceholder: "Кант ш., Ленин көч. 12, 5-батир",
+    addressPlaceholder: "Жеткирүү дарегин киргизиңиз",
     addressHint: "Шаар, көчө, үй, батир жана керек болсо багыт-белги.",
     deliveryZoneLabel: "Жеткирүү зонасы",
     zoneNotSelected: "Тандалган жок",

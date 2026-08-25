@@ -55,7 +55,7 @@ export const en = {
     catalogEmptyDescription: "We'll add products with prices and photos to every category.",
     addressDialogDescription: "Enter the address where the courier should deliver your order.",
     addressFieldLabel: "Address",
-    addressPlaceholder: "12 Lenin St., apt. 5, Kant",
+    addressPlaceholder: "Enter your delivery address",
     addressHint: "City, street, house, apartment, and a landmark if needed.",
     deliveryZoneLabel: "Delivery zone",
     zoneNotSelected: "Not selected",
