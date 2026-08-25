@@ -4,6 +4,17 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { CancellationWindowBadge } from "@/components/admin/CancellationWindowBadge";
 import { cancelAdminOrder, confirmAdminOrder, getAdminOrder } from "@/api/admin";
 import { signInWithGoogle } from "@/lib/auth";
@@ -14,6 +25,7 @@ import {
   formatOrderDate,
   formatOrderStatus,
   formatPaymentStatus,
+  orderRequiresRefund,
 } from "@shared/lib/order-display";
 import { OrderStatus } from "@shared/contracts/order";
 import { ArrowLeft, Loader2, LogIn, ShieldAlert } from "lucide-react";
@@ -175,6 +187,9 @@ function AdminOrderDetailPage() {
           <div className="flex flex-wrap gap-2">
             <Badge variant="secondary">{formatOrderStatus(order.status)}</Badge>
             <Badge variant="outline">{formatPaymentStatus(order.paymentStatus)}</Badge>
+            {orderRequiresRefund(order) && (
+              <Badge variant="destructive">{t("admin.orders.requiresRefundBadge")}</Badge>
+            )}
             <CancellationWindowBadge order={order} />
           </div>
         </div>
@@ -190,14 +205,47 @@ function AdminOrderDetailPage() {
                 )}
               </Button>
             )}
-            {canCancel && (
-              <Button variant="outline" disabled={isBusy} onClick={() => cancelMutation.mutate()}>
-                {cancelMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  t("admin.orders.cancelButton")
-                )}
-              </Button>
+            {canCancel && order.paymentStatus === "paid" ? (
+              // Задача №140 — an already-paid order has no automatic refund
+              // path (Задача №137) — cancelling it silently would leave the
+              // admin unaware the customer's money is still with the
+              // merchant. Requires one explicit extra confirmation step;
+              // unpaid orders keep the plain one-click cancel below.
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" disabled={isBusy}>
+                    {cancelMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      t("admin.orders.cancelButton")
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t("admin.orders.cancelPaidWarningTitle")}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("admin.orders.cancelPaidWarningDescription")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t("admin.orders.cancelPaidWarningDeny")}</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => cancelMutation.mutate()}>
+                      {t("admin.orders.cancelPaidWarningConfirm")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : (
+              canCancel && (
+                <Button variant="outline" disabled={isBusy} onClick={() => cancelMutation.mutate()}>
+                  {cancelMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    t("admin.orders.cancelButton")
+                  )}
+                </Button>
+              )
             )}
           </div>
         )}

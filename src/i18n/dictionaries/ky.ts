@@ -536,6 +536,13 @@ export const ky = {
       signInRequiredMessage: "Администратордун аутентификациясы талап кылынат.",
       confirmButton: "Буйрутманы ырастоо",
       cancelButton: "Буйрутманы жокко чыгаруу",
+      cancelPaidWarningTitle: "Буйрутма мурункудан эле төлөнгөн",
+      cancelPaidWarningDescription:
+        "Бул буйрутма мурункудан эле төлөнгөн. Акча автоматтык түрдө кайтарылбайт — керек болсо, Finik кабинети аркылуу кол менен кайтарым жасаңыз.",
+      cancelPaidWarningDeny: "Жокко чыгарбоо",
+      cancelPaidWarningConfirm: "Баары бир жокко чыгаруу",
+      requiresRefundBadge: "Кайтарым талап кылынат",
+      requiresRefundFilterLabel: "Тек «Кайтарым талап кылынат»",
       confirmedToast: "Буйрутма ырасталды",
       confirmError: "Буйрутманы ырастоо мүмкүн болбоду",
       cancelledToast: "Буйрутма жокко чыгарылды",

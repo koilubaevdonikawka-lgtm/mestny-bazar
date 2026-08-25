@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { WarehouseOrderService } from "@server/domain/warehouse-order.service";
+import type { CourierAssignmentService } from "@server/domain/courier-assignment.service";
 import { OrderNotFoundError } from "@server/domain/orders.errors";
 import type { IOrderRepository } from "@server/ports/order.repository";
 import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
@@ -84,12 +85,27 @@ function fakeEventBus(overrides: Partial<IMarketplaceEventBus> = {}): IMarketpla
   };
 }
 
+/** Задача №140 — CourierAssignmentService is a concrete class, not a port interface; cast like payment.service.test.ts's own fakeOrderRepository does for the same reason. */
+function fakeCourierAssignment(
+  overrides: Partial<CourierAssignmentService> = {},
+): CourierAssignmentService {
+  return {
+    assignCourier: vi.fn(async (order: OrderDTO) => order),
+    ...overrides,
+  } as unknown as CourierAssignmentService;
+}
+
 const warehouse = { id: "warehouse-1", roles: ["warehouse" as const] };
 
 describe("WarehouseOrderService", () => {
   it("listAssemblyOrders queries only CONFIRMED and ASSEMBLING", async () => {
     const repo = fakeRepo();
-    const service = new WarehouseOrderService(repo, fakeLifecycle(), fakeEventBus());
+    const service = new WarehouseOrderService(
+      repo,
+      fakeLifecycle(),
+      fakeEventBus(),
+      fakeCourierAssignment(),
+    );
 
     await service.listAssemblyOrders();
 
@@ -101,7 +117,12 @@ describe("WarehouseOrderService", () => {
 
   it("getOrder throws OrderNotFoundError when the repository returns null", async () => {
     const repo = fakeRepo({ getById: vi.fn(async () => null) });
-    const service = new WarehouseOrderService(repo, fakeLifecycle(), fakeEventBus());
+    const service = new WarehouseOrderService(
+      repo,
+      fakeLifecycle(),
+      fakeEventBus(),
+      fakeCourierAssignment(),
+    );
 
     await expect(service.getOrder("missing")).rejects.toBeInstanceOf(OrderNotFoundError);
   });
@@ -110,7 +131,7 @@ describe("WarehouseOrderService", () => {
     const repo = fakeRepo();
     const lifecycle = fakeLifecycle();
     const events = fakeEventBus();
-    const service = new WarehouseOrderService(repo, lifecycle, events);
+    const service = new WarehouseOrderService(repo, lifecycle, events, fakeCourierAssignment());
 
     await service.startAssembly("order-1", warehouse);
 
@@ -138,7 +159,12 @@ describe("WarehouseOrderService", () => {
         throw new Error("denied");
       }),
     });
-    const service = new WarehouseOrderService(repo, lifecycle, fakeEventBus());
+    const service = new WarehouseOrderService(
+      repo,
+      lifecycle,
+      fakeEventBus(),
+      fakeCourierAssignment(),
+    );
 
     await expect(service.completeAssembly("order-1", warehouse)).rejects.toThrow("denied");
     expect(repo.updateStatus).not.toHaveBeenCalled();
@@ -147,7 +173,12 @@ describe("WarehouseOrderService", () => {
   it("completeAssembly updates status to READY_FOR_DELIVERY and publishes order.ready_for_delivery", async () => {
     const repo = fakeRepo();
     const events = fakeEventBus();
-    const service = new WarehouseOrderService(repo, fakeLifecycle(), events);
+    const service = new WarehouseOrderService(
+      repo,
+      fakeLifecycle(),
+      events,
+      fakeCourierAssignment(),
+    );
 
     await service.completeAssembly("order-1", warehouse);
     expect(repo.updateStatus).toHaveBeenCalledWith(
@@ -158,5 +189,41 @@ describe("WarehouseOrderService", () => {
     expect(events.publish).toHaveBeenCalledWith(
       expect.objectContaining({ type: "order.ready_for_delivery" }),
     );
+  });
+
+  it("Задача №140 — completeAssembly tries to assign a courier right away", async () => {
+    const repo = fakeRepo();
+    const courierAssignment = fakeCourierAssignment();
+    const service = new WarehouseOrderService(
+      repo,
+      fakeLifecycle(),
+      fakeEventBus(),
+      courierAssignment,
+    );
+
+    await service.completeAssembly("order-1", warehouse);
+
+    expect(courierAssignment.assignCourier).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "order-1", status: OrderStatus.READY_FOR_DELIVERY }),
+    );
+  });
+
+  it("Задача №140 — completeAssembly still succeeds even if courier assignment throws", async () => {
+    const repo = fakeRepo();
+    const courierAssignment = fakeCourierAssignment({
+      assignCourier: vi.fn(async () => {
+        throw new Error("assignment backend unavailable");
+      }),
+    });
+    const service = new WarehouseOrderService(
+      repo,
+      fakeLifecycle(),
+      fakeEventBus(),
+      courierAssignment,
+    );
+
+    const result = await service.completeAssembly("order-1", warehouse);
+
+    expect(result.status).toBe(OrderStatus.READY_FOR_DELIVERY);
   });
 });

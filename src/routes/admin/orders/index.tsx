@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CancellationWindowBadge } from "@/components/admin/CancellationWindowBadge";
 import { listAdminOrders } from "@/api/admin";
 import { signInWithGoogle } from "@/lib/auth";
@@ -15,6 +16,7 @@ import {
   formatOrderDate,
   formatOrderStatus,
   formatPaymentStatus,
+  orderRequiresRefund,
 } from "@shared/lib/order-display";
 import { ArrowLeft, ArrowRight, Loader2, LogIn, Package, ShieldAlert } from "lucide-react";
 
@@ -28,6 +30,10 @@ function AdminOrdersPage() {
   const { isAuthenticated } = useSupabaseSession();
   const { t } = useTranslation();
   const [page, setPage] = useState(1);
+  // Задача №140 — client-side only, scoped to the currently loaded page
+  // (this list has no server-side filtering to begin with); lets staff
+  // quickly isolate cancelled-but-paid orders without opening each one.
+  const [refundFilterOnly, setRefundFilterOnly] = useState(false);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["admin", "orders", "list", page],
@@ -44,7 +50,8 @@ function AdminOrdersPage() {
     refetchInterval: 8000,
     refetchIntervalInBackground: false,
   });
-  const orders = data?.items ?? [];
+  const allOrders = data?.items ?? [];
+  const orders = refundFilterOnly ? allOrders.filter(orderRequiresRefund) : allOrders;
 
   const handleSignIn = async () => {
     await signInWithGoogle();
@@ -134,6 +141,16 @@ function AdminOrdersPage() {
       <div className="mx-auto max-w-3xl px-6 py-12">
         <h1 className="font-serif text-4xl tracking-tight">{t("admin.orders.title")}</h1>
 
+        {allOrders.some(orderRequiresRefund) && (
+          <label className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+            <Checkbox
+              checked={refundFilterOnly}
+              onCheckedChange={(checked) => setRefundFilterOnly(checked === true)}
+            />
+            {t("admin.orders.requiresRefundFilterLabel")}
+          </label>
+        )}
+
         {orders.length === 0 ? (
           <div className="mt-12 rounded-3xl border border-dashed border-border py-16 text-center">
             <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
@@ -162,6 +179,9 @@ function AdminOrdersPage() {
                     <div className="flex flex-wrap gap-2">
                       <Badge variant="secondary">{formatOrderStatus(order.status)}</Badge>
                       <Badge variant="outline">{formatPaymentStatus(order.paymentStatus)}</Badge>
+                      {orderRequiresRefund(order) && (
+                        <Badge variant="destructive">{t("admin.orders.requiresRefundBadge")}</Badge>
+                      )}
                       <CancellationWindowBadge order={order} />
                     </div>
                   </div>

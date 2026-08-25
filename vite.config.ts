@@ -104,8 +104,18 @@ export default defineConfig(({ mode, command }) => {
                     new URL("./tasks/payment/sweep-expired.ts", import.meta.url),
                   ),
                 },
+                // Задача №140 — backstop for courier auto-assignment; see
+                // server/functions/courier-assignment-sweep.executor.ts.
+                "courier:sweep-unassigned": {
+                  handler: fileURLToPath(
+                    new URL("./tasks/courier/sweep-unassigned.ts", import.meta.url),
+                  ),
+                },
               },
-              scheduledTasks: { "*/5 * * * *": "payment:sweep-expired" },
+              scheduledTasks: {
+                "*/5 * * * *": "payment:sweep-expired",
+                "*/2 * * * *": "courier:sweep-unassigned",
+              },
               cloudflare: { deployConfig: true },
             }),
           ]

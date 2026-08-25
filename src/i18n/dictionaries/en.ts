@@ -534,6 +534,13 @@ export const en = {
       signInRequiredMessage: "Administrator authentication is required.",
       confirmButton: "Confirm order",
       cancelButton: "Cancel order",
+      cancelPaidWarningTitle: "This order is already paid",
+      cancelPaidWarningDescription:
+        "This order has already been paid. The money will not be refunded automatically — issue a refund manually via the Finik dashboard if needed.",
+      cancelPaidWarningDeny: "Don't cancel",
+      cancelPaidWarningConfirm: "Cancel the order anyway",
+      requiresRefundBadge: "Refund required",
+      requiresRefundFilterLabel: 'Only "Refund required"',
       confirmedToast: "Order confirmed",
       confirmError: "Failed to confirm the order",
       cancelledToast: "Order cancelled",

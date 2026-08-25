@@ -57,6 +57,21 @@ export function formatOrderStatus(status: OrderStatusType): string {
   return ORDER_STATUS_LABELS[status] ?? status;
 }
 
+/**
+ * Задача №140 — computed on the fly from existing fields, no new DB column:
+ * an order that was genuinely paid (Задача №137 confirmed payment_status
+ * survives cancellation untouched — cancelOrder() never touches payment
+ * state) but then cancelled has no refund mechanism anywhere in this
+ * project (Finik has no refund endpoint) — this flag exists purely to make
+ * that state visible to staff, not to trigger any automated action.
+ */
+export function orderRequiresRefund(order: {
+  status: OrderStatusType;
+  paymentStatus: PaymentStatus;
+}): boolean {
+  return order.status === OrderStatus.CANCELLED && order.paymentStatus === "paid";
+}
+
 export function formatPaymentStatus(status: PaymentStatus): string {
   return PAYMENT_STATUS_LABELS[status] ?? status;
 }

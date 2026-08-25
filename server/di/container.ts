@@ -605,6 +605,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     orders,
     orderLifecycle,
     marketplaceEvents,
+    courierAssignmentService,
   );
   const courierOrderService = new CourierOrderService(
     orders,

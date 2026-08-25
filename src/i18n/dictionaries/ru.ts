@@ -538,6 +538,13 @@ export const ru = {
       signInRequiredMessage: "Нужна авторизация администратора.",
       confirmButton: "Подтвердить заказ",
       cancelButton: "Отменить заказ",
+      cancelPaidWarningTitle: "Заказ уже оплачен",
+      cancelPaidWarningDescription:
+        "Этот заказ уже оплачен. Деньги не будут возвращены автоматически — при необходимости оформите возврат вручную через личный кабинет Finik.",
+      cancelPaidWarningDeny: "Не отменять",
+      cancelPaidWarningConfirm: "Всё равно отменить заказ",
+      requiresRefundBadge: "Требует возврата",
+      requiresRefundFilterLabel: "Только «Требует возврата»",
       confirmedToast: "Заказ подтверждён",
       confirmError: "Не удалось подтвердить заказ",
       cancelledToast: "Заказ отменён",
