@@ -614,7 +614,12 @@ export function createServices(env: ServerEnv): ServiceContainer {
     courierStatus,
   );
   const courierAdminService = new CourierAdminService(courierStatus, orders, courierProfiles);
-  const courierStatusService = new CourierStatusService(courierStatus, marketplaceEvents);
+  const courierStatusService = new CourierStatusService(
+    courierStatus,
+    marketplaceEvents,
+    orders,
+    orderCascadeService,
+  );
   const courierProfileService = new CourierProfileService(
     courierProfiles,
     userAdmin,
