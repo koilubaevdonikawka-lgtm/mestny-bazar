@@ -74,11 +74,67 @@ describe("applySecurityHeaders", () => {
 
     const csp = headers.get("Content-Security-Policy") ?? "";
     expect(csp).toContain(
-      "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com",
     );
     expect(csp).toContain(
       "connect-src 'self' https://*.supabase.co https://static.cloudflareinsights.com",
     );
+  });
+
+  it("Задача №158 — allows Yandex Maps JS API 2.1's documented domains in script-src and connect-src", () => {
+    process.env.NODE_ENV = "production";
+    const headers = new Headers();
+
+    applySecurityHeaders(headers);
+
+    const csp = headers.get("Content-Security-Policy") ?? "";
+    const yandexDomains = [
+      "https://api-maps.yandex.ru",
+      "https://*.api-maps.yandex.ru",
+      "https://suggest-maps.yandex.ru",
+      "https://*.maps.yandex.net",
+      "https://yandex.ru",
+    ];
+    const [, scriptSrc, styleSrc, , , connectSrc, frameSrc, childSrc] = csp
+      .split("; ")
+      .map((directive) => directive);
+    for (const domain of yandexDomains) {
+      expect(scriptSrc).toContain(domain);
+      expect(connectSrc).toContain(domain);
+    }
+    expect(scriptSrc).toContain("'unsafe-eval'");
+    expect(styleSrc).toContain("blob:");
+    expect(frameSrc).toBe("frame-src 'self' https://api-maps.yandex.ru");
+    expect(childSrc).toBe("child-src 'self' https://api-maps.yandex.ru");
+  });
+
+  it("Задача №158 — allows 2GIS MapGL's empirically-determined domains in script-src/connect-src, and its blob: worker in worker-src", () => {
+    process.env.NODE_ENV = "production";
+    const headers = new Headers();
+
+    applySecurityHeaders(headers);
+
+    const csp = headers.get("Content-Security-Policy") ?? "";
+    expect(csp).toContain("https://mapgl.2gis.com");
+    expect(csp).toContain("https://*.maps.2gis.com");
+    expect(csp).toContain("https://keys.api.2gis.com");
+    expect(csp).toContain("https://styles.api.2gis.com");
+    expect(csp).toContain("https://disk.2gis.com");
+    expect(csp).toContain("https://jam.api.2gis.com");
+    expect(csp).toContain("https://s1.bss.2gis.com");
+    expect(csp).toContain("worker-src 'self' blob:");
+    // Staging/test-only domains found in the same script must not be allowed.
+    expect(csp).not.toContain("web-staging.2gis.ru");
+  });
+
+  it("Задача №158 — allows Nominatim reverse geocoding in connect-src", () => {
+    process.env.NODE_ENV = "production";
+    const headers = new Headers();
+
+    applySecurityHeaders(headers);
+
+    const csp = headers.get("Content-Security-Policy") ?? "";
+    expect(csp).toContain("https://nominatim.openstreetmap.org");
   });
 
   it("does not allow Shopify hosts in connect-src — Supabase is the sole catalog source (ADR-002)", () => {

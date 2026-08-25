@@ -75,8 +75,12 @@ export function YandexMapPicker({ onPick }: MapPickerProps) {
       });
     };
 
+    // Задача №158 — csp=true is required by Yandex's own docs
+    // (yandex.com/dev/jsapi-v2-1/doc/en/v2-1/dg/concepts/load) for the API to
+    // behave under a restrictive CSP at all; without it, the API silently
+    // relies on patterns this project's CSP does not allow.
     loadExternalScript(
-      `https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(apiKey)}&lang=ru_RU`,
+      `https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(apiKey)}&lang=ru_RU&csp=true`,
     )
       .then(
         () =>
