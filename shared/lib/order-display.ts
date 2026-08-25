@@ -102,11 +102,37 @@ export function formatTelHref(phone: string): string {
 }
 
 /**
- * Задача №143 — no coordinates exist anywhere on OrderDTO (addressSnapshot
- * is a plain text string captured at checkout), so this uses Yandex Maps'
- * text-search URL format rather than a coordinate pin. 2GIS intentionally
- * not offered as an alternative here (architect's explicit scope limit).
+ * Задача №146 — a bare street address (e.g. "1 микрорайон") can match a
+ * same-named place in another country; appending the order's city (when
+ * resolvable — see useZoneCityLookup, src/hooks/) and ", Кыргызстан"
+ * disambiguates it for both map providers below. `city` comes from the
+ * caller resolving order.zoneId -> DeliveryZoneDTO.cityId -> CityDTO.name;
+ * this module has no access to that data itself. Missing city never blocks
+ * the link — it just falls back to "<address>, Кыргызстан".
  */
-export function yandexMapsSearchUrl(address: string): string {
-  return `https://yandex.ru/maps/?text=${encodeURIComponent(address)}`;
+function buildDisambiguatedAddressQuery(address: string, city?: string | null): string {
+  return [address, city, "Кыргызстан"]
+    .filter((part): part is string => !!part && part.trim().length > 0)
+    .join(", ");
+}
+
+/**
+ * Задача №143/№146 — no coordinates exist anywhere on OrderDTO
+ * (addressSnapshot is a plain text string captured at checkout), so this
+ * uses Yandex Maps' text-search URL format rather than a coordinate pin.
+ */
+export function yandexMapsSearchUrl(address: string, city?: string | null): string {
+  return `https://yandex.ru/maps/?text=${encodeURIComponent(buildDisambiguatedAddressQuery(address, city))}`;
+}
+
+/**
+ * Задача №146 — 2GIS's precise documented deep-link format wasn't verified
+ * against their own API docs (out of scope here); this uses 2GIS's generic
+ * public text-search URL on their Kyrgyzstan domain
+ * (https://2gis.kg/search/<query>), the same fallback format the architect's
+ * own task text names. Revisit if 2GIS publishes/requires a more specific
+ * format.
+ */
+export function twoGisSearchUrl(address: string, city?: string | null): string {
+  return `https://2gis.kg/search/${encodeURIComponent(buildDisambiguatedAddressQuery(address, city))}`;
 }

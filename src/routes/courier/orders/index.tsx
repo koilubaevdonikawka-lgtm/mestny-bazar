@@ -5,19 +5,20 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { RouteMenuButton } from "@/components/courier/RouteMenuButton";
 import { listCourierOrders, setCourierAvailability } from "@/api/courier";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
+import { useZoneCityLookup } from "@/hooks/useZoneCityLookup";
 import {
   formatMoney,
   formatOrderDate,
   formatOrderStatus,
   formatPaymentStatus,
   formatTelHref,
-  yandexMapsSearchUrl,
 } from "@shared/lib/order-display";
 import { OrderStatus } from "@shared/contracts/order";
-import { History, Loader2, LogIn, Navigation, Package, Phone, ShieldAlert } from "lucide-react";
+import { History, Loader2, LogIn, Package, Phone, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/courier/orders/")({
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/courier/orders/")({
 function CourierOrdersPage() {
   const { isAuthenticated } = useSupabaseSession();
   const queryClient = useQueryClient();
+  const getCityForZone = useZoneCityLookup();
   // No dedicated "get my status" endpoint exists yet — assumes the DB default
   // (available) until the courier explicitly toggles it in this session.
   const [isAvailable, setIsAvailable] = useState(true);
@@ -211,9 +213,9 @@ function CourierOrdersPage() {
                     {formatMoney(order.total, order.currency)}
                   </p>
                 </Link>
-                {/* Задача №143 — plain sibling <a> tags, not nested inside the
+                {/* Задача №143 — plain sibling elements, not nested inside the
                     Link above (an anchor cannot contain another anchor). */}
-                <div className="mt-4 pt-4 border-t border-border/60 flex flex-wrap gap-4">
+                <div className="mt-4 pt-4 border-t border-border/60 flex flex-wrap items-center gap-4">
                   <a
                     href={formatTelHref(order.customerPhone)}
                     className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
@@ -221,15 +223,10 @@ function CourierOrdersPage() {
                     <Phone className="h-4 w-4" />
                     Позвонить
                   </a>
-                  <a
-                    href={yandexMapsSearchUrl(order.addressSnapshot)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-                  >
-                    <Navigation className="h-4 w-4" />
-                    Маршрут
-                  </a>
+                  <RouteMenuButton
+                    address={order.addressSnapshot}
+                    city={getCityForZone(order.zoneId)}
+                  />
                 </div>
               </li>
             ))}

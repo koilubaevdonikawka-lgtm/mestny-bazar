@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { RouteMenuButton } from "@/components/courier/RouteMenuButton";
 import {
   acceptCourierOrder,
   completeCourierDelivery,
@@ -14,16 +15,16 @@ import {
 } from "@/api/courier";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
+import { useZoneCityLookup } from "@/hooks/useZoneCityLookup";
 import {
   formatMoney,
   formatOrderDate,
   formatOrderStatus,
   formatPaymentStatus,
   formatTelHref,
-  yandexMapsSearchUrl,
 } from "@shared/lib/order-display";
 import { OrderStatus } from "@shared/contracts/order";
-import { ArrowLeft, Loader2, LogIn, Navigation, Phone, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Loader2, LogIn, Phone, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/courier/orders/$id")({
@@ -34,6 +35,7 @@ function CourierOrderDetailPage() {
   const { id } = Route.useParams();
   const queryClient = useQueryClient();
   const { isAuthenticated } = useSupabaseSession();
+  const getCityForZone = useZoneCityLookup();
   const [accepted, setAccepted] = useState(false);
   const [arrived, setArrived] = useState(false);
 
@@ -248,15 +250,11 @@ function CourierOrderDetailPage() {
             <h2 className="text-sm font-medium text-muted-foreground">Адрес доставки</h2>
             <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
               <p>{order.addressSnapshot}</p>
-              <a
-                href={yandexMapsSearchUrl(order.addressSnapshot)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline flex-shrink-0"
-              >
-                <Navigation className="h-4 w-4" />
-                Построить маршрут
-              </a>
+              <RouteMenuButton
+                address={order.addressSnapshot}
+                city={getCityForZone(order.zoneId)}
+                label="Построить маршрут"
+              />
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

@@ -5,6 +5,8 @@ import {
   formatOrderStatus,
   formatPaymentStatus,
   getTimelineStepState,
+  twoGisSearchUrl,
+  yandexMapsSearchUrl,
 } from "./order-display";
 import { OrderStatus } from "@shared/contracts/order";
 
@@ -70,5 +72,39 @@ describe("formatOrderDate", () => {
     const result = formatOrderDate("2026-03-15T14:30:00.000Z");
     expect(result.length).toBeGreaterThan(0);
     expect(result).not.toBe("Invalid Date");
+  });
+});
+
+describe("yandexMapsSearchUrl", () => {
+  it("Задача №146 — appends the resolved city and ', Кыргызстан' to the address", () => {
+    const url = yandexMapsSearchUrl("1 микрорайон", "Бишкек");
+    expect(url).toBe(
+      "https://yandex.ru/maps/?text=" + encodeURIComponent("1 микрорайон, Бишкек, Кыргызстан"),
+    );
+  });
+
+  it("falls back to just the address + ', Кыргызстан' when the city can't be resolved", () => {
+    const url = yandexMapsSearchUrl("1 микрорайон", null);
+    expect(url).toBe(
+      "https://yandex.ru/maps/?text=" + encodeURIComponent("1 микрорайон, Кыргызстан"),
+    );
+  });
+
+  it("treats an omitted city the same as null", () => {
+    expect(yandexMapsSearchUrl("1 микрорайон")).toBe(yandexMapsSearchUrl("1 микрорайон", null));
+  });
+});
+
+describe("twoGisSearchUrl", () => {
+  it("Задача №146 — uses the 2GIS Kyrgyzstan text-search URL with the resolved city + country", () => {
+    const url = twoGisSearchUrl("1 микрорайон", "Бишкек");
+    expect(url).toBe(
+      "https://2gis.kg/search/" + encodeURIComponent("1 микрорайон, Бишкек, Кыргызстан"),
+    );
+  });
+
+  it("falls back to just the address + ', Кыргызстан' when the city can't be resolved", () => {
+    const url = twoGisSearchUrl("1 микрорайон", null);
+    expect(url).toBe("https://2gis.kg/search/" + encodeURIComponent("1 микрорайон, Кыргызстан"));
   });
 });
