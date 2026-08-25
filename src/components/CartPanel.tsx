@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   Loader2,
   LocateFixed,
+  MapPin,
   Truck,
   CreditCard,
 } from "lucide-react";
@@ -22,6 +23,7 @@ import { listDeliveryZones } from "@/api/delivery-zone";
 import { getOrderStatus } from "@/api/orders";
 import { CartQuantityControl } from "@/components/CartQuantityControl";
 import { OrderTimeline } from "@/components/OrderTimeline";
+import { LocationPickerDialog } from "@/components/checkout/LocationPickerDialog";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
 import { useCreateOrder } from "@/hooks/useCreateOrder";
@@ -107,6 +109,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
     setCustomerPhone,
   } = useCheckoutStore();
   const [isLocating, setIsLocating] = useState(false);
+  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
   const totalItems = items.reduce((s, i) => s + i.quantity, 0);
   const totalPrice = items.reduce((s, i) => s + parseFloat(i.price.amount) * i.quantity, 0);
   const itemTranslations = useTranslatedTexts(
@@ -447,21 +450,33 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                 className="h-11 rounded-xl px-4"
                 maxLength={200}
               />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="rounded-xl"
-                disabled={isLocating}
-                onClick={() => void handleUseMyLocation()}
-              >
-                {isLocating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <LocateFixed className="h-4 w-4" />
-                )}
-                {t("cart.useMyLocationButton")}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                  disabled={isLocating}
+                  onClick={() => void handleUseMyLocation()}
+                >
+                  {isLocating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <LocateFixed className="h-4 w-4" />
+                  )}
+                  {t("cart.useMyLocationButton")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                  onClick={() => setIsMapPickerOpen(true)}
+                >
+                  <MapPin className="h-4 w-4" />
+                  {t("cart.useMapButton")}
+                </Button>
+              </div>
               <Label htmlFor="cart-phone" className="text-sm font-medium">
                 {t("home.phoneLabel")}
               </Label>
@@ -592,6 +607,18 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
           </div>
         </>
       )}
+      <LocationPickerDialog
+        open={isMapPickerOpen}
+        onOpenChange={setIsMapPickerOpen}
+        onConfirm={(location) => {
+          setAddressFromGeolocation(
+            location.address ?? address,
+            location.latitude,
+            location.longitude,
+          );
+          toast.success(t("cart.mapPointConfirmedToast"));
+        }}
+      />
     </div>
   );
 }

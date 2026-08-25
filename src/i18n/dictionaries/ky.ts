@@ -165,6 +165,13 @@ export const ky = {
     locationUnavailableError:
       "Жайгашкан жерди аныктоо мүмкүн болбоду — дарегин кол менен киргизиңиз",
     locationUnsupportedError: "Бул түзмөктө геолокация жеткиликсиз — дарегин кол менен киргизиңиз",
+    useMapButton: "Картадан көрсөтүү",
+    mapDialogTitle: "Картадан чекитти тандаңыз",
+    mapDialogDescription: "Так жеткирүү жайын көрсөтүү үчүн картаны басыңыз же маркерди сүйрөңүз.",
+    mapUnavailable: "Карта убактылуу жеткиликсиз — дарегин кол менен киргизиңиз",
+    mapPointSelectedNoAddress: "Чекит тандалды",
+    mapConfirmButton: "Чекитти ырастоо",
+    mapPointConfirmedToast: "Картадагы чекит сакталды",
   },
   checkout: {
     title: "Буйрутманы тариздөө",

@@ -166,6 +166,14 @@ export const ru = {
     locationPermissionDeniedError: "Доступ к геолокации не разрешён — введите адрес вручную",
     locationUnavailableError: "Не удалось определить местоположение — введите адрес вручную",
     locationUnsupportedError: "Геолокация недоступна на этом устройстве — введите адрес вручную",
+    useMapButton: "Указать на карте",
+    mapDialogTitle: "Выберите точку на карте",
+    mapDialogDescription:
+      "Кликните по карте или перетащите маркер, чтобы указать точное место доставки.",
+    mapUnavailable: "Карта временно недоступна — введите адрес вручную",
+    mapPointSelectedNoAddress: "Точка выбрана",
+    mapConfirmButton: "Подтвердить точку",
+    mapPointConfirmedToast: "Точка на карте сохранена",
   },
   checkout: {
     title: "Оформление заказа",

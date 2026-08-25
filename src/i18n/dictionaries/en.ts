@@ -166,6 +166,13 @@ export const en = {
       "Couldn't determine your location — please enter the address manually",
     locationUnsupportedError:
       "Geolocation isn't available on this device — please enter the address manually",
+    useMapButton: "Pick on map",
+    mapDialogTitle: "Choose a point on the map",
+    mapDialogDescription: "Click the map or drag the marker to mark the exact delivery location.",
+    mapUnavailable: "The map is temporarily unavailable — please enter the address manually",
+    mapPointSelectedNoAddress: "Point selected",
+    mapConfirmButton: "Confirm point",
+    mapPointConfirmedToast: "Map point saved",
   },
   checkout: {
     title: "Checkout",
