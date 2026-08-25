@@ -1,4 +1,4 @@
-import type { OrderDTO } from "@shared/contracts/order";
+import type { OrderDTO, OrderListParams, OrderListResult } from "@shared/contracts/order";
 import type { CourierStatusDTO } from "@shared/contracts/courier-status";
 import { requireCourierFromRequest } from "@server/auth/resolve-user";
 import { getServices } from "@server/di/container";
@@ -6,6 +6,14 @@ import { getServices } from "@server/di/container";
 export async function executeListCourierOrders(): Promise<OrderDTO[]> {
   const { userId, roles } = await requireCourierFromRequest();
   return getServices().courierOrderService.listDeliveryOrders({ id: userId, roles });
+}
+
+/** Задача №143 — self-scoped order history; always the calling courier's own id, never a caller-supplied one. */
+export async function executeListCourierOrderHistory(
+  params?: OrderListParams,
+): Promise<OrderListResult> {
+  const { userId, roles } = await requireCourierFromRequest();
+  return getServices().courierOrderService.listOrderHistory({ id: userId, roles }, params);
 }
 
 export async function executeGetCourierOrder(orderId: string): Promise<OrderDTO> {

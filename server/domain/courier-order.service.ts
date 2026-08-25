@@ -2,7 +2,7 @@ import type { IOrderRepository } from "@server/ports/order.repository";
 import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
 import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
 import type { ICourierStatusRepository } from "@server/ports/courier-status.repository";
-import type { OrderDTO } from "@shared/contracts/order";
+import type { OrderDTO, OrderListParams, OrderListResult } from "@shared/contracts/order";
 import { OrderStatus } from "@shared/contracts/order";
 import type { UserRole } from "@shared/contracts/user";
 import { ForbiddenError, OrderNotFoundError } from "@server/domain/orders.errors";
@@ -31,6 +31,18 @@ export class CourierOrderService {
   async listDeliveryOrders(actor: CourierActor): Promise<OrderDTO[]> {
     await this.courierStatus.touch(actor.id);
     return this.orders.listByStatusesForCourier(DELIVERY_QUEUE_STATUSES, actor.id);
+  }
+
+  /**
+   * Задача №143 — full order history for this courier (delivered and any
+   * non-delivered terminal orders, e.g. admin-cancelled after assignment),
+   * not just the active delivery queue. Reuses the same listByCourier()
+   * AdminOrderService.listOrdersByCourier() already uses for the admin-side
+   * courier detail view — self-scoped to actor.id only, so a courier can
+   * never see another courier's history through this path.
+   */
+  async listOrderHistory(actor: CourierActor, params?: OrderListParams): Promise<OrderListResult> {
+    return this.orders.listByCourier(actor.id, params);
   }
 
   /**

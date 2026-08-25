@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { OrderDTO } from "@shared/contracts/order";
+import type { OrderDTO, OrderListResult } from "@shared/contracts/order";
 import type { CourierStatusDTO } from "@shared/contracts/courier-status";
 import { uuidParamSchema } from "@shared/validation/common.schema";
+import { orderListParamsSchema } from "@shared/validation/order.schema";
 import { setCourierAvailabilityRequestSchema } from "@shared/validation/courier-status.schema";
 
 export const listCourierOrdersFn = createServerFn({ method: "GET" }).handler(
@@ -10,6 +11,14 @@ export const listCourierOrdersFn = createServerFn({ method: "GET" }).handler(
     return executeListCourierOrders();
   },
 );
+
+/** Задача №143 — this courier's own full order history (all statuses, paginated). */
+export const listCourierOrderHistoryFn = createServerFn({ method: "GET" })
+  .validator((data: unknown) => orderListParamsSchema.parse(data))
+  .handler(async ({ data }): Promise<OrderListResult> => {
+    const { executeListCourierOrderHistory } = await import("@server/functions/courier.executor");
+    return executeListCourierOrderHistory(data);
+  });
 
 export const getCourierOrderFn = createServerFn({ method: "GET" })
   .validator((data: unknown) => uuidParamSchema.parse(data))

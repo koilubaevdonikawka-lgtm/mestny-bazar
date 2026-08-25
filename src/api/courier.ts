@@ -1,9 +1,10 @@
-import type { OrderDTO } from "@shared/contracts/order";
+import type { OrderDTO, OrderListParams, OrderListResult } from "@shared/contracts/order";
 import type { CourierStatusDTO } from "@shared/contracts/courier-status";
 import {
   acceptCourierOrderFn,
   completeCourierDeliveryFn,
   getCourierOrderFn,
+  listCourierOrderHistoryFn,
   listCourierOrdersFn,
   markCourierArrivalFn,
   setCourierAvailabilityFn,
@@ -12,6 +13,10 @@ import {
 
 export async function listCourierOrders(): Promise<OrderDTO[]> {
   return listCourierOrdersFn();
+}
+
+export async function listCourierOrderHistory(params?: OrderListParams): Promise<OrderListResult> {
+  return listCourierOrderHistoryFn({ data: params });
 }
 
 export async function getCourierOrder(id: string): Promise<OrderDTO> {

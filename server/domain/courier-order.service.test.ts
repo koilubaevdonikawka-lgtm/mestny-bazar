@@ -314,4 +314,22 @@ describe("CourierOrderService", () => {
       expect.objectContaining({ type: "order.delivered" }),
     );
   });
+
+  it("Задача №143 — listOrderHistory queries listByCourier scoped to this courier's own id", async () => {
+    const repo = fakeRepo({
+      listByCourier: vi.fn(async () => ({
+        items: [makeOrder({ status: OrderStatus.DELIVERED })],
+        total: 1,
+        page: 1,
+        pageSize: 50,
+        hasMore: false,
+      })),
+    });
+    const service = buildService({ repo });
+
+    const result = await service.listOrderHistory(courier, { page: 2, pageSize: 20 });
+
+    expect(repo.listByCourier).toHaveBeenCalledWith(courier.id, { page: 2, pageSize: 20 });
+    expect(result.items).toHaveLength(1);
+  });
 });

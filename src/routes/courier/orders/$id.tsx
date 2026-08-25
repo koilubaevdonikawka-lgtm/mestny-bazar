@@ -19,9 +19,11 @@ import {
   formatOrderDate,
   formatOrderStatus,
   formatPaymentStatus,
+  formatTelHref,
+  yandexMapsSearchUrl,
 } from "@shared/lib/order-display";
 import { OrderStatus } from "@shared/contracts/order";
-import { ArrowLeft, Loader2, LogIn, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Loader2, LogIn, Navigation, Phone, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/courier/orders/$id")({
@@ -244,7 +246,18 @@ function CourierOrderDetailPage() {
         <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6 space-y-4">
           <div>
             <h2 className="text-sm font-medium text-muted-foreground">Адрес доставки</h2>
-            <p className="mt-1">{order.addressSnapshot}</p>
+            <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+              <p>{order.addressSnapshot}</p>
+              <a
+                href={yandexMapsSearchUrl(order.addressSnapshot)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline flex-shrink-0"
+              >
+                <Navigation className="h-4 w-4" />
+                Построить маршрут
+              </a>
+            </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -253,7 +266,16 @@ function CourierOrderDetailPage() {
             </div>
             <div>
               <h2 className="text-sm font-medium text-muted-foreground">Телефон</h2>
-              <p className="mt-1">{order.customerPhone}</p>
+              <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                <p>{order.customerPhone}</p>
+                <a
+                  href={formatTelHref(order.customerPhone)}
+                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline flex-shrink-0"
+                >
+                  <Phone className="h-4 w-4" />
+                  Позвонить
+                </a>
+              </div>
             </div>
           </div>
         </section>

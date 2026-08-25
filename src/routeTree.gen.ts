@@ -28,6 +28,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as ProfileAddressesRouteImport } from './routes/profile/addresses'
 import { Route as ProductHandleRouteImport } from './routes/product.$handle'
 import { Route as OrdersIdRouteImport } from './routes/orders/$id'
+import { Route as CourierHistoryRouteImport } from './routes/courier/history'
 import { Route as CheckoutQuickBuyRouteImport } from './routes/checkout.quick-buy'
 import { Route as CategorySlugRouteImport } from './routes/category.$slug'
 import { Route as WarehouseOrdersIndexRouteImport } from './routes/warehouse/orders/index'
@@ -155,6 +156,11 @@ const OrdersIdRoute = OrdersIdRouteImport.update({
   id: '/orders/$id',
   path: '/orders/$id',
   getParentRoute: () => rootRouteImport,
+} as any)
+const CourierHistoryRoute = CourierHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => CourierRoute,
 } as any)
 const CheckoutQuickBuyRoute = CheckoutQuickBuyRouteImport.update({
   id: '/checkout/quick-buy',
@@ -334,6 +340,7 @@ export interface FileRoutesByFullPath {
   '/workspace': typeof WorkspaceRoute
   '/category/$slug': typeof CategorySlugRoute
   '/checkout/quick-buy': typeof CheckoutQuickBuyRoute
+  '/courier/history': typeof CourierHistoryRoute
   '/orders/$id': typeof OrdersIdRoute
   '/product/$handle': typeof ProductHandleRoute
   '/profile/addresses': typeof ProfileAddressesRoute
@@ -386,6 +393,7 @@ export interface FileRoutesByTo {
   '/workspace': typeof WorkspaceRoute
   '/category/$slug': typeof CategorySlugRoute
   '/checkout/quick-buy': typeof CheckoutQuickBuyRoute
+  '/courier/history': typeof CourierHistoryRoute
   '/orders/$id': typeof OrdersIdRoute
   '/product/$handle': typeof ProductHandleRoute
   '/profile/addresses': typeof ProfileAddressesRoute
@@ -440,6 +448,7 @@ export interface FileRoutesById {
   '/workspace': typeof WorkspaceRoute
   '/category/$slug': typeof CategorySlugRoute
   '/checkout/quick-buy': typeof CheckoutQuickBuyRoute
+  '/courier/history': typeof CourierHistoryRoute
   '/orders/$id': typeof OrdersIdRoute
   '/product/$handle': typeof ProductHandleRoute
   '/profile/addresses': typeof ProfileAddressesRoute
@@ -495,6 +504,7 @@ export interface FileRouteTypes {
     | '/workspace'
     | '/category/$slug'
     | '/checkout/quick-buy'
+    | '/courier/history'
     | '/orders/$id'
     | '/product/$handle'
     | '/profile/addresses'
@@ -547,6 +557,7 @@ export interface FileRouteTypes {
     | '/workspace'
     | '/category/$slug'
     | '/checkout/quick-buy'
+    | '/courier/history'
     | '/orders/$id'
     | '/product/$handle'
     | '/profile/addresses'
@@ -600,6 +611,7 @@ export interface FileRouteTypes {
     | '/workspace'
     | '/category/$slug'
     | '/checkout/quick-buy'
+    | '/courier/history'
     | '/orders/$id'
     | '/product/$handle'
     | '/profile/addresses'
@@ -796,6 +808,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/orders/$id'
       preLoaderRoute: typeof OrdersIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/courier/history': {
+      id: '/courier/history'
+      path: '/history'
+      fullPath: '/courier/history'
+      preLoaderRoute: typeof CourierHistoryRouteImport
+      parentRoute: typeof CourierRoute
     }
     '/checkout/quick-buy': {
       id: '/checkout/quick-buy'
@@ -1079,11 +1098,13 @@ const AdminRouteChildren: AdminRouteChildren = {
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface CourierRouteChildren {
+  CourierHistoryRoute: typeof CourierHistoryRoute
   CourierOrdersIdRoute: typeof CourierOrdersIdRoute
   CourierOrdersIndexRoute: typeof CourierOrdersIndexRoute
 }
 
 const CourierRouteChildren: CourierRouteChildren = {
+  CourierHistoryRoute: CourierHistoryRoute,
   CourierOrdersIdRoute: CourierOrdersIdRoute,
   CourierOrdersIndexRoute: CourierOrdersIndexRoute,
 }

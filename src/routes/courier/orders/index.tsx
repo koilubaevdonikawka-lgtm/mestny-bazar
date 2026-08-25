@@ -13,9 +13,11 @@ import {
   formatOrderDate,
   formatOrderStatus,
   formatPaymentStatus,
+  formatTelHref,
+  yandexMapsSearchUrl,
 } from "@shared/lib/order-display";
 import { OrderStatus } from "@shared/contracts/order";
-import { Loader2, LogIn, Package, ShieldAlert } from "lucide-react";
+import { History, Loader2, LogIn, Navigation, Package, Phone, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/courier/orders/")({
@@ -152,19 +154,27 @@ function CourierOrdersPage() {
               Готовы к доставке: {readyForDelivery.length} · В пути: {inDelivery.length}
             </p>
           </div>
-          <Button
-            variant="outline"
-            disabled={availabilityMutation.isPending}
-            onClick={() => availabilityMutation.mutate(!isAvailable)}
-          >
-            {availabilityMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : isAvailable ? (
-              "Я доступен — стать недоступным"
-            ) : (
-              "Я недоступен — стать доступным"
-            )}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/courier/history">
+                <History className="h-4 w-4 mr-2" />
+                История и заработок
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              disabled={availabilityMutation.isPending}
+              onClick={() => availabilityMutation.mutate(!isAvailable)}
+            >
+              {availabilityMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isAvailable ? (
+                "Я доступен — стать недоступным"
+              ) : (
+                "Я недоступен — стать доступным"
+              )}
+            </Button>
+          </div>
         </div>
 
         {orders.length === 0 ? (
@@ -177,12 +187,11 @@ function CourierOrdersPage() {
         ) : (
           <ul className="mt-8 space-y-4">
             {orders.map((order) => (
-              <li key={order.id}>
-                <Link
-                  to="/courier/orders/$id"
-                  params={{ id: order.id }}
-                  className="block rounded-2xl border border-border/60 bg-card p-6 transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)] hover:border-primary/40"
-                >
+              <li
+                key={order.id}
+                className="rounded-2xl border border-border/60 bg-card p-6 transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)] hover:border-primary/40"
+              >
+                <Link to="/courier/orders/$id" params={{ id: order.id }} className="block">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="font-serif text-xl">Заказ №{order.orderNumber}</p>
@@ -195,10 +204,33 @@ function CourierOrdersPage() {
                       <Badge variant="outline">{formatPaymentStatus(order.paymentStatus)}</Badge>
                     </div>
                   </div>
+                  <p className="mt-1 text-sm text-muted-foreground truncate">
+                    {order.addressSnapshot}
+                  </p>
                   <p className="mt-4 font-semibold text-lg">
                     {formatMoney(order.total, order.currency)}
                   </p>
                 </Link>
+                {/* Задача №143 — plain sibling <a> tags, not nested inside the
+                    Link above (an anchor cannot contain another anchor). */}
+                <div className="mt-4 pt-4 border-t border-border/60 flex flex-wrap gap-4">
+                  <a
+                    href={formatTelHref(order.customerPhone)}
+                    className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                  >
+                    <Phone className="h-4 w-4" />
+                    Позвонить
+                  </a>
+                  <a
+                    href={yandexMapsSearchUrl(order.addressSnapshot)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                  >
+                    <Navigation className="h-4 w-4" />
+                    Маршрут
+                  </a>
+                </div>
               </li>
             ))}
           </ul>

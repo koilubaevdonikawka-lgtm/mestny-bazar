@@ -89,3 +89,24 @@ export function formatOrderDate(iso: string): string {
 export function formatMoney(amount: number, currency: string): string {
   return `${amount.toFixed(2)} ${currency}`;
 }
+
+/**
+ * Задача №143 — order.customerPhone is stored without a leading "+"
+ * (checkout validation only enforces length/non-empty, e.g. "996700000000"
+ * — see order.schema.ts), which a `tel:` link needs to reliably dial with
+ * the country code on mobile. Stored data itself is left untouched; this
+ * only affects how the href is built.
+ */
+export function formatTelHref(phone: string): string {
+  return `tel:${phone.startsWith("+") ? phone : `+${phone}`}`;
+}
+
+/**
+ * Задача №143 — no coordinates exist anywhere on OrderDTO (addressSnapshot
+ * is a plain text string captured at checkout), so this uses Yandex Maps'
+ * text-search URL format rather than a coordinate pin. 2GIS intentionally
+ * not offered as an alternative here (architect's explicit scope limit).
+ */
+export function yandexMapsSearchUrl(address: string): string {
+  return `https://yandex.ru/maps/?text=${encodeURIComponent(address)}`;
+}
