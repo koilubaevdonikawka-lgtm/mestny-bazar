@@ -55,7 +55,8 @@ export function useCreateOrder() {
   ): Promise<boolean> => {
     const { data: sessionData } = await supabase.auth.getSession();
     const isAuthenticated = !!sessionData.session?.user;
-    const { address, zoneId, paymentMethod, customerPhone } = useCheckoutStore.getState();
+    const { address, deliveryLatitude, deliveryLongitude, zoneId, paymentMethod, customerPhone } =
+      useCheckoutStore.getState();
     const hasManualAddress = address.trim().length >= 5;
 
     if (!isAuthenticated && !hasManualAddress) {
@@ -78,6 +79,15 @@ export function useCreateOrder() {
       const response = await createOrder({
         items,
         ...(hasManualAddress ? { addressSnapshot: address.trim() } : {}),
+        // Задача №151 — only sent when the customer actually used the
+        // geolocation button (setAddressFromGeolocation is the only setter
+        // that populates these); a manually-typed address always has both
+        // null here (setAddress clears them), matching the requirement that
+        // coordinates are captured only via the explicit button, never
+        // inferred from a plain text address.
+        ...(deliveryLatitude != null && deliveryLongitude != null
+          ? { deliveryLatitude, deliveryLongitude }
+          : {}),
         ...(zoneId ? { zoneId } : {}),
         customerName: name,
         customerPhone,

@@ -152,6 +152,8 @@ export class CheckoutService {
         items: lineItems,
         addressId: addressId ?? request.addressId ?? null,
         addressSnapshot,
+        deliveryLatitude: request.deliveryLatitude,
+        deliveryLongitude: request.deliveryLongitude,
         zoneId,
         customerName: request.customerName.trim(),
         customerPhone: this.normalizePhone(request.customerPhone),

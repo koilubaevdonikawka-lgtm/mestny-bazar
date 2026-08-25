@@ -226,6 +226,8 @@ function CourierOrdersPage() {
                   <RouteMenuButton
                     address={order.addressSnapshot}
                     city={getCityForZone(order.zoneId)}
+                    latitude={order.deliveryLatitude}
+                    longitude={order.deliveryLongitude}
                   />
                 </div>
               </li>

@@ -159,6 +159,13 @@ export const en = {
     missingPhoneError: "Enter a phone number in the order notifications section",
     cashRequiresAuthError: "Cash on delivery is only available to signed-in users",
     checkoutFailedError: "Failed to place the order",
+    useMyLocationButton: "Use my location",
+    locationCapturedToast: "Location captured",
+    locationPermissionDeniedError: "Location access denied — please enter the address manually",
+    locationUnavailableError:
+      "Couldn't determine your location — please enter the address manually",
+    locationUnsupportedError:
+      "Geolocation isn't available on this device — please enter the address manually",
   },
   checkout: {
     title: "Checkout",

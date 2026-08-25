@@ -158,6 +158,13 @@ export const ky = {
     missingPhoneError: "Буйрутма билдирүүлөрү бөлүмүндө телефон номерин көрсөтүңүз",
     cashRequiresAuthError: "Накталай төлөм каттоодон өткөн колдонуучулар үчүн гана жеткиликтүү",
     checkoutFailedError: "Буйрутманы тариздөө мүмкүн болбоду",
+    useMyLocationButton: "Менин жайгашкан жеримди аныктоо",
+    locationCapturedToast: "Жайгашкан жер аныкталды",
+    locationPermissionDeniedError:
+      "Геолокацияга уруксат берилген жок — дарегин кол менен киргизиңиз",
+    locationUnavailableError:
+      "Жайгашкан жерди аныктоо мүмкүн болбоду — дарегин кол менен киргизиңиз",
+    locationUnsupportedError: "Бул түзмөктө геолокация жеткиликсиз — дарегин кол менен киргизиңиз",
   },
   checkout: {
     title: "Буйрутманы тариздөө",

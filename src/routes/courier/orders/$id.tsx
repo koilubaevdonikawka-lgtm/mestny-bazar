@@ -253,6 +253,8 @@ function CourierOrderDetailPage() {
               <RouteMenuButton
                 address={order.addressSnapshot}
                 city={getCityForZone(order.zoneId)}
+                latitude={order.deliveryLatitude}
+                longitude={order.deliveryLongitude}
                 label="Построить маршрут"
               />
             </div>

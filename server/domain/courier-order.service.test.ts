@@ -34,6 +34,8 @@ function makeOrder(overrides: Partial<OrderDTO> = {}): OrderDTO {
     deliveryTariffId: null,
     deliveryEtaMinMinutes: null,
     deliveryEtaMaxMinutes: null,
+    deliveryLatitude: null,
+    deliveryLongitude: null,
     ...overrides,
   };
 }

@@ -41,7 +41,7 @@ export function mergeNotes(
 }
 
 const ORDER_COLUMNS =
-  "id, order_number, status, payment_status, subtotal, delivery_fee, discount_amount, coupon_code, total, currency, customer_name, customer_phone, address_snapshot, notes, finik_payment_url, paid_at, created_at, assigned_courier_id, zone_id, delivery_tariff_id, delivery_eta_min_minutes, delivery_eta_max_minutes";
+  "id, order_number, status, payment_status, subtotal, delivery_fee, discount_amount, coupon_code, total, currency, customer_name, customer_phone, address_snapshot, delivery_latitude, delivery_longitude, notes, finik_payment_url, paid_at, created_at, assigned_courier_id, zone_id, delivery_tariff_id, delivery_eta_min_minutes, delivery_eta_max_minutes";
 
 /** Postgres unique_violation — see https://www.postgresql.org/docs/current/errcodes-appendix.html */
 const UNIQUE_VIOLATION = "23505";
@@ -76,6 +76,8 @@ export class SupabaseOrderRepository implements IOrderRepository {
         customer_name: data.customerName,
         customer_phone: data.customerPhone,
         address_snapshot: data.addressSnapshot,
+        delivery_latitude: data.deliveryLatitude ?? null,
+        delivery_longitude: data.deliveryLongitude ?? null,
         zone_id: data.zoneId,
         notes,
         delivery_tariff_id: data.deliveryTariffId ?? null,
@@ -279,6 +281,8 @@ export class SupabaseOrderRepository implements IOrderRepository {
       customer_name: string;
       customer_phone: string;
       address_snapshot: string;
+      delivery_latitude: number | null;
+      delivery_longitude: number | null;
       notes: string | null;
       finik_payment_url: string | null;
       paid_at: string | null;

@@ -29,6 +29,8 @@ function makeOrder(): OrderDTO {
     deliveryTariffId: null,
     deliveryEtaMinMinutes: null,
     deliveryEtaMaxMinutes: null,
+    deliveryLatitude: null,
+    deliveryLongitude: null,
   };
 }
 

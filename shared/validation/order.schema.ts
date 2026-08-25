@@ -35,6 +35,9 @@ export const createOrderRequestSchema = z.object({
   items: z.array(createOrderItemRequestSchema).min(1).max(100),
   addressId: z.string().uuid().optional(),
   addressSnapshot: z.string().trim().max(500).optional(),
+  /** Задача №151 — browser Geolocation API coordinates, only when the customer used the "Определить моё местоположение" button. */
+  deliveryLatitude: z.number().min(-90).max(90).optional(),
+  deliveryLongitude: z.number().min(-180).max(180).optional(),
   zoneId: z.string().uuid().optional(),
   customerName: z.string().trim().min(1).max(200),
   customerPhone: z.string().trim().min(1).max(30),

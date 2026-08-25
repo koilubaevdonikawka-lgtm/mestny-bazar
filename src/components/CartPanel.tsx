@@ -10,6 +10,7 @@ import {
   Trash2,
   AlertTriangle,
   Loader2,
+  LocateFixed,
   Truck,
   CreditCard,
 } from "lucide-react";
@@ -24,6 +25,8 @@ import { OrderTimeline } from "@/components/OrderTimeline";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
 import { useCreateOrder } from "@/hooks/useCreateOrder";
+import { getGeolocationCapability } from "@/lib/capabilities";
+import { reverseGeocode } from "@/lib/reverseGeocode";
 import type { CartLineStatus } from "@shared/contracts/cart";
 import { OrderStatus } from "@shared/contracts/order";
 
@@ -98,10 +101,12 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
     paymentMethod,
     customerPhone,
     setAddress,
+    setAddressFromGeolocation,
     setZoneId,
     setPaymentMethod,
     setCustomerPhone,
   } = useCheckoutStore();
+  const [isLocating, setIsLocating] = useState(false);
   const totalItems = items.reduce((s, i) => s + i.quantity, 0);
   const totalPrice = items.reduce((s, i) => s + parseFloat(i.price.amount) * i.quantity, 0);
   const itemTranslations = useTranslatedTexts(
@@ -216,6 +221,38 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
       useCheckoutStore.getState().reset();
       onOrderPlaced?.();
     });
+  };
+
+  /**
+   * Задача №151 — captures precise GPS coordinates, not just a derived text
+   * guess: reverse geocoding (Nominatim) only fills the address field for
+   * convenience/manual review, the coordinates themselves are what actually
+   * gets saved for courier navigation. Manual typing always stays possible —
+   * every failure path here just falls back to whatever text is already in
+   * the field, never blocks the input.
+   */
+  const handleUseMyLocation = async () => {
+    const geolocation = getGeolocationCapability();
+    if (!geolocation.isSupported()) {
+      toast.error(t("cart.locationUnsupportedError"));
+      return;
+    }
+    setIsLocating(true);
+    try {
+      const position = await geolocation.getCurrentPosition();
+      const resolvedAddress = await reverseGeocode(position.latitude, position.longitude);
+      setAddressFromGeolocation(resolvedAddress ?? address, position.latitude, position.longitude);
+      toast.success(t("cart.locationCapturedToast"));
+    } catch (error) {
+      const code = (error as { code?: number } | null)?.code;
+      toast.error(
+        code === 1 // GeolocationPositionError.PERMISSION_DENIED
+          ? t("cart.locationPermissionDeniedError")
+          : t("cart.locationUnavailableError"),
+      );
+    } finally {
+      setIsLocating(false);
+    }
   };
 
   const checkoutBusy = isLoading || isSubmitting;
@@ -410,6 +447,21 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                 className="h-11 rounded-xl px-4"
                 maxLength={200}
               />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-xl"
+                disabled={isLocating}
+                onClick={() => void handleUseMyLocation()}
+              >
+                {isLocating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <LocateFixed className="h-4 w-4" />
+                )}
+                {t("cart.useMyLocationButton")}
+              </Button>
               <Label htmlFor="cart-phone" className="text-sm font-medium">
                 {t("home.phoneLabel")}
               </Label>

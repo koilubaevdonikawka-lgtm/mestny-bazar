@@ -49,6 +49,15 @@ export interface OrderDTO {
   customerName: string;
   customerPhone: string;
   addressSnapshot: string;
+  /**
+   * Задача №151 — set only when the customer used the "Определить моё
+   * местоположение" button (browser Geolocation API) at checkout; null for
+   * a plain manually-typed address. Lets courier navigation (RouteMenuButton)
+   * route to the exact point instead of a text search, which matters most
+   * for villages/rural addresses poorly indexed by map providers.
+   */
+  deliveryLatitude: number | null;
+  deliveryLongitude: number | null;
   notes: string | null;
   paymentUrl: string | null;
   items: OrderItemDTO[];
@@ -85,6 +94,9 @@ export interface CreateOrderRequest {
   items: CreateOrderItemRequest[];
   addressId?: string;
   addressSnapshot?: string;
+  /** Задача №151 — captured together, only when the customer used the geolocation button; never sent independently of each other. */
+  deliveryLatitude?: number;
+  deliveryLongitude?: number;
   zoneId?: string;
   customerName: string;
   customerPhone: string;

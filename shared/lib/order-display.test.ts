@@ -5,7 +5,9 @@ import {
   formatOrderStatus,
   formatPaymentStatus,
   getTimelineStepState,
+  twoGisRouteUrl,
   twoGisSearchUrl,
+  yandexMapsRouteUrl,
   yandexMapsSearchUrl,
 } from "./order-display";
 import { OrderStatus } from "@shared/contracts/order";
@@ -106,5 +108,21 @@ describe("twoGisSearchUrl", () => {
   it("falls back to just the address + ', Кыргызстан' when the city can't be resolved", () => {
     const url = twoGisSearchUrl("1 микрорайон", null);
     expect(url).toBe("https://2gis.kg/search/" + encodeURIComponent("1 микрорайон, Кыргызстан"));
+  });
+});
+
+describe("yandexMapsRouteUrl", () => {
+  it("Задача №151 — builds a route-to-point URL from lat/lon, not a text search", () => {
+    expect(yandexMapsRouteUrl(42.874621, 74.612456)).toBe(
+      "https://yandex.ru/maps/?rtext=~42.874621,74.612456&rtt=auto",
+    );
+  });
+});
+
+describe("twoGisRouteUrl", () => {
+  it("Задача №151 — builds a route-to-point URL in lon,lat order for 2GIS", () => {
+    expect(twoGisRouteUrl(42.874621, 74.612456)).toBe(
+      "https://2gis.kg/directions/points/|74.612456,42.874621",
+    );
   });
 });

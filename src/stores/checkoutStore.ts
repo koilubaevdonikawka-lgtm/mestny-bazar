@@ -4,6 +4,15 @@ import type { PaymentMethod } from "@shared/contracts/order";
 
 interface CheckoutStore {
   address: string;
+  /**
+   * Задача №151 — set together, only via setAddressFromGeolocation (the
+   * "Определить моё местоположение" button). null for a manually-typed
+   * address; setAddress() (plain typing) always clears both back to null so
+   * a later manual edit can never leave a stale point paired with text that
+   * no longer matches it.
+   */
+  deliveryLatitude: number | null;
+  deliveryLongitude: number | null;
   /** docs/delivery/ — selected in the "Доставка оплата и статус" dialog; sent as CreateOrderRequest.zoneId for guest checkout. */
   zoneId: string | null;
   paymentMethod: PaymentMethod | null;
@@ -17,6 +26,7 @@ interface CheckoutStore {
    */
   idempotencyKey: string | null;
   setAddress: (address: string) => void;
+  setAddressFromGeolocation: (address: string, latitude: number, longitude: number) => void;
   setZoneId: (zoneId: string | null) => void;
   setPaymentMethod: (method: PaymentMethod) => void;
   setCustomerPhone: (phone: string) => void;
@@ -30,6 +40,8 @@ interface CheckoutStore {
 
 const initialState = {
   address: "",
+  deliveryLatitude: null as number | null,
+  deliveryLongitude: null as number | null,
   zoneId: null as string | null,
   paymentMethod: null as PaymentMethod | null,
   customerPhone: "",
@@ -41,7 +53,9 @@ export const useCheckoutStore = create<CheckoutStore>()(
   persist(
     (set, get) => ({
       ...initialState,
-      setAddress: (address) => set({ address }),
+      setAddress: (address) => set({ address, deliveryLatitude: null, deliveryLongitude: null }),
+      setAddressFromGeolocation: (address, latitude, longitude) =>
+        set({ address, deliveryLatitude: latitude, deliveryLongitude: longitude }),
       setZoneId: (zoneId) => set({ zoneId }),
       setPaymentMethod: (paymentMethod) => set({ paymentMethod }),
       setCustomerPhone: (customerPhone) => set({ customerPhone }),
@@ -61,6 +75,8 @@ export const useCheckoutStore = create<CheckoutStore>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         address: state.address,
+        deliveryLatitude: state.deliveryLatitude,
+        deliveryLongitude: state.deliveryLongitude,
         zoneId: state.zoneId,
         paymentMethod: state.paymentMethod,
         customerPhone: state.customerPhone,

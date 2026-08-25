@@ -61,6 +61,8 @@ interface DbOrderRow {
   customer_name: string;
   customer_phone: string;
   address_snapshot: string;
+  delivery_latitude: number | null;
+  delivery_longitude: number | null;
   notes: string | null;
   finik_payment_url: string | null;
   paid_at: string | null;
@@ -103,6 +105,8 @@ export function mapOrderRowToDto(
     customerName: row.customer_name,
     customerPhone: row.customer_phone,
     addressSnapshot: row.address_snapshot,
+    deliveryLatitude: row.delivery_latitude == null ? null : Number(row.delivery_latitude),
+    deliveryLongitude: row.delivery_longitude == null ? null : Number(row.delivery_longitude),
     notes: row.notes,
     paymentUrl: row.finik_payment_url,
     items: items.map((item) => ({

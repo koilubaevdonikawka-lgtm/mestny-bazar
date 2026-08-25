@@ -1013,6 +1013,8 @@ export type Database = {
           delivery_eta_max_minutes: number | null;
           delivery_eta_min_minutes: number | null;
           delivery_fee: number;
+          delivery_latitude: number | null;
+          delivery_longitude: number | null;
           delivery_tariff_id: string | null;
           discount_amount: number;
           finik_payment_id: string | null;
@@ -1041,6 +1043,8 @@ export type Database = {
           delivery_eta_max_minutes?: number | null;
           delivery_eta_min_minutes?: number | null;
           delivery_fee?: number;
+          delivery_latitude?: number | null;
+          delivery_longitude?: number | null;
           delivery_tariff_id?: string | null;
           discount_amount?: number;
           finik_payment_id?: string | null;
@@ -1069,6 +1073,8 @@ export type Database = {
           delivery_eta_max_minutes?: number | null;
           delivery_eta_min_minutes?: number | null;
           delivery_fee?: number;
+          delivery_latitude?: number | null;
+          delivery_longitude?: number | null;
           delivery_tariff_id?: string | null;
           discount_amount?: number;
           finik_payment_id?: string | null;

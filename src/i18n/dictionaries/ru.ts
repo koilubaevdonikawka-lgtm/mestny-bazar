@@ -161,6 +161,11 @@ export const ru = {
     missingPhoneError: "Укажите номер телефона в разделе уведомлений о заказе",
     cashRequiresAuthError: "Оплата наличными доступна только авторизованным пользователям",
     checkoutFailedError: "Не удалось оформить заказ",
+    useMyLocationButton: "Определить моё местоположение",
+    locationCapturedToast: "Местоположение определено",
+    locationPermissionDeniedError: "Доступ к геолокации не разрешён — введите адрес вручную",
+    locationUnavailableError: "Не удалось определить местоположение — введите адрес вручную",
+    locationUnsupportedError: "Геолокация недоступна на этом устройстве — введите адрес вручную",
   },
   checkout: {
     title: "Оформление заказа",

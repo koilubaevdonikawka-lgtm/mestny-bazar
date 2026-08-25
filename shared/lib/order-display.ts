@@ -117,9 +117,10 @@ function buildDisambiguatedAddressQuery(address: string, city?: string | null): 
 }
 
 /**
- * Задача №143/№146 — no coordinates exist anywhere on OrderDTO
- * (addressSnapshot is a plain text string captured at checkout), so this
- * uses Yandex Maps' text-search URL format rather than a coordinate pin.
+ * Задача №143/№146 — text-search fallback, used when the order has no
+ * precise coordinates (Задача №151's deliveryLatitude/deliveryLongitude,
+ * e.g. a manually-typed address) — see yandexMapsRouteUrl below for the
+ * exact-point alternative RouteMenuButton prefers when they're available.
  */
 export function yandexMapsSearchUrl(address: string, city?: string | null): string {
   return `https://yandex.ru/maps/?text=${encodeURIComponent(buildDisambiguatedAddressQuery(address, city))}`;
@@ -131,8 +132,32 @@ export function yandexMapsSearchUrl(address: string, city?: string | null): stri
  * public text-search URL on their Kyrgyzstan domain
  * (https://2gis.kg/search/<query>), the same fallback format the architect's
  * own task text names. Revisit if 2GIS publishes/requires a more specific
- * format.
+ * format. Text-search fallback — see twoGisRouteUrl below for the
+ * exact-point alternative.
  */
 export function twoGisSearchUrl(address: string, city?: string | null): string {
   return `https://2gis.kg/search/${encodeURIComponent(buildDisambiguatedAddressQuery(address, city))}`;
+}
+
+/**
+ * Задача №151 — exact-point routing for an order with real GPS coordinates
+ * (customer used "Определить моё местоположение" at checkout), instead of
+ * the text-search fallback above — matters most for villages/rural
+ * addresses poorly indexed by map providers. `~` in rtext means "route from
+ * the courier's current location"; rtt=auto picks driving directions, the
+ * default that best fits a delivery courier.
+ */
+export function yandexMapsRouteUrl(latitude: number, longitude: number): string {
+  return `https://yandex.ru/maps/?rtext=~${latitude},${longitude}&rtt=auto`;
+}
+
+/**
+ * Задача №151 — same exact-point routing for 2GIS. Like twoGisSearchUrl
+ * above, this URL format wasn't verified against 2GIS's own documentation;
+ * it follows their commonly-referenced "directions" deep-link pattern (an
+ * empty origin before "|" means "from current location", lon,lat order for
+ * the destination point). Revisit if 2GIS publishes a more precise format.
+ */
+export function twoGisRouteUrl(latitude: number, longitude: number): string {
+  return `https://2gis.kg/directions/points/|${longitude},${latitude}`;
 }

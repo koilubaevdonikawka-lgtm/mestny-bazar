@@ -83,6 +83,8 @@ function makeOrderDTO(overrides: Partial<OrderDTO> = {}): OrderDTO {
     deliveryTariffId: null,
     deliveryEtaMinMinutes: null,
     deliveryEtaMaxMinutes: null,
+    deliveryLatitude: null,
+    deliveryLongitude: null,
     ...overrides,
   };
 }
@@ -690,6 +692,33 @@ describe("CheckoutService.checkout — address resolution", () => {
     await expect(
       checkout.checkout("user-1", makeRequest({ addressSnapshot: undefined })),
     ).rejects.toMatchObject({ name: "CheckoutValidationError" });
+  });
+});
+
+describe("CheckoutService.checkout — Задача №151 delivery coordinates passthrough", () => {
+  it("passes deliveryLatitude/deliveryLongitude through to order creation when the customer used the geolocation button", async () => {
+    const orderRepo = fakeOrderRepository();
+    const { checkout } = buildCheckoutService({ orderRepo });
+
+    await checkout.checkout(
+      null,
+      makeRequest({ deliveryLatitude: 42.874621, deliveryLongitude: 74.612456 }),
+    );
+
+    expect(orderRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ deliveryLatitude: 42.874621, deliveryLongitude: 74.612456 }),
+    );
+  });
+
+  it("leaves both undefined for a manually-typed address (no geolocation button used)", async () => {
+    const orderRepo = fakeOrderRepository();
+    const { checkout } = buildCheckoutService({ orderRepo });
+
+    await checkout.checkout(null, makeRequest());
+
+    expect(orderRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ deliveryLatitude: undefined, deliveryLongitude: undefined }),
+    );
   });
 });
 

@@ -35,6 +35,8 @@ describe("mapOrderRowToDto", () => {
       customer_name: "Buyer",
       customer_phone: "996700000000",
       address_snapshot: "addr",
+      delivery_latitude: null,
+      delivery_longitude: null,
       notes: null,
       finik_payment_url: null,
       paid_at: null,
