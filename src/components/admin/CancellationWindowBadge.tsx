@@ -27,6 +27,11 @@ export function CancellationWindowBadge({ order }: { order: OrderDTO }) {
 
   if (!SELF_CANCELLABLE_STATUSES.includes(order.status)) return null;
   if (remainingMs <= 0) return null;
+  // Задача №167 — once payment has actually gone through, the countdown is
+  // no longer meaningful information for staff: it exists to explain why an
+  // order might still vanish from the queue on its own, and a paid order
+  // doing so is not the routine case this badge documents.
+  if (order.paymentStatus === "paid") return null;
 
   return (
     <Badge variant="outline" title="Покупатель может отменить заказ самостоятельно">
