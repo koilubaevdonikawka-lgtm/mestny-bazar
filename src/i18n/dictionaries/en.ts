@@ -547,6 +547,7 @@ export const en = {
       signInRequiredTitle: "Sign in to your account",
       signInRequiredMessage: "Administrator authentication is required.",
       confirmButton: "Confirm order",
+      confirmBlockedByPaymentHint: "Wait for payment confirmation before confirming the order",
       cancelButton: "Cancel order",
       cancelPaidWarningTitle: "This order is already paid",
       cancelPaidWarningDescription:

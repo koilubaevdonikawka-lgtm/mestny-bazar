@@ -162,6 +162,14 @@ function AdminOrderDetailPage() {
   }
 
   const canConfirm = order.status === OrderStatus.CREATED || order.status === OrderStatus.PAID;
+  // Задача №169 — confirming an ONLINE order before its payment lands would
+  // strand that payment forever (order #121, diagnosed in Задача №167):
+  // once CONFIRMED, the order can never transition back to PAID. Server-side
+  // enforced by AdminConfirmOrderRule; this just keeps the button visible
+  // (so it's obvious confirming is the next step) but disabled, with a hint,
+  // instead of a raw error only after the click.
+  const confirmBlockedByPayment =
+    order.paymentMethod === "ONLINE" && order.paymentStatus !== "paid";
   const canCancel =
     order.status !== OrderStatus.CANCELLED && order.status !== OrderStatus.DELIVERED;
   const isBusy = confirmMutation.isPending || cancelMutation.isPending;
@@ -193,14 +201,22 @@ function AdminOrderDetailPage() {
         </div>
 
         {canConfirm && (
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button disabled={isBusy} onClick={() => confirmMutation.mutate()}>
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <Button
+              disabled={isBusy || confirmBlockedByPayment}
+              onClick={() => confirmMutation.mutate()}
+            >
               {confirmMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 t("admin.orders.confirmButton")
               )}
             </Button>
+            {confirmBlockedByPayment && (
+              <p className="text-sm text-muted-foreground">
+                {t("admin.orders.confirmBlockedByPaymentHint")}
+              </p>
+            )}
           </div>
         )}
 

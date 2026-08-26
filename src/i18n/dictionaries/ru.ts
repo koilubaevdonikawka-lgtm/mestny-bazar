@@ -556,6 +556,7 @@ export const ru = {
       signInRequiredTitle: "Войдите в аккаунт",
       signInRequiredMessage: "Нужна авторизация администратора.",
       confirmButton: "Подтвердить заказ",
+      confirmBlockedByPaymentHint: "Дождитесь подтверждения оплаты перед подтверждением заказа",
       cancelButton: "Отменить заказ",
       cancelPaidWarningTitle: "Заказ уже оплачен",
       cancelPaidWarningDescription:

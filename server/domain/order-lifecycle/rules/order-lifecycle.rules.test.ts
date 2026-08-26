@@ -128,6 +128,43 @@ describe("AdminConfirmOrderRule", () => {
     });
     expect(result).toMatchObject({ allowed: false, denialCode: "INVALID_CONFIRM_TRANSITION" });
   });
+
+  describe("Задача №169 — payment gate for ONLINE orders", () => {
+    const admin = { id: "a1", roles: ["admin" as const] };
+
+    it("denies confirming an ONLINE order whose payment hasn't landed yet", () => {
+      const result = rule.evaluate({
+        ...applyCtx,
+        actor: admin,
+        currentStatus: OrderStatus.CREATED,
+        paymentMethod: "ONLINE",
+        paymentStatus: "awaiting",
+      });
+      expect(result).toMatchObject({ allowed: false, denialCode: "PAYMENT_NOT_CONFIRMED" });
+    });
+
+    it("allows confirming an ONLINE order once its payment is confirmed", () => {
+      const result = rule.evaluate({
+        ...applyCtx,
+        actor: admin,
+        currentStatus: OrderStatus.CREATED,
+        paymentMethod: "ONLINE",
+        paymentStatus: "paid",
+      });
+      expect(result.allowed).toBe(true);
+    });
+
+    it("allows confirming a CASH order regardless of paymentStatus", () => {
+      const result = rule.evaluate({
+        ...applyCtx,
+        actor: admin,
+        currentStatus: OrderStatus.CREATED,
+        paymentMethod: "CASH",
+        paymentStatus: "unpaid",
+      });
+      expect(result.allowed).toBe(true);
+    });
+  });
 });
 
 describe("AdminCancelOrderRule", () => {

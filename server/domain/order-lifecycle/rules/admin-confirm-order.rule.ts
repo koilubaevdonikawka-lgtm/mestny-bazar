@@ -38,6 +38,21 @@ export class AdminConfirmOrderRule implements OrderLifecycleRule {
       };
     }
 
+    // Задача №169 (order #121, диагностировано в Задаче №167) — confirming
+    // an ONLINE order before its payment lands strands that payment forever:
+    // once status is CONFIRMED, PaymentConfirmedRule never allows CREATED→
+    // PAID again (currentStatus is no longer CREATED), so a webhook that
+    // arrives after this point can update payments.status but can never
+    // update the order itself. CASH orders are unaffected — they have no
+    // payment webhook to race against.
+    if (context.paymentMethod === "ONLINE" && context.paymentStatus !== "paid") {
+      return {
+        allowed: false,
+        denialCode: "PAYMENT_NOT_CONFIRMED",
+        message: "Дождитесь подтверждения оплаты перед подтверждением заказа",
+      };
+    }
+
     return { allowed: true };
   }
 }

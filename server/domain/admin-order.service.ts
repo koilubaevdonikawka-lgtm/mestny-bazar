@@ -118,6 +118,11 @@ export class AdminOrderService {
       targetStatus,
       actor: { id: actor.id, roles: actor.roles },
       reason,
+      // Задача №169 — AdminConfirmOrderRule's only use of these; harmless
+      // extra context for every other rule (admin_cancel included), same
+      // "hooks for future rules" pattern as orderCreatedAt/assignedCourierId.
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
     });
 
     return this.orders.updateStatus(orderId, order.status, targetStatus);

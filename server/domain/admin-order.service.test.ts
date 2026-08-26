@@ -249,7 +249,11 @@ describe("AdminOrderService", () => {
   });
 
   it("confirmOrder asserts admin_confirm -> CONFIRMED before updating status and publishes order.confirmed", async () => {
-    const repo = fakeRepo({ getById: vi.fn(async () => makeOrder({ status: OrderStatus.PAID })) });
+    const repo = fakeRepo({
+      getById: vi.fn(async () =>
+        makeOrder({ status: OrderStatus.PAID, paymentMethod: "ONLINE", paymentStatus: "paid" }),
+      ),
+    });
     const lifecycle = fakeLifecycle();
     const events = fakeEventBus();
     const service = buildService({ repo, lifecycle, events });
@@ -262,6 +266,10 @@ describe("AdminOrderService", () => {
         targetStatus: OrderStatus.CONFIRMED,
         reason: "admin_confirm",
         actor: { id: admin.id, roles: admin.roles },
+        // Задача №169 — AdminConfirmOrderRule's payment gate needs these
+        // passed through from the fetched order, not left undefined.
+        paymentMethod: "ONLINE",
+        paymentStatus: "paid",
       }),
     );
     expect(repo.updateStatus).toHaveBeenCalledWith(

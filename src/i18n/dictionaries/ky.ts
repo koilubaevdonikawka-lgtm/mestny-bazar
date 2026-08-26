@@ -549,6 +549,7 @@ export const ky = {
       signInRequiredTitle: "Аккаунтка кириңиз",
       signInRequiredMessage: "Администратордун аутентификациясы талап кылынат.",
       confirmButton: "Буйрутманы ырастоо",
+      confirmBlockedByPaymentHint: "Буйрутманы ырастоодон мурун төлөмдүн ырасталышын күтүңүз",
       cancelButton: "Буйрутманы жокко чыгаруу",
       cancelPaidWarningTitle: "Буйрутма мурункудан эле төлөнгөн",
       cancelPaidWarningDescription:
