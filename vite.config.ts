@@ -83,6 +83,16 @@ export default defineConfig(({ mode, command }) => {
         ? [
             nitro({
               defaultPreset: "cloudflare-module",
+              // Pinned, not left to Nitro's own "today" default: that default
+              // is computed from the local machine's calendar date, which can
+              // roll over to the next day locally (e.g. a UTC+6 sandbox just
+              // after local midnight) while Cloudflare's own clock is still on
+              // the previous UTC day — `wrangler deploy` then rejects the
+              // generated compatibility_date as "in the future" (error code
+              // 10021), even though nothing about the app changed. Pinning
+              // avoids this entirely; bump deliberately, not automatically,
+              // when a newer compatibility_date is actually needed.
+              compatibilityDate: "2026-08-26",
               // Payment expiry sweep (tasks/payment/sweep-expired.ts) — the
               // cloudflare-module preset has native Cron Trigger support;
               // Nitro generates the trigger in the built wrangler config at
