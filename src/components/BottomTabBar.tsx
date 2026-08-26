@@ -2,7 +2,6 @@ import { Link, useLocation } from "@tanstack/react-router";
 import { Home, Info, ShoppingCart, User } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 import { useTranslation } from "@/i18n/LanguageProvider";
-import { AppInfoDialog } from "@/components/AppInfoDialog";
 
 /** Height reserved via __root.tsx's content padding must match this bar's
  * actual rendered height (icon + label + vertical padding), so page content
@@ -12,7 +11,7 @@ import { AppInfoDialog } from "@/components/AppInfoDialog";
 export const BOTTOM_TAB_BAR_HEIGHT_REM = 4;
 
 interface RouteTab {
-  to: "/" | "/cart" | "/profile";
+  to: "/" | "/info" | "/cart" | "/profile";
   label: string;
   Icon: typeof Home;
 }
@@ -30,14 +29,18 @@ const TAB_LABEL_CLASS = "text-[11px] font-medium leading-none";
  * exactly like SiteHeader/CartDrawer already do — same reactive count, no
  * new source of truth.
  *
- * Задача №177 — "Каталог" replaced with "Информация" (same dialog SiteHeader's
- * "i" icon used to open there — that icon is now removed, no longer
- * duplicated): the home page's own category/subcategory browser plus
- * /search already cover full catalog access without this tab, and a
- * standalone /catalog route still exists at its own URL for anyone who
- * lands on it directly — nothing became unreachable by dropping it from
- * this bar. "Информация" doesn't navigate (it opens a dialog in place), so
- * unlike the three route tabs it never gets the active/green treatment.
+ * Задача №177 — "Каталог" replaced with "Информация": the home page's own
+ * category/subcategory browser plus /search already cover full catalog
+ * access without this tab, and a standalone /catalog route still exists at
+ * its own URL for anyone who lands on it directly — nothing became
+ * unreachable by dropping it from this bar.
+ *
+ * Задача №178 — "Информация" is a real route (/info, same content SiteHeader's
+ * "i" icon used to open as a dialog, before Задача №177 moved it here as a
+ * dialog too) rather than a dialog trigger, specifically so it's a normal
+ * `renderRouteTab` like the other three and gets the exact same active/green
+ * pill treatment when the user is actually on that page — a dialog has no
+ * location.pathname of its own for this check to ever see as "current".
  */
 export function BottomTabBar() {
   const { t } = useTranslation();
@@ -79,14 +82,7 @@ export function BottomTabBar() {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-stretch justify-around">
         {renderRouteTab({ to: "/", label: "Главная", Icon: Home })}
-        <AppInfoDialog
-          trigger={
-            <button type="button" className={`${TAB_ITEM_CLASS} text-muted-foreground`}>
-              <Info className="h-5 w-5" />
-              <span className={TAB_LABEL_CLASS}>{t("nav.info")}</span>
-            </button>
-          }
-        />
+        {renderRouteTab({ to: "/info", label: t("nav.info"), Icon: Info })}
         {renderRouteTab({ to: "/cart", label: t("nav.cart"), Icon: ShoppingCart })}
         {renderRouteTab({ to: "/profile", label: t("nav.profile"), Icon: User })}
       </div>

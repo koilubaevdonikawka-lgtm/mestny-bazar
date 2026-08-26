@@ -123,10 +123,11 @@ export function SiteHeader({
         </nav>
         {showLanguageSwitcher && <LanguageSwitcher />}
         {showAccountMenu && <AccountMenu hideSignInCta={hideSignInButton} />}
-        {/* Задача №177 — the "i" info/contacts dialog that used to live here
-            (customer pages only, via the now-removed cartIconOnly flag) moved
-            to BottomTabBar's new "Информация" tab (AppInfoDialog) instead of
-            being duplicated in two places. */}
+        {/* Задача №177/178 — the "i" info/contacts dialog that used to live
+            here (customer pages only, via the now-removed cartIconOnly flag)
+            moved to its own full-screen route (/info), linked from
+            BottomTabBar's "Информация" tab, instead of being duplicated in
+            two places. */}
         {showCart && <CartDrawer />}
       </div>
     </header>

@@ -1,15 +1,6 @@
-import { useState } from "react";
-import type { ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { SiteHeader } from "@/components/SiteHeader";
 import { Button } from "@/components/ui/button";
 import { Bell, LogIn, LogOut, Store } from "lucide-react";
 import { useTranslation } from "@/i18n/LanguageProvider";
@@ -22,32 +13,31 @@ import { WELCOME_SEEN_KEY } from "@/components/WelcomeGate";
 import { BRAND } from "@/config/brand";
 import { CONTACT } from "@/config/contact";
 
-interface AppInfoDialogProps {
-  /** The exact clickable trigger element — this component owns only the
-   * dialog itself, not its trigger's visuals, so each caller (previously
-   * SiteHeader's small "i" icon button, now BottomTabBar's "Информация" tab,
-   * Задача №177) supplies its own. */
-  trigger: ReactNode;
-}
-
 /**
- * Задача №177 — extracted out of SiteHeader (was gated there on
- * `cartIconOnly`) so BottomTabBar's new "Информация" tab can open the exact
- * same brand/contacts/sign-in-out dialog, unchanged, instead of duplicating
- * this logic in a second place. Content itself is unchanged from before —
+ * Задача №178 — a real, full-screen, own-URL page for what used to be
+ * SiteHeader's "i" icon dialog (moved once already, into BottomTabBar's
+ * "Информация" tab as a dialog, Задача №177). A dialog has no location the
+ * router (or BottomTabBar's own active-tab check, which reads
+ * location.pathname) can ever see as "current" — only a real route can be
+ * highlighted as the active bottom tab. Content is unchanged from before:
  * same footer.tagline/workingHours/paymentInfo/deliveryPricingInfo/
  * CONTACT.email/privacy link/sign-in-out, same push-notification button.
  */
-export function AppInfoDialog({ trigger }: AppInfoDialogProps) {
+export const Route = createFileRoute("/info")({
+  component: InfoPage,
+  head: () => ({
+    meta: [{ title: `${BRAND.name}` }],
+  }),
+});
+
+function InfoPage() {
   const { t, language } = useTranslation();
   const { isAuthenticated } = useSupabaseSession();
-  const [open, setOpen] = useState(false);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     window.localStorage.removeItem(WELCOME_SEEN_KEY);
     toast.success(t("account.signedOutToast"));
-    setOpen(false);
   };
   // Native-only: getPushNotificationCapability() resolves to the unsupported
   // web stub everywhere else, so isSupported() is false there.
@@ -67,19 +57,20 @@ export function AppInfoDialog({ trigger }: AppInfoDialogProps) {
   const displayBrandName = brandTranslations[BRAND.name] ?? BRAND.name;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <div className="flex items-center gap-2">
-            <span className="h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-              <Store className="h-4 w-4" />
-            </span>
-            <DialogTitle className="font-serif text-xl">{displayBrandName}</DialogTitle>
+    <div className="min-h-screen flex flex-col">
+      <SiteHeader safeAreaTop showAccountMenu={false} showCart={false} />
+      <main className="flex-1 mx-auto max-w-2xl w-full px-4 py-8 sm:px-6">
+        <div className="flex items-center gap-3">
+          <span className="h-12 w-12 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+            <Store className="h-6 w-6" />
+          </span>
+          <div>
+            <h1 className="font-serif text-3xl tracking-tight">{displayBrandName}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{t("footer.tagline")}</p>
           </div>
-          <DialogDescription>{t("footer.tagline")}</DialogDescription>
-        </DialogHeader>
-        <ul className="space-y-2 text-sm text-muted-foreground">
+        </div>
+
+        <ul className="mt-8 space-y-3 rounded-2xl border border-border/60 bg-card p-6 text-sm text-muted-foreground">
           <li>{t("footer.workingHours")}</li>
           <li>{t("footer.paymentInfo")}</li>
           <li>{t("footer.deliveryPricingInfo")}</li>
@@ -89,16 +80,17 @@ export function AppInfoDialog({ trigger }: AppInfoDialogProps) {
             </a>
           </li>
           <li>
-            <Link to="/privacy" className="hover:text-foreground" onClick={() => setOpen(false)}>
+            <Link to="/privacy" className="hover:text-foreground">
               {t("privacy.linkLabel")}
             </Link>
           </li>
         </ul>
+
         {isAuthenticated === true && (
-          <div className="mt-2 border-t border-border/60 pt-4">
+          <div className="mt-6 space-y-2">
             <Button
-              variant="ghost"
-              className="w-full justify-start gap-2 px-0 text-sm text-muted-foreground hover:text-foreground"
+              variant="outline"
+              className="w-full justify-start gap-2 rounded-xl"
               onClick={() => void handleSignOut()}
             >
               <LogOut className="h-4 w-4" />
@@ -106,8 +98,8 @@ export function AppInfoDialog({ trigger }: AppInfoDialogProps) {
             </Button>
             {isNativePlatform() && (
               <Button
-                variant="ghost"
-                className="w-full justify-start gap-2 px-0 text-sm text-muted-foreground hover:text-foreground"
+                variant="outline"
+                className="w-full justify-start gap-2 rounded-xl"
                 onClick={() => void handleEnableNotifications()}
               >
                 <Bell className="h-4 w-4" />
@@ -117,10 +109,10 @@ export function AppInfoDialog({ trigger }: AppInfoDialogProps) {
           </div>
         )}
         {isAuthenticated === false && (
-          <div className="mt-2 border-t border-border/60 pt-4">
+          <div className="mt-6">
             <Button
-              variant="ghost"
-              className="w-full justify-start gap-2 px-0 text-sm text-muted-foreground hover:text-foreground"
+              variant="outline"
+              className="w-full justify-start gap-2 rounded-xl"
               onClick={() => void handleSignIn()}
             >
               <LogIn className="h-4 w-4" />
@@ -128,7 +120,7 @@ export function AppInfoDialog({ trigger }: AppInfoDialogProps) {
             </Button>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </main>
+    </div>
   );
 }
