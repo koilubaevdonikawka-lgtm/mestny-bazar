@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -230,7 +229,6 @@ function PageShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex flex-col">
       <SiteHeader showSearch={false} showCart={false} showLanguageSwitcher />
       <main className="flex-1">{children}</main>
-      <SiteFooter />
     </div>
   );
 }

@@ -5,7 +5,6 @@ import { z } from "zod";
 import { ChevronLeft, ChevronRight, LayoutDashboard, Loader2, Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { fetchCatalogProduct } from "@/lib/catalog";
@@ -201,7 +200,6 @@ function ProductPage() {
             </Button>
           </div>
         </div>
-        <SiteFooter />
       </div>
     );
   }
@@ -497,7 +495,6 @@ function ProductPage() {
         </div>
         <div className="px-4 pb-3 pt-2">{purchaseControls}</div>
       </div>
-      <SiteFooter />
     </div>
   );
 }

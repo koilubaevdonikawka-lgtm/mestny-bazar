@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { AlertTriangle, ArrowLeft, Home, Loader2, Search, ShoppingBasket } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { listProducts } from "@/api/catalog";
@@ -221,8 +220,6 @@ function SearchPage() {
           </ul>
         )}
       </div>
-
-      <SiteFooter />
     </div>
   );
 }

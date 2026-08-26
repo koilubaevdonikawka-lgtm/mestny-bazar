@@ -4,7 +4,6 @@ import { useState } from "react";
 import { z } from "zod";
 import { ArrowLeft, CreditCard, Loader2, Package } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -139,7 +138,6 @@ function QuickBuyPage() {
             </Button>
           </div>
         </div>
-        <SiteFooter />
       </div>
     );
   }
@@ -264,7 +262,6 @@ function QuickBuyPage() {
           </Button>
         </div>
       </main>
-      <SiteFooter />
     </div>
   );
 }

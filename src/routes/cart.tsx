@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
 import { CartPanel } from "@/components/CartPanel";
 import { useCartStore } from "@/stores/cartStore";
 import { useTranslation } from "@/i18n/LanguageProvider";
@@ -42,7 +41,6 @@ function CartPage() {
         </p>
         <CartPanel active />
       </main>
-      <SiteFooter />
     </div>
   );
 }

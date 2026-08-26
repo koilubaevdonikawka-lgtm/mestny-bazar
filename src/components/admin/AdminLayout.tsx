@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -25,7 +24,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     <div className="min-h-screen flex flex-col">
       <SiteHeader showSearch={false} showCart={false} showLanguageSwitcher />
       <main className="flex-1">{children}</main>
-      <SiteFooter />
     </div>
   );
 }

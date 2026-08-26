@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { listCourierOrderHistory } from "@/api/courier";
@@ -202,9 +201,9 @@ function EarningsCard({
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader />
+      {/* Задача №176 — courier has no use for cart or product search. */}
+      <SiteHeader showCart={false} showSearch={false} />
       <main className="flex-1">{children}</main>
-      <SiteFooter />
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { OrderTimeline } from "@/components/OrderTimeline";
@@ -294,7 +293,6 @@ function PageShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex flex-col">
       <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
       <main className="flex-1">{children}</main>
-      <SiteFooter />
     </div>
   );
 }

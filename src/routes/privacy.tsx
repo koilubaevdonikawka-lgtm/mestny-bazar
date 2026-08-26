@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { CONTACT } from "@/config/contact";
@@ -65,7 +64,6 @@ function PrivacyPage() {
           {t("privacy.disclaimer")}
         </p>
       </main>
-      <SiteFooter />
     </div>
   );
 }

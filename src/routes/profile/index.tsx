@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { AddressesPanel } from "@/components/AddressesPanel";
 import { signInWithGoogle } from "@/lib/auth";
@@ -113,7 +112,6 @@ function PageShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex flex-col">
       <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
       <main className="flex-1">{children}</main>
-      <SiteFooter />
     </div>
   );
 }

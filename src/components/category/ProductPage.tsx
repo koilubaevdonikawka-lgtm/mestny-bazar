@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { z } from "zod";
 import { Loader2, ShoppingBasket } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/ProductCard";
 import { fetchCatalogCategory, fetchCatalogProducts } from "@/lib/catalog";
@@ -210,7 +209,6 @@ export function ProductPage({ slug, search }: ProductPageProps) {
             </Button>
           </div>
         </div>
-        <SiteFooter />
       </div>
     );
   }
@@ -298,7 +296,6 @@ export function ProductPage({ slug, search }: ProductPageProps) {
           )}
         </div>
       </main>
-      <SiteFooter />
     </div>
   );
 }

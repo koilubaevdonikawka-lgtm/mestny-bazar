@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { listOrders } from "@/api/orders";
@@ -167,7 +166,6 @@ function PageShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex flex-col">
       <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
       <main className="flex-1">{children}</main>
-      <SiteFooter />
     </div>
   );
 }

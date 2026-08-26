@@ -2,7 +2,6 @@ import { createFileRoute, Link, useBlocker, useNavigate } from "@tanstack/react-
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -232,7 +231,6 @@ function OrderSuccessPage() {
           )}
         </div>
       </main>
-      {!shouldBlockNavigation && <SiteFooter />}
       {/* Задача №172 — best-effort in-app navigation guard: no "leave anyway"
           escape hatch is offered here on purpose, only "stay" — the two
           designated actions above are the only way through. This still
