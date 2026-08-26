@@ -44,4 +44,12 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Задача №166 — @capacitor/geolocation (LocationPickerDialog/TwoGisMapPicker
+         auto-locate on open, CartPanel's "Определить моё местоположение" button).
+         uses-feature left out deliberately: GPS is not a hard requirement to use
+         the app, only to use this one optional feature — declaring it would make
+         Google Play hide the app from devices without GPS hardware entirely. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 </manifest>

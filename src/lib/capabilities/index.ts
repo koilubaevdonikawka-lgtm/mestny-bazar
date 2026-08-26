@@ -21,7 +21,9 @@ export type {
   PushNotificationCapability,
 } from "./types";
 
+import { isNativePlatform } from "./platform";
 import { webGeolocation } from "./web/geolocation";
+import { nativeGeolocation } from "./native/geolocation";
 import { webShare } from "./web/share";
 import { webCamera, webGallery } from "./web/image-picker";
 import { nativeDeepLinks } from "./native/deep-links";
@@ -35,7 +37,9 @@ import type {
   PushNotificationCapability,
 } from "./types";
 
-export const getGeolocationCapability = (): GeolocationCapability => webGeolocation;
+/** Задача №166 — native/geolocation.ts (the real @capacitor/geolocation plugin) only on a device that actually is one; web keeps the existing browser API unchanged. */
+export const getGeolocationCapability = (): GeolocationCapability =>
+  isNativePlatform() ? nativeGeolocation : webGeolocation;
 export const getShareCapability = (): ShareCapability => webShare;
 export const getCameraCapability = (): CameraCapability => webCamera;
 export const getGalleryCapability = (): GalleryCapability => webGallery;
