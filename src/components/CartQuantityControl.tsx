@@ -18,6 +18,8 @@ export function CartQuantityControl({
   size = "sm",
   className = "",
   showLabel = false,
+  addLabel,
+  unit = null,
 }: {
   product: CatalogProductNode;
   /** "sm" = 44px (grid card constraints), "lg" = 52px (product page, more room). Both meet the ≥44px minimum. */
@@ -31,6 +33,16 @@ export function CartQuantityControl({
    * there and it isn't the purchase-decision screen.
    */
   showLabel?: boolean;
+  /** Задача №179 — overrides the showLabel "Add" button's text (defaults to
+   * product.addToCart, "Добавить в корзину", the product page's existing
+   * wording) — the new subcategory list card wants the shorter "Добавить"
+   * without changing the product page's own button. */
+  addLabel?: string;
+  /** Задача №179 — consumer-facing unit label (e.g. "кг", "шт"), shown next
+   * to the quantity count once the stepper is active. Opt-in (default null)
+   * so existing callers (product detail page, CartPanel line items) keep
+   * their exact current display unless they explicitly pass it. */
+  unit?: string | null;
 }) {
   const items = useCartStore((s) => s.items);
   const addItem = useCartStore((s) => s.addItem);
@@ -103,13 +115,13 @@ export function CartQuantityControl({
             ? `${barHeightClass} w-full shrink-0 gap-2 rounded-full text-base font-semibold shadow-md ${className}`
             : `${buttonSizeClass} shrink-0 rounded-full ${className}`
         }
-        aria-label={t("product.addToCart")}
+        aria-label={addLabel ?? t("product.addToCart")}
       >
         {isLoading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : showLabel ? (
           <>
-            <Plus className="h-5 w-5" /> {t("product.addToCart")}
+            <Plus className="h-5 w-5" /> {addLabel ?? t("product.addToCart")}
           </>
         ) : (
           <Plus className="h-4 w-4" />
@@ -138,6 +150,7 @@ export function CartQuantityControl({
         aria-live="polite"
       >
         {quantity}
+        {unit ? ` ${unit}` : ""}
       </span>
       <Button
         type="button"

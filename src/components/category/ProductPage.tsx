@@ -270,7 +270,12 @@ export function ProductPage({ slug, search }: ProductPageProps) {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
+              {/* Задача №179 — vertical list (photo + info side by side per
+                  row), not a grid of tiles — architect's explicit layout
+                  requirement for the subcategory product list specifically.
+                  The subcategory tiles section above is untouched — this
+                  only affects the product cards themselves. */}
+              <div className="mx-auto flex max-w-2xl flex-col gap-3 sm:gap-4">
                 {products.map((p) => (
                   <ProductCard key={p.node.id} product={p} />
                 ))}

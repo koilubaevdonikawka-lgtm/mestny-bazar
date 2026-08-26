@@ -86,6 +86,7 @@ export const ky = {
   },
   product: {
     addToCart: "Себетке кошуу",
+    addToCartShort: "Кошуу",
     addedToCartToast: "Себетке кошулду",
     decreaseQuantity: "Санын азайтуу",
     increaseQuantity: "Санын көбөйтүү",

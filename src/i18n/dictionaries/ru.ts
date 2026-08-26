@@ -95,6 +95,7 @@ export const ru = {
   },
   product: {
     addToCart: "Добавить в корзину",
+    addToCartShort: "Добавить",
     addedToCartToast: "Добавлено в корзину",
     decreaseQuantity: "Уменьшить количество",
     increaseQuantity: "Увеличить количество",
