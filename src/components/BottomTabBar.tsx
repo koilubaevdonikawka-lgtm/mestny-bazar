@@ -48,20 +48,26 @@ export function BottomTabBar() {
   function renderRouteTab({ to, label, Icon }: RouteTab) {
     const isActive = to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
     return (
-      <Link
-        key={to}
-        to={to}
-        className={`${TAB_ITEM_CLASS} ${isActive ? "text-primary" : "text-muted-foreground"}`}
-      >
-        <span className="relative">
-          <Icon className="h-5 w-5" />
-          {to === "/cart" && cartCount > 0 && (
-            <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium leading-none text-destructive-foreground">
-              {cartCount}
-            </span>
-          )}
+      <Link key={to} to={to} className={TAB_ITEM_CLASS}>
+        {/* Уточнение к Задаче №177 — активная вкладка красится сплошным
+            зелёным фоном целиком (не только иконка/текст), по аналогии с
+            активной кнопкой-пилюлей категории на главной странице
+            (rounded-full bg-primary text-primary-foreground). */}
+        <span
+          className={`flex flex-col items-center gap-0.5 rounded-full px-4 py-1.5 transition-colors ${
+            isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+          }`}
+        >
+          <span className="relative">
+            <Icon className="h-5 w-5" />
+            {to === "/cart" && cartCount > 0 && (
+              <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium leading-none text-destructive-foreground">
+                {cartCount}
+              </span>
+            )}
+          </span>
+          <span className={TAB_LABEL_CLASS}>{label}</span>
         </span>
-        <span className={TAB_LABEL_CLASS}>{label}</span>
       </Link>
     );
   }
