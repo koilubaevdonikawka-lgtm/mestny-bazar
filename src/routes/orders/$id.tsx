@@ -291,7 +291,7 @@ function OrderDetailPage() {
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
+      <SiteHeader safeAreaTop showAccountMenu={false} showCart={false} />
       <main className="flex-1">{children}</main>
     </div>
   );

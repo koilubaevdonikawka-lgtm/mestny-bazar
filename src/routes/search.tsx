@@ -119,7 +119,7 @@ function SearchPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader safeAreaTop showAccountMenu={false} showSearch={false} cartIconOnly />
+      <SiteHeader safeAreaTop showAccountMenu={false} showSearch={false} showCart={false} />
 
       <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-4 sm:px-6 sm:py-6">
         {/* [Назад] [Home] */}

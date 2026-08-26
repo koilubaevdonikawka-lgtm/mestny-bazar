@@ -1,29 +1,10 @@
-import { useState } from "react";
-import { Link, useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
-import { toast } from "sonner";
+import { useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
 import { CartDrawer } from "./CartDrawer";
 import { AccountMenu } from "./AccountMenu";
 import { SearchBar } from "./SearchBar";
-import { ArrowLeft, Bell, Info, LogIn, LogOut, Store } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { useTranslation } from "@/i18n/LanguageProvider";
-import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
-import { useSupabaseSession } from "@/hooks/useSupabaseSession";
-import { isNativePlatform, getPushNotificationCapability } from "@/lib/capabilities";
-import { signInWithGoogle } from "@/lib/auth";
-import { supabase } from "@/integrations/supabase/client";
-import { WELCOME_SEEN_KEY } from "@/components/WelcomeGate";
-import { BRAND } from "@/config/brand";
-import { CONTACT } from "@/config/contact";
 
 interface SiteHeaderProps {
   /**
@@ -74,10 +55,6 @@ interface SiteHeaderProps {
    * non-customer caller keeps its icon.
    */
   showAccountMenu?: boolean;
-  /** Cart trigger shows the icon only, no "Ваша корзина" label (Часть 1 of
-   * the comprehensive user panel task — every customer-facing page passes
-   * this now). Opt-in so any non-customer caller keeps the labelled button. */
-  cartIconOnly?: boolean;
 }
 
 export function SiteHeader({
@@ -88,61 +65,17 @@ export function SiteHeader({
   safeAreaTop = false,
   hideSignInButton = false,
   showAccountMenu = true,
-  cartIconOnly = false,
 }: SiteHeaderProps = {}) {
-  const { t, language } = useTranslation();
-  const { isAuthenticated } = useSupabaseSession();
+  const { t } = useTranslation();
   const router = useRouter();
   const navigate = useNavigate();
-  const [infoOpen, setInfoOpen] = useState(false);
 
-  // Every customer-facing page passes showAccountMenu={false} (avatar/dropdown
-  // fully hidden there) — this "Информация" dialog is currently the only
-  // visible place left for a signed-in customer to sign out at all, so it
-  // reuses AccountMenu's exact handleSignOut pattern instead of inventing one.
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    window.localStorage.removeItem(WELCOME_SEEN_KEY);
-    toast.success(t("account.signedOutToast"));
-    setInfoOpen(false);
-  };
-  // Asked in context (this dialog, once signed in) rather than immediately on
-  // launch — standard mobile practice, and this dialog is already the
-  // established native-only settings surface (see the "Информация" comment
-  // below). Native-only: getPushNotificationCapability() resolves to the
-  // unsupported web stub everywhere else, so isSupported() is false there.
-  const handleEnableNotifications = async () => {
-    const status = await getPushNotificationCapability().requestPermission();
-    if (status === "granted") {
-      toast.success(t("push.grantedToast"));
-    } else if (status === "denied") {
-      toast.error(t("push.deniedToast"));
-    }
-  };
-  // Same reasoning as handleSignOut above, mirroring AccountMenu's
-  // handleSignIn exactly — this dialog is the only sign-in entry point left
-  // on customer pages too. Not closed on click: signInWithGoogle() navigates
-  // away to Google and back, so there's nothing left open to close by the
-  // time control would return here.
-  const handleSignIn = async () => {
-    await signInWithGoogle();
-  };
   // Задача №1 — standard "← Назад" replacing the previous Home-icon button:
   // real back navigation when there's an in-app previous screen to return
   // to (true history.back(), not just a link to "/"), falling back to the
   // home page only when there's nothing to go back to (direct/external
   // entry). Same pattern already used on the product page (Этап №7/8).
   const canGoBack = useCanGoBack();
-  // "Информация" modal (Этап: логотип из шапки в модалку) — same content
-  // SiteFooter's contacts column already shows (footer.tagline/
-  // workingHours/paymentInfo/deliveryPricingInfo, CONTACT.email), reused
-  // as-is rather than duplicated with new translation strings. Gated on
-  // cartIconOnly — the existing flag every customer-facing page already
-  // passes (per its own doc comment below) and no non-customer page does,
-  // so this appears everywhere the customer header does without needing to
-  // touch any of those route files individually.
-  const brandTranslations = useTranslatedTexts([BRAND.name], language);
-  const displayBrandName = brandTranslations[BRAND.name] ?? BRAND.name;
 
   return (
     <header
@@ -190,95 +123,11 @@ export function SiteHeader({
         </nav>
         {showLanguageSwitcher && <LanguageSwitcher />}
         {showAccountMenu && <AccountMenu hideSignInCta={hideSignInButton} />}
-        {cartIconOnly && (
-          <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
-            <DialogTrigger asChild>
-              <button
-                type="button"
-                aria-label={t("footer.contactsHeading")}
-                className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-secondary"
-              >
-                <Info className="h-5 w-5" />
-                {/* Only visible sign-in status cue on customer pages now that
-                    showAccountMenu={false} hides the avatar entirely — a
-                    small dot, not a second AccountMenu. Absence of the dot
-                    (guest) is itself the "not signed in" signal, same pattern
-                    as any presence indicator. */}
-                {isAuthenticated === true && (
-                  <span
-                    aria-hidden="true"
-                    className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-background"
-                  />
-                )}
-              </button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <div className="flex items-center gap-2">
-                  <span className="h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                    <Store className="h-4 w-4" />
-                  </span>
-                  <DialogTitle className="font-serif text-xl">{displayBrandName}</DialogTitle>
-                </div>
-                <DialogDescription>{t("footer.tagline")}</DialogDescription>
-              </DialogHeader>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>{t("footer.workingHours")}</li>
-                <li>{t("footer.paymentInfo")}</li>
-                <li>{t("footer.deliveryPricingInfo")}</li>
-                <li>
-                  <a href={`mailto:${CONTACT.email}`} className="hover:text-foreground">
-                    {CONTACT.email}
-                  </a>
-                </li>
-                <li>
-                  <Link
-                    to="/privacy"
-                    className="hover:text-foreground"
-                    onClick={() => setInfoOpen(false)}
-                  >
-                    {t("privacy.linkLabel")}
-                  </Link>
-                </li>
-              </ul>
-              {isAuthenticated === true && (
-                <div className="mt-2 border-t border-border/60 pt-4">
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start gap-2 px-0 text-sm text-muted-foreground hover:text-foreground"
-                    onClick={() => void handleSignOut()}
-                  >
-                    <LogOut className="h-4 w-4" />
-                    {t("account.signOutFromDialog")}
-                  </Button>
-                  {isNativePlatform() && (
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start gap-2 px-0 text-sm text-muted-foreground hover:text-foreground"
-                      onClick={() => void handleEnableNotifications()}
-                    >
-                      <Bell className="h-4 w-4" />
-                      {t("push.enableButton")}
-                    </Button>
-                  )}
-                </div>
-              )}
-              {isAuthenticated === false && (
-                <div className="mt-2 border-t border-border/60 pt-4">
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start gap-2 px-0 text-sm text-muted-foreground hover:text-foreground"
-                    onClick={() => void handleSignIn()}
-                  >
-                    <LogIn className="h-4 w-4" />
-                    {t("common.signIn")}
-                  </Button>
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
-        )}
-        {showCart && <CartDrawer iconOnly={cartIconOnly} />}
+        {/* Задача №177 — the "i" info/contacts dialog that used to live here
+            (customer pages only, via the now-removed cartIconOnly flag) moved
+            to BottomTabBar's new "Информация" tab (AppInfoDialog) instead of
+            being duplicated in two places. */}
+        {showCart && <CartDrawer />}
       </div>
     </header>
   );

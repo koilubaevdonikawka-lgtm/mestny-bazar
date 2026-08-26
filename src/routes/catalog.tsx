@@ -50,7 +50,7 @@ function CatalogPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
+      <SiteHeader safeAreaTop showAccountMenu={false} showCart={false} />
       <main className="flex-1 mx-auto max-w-7xl w-full px-4 py-6 sm:px-6">
         <h1 className="font-serif text-2xl tracking-tight">{t("nav.categories")}</h1>
         <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">

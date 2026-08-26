@@ -30,6 +30,7 @@ export const ru = {
   },
   nav: {
     catalog: "Каталог",
+    info: "Информация",
     categories: "Категории",
     cart: "Корзина",
     orders: "Заказы",

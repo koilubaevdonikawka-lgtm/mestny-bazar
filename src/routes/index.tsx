@@ -118,7 +118,7 @@ function Home() {
       <WelcomeGate />
       {/* Задача №175 — no "← Назад" here: the home page is the root of
           navigation, so there is nothing to go back to. */}
-      <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly showBackButton={false} />
+      <SiteHeader safeAreaTop showAccountMenu={false} showCart={false} showBackButton={false} />
 
       {/* Горизонтальная панель основных категорий, под шапкой. Клик по
           категории с подкатегориями ВЫБИРАЕТ её (кнопка, не ссылка — не

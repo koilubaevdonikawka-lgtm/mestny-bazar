@@ -155,12 +155,14 @@ function OrderSuccessPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Задача №177 — cart icon removed from customer headers everywhere
+          (bottom tab bar's own Cart tab covers it), so this no longer needs
+          to depend on shouldBlockNavigation like showSearch still does. */}
       <SiteHeader
         safeAreaTop
         showAccountMenu={false}
-        cartIconOnly={!shouldBlockNavigation}
+        showCart={false}
         showSearch={!shouldBlockNavigation}
-        showCart={!shouldBlockNavigation}
       />
       <main className="flex-1 flex items-center justify-center px-6 py-12 sm:py-24">
         <div className="max-w-md text-center">

@@ -118,7 +118,7 @@ function QuickBuyPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col">
-        <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
+        <SiteHeader safeAreaTop showAccountMenu={false} showCart={false} />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -129,7 +129,7 @@ function QuickBuyPage() {
   if (isError || !product) {
     return (
       <div className="min-h-screen flex flex-col">
-        <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
+        <SiteHeader safeAreaTop showAccountMenu={false} showCart={false} />
         <div className="flex-1 flex items-center justify-center p-6 text-center">
           <div>
             <h2 className="font-serif text-2xl">{t("product.loadErrorTitle")}</h2>
@@ -148,7 +148,7 @@ function QuickBuyPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
+      <SiteHeader safeAreaTop showAccountMenu={false} showCart={false} />
       <main className="flex-1 mx-auto max-w-lg w-full px-4 py-8 sm:px-6">
         <Button variant="ghost" className="-ml-2 rounded-full" onClick={goBackToProduct}>
           <ArrowLeft className="h-4 w-4 mr-2" /> {t("common.back")}

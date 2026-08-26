@@ -27,6 +27,7 @@ export const ky = {
   },
   nav: {
     catalog: "Каталог",
+    info: "Маалымат",
     categories: "Категориялар",
     cart: "Себет",
     orders: "Буйрутмалар",

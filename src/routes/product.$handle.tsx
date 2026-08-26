@@ -178,7 +178,7 @@ function ProductPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col">
-        <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
+        <SiteHeader safeAreaTop showAccountMenu={false} showCart={false} />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -190,7 +190,7 @@ function ProductPage() {
     const message = error instanceof Error ? error.message : t("product.loadErrorTitle");
     return (
       <div className="min-h-screen flex flex-col">
-        <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
+        <SiteHeader safeAreaTop showAccountMenu={false} showCart={false} />
         <div className="flex-1 flex items-center justify-center p-6 text-center">
           <div>
             <h2 className="font-serif text-2xl">{t("product.loadErrorTitle")}</h2>
@@ -321,7 +321,7 @@ function ProductPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
+      <SiteHeader safeAreaTop showAccountMenu={false} showCart={false} />
       {/* Этап №3 — mobile-first rework: tight top nav row, image with
           overlaid prev/next + swipe (zero extra vertical space), compact
           info block, sticky one-handed add-to-cart bar on mobile only.

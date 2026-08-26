@@ -27,6 +27,7 @@ export const en = {
   },
   nav: {
     catalog: "Catalog",
+    info: "Info",
     categories: "Categories",
     cart: "Cart",
     orders: "Orders",
