@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import { loadExternalScript } from "@/lib/loadExternalScript";
 import { reverseGeocode } from "@/lib/reverseGeocode";
 import { DEFAULT_MAP_CENTER } from "@/lib/mapDefaults";
+import { getGeolocationCapability } from "@/lib/capabilities";
 import { MapUnavailableNotice } from "@/components/checkout/MapUnavailableNotice";
 import type { MapPickerProps } from "@/components/checkout/mapPickerTypes";
 
@@ -21,6 +22,7 @@ interface MapGLMarker {
 
 interface MapGLMap {
   on(event: "click", handler: (e: { lngLat: [number, number] }) => void): void;
+  setCenter(center: [number, number]): void;
   destroy?: () => void;
 }
 
@@ -48,6 +50,19 @@ type LoadStatus = "loading" | "ready" | "error";
  * point), reverse-geocoded via the same Nominatim helper for consistency —
  * 2GIS's own geocoding is a separate product/API key from MapGL, so reusing
  * Nominatim avoids needing a third credential and a second response shape.
+ *
+ * Задача №163 — the only map provider offered now (architect's call, based
+ * on Задача №159's measurements showing 2GIS loads noticeably slower than
+ * Yandex — accepted anyway). On mount, tries the customer's real GPS
+ * position (webGeolocation, the same capability the plain "Определить моё
+ * местоположение" button uses) instead of leaving them at
+ * DEFAULT_MAP_CENTER's generic Bishkek point: success re-centers the map and
+ * drops the marker there immediately, as if they'd already clicked. Denied/
+ * unavailable/timed-out geolocation is silent — falls back to the default
+ * center, map stays fully usable by manual click, never blocks anything.
+ * Either way the marker stays draggable/re-clickable afterward — GPS can be
+ * off by tens of meters, so an auto-placed point is a starting guess, not
+ * final.
  */
 export function TwoGisMapPicker({ onPick }: MapPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -72,6 +87,19 @@ export function TwoGisMapPicker({ onPick }: MapPickerProps) {
       });
     };
 
+    const placeMarker = (mapgl: MapGLNamespace, map: MapGLMap, lon: number, lat: number) => {
+      if (markerRef.current) {
+        markerRef.current.setCoordinates([lon, lat]);
+      } else {
+        const marker = new mapgl.Marker(map, { coordinates: [lon, lat], draggable: true });
+        marker.on("dragend", () => {
+          const [dragLon, dragLat] = marker.getCoordinates();
+          resolvePoint(dragLon, dragLat);
+        });
+        markerRef.current = marker;
+      }
+    };
+
     loadExternalScript("https://mapgl.2gis.com/api/js/v1")
       .then(() => {
         if (cancelled || !containerRef.current) return;
@@ -85,20 +113,27 @@ export function TwoGisMapPicker({ onPick }: MapPickerProps) {
 
         map.on("click", (e) => {
           const [lon, lat] = e.lngLat;
-          if (markerRef.current) {
-            markerRef.current.setCoordinates([lon, lat]);
-          } else {
-            const marker = new mapgl.Marker(map, { coordinates: [lon, lat], draggable: true });
-            marker.on("dragend", () => {
-              const [dragLon, dragLat] = marker.getCoordinates();
-              resolvePoint(dragLon, dragLat);
-            });
-            markerRef.current = marker;
-          }
+          placeMarker(mapgl, map, lon, lat);
           resolvePoint(lon, lat);
         });
 
         setStatus("ready");
+
+        const geolocation = getGeolocationCapability();
+        if (geolocation.isSupported()) {
+          geolocation
+            .getCurrentPosition()
+            .then((position) => {
+              if (cancelled) return;
+              map.setCenter([position.longitude, position.latitude]);
+              placeMarker(mapgl, map, position.longitude, position.latitude);
+              resolvePoint(position.longitude, position.latitude);
+            })
+            .catch(() => {
+              // Denied, unavailable, or timed out — DEFAULT_MAP_CENTER
+              // stays, customer picks manually. Never surfaced as an error.
+            });
+        }
       })
       .catch(() => {
         if (!cancelled) setStatus("error");

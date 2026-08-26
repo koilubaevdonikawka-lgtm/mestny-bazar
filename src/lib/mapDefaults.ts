@@ -12,8 +12,3 @@ export const DEFAULT_MAP_CENTER = {
   latitude: 42.8746,
   longitude: 74.5698,
 } as const;
-
-export type MapProvider = "yandex" | "2gis";
-
-/** Remembers the customer's last-used map provider across sessions (task item 2, optional but easy). */
-export const MAP_PROVIDER_STORAGE_KEY = "platform-map-provider";

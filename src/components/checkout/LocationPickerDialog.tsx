@@ -7,12 +7,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { YandexMapPicker } from "@/components/checkout/YandexMapPicker";
 import { TwoGisMapPicker } from "@/components/checkout/TwoGisMapPicker";
 import type { PickedLocation } from "@/components/checkout/mapPickerTypes";
-import { MAP_PROVIDER_STORAGE_KEY, type MapProvider } from "@/lib/mapDefaults";
 import { useTranslation } from "@/i18n/LanguageProvider";
 
 interface LocationPickerDialogProps {
@@ -21,39 +18,25 @@ interface LocationPickerDialogProps {
   onConfirm: (location: PickedLocation) => void;
 }
 
-function readStoredProvider(): MapProvider {
-  if (typeof window === "undefined") return "yandex";
-  return window.localStorage.getItem(MAP_PROVIDER_STORAGE_KEY) === "2gis" ? "2gis" : "yandex";
-}
-
 /**
- * Задача №153 — replaces/supplements the plain "Определить моё
- * местоположение" GPS button (Задача №151, still available as a faster
- * one-tap option) with a full interactive map: the customer taps/clicks
- * their real point instead of trusting device GPS accuracy or typing text.
- * Either map provider can be switched to the other independently — both are
- * equally easy to disable (each is its own component, gated purely on its
- * own env var) since the architect flagged the 2GIS demo key as expiring
- * ~25.09.2026.
+ * Задача №153 — full interactive map alternative to the plain "Определить
+ * моё местоположение" GPS button (Задача №151, still available as a
+ * faster one-tap option): the customer taps/clicks their real point
+ * instead of trusting device GPS accuracy alone or typing text.
+ *
+ * Задача №163 — architect's final call, informed by Задача №159's
+ * measurements (2GIS loads noticeably slower than Yandex): only 2GIS is
+ * offered here now, no provider choice. YandexMapPicker.tsx is deliberately
+ * NOT deleted — it's just unused here, so re-enabling it later (or
+ * reintroducing a choice) doesn't mean rebuilding it from scratch.
  */
 export function LocationPickerDialog({ open, onOpenChange, onConfirm }: LocationPickerDialogProps) {
   const { t } = useTranslation();
-  const [provider, setProvider] = useState<MapProvider>("yandex");
   const [picked, setPicked] = useState<PickedLocation | null>(null);
 
   useEffect(() => {
-    if (open) {
-      setProvider(readStoredProvider());
-      setPicked(null);
-    }
+    if (open) setPicked(null);
   }, [open]);
-
-  const handleProviderChange = (value: string) => {
-    const next: MapProvider = value === "2gis" ? "2gis" : "yandex";
-    setProvider(next);
-    window.localStorage.setItem(MAP_PROVIDER_STORAGE_KEY, next);
-    setPicked(null);
-  };
 
   const handleConfirm = () => {
     if (!picked) return;
@@ -69,22 +52,7 @@ export function LocationPickerDialog({ open, onOpenChange, onConfirm }: Location
           <DialogDescription>{t("cart.mapDialogDescription")}</DialogDescription>
         </DialogHeader>
 
-        <Tabs value={provider} onValueChange={handleProviderChange}>
-          <TabsList>
-            <TabsTrigger value="yandex">Яндекс.Карты</TabsTrigger>
-            <TabsTrigger value="2gis">2GIS</TabsTrigger>
-          </TabsList>
-          {/* Radix TabsContent unmounts the inactive tab by default — each
-              map SDK script only ever loads once its own tab is actually
-              shown, and switching tabs releases the previous map instance
-              (each picker's effect cleanup calls map.destroy()). */}
-          <TabsContent value="yandex">
-            <YandexMapPicker onPick={setPicked} />
-          </TabsContent>
-          <TabsContent value="2gis">
-            <TwoGisMapPicker onPick={setPicked} />
-          </TabsContent>
-        </Tabs>
+        <TwoGisMapPicker onPick={setPicked} />
 
         <p className="min-h-5 text-sm text-muted-foreground">
           {picked && (picked.address ?? t("cart.mapPointSelectedNoAddress"))}
