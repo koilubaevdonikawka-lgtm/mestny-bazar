@@ -15,7 +15,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { CancellationWindowBadge } from "@/components/admin/CancellationWindowBadge";
 import { cancelAdminOrder, confirmAdminOrder, getAdminOrder } from "@/api/admin";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
@@ -190,7 +189,6 @@ function AdminOrderDetailPage() {
             {orderRequiresRefund(order) && (
               <Badge variant="destructive">{t("admin.orders.requiresRefundBadge")}</Badge>
             )}
-            <CancellationWindowBadge order={order} />
           </div>
         </div>
 

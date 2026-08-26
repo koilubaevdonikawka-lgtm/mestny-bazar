@@ -6,7 +6,6 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CancellationWindowBadge } from "@/components/admin/CancellationWindowBadge";
 import { listAdminOrders } from "@/api/admin";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
@@ -182,7 +181,6 @@ function AdminOrdersPage() {
                       {orderRequiresRefund(order) && (
                         <Badge variant="destructive">{t("admin.orders.requiresRefundBadge")}</Badge>
                       )}
-                      <CancellationWindowBadge order={order} />
                     </div>
                   </div>
                   <p className="mt-4 font-semibold text-lg">
