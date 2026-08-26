@@ -226,12 +226,14 @@ export function ProductPage({ slug, search }: ProductPageProps) {
         <h1 className="font-serif text-2xl tracking-tight sm:text-3xl lg:text-5xl">
           {displayName}
         </h1>
-        {/* Secondary copy, not needed for fast browsing — kept for desktop only. */}
-        {category.description && (
-          <p className="mt-2 hidden text-muted-foreground max-w-2xl lg:block">
-            {category.description}
-          </p>
-        )}
+        {/* Уточнение к Задаче №179 — visible category/subcategory description
+            removed per the architect's screenshot: this page (shared by
+            /category/$slug and the subcategory route, both tiles-then-list
+            and list-only cases) has no separate "tiles-only" variant to keep
+            it on, so it's gone from both. The `<meta name="description">`
+            SEO tag on both routes still reads category.description
+            separately — untouched, that's invisible page metadata, not this
+            on-page copy. */}
 
         {subcategories.length > 0 && (
           <section className="mt-4 lg:mt-8">

@@ -44,7 +44,7 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
     <Link
       to="/product/$handle"
       params={{ handle: p.handle }}
-      className="group grid grid-cols-2 gap-3 overflow-hidden rounded-2xl border-2 border-primary bg-white p-3 transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)] sm:gap-4 sm:p-4"
+      className="group grid grid-cols-2 gap-3 overflow-hidden rounded-2xl bg-white py-3 pr-3 transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)] sm:gap-4 sm:py-4 sm:pr-4"
     >
       <div className="aspect-square w-full overflow-hidden rounded-xl bg-secondary">
         {image ? (
@@ -62,28 +62,36 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
       </div>
 
       {/* Info column — same width as the photo (2-col grid), never wider.
-          Each field is its own bordered/background block, stacked. */}
-      <div className="flex min-w-0 flex-col gap-2">
-        <div className="rounded-xl bg-primary px-3 py-2">
+          Each field is its own background block, stacked. Уточнение к
+          Задаче №179 — no border (card separation now comes purely from the
+          gap between cards in ProductPage.tsx's list, not a drawn line),
+          and each block's own vertical padding/gap roughly halved for a
+          denser list. */}
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="rounded-xl bg-primary px-3 py-1">
           <h3 className="line-clamp-2 text-sm font-medium text-white sm:text-base">
             {displayTitle}
           </h3>
         </div>
 
-        <div className="rounded-xl bg-secondary/60 px-3 py-2">
+        <div className="rounded-xl bg-secondary/60 px-3 py-1">
           <p className="font-serif text-lg font-semibold text-primary sm:text-xl">
             {formatCatalogPrice(parseFloat(price.amount))} {t("product.currencyLabel")}
           </p>
           {p.unit && (
-            <p className="mt-0.5 text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {t("product.unit")}: {p.unit}
             </p>
           )}
         </div>
 
         {(displayDescription || p.manufacturer || p.countryOfOrigin) && (
-          <div className="space-y-1 rounded-xl bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
-            {displayDescription && <p className="line-clamp-2">{displayDescription}</p>}
+          <div className="space-y-0.5 rounded-xl bg-secondary/60 px-3 py-1 text-xs text-muted-foreground">
+            {/* Уточнение к Задаче №179 — single line, no wrap: truncate with
+                ellipsis instead of line-clamp-2, at a slightly smaller size
+                so typical descriptions ("Казахстан второй сорт.") fit
+                without wrapping. */}
+            {displayDescription && <p className="truncate text-[11px]">{displayDescription}</p>}
             {p.manufacturer && (
               <p className="truncate">
                 {t("category.manufacturerLabel")}: {p.manufacturer}
