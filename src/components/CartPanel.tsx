@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
   ShoppingCart,
@@ -22,7 +23,6 @@ import { calculateDeliveryFee } from "@/api/delivery-pricing";
 import { listDeliveryZones } from "@/api/delivery-zone";
 import { getOrderStatus } from "@/api/orders";
 import { CartQuantityControl } from "@/components/CartQuantityControl";
-import { OrderTimeline } from "@/components/OrderTimeline";
 import { LocationPickerDialog } from "@/components/checkout/LocationPickerDialog";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
@@ -31,6 +31,7 @@ import { getGeolocationCapability } from "@/lib/capabilities";
 import { reverseGeocode } from "@/lib/reverseGeocode";
 import type { CartLineStatus } from "@shared/contracts/cart";
 import { OrderStatus } from "@shared/contracts/order";
+import { formatOrderStatus } from "@shared/lib/order-display";
 
 /**
  * "Last placed order" — a cart-local concept, deliberately separate from
@@ -293,7 +294,16 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
               <p className="text-center text-sm text-muted-foreground">
                 {t("orders.orderNumber", { number: orderStatusQuery.data.orderNumber })}
               </p>
-              <OrderTimeline order={orderStatusQuery.data} />
+              {/* Задача №173 — only the order's current, actually-reached
+                  status, shown once, in green. No step chain/ladder (past or
+                  future steps) at all — OrderTimeline's full sequence stays
+                  reserved for the customer's own order detail page
+                  (/orders/$id), not the cart. */}
+              <div className="mt-3 flex justify-center">
+                <Badge variant="default" data-testid="cart-order-status-badge">
+                  {formatOrderStatus(orderStatusQuery.data.status)}
+                </Badge>
+              </div>
               <div className="mt-4 flex flex-col items-center gap-3">
                 <Button
                   variant="outline"
