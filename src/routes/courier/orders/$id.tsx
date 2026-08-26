@@ -166,7 +166,17 @@ function CourierOrderDetailPage() {
   }
 
   const isReadyForDelivery = order.status === OrderStatus.READY_FOR_DELIVERY;
-  const canAccept = isReadyForDelivery && !accepted;
+  // Задача №170 — auto-assignment (Задачи №140/142) means this order is
+  // normally already assigned to this courier by the time they open it, so
+  // "Принять заказ" is hidden in that (now-common) case — only "Начать
+  // доставку" shows. It stays as a fallback for the edge case where
+  // auto-assignment genuinely didn't happen: CourierOrderService.getOrder()
+  // only lets a courier view an unassigned order at all when it's still
+  // READY_FOR_DELIVERY (the "free claim" case, Задача №135), so
+  // assignedCourierId === null here always means exactly that edge case,
+  // never a different courier's order.
+  const isUnassigned = order.assignedCourierId === null;
+  const canAccept = isReadyForDelivery && isUnassigned && !accepted;
   // Deliberately NOT gated on the local `accepted` flag: acceptCourierOrder has no
   // server-persisted effect (READY_FOR_DELIVERY -> READY_FOR_DELIVERY, validation
   // only — see CourierAcceptOrderRule), so `accepted` is plain component state that

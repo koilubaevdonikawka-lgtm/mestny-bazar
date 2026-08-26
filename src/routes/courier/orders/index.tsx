@@ -4,21 +4,11 @@ import { useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { RouteMenuButton } from "@/components/courier/RouteMenuButton";
 import { listCourierOrders, setCourierAvailability } from "@/api/courier";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
-import { useZoneCityLookup } from "@/hooks/useZoneCityLookup";
-import {
-  formatMoney,
-  formatOrderDate,
-  formatOrderStatus,
-  formatPaymentStatus,
-  formatTelHref,
-} from "@shared/lib/order-display";
 import { OrderStatus } from "@shared/contracts/order";
-import { History, Loader2, LogIn, Package, Phone, ShieldAlert } from "lucide-react";
+import { History, Loader2, LogIn, Package, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/courier/orders/")({
@@ -28,7 +18,6 @@ export const Route = createFileRoute("/courier/orders/")({
 function CourierOrdersPage() {
   const { isAuthenticated } = useSupabaseSession();
   const queryClient = useQueryClient();
-  const getCityForZone = useZoneCityLookup();
   // No dedicated "get my status" endpoint exists yet — assumes the DB default
   // (available) until the courier explicitly toggles it in this session.
   const [isAvailable, setIsAvailable] = useState(true);
@@ -188,48 +177,23 @@ function CourierOrdersPage() {
           </div>
         ) : (
           <ul className="mt-8 space-y-4">
+            {/* Задача №170 — auto-assignment (Задачи №140/142) means a courier
+                rarely needs to compare/triage orders from this list anymore;
+                everything (address, phone, price, status) lives one tap away
+                on the detail page, so the card itself is just the order
+                number now. */}
             {orders.map((order) => (
               <li
                 key={order.id}
                 className="rounded-2xl border border-border/60 bg-card p-6 transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)] hover:border-primary/40"
               >
-                <Link to="/courier/orders/$id" params={{ id: order.id }} className="block">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="font-serif text-xl">Заказ №{order.orderNumber}</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {formatOrderDate(order.createdAt)} · {order.customerName}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="secondary">{formatOrderStatus(order.status)}</Badge>
-                      <Badge variant="outline">{formatPaymentStatus(order.paymentStatus)}</Badge>
-                    </div>
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground truncate">
-                    {order.addressSnapshot}
-                  </p>
-                  <p className="mt-4 font-semibold text-lg">
-                    {formatMoney(order.total, order.currency)}
-                  </p>
+                <Link
+                  to="/courier/orders/$id"
+                  params={{ id: order.id }}
+                  className="block font-serif text-xl"
+                >
+                  Заказ №{order.orderNumber}
                 </Link>
-                {/* Задача №143 — plain sibling elements, not nested inside the
-                    Link above (an anchor cannot contain another anchor). */}
-                <div className="mt-4 pt-4 border-t border-border/60 flex flex-wrap items-center gap-4">
-                  <a
-                    href={formatTelHref(order.customerPhone)}
-                    className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
-                  >
-                    <Phone className="h-4 w-4" />
-                    Позвонить
-                  </a>
-                  <RouteMenuButton
-                    address={order.addressSnapshot}
-                    city={getCityForZone(order.zoneId)}
-                    latitude={order.deliveryLatitude}
-                    longitude={order.deliveryLongitude}
-                  />
-                </div>
               </li>
             ))}
           </ul>
