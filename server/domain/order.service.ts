@@ -44,7 +44,39 @@ export class OrderService {
       orderCreatedAt: order.createdAt,
     });
 
-    const cancelled = await this.orders.updateStatus(orderId, order.status, OrderStatus.CANCELLED);
+    return this.finalizeCancellation(orderId, order.status, "customer_cancel");
+  }
+
+  /**
+   * Задача №172 — a customer who returned from the Finik payment page
+   * without completing payment can cancel their own order, regardless of
+   * FEATURE_CUSTOMER_CANCELLATION (Задача №133) — CustomerCancelUnpaidOnlineOrderRule
+   * has no such gate and no cancellation-window check; it only ever applies
+   * to an unpaid ONLINE order still in CREATED.
+   */
+  async cancelUnpaidOnlineOrder(orderId: string, userId: string): Promise<OrderDTO> {
+    const order = await this.orders.getById(orderId, userId);
+    if (!order) throw new OrderNotFoundError();
+
+    this.orderLifecycle.assertCanTransition({
+      orderId,
+      currentStatus: order.status,
+      targetStatus: OrderStatus.CANCELLED,
+      actor: { id: userId },
+      reason: "customer_cancel_unpaid_online",
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+    });
+
+    return this.finalizeCancellation(orderId, order.status, "customer_cancel_unpaid_online");
+  }
+
+  private async finalizeCancellation(
+    orderId: string,
+    fromStatus: OrderStatus,
+    reason: string,
+  ): Promise<OrderDTO> {
+    const cancelled = await this.orders.updateStatus(orderId, fromStatus, OrderStatus.CANCELLED);
 
     // The order is already cancelled (durable, customer-visible) at this
     // point — a stock-release hiccup must not undo that or fail the
@@ -65,7 +97,7 @@ export class OrderService {
     await this.events.publish({
       type: "order.cancelled",
       order: cancelled,
-      reason: "customer_cancel",
+      reason,
     });
 
     return cancelled;

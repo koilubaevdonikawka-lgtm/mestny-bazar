@@ -7,6 +7,7 @@ import { BootstrapCreatedRule } from "@server/domain/order-lifecycle/rules/boots
 import { AdminConfirmOrderRule } from "@server/domain/order-lifecycle/rules/admin-confirm-order.rule";
 import { AdminCancelOrderRule } from "@server/domain/order-lifecycle/rules/admin-cancel-order.rule";
 import { CustomerCancelOrderRule } from "@server/domain/order-lifecycle/rules/customer-cancel-order.rule";
+import { CustomerCancelUnpaidOnlineOrderRule } from "@server/domain/order-lifecycle/rules/customer-cancel-unpaid-online-order.rule";
 import { WarehouseStartAssemblyRule } from "@server/domain/order-lifecycle/rules/warehouse-start-assembly.rule";
 import { WarehouseCompleteAssemblyRule } from "@server/domain/order-lifecycle/rules/warehouse-complete-assembly.rule";
 import { CourierAcceptOrderRule } from "@server/domain/order-lifecycle/rules/courier-accept-order.rule";
@@ -355,6 +356,51 @@ describe("CustomerCancelOrderRule", () => {
       );
       expect(result).toMatchObject({ allowed: false, denialCode: "CANCELLATION_WINDOW_UNKNOWN" });
     });
+  });
+});
+
+describe("CustomerCancelUnpaidOnlineOrderRule (Задача №172)", () => {
+  const rule = new CustomerCancelUnpaidOnlineOrderRule();
+  const applyCtx = {
+    reason: "customer_cancel_unpaid_online",
+    targetStatus: OrderStatus.CANCELLED,
+    currentStatus: OrderStatus.CREATED,
+    paymentMethod: "ONLINE" as const,
+    paymentStatus: "unpaid" as const,
+  };
+
+  it("applies only to customer_cancel_unpaid_online -> CANCELLED", () => {
+    expect(rule.applies(ctx(applyCtx))).toBe(true);
+    expect(
+      rule.applies(ctx({ reason: "customer_cancel", targetStatus: OrderStatus.CANCELLED })),
+    ).toBe(false);
+  });
+
+  it("requires an authenticated actor", () => {
+    const result = rule.evaluate(ctx({ ...applyCtx, actor: { id: null } }));
+    expect(result).toMatchObject({ allowed: false, denialCode: "AUTHENTICATION_REQUIRED" });
+  });
+
+  it("denies a CASH order", () => {
+    const result = rule.evaluate(ctx({ ...applyCtx, actor: { id: "u1" }, paymentMethod: "CASH" }));
+    expect(result).toMatchObject({ allowed: false, denialCode: "NOT_ONLINE_PAYMENT" });
+  });
+
+  it("denies an ONLINE order that's already paid", () => {
+    const result = rule.evaluate(ctx({ ...applyCtx, actor: { id: "u1" }, paymentStatus: "paid" }));
+    expect(result).toMatchObject({ allowed: false, denialCode: "ALREADY_PAID" });
+  });
+
+  it("denies once the order has moved past CREATED", () => {
+    const result = rule.evaluate(
+      ctx({ ...applyCtx, actor: { id: "u1" }, currentStatus: OrderStatus.CONFIRMED }),
+    );
+    expect(result).toMatchObject({ allowed: false, denialCode: "INVALID_CANCEL_TRANSITION" });
+  });
+
+  it("Задача №133 — is not gated by FEATURE_CUSTOMER_CANCELLATION: allows an unpaid ONLINE order in CREATED regardless of that flag", () => {
+    const result = rule.evaluate(ctx({ ...applyCtx, actor: { id: "u1" } }));
+    expect(result.allowed).toBe(true);
   });
 });
 

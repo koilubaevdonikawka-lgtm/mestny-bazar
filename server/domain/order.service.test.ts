@@ -304,6 +304,87 @@ describe("OrderService", () => {
     });
   });
 
+  describe("cancelUnpaidOnlineOrder (Задача №172)", () => {
+    it("throws OrderNotFoundError when the order does not exist for this user", async () => {
+      const { service } = buildService({ repo: fakeRepo({ getById: vi.fn(async () => null) }) });
+
+      await expect(service.cancelUnpaidOnlineOrder("missing", userId)).rejects.toBeInstanceOf(
+        OrderNotFoundError,
+      );
+    });
+
+    it("asserts the customer_cancel_unpaid_online transition with paymentMethod/paymentStatus, no orderCreatedAt window", async () => {
+      const { service, lifecycle } = buildService({
+        repo: fakeRepo({
+          getById: vi.fn(async () =>
+            makeOrder({
+              status: OrderStatus.CREATED,
+              paymentMethod: "ONLINE",
+              paymentStatus: "unpaid",
+            }),
+          ),
+        }),
+      });
+
+      await service.cancelUnpaidOnlineOrder("order-1", userId);
+
+      expect(lifecycle.assertCanTransition).toHaveBeenCalledWith({
+        orderId: "order-1",
+        currentStatus: OrderStatus.CREATED,
+        targetStatus: OrderStatus.CANCELLED,
+        actor: { id: userId },
+        reason: "customer_cancel_unpaid_online",
+        paymentMethod: "ONLINE",
+        paymentStatus: "unpaid",
+      });
+    });
+
+    it("does not update status, release stock, or publish an event when the lifecycle policy denies the transition", async () => {
+      const { service, repo, productRepo, events } = buildService({
+        lifecycle: fakeLifecycle({
+          assertCanTransition: vi.fn(() => {
+            throw new Error("denied");
+          }),
+        }),
+      });
+
+      await expect(service.cancelUnpaidOnlineOrder("order-1", userId)).rejects.toThrow("denied");
+      expect(repo.updateStatus).not.toHaveBeenCalled();
+      expect(productRepo.releaseStock).not.toHaveBeenCalled();
+      expect(events.publish).not.toHaveBeenCalled();
+    });
+
+    it("updates status to CANCELLED, releases stock, and publishes order.cancelled with the customer_cancel_unpaid_online reason", async () => {
+      const cancelled = makeOrder({
+        status: OrderStatus.CANCELLED,
+        items: [makeOrderItem({ productId: "product-1", quantity: 2 })],
+      });
+      const { service, repo, productRepo, events } = buildService({
+        repo: fakeRepo({
+          getById: vi.fn(async () => makeOrder({ status: OrderStatus.CREATED })),
+          updateStatus: vi.fn(async () => cancelled),
+        }),
+      });
+
+      const result = await service.cancelUnpaidOnlineOrder("order-1", userId);
+
+      expect(repo.updateStatus).toHaveBeenCalledWith(
+        "order-1",
+        OrderStatus.CREATED,
+        OrderStatus.CANCELLED,
+      );
+      expect(productRepo.releaseStock).toHaveBeenCalledWith([
+        { productId: "product-1", quantity: 2 },
+      ]);
+      expect(events.publish).toHaveBeenCalledWith({
+        type: "order.cancelled",
+        order: cancelled,
+        reason: "customer_cancel_unpaid_online",
+      });
+      expect(result).toEqual(cancelled);
+    });
+  });
+
   describe("confirmPayment (Промпт №075)", () => {
     it("throws OrderNotFoundError when the order does not exist", async () => {
       const { service } = buildService({ repo: fakeRepo({ getById: vi.fn(async () => null) }) });

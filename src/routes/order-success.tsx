@@ -1,15 +1,26 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useBlocker, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { RetryPaymentButton } from "@/components/RetryPaymentButton";
+import { CancelUnpaidOnlineOrderButton } from "@/components/CancelUnpaidOnlineOrderButton";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { checkPaymentStatus } from "@/api/payment";
-import { getOrderStatus, retryPayment } from "@/api/orders";
+import { cancelUnpaidOnlineOrder, getOrderStatus, retryPayment } from "@/api/orders";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { signInWithGoogle } from "@/lib/auth";
 import { useTranslation } from "@/i18n/LanguageProvider";
@@ -107,29 +118,70 @@ function OrderSuccessPage() {
     onError: () => toast.error(t("orders.retryPaymentError")),
   });
 
+  // Задача №172 — once genuinely cancelled, navigation must be let through
+  // again (the blocker below would otherwise also intercept our own
+  // post-cancel redirect to "/").
+  const [navigationUnlocked, setNavigationUnlocked] = useState(false);
+  const navigate = useNavigate();
+
+  const cancelMutation = useMutation({
+    mutationFn: () => cancelUnpaidOnlineOrder(orderId as string),
+    onSuccess: () => {
+      setNavigationUnlocked(true);
+      toast.success(t("orderSuccess.cancelledToast"));
+      void navigate({ to: "/" });
+    },
+    onError: () => toast.error(t("orderSuccess.cancelError")),
+  });
+
+  // Задача №172 — best-effort: makes leaving this screen by any in-app
+  // navigation (Links, the browser/hardware Back button, which TanStack
+  // Router's history integration surfaces the same way) fail closed unless
+  // the customer used one of the two designated actions. enableBeforeUnload
+  // additionally asks the browser to show its own native "leave site?"
+  // prompt on a tab close/refresh/manual URL change — the browser controls
+  // that prompt's wording and the customer can always dismiss it, so this is
+  // not, and cannot be, an absolute guarantee.
+  const shouldBlockNavigation = showRetry && !navigationUnlocked;
+  const blocker = useBlocker({
+    shouldBlockFn: () => shouldBlockNavigation,
+    enableBeforeUnload: () => shouldBlockNavigation,
+    disabled: !shouldBlockNavigation,
+    withResolver: true,
+  });
+
   const handleSignIn = async () => {
     await signInWithGoogle();
   };
 
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
+      <SiteHeader
+        safeAreaTop
+        showAccountMenu={false}
+        cartIconOnly={!shouldBlockNavigation}
+        showSearch={!shouldBlockNavigation}
+        showCart={!shouldBlockNavigation}
+      />
       <main className="flex-1 flex items-center justify-center px-6 py-12 sm:py-24">
         <div className="max-w-md text-center">
           <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-6">
             {paymentState === "checking" ? (
               <Loader2 className="h-8 w-8 animate-spin" />
-            ) : paymentState === "failed" ? (
+            ) : showRetry ? (
               <XCircle className="h-8 w-8" />
             ) : (
               <CheckCircle2 className="h-8 w-8" />
             )}
           </div>
           <h1 className="font-serif text-3xl md:text-4xl tracking-tight text-foreground">
-            {paymentState === "failed"
-              ? t("orderSuccess.paymentFailedTitle")
-              : t("orderSuccess.thankYouTitle")}
+            {showRetry ? t("orderSuccess.paymentIncompleteTitle") : t("orderSuccess.thankYouTitle")}
           </h1>
+          {showRetry && (
+            <Badge variant="destructive" className="mt-3" data-testid="unpaid-status-badge">
+              {t("orderSuccess.unpaidStatusBadge")}
+            </Badge>
+          )}
           <p className="mt-4 text-lg text-muted-foreground">
             {orderNumber
               ? t("orderSuccess.orderAcceptedWithNumber", { number: orderNumber })
@@ -138,18 +190,23 @@ function OrderSuccessPage() {
           <p className="mt-2 text-sm text-muted-foreground">
             {paymentState === "checking"
               ? t("orderSuccess.checkingPayment")
-              : paymentState === "failed"
-                ? t("orderSuccess.paymentFailedDescription")
+              : showRetry
+                ? t("orderSuccess.paymentIncompleteDescription")
                 : paymentState === "pending"
                   ? t("orderSuccess.paymentPendingDescription")
                   : t("orderSuccess.deliveryConfirmationDescription")}
           </p>
           {showRetry && order && isAuthenticated === true && (
-            <div className="mt-6">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <RetryPaymentButton
                 order={order}
                 isPending={retryPaymentMutation.isPending}
                 onRetry={() => retryPaymentMutation.mutate()}
+              />
+              <CancelUnpaidOnlineOrderButton
+                order={order}
+                isPending={cancelMutation.isPending}
+                onConfirm={() => cancelMutation.mutate()}
               />
             </div>
           )}
@@ -163,14 +220,39 @@ function OrderSuccessPage() {
               </Button>
             </div>
           )}
-          <div className="mt-8">
-            <Button asChild size="lg" className="h-12 px-8 rounded-full">
-              <Link to="/">{t("orderSuccess.backToShop")}</Link>
-            </Button>
-          </div>
+          {/* Задача №172 — this is a real escape hatch out of the page, so it
+              must not be offered on the interrupted-payment screen alongside
+              the two designated actions. */}
+          {!shouldBlockNavigation && (
+            <div className="mt-8">
+              <Button asChild size="lg" className="h-12 px-8 rounded-full">
+                <Link to="/">{t("orderSuccess.backToShop")}</Link>
+              </Button>
+            </div>
+          )}
         </div>
       </main>
-      <SiteFooter />
+      {!shouldBlockNavigation && <SiteFooter />}
+      {/* Задача №172 — best-effort in-app navigation guard: no "leave anyway"
+          escape hatch is offered here on purpose, only "stay" — the two
+          designated actions above are the only way through. This still
+          cannot stop a hard browser/tab close, a manual address-bar
+          navigation, or the user dismissing the native beforeunload prompt. */}
+      <AlertDialog open={blocker.status === "blocked"} onOpenChange={() => {}}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("orderSuccess.leaveBlockedTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("orderSuccess.leaveBlockedDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => blocker.reset?.()}>
+              {t("orderSuccess.leaveBlockedStay")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

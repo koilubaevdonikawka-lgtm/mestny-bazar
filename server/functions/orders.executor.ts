@@ -42,6 +42,12 @@ export async function executeCancelOrder(orderId: string): Promise<OrderDTO> {
   return getServices().orderService.cancelOrder(orderId, userId);
 }
 
+/** Задача №172 — narrow cancellation path for an unpaid ONLINE order the customer returned to from Finik without paying. */
+export async function executeCancelUnpaidOnlineOrder(orderId: string): Promise<OrderDTO> {
+  const userId = await requireUserIdFromRequest();
+  return getServices().orderService.cancelUnpaidOnlineOrder(orderId, userId);
+}
+
 export async function executeRetryPayment(orderId: string): Promise<RetryPaymentResponse> {
   const userId = await requireUserIdFromRequest();
   const result = await getServices().paymentService.retryPayment(orderId, userId);

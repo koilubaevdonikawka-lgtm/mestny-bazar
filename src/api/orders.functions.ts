@@ -40,6 +40,14 @@ export const cancelOrderFn = createServerFn({ method: "POST" })
     return executeCancelOrder(data.id);
   });
 
+/** Задача №172 — cancels an unpaid ONLINE order regardless of FEATURE_CUSTOMER_CANCELLATION. */
+export const cancelUnpaidOnlineOrderFn = createServerFn({ method: "POST" })
+  .validator((data: unknown) => uuidParamSchema.parse(data))
+  .handler(async ({ data }): Promise<OrderDTO> => {
+    const { executeCancelUnpaidOnlineOrder } = await import("@server/functions/orders.executor");
+    return executeCancelUnpaidOnlineOrder(data.id);
+  });
+
 export const retryPaymentFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => uuidParamSchema.parse(data))
   .handler(async ({ data }): Promise<RetryPaymentResponse> => {

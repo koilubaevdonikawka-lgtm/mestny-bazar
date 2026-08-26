@@ -183,6 +183,7 @@ import { TerminalStateGuardRule } from "@server/domain/order-lifecycle/rules/ter
 import { AdminConfirmOrderRule } from "@server/domain/order-lifecycle/rules/admin-confirm-order.rule";
 import { AdminCancelOrderRule } from "@server/domain/order-lifecycle/rules/admin-cancel-order.rule";
 import { CustomerCancelOrderRule } from "@server/domain/order-lifecycle/rules/customer-cancel-order.rule";
+import { CustomerCancelUnpaidOnlineOrderRule } from "@server/domain/order-lifecycle/rules/customer-cancel-unpaid-online-order.rule";
 import { WarehouseStartAssemblyRule } from "@server/domain/order-lifecycle/rules/warehouse-start-assembly.rule";
 import { WarehouseCompleteAssemblyRule } from "@server/domain/order-lifecycle/rules/warehouse-complete-assembly.rule";
 import { CourierAcceptOrderRule } from "@server/domain/order-lifecycle/rules/courier-accept-order.rule";
@@ -434,6 +435,10 @@ export function createServices(env: ServerEnv): ServiceContainer {
     // "true" string is off); flip FEATURE_CUSTOMER_CANCELLATION back to
     // "true" to re-enable self-service cancellation.
     new CustomerCancelOrderRule(env.FEATURE_CUSTOMER_CANCELLATION === "true"),
+    // Задача №172 — always on, independent of the flag above: a narrow
+    // escape hatch for a customer stranded mid-Finik-checkout, never gated
+    // by the general self-cancellation feature.
+    new CustomerCancelUnpaidOnlineOrderRule(),
     new WarehouseStartAssemblyRule(),
     new WarehouseCompleteAssemblyRule(),
     new CourierAcceptOrderRule(),

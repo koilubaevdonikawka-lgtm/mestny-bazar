@@ -2,6 +2,7 @@ import type { CreateOrderRequest, CreateOrderResponse, OrderDTO } from "@shared/
 import type { RetryPaymentResponse } from "@shared/contracts/payment";
 import {
   cancelOrderFn,
+  cancelUnpaidOnlineOrderFn,
   createOrderFn,
   getOrderFn,
   getOrderStatusFn,
@@ -32,6 +33,14 @@ export async function getOrderStatus(id: string): Promise<OrderDTO> {
 /** Cancels the caller's own order, if it hasn't entered assembly yet. */
 export async function cancelOrder(id: string): Promise<OrderDTO> {
   return cancelOrderFn({ data: { id } });
+}
+
+/**
+ * Задача №172 — cancels the caller's own unpaid ONLINE order (returned from
+ * Finik without paying), independent of the general self-cancellation flag.
+ */
+export async function cancelUnpaidOnlineOrder(id: string): Promise<OrderDTO> {
+  return cancelUnpaidOnlineOrderFn({ data: { id } });
 }
 
 /** Retries payment for the caller's own order when a previous ONLINE attempt never succeeded — mints a fresh payment session, never reuses the failed one. */

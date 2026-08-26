@@ -268,7 +268,24 @@ export const ky = {
       "Төлөмдүн ырасталышын күтүүдөбүз — бул бир нече мүнөткө созулушу мүмкүн.",
     deliveryConfirmationDescription: "Жеткирүүнү ырастоо үчүн сиз менен байланышабыз.",
     backToShop: "Дүкөнгө кайтуу",
-    retryPaymentSignInPrompt: "Төлөмдү кайра аракет кылуу үчүн аккаунтка кириңиз",
+    retryPaymentSignInPrompt:
+      "Төлөмдү кайра аракет кылуу же буйрутманы жокко чыгаруу үчүн аккаунтка кириңиз",
+    paymentIncompleteTitle: "Төлөм аяктаган жок",
+    paymentIncompleteDescription:
+      "Сиз төлөмдү аяктабай колдонмого кайттыңыз. Кайра төлөп көрүңүз же буйрутманы жокко чыгарыңыз.",
+    unpaidStatusBadge: "Төлөнгөн эмес",
+    cancelUnpaidOrderButton: "Буйрутманы жокко чыгаруу",
+    cancelUnpaidOrderConfirmTitle: "Буйрутманы жокко чыгарасызбы?",
+    cancelUnpaidOrderConfirmDescription:
+      "№{{number}} буйрутма жокко чыгарылат, төлөм талап кылынбайт. Бул аракетти артка кайтаруу мүмкүн эмес.",
+    cancelUnpaidOrderConfirmDeny: "Жокко чыгарбоо",
+    cancelUnpaidOrderConfirmAction: "Ооба, жокко чыгаруу",
+    cancelledToast: "Буйрутма жокко чыгарылды",
+    cancelError: "Буйрутманы жокко чыгаруу мүмкүн болгон жок",
+    leaveBlockedTitle: "Буйрутма аяктаган жок",
+    leaveBlockedDescription:
+      "Улантуу үчүн бул баракчадагы эки аракеттин бирин тандаңыз: төлөмдү кайталаңыз же буйрутманы жокко чыгарыңыз.",
+    leaveBlockedStay: "Түшүнүктүү, калуу",
   },
   footer: {
     tagline: "Жеткирүү менен азык-түлүк. Онлайн же алганда накталай төлөм.",

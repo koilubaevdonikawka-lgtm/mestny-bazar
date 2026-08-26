@@ -273,7 +273,24 @@ export const ru = {
     paymentPendingDescription: "Ожидаем подтверждение оплаты — это может занять пару минут.",
     deliveryConfirmationDescription: "Мы свяжемся с вами для подтверждения доставки.",
     backToShop: "Вернуться в магазин",
-    retryPaymentSignInPrompt: "Войдите в аккаунт, чтобы повторить оплату",
+    retryPaymentSignInPrompt: "Войдите в аккаунт, чтобы повторить оплату или отменить заказ",
+    // Задача №172 — unified "returned from Finik without paying" screen.
+    paymentIncompleteTitle: "Оплата не завершена",
+    paymentIncompleteDescription:
+      "Вы вернулись в приложение, не завершив оплату. Попробуйте оплатить ещё раз или отмените заказ.",
+    unpaidStatusBadge: "Не оплачен",
+    cancelUnpaidOrderButton: "Отменить заказ",
+    cancelUnpaidOrderConfirmTitle: "Отменить заказ?",
+    cancelUnpaidOrderConfirmDescription:
+      "Заказ №{{number}} будет отменён, оплата не потребуется. Это действие нельзя отменить.",
+    cancelUnpaidOrderConfirmDeny: "Не отменять",
+    cancelUnpaidOrderConfirmAction: "Да, отменить заказ",
+    cancelledToast: "Заказ отменён",
+    cancelError: "Не удалось отменить заказ",
+    leaveBlockedTitle: "Заказ не оформлен до конца",
+    leaveBlockedDescription:
+      "Чтобы продолжить, выберите одно из двух действий на этой странице: повторите оплату или отмените заказ.",
+    leaveBlockedStay: "Понятно, остаться",
   },
   footer: {
     tagline: "Продукты с доставкой. Оплата онлайн или наличными при получении.",

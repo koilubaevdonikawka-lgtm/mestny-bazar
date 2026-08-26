@@ -268,7 +268,23 @@ export const en = {
       "Waiting for payment confirmation — this can take a couple of minutes.",
     deliveryConfirmationDescription: "We'll contact you to confirm delivery.",
     backToShop: "Back to the shop",
-    retryPaymentSignInPrompt: "Sign in to your account to retry payment",
+    retryPaymentSignInPrompt: "Sign in to your account to retry payment or cancel the order",
+    paymentIncompleteTitle: "Payment not completed",
+    paymentIncompleteDescription:
+      "You've returned to the app without completing payment. Try paying again or cancel the order.",
+    unpaidStatusBadge: "Unpaid",
+    cancelUnpaidOrderButton: "Cancel order",
+    cancelUnpaidOrderConfirmTitle: "Cancel this order?",
+    cancelUnpaidOrderConfirmDescription:
+      "Order #{{number}} will be cancelled and no payment will be required. This cannot be undone.",
+    cancelUnpaidOrderConfirmDeny: "Keep order",
+    cancelUnpaidOrderConfirmAction: "Yes, cancel order",
+    cancelledToast: "Order cancelled",
+    cancelError: "Failed to cancel the order",
+    leaveBlockedTitle: "Order not finished yet",
+    leaveBlockedDescription:
+      "To continue, choose one of the two actions on this page: retry payment or cancel the order.",
+    leaveBlockedStay: "OK, stay here",
   },
   footer: {
     tagline: "Groceries with delivery. Pay online or with cash on delivery.",
