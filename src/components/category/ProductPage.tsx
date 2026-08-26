@@ -217,23 +217,19 @@ export function ProductPage({ slug, search }: ProductPageProps) {
     throw notFound();
   }
 
-  const displayName = translateCategoryName(category.name);
-
   return (
     <div className="min-h-screen flex flex-col">
       <SiteHeader safeAreaTop showAccountMenu={false} showCart={false} />
       <main className="flex-1 mx-auto max-w-7xl px-4 pt-4 pb-12 w-full sm:px-6 lg:pt-12">
-        <h1 className="font-serif text-2xl tracking-tight sm:text-3xl lg:text-5xl">
-          {displayName}
-        </h1>
-        {/* Уточнение к Задаче №179 — visible category/subcategory description
-            removed per the architect's screenshot: this page (shared by
-            /category/$slug and the subcategory route, both tiles-then-list
-            and list-only cases) has no separate "tiles-only" variant to keep
-            it on, so it's gone from both. The `<meta name="description">`
-            SEO tag on both routes still reads category.description
-            separately — untouched, that's invisible page metadata, not this
-            on-page copy. */}
+        {/* Задача №180 — visible subcategory heading (h1) removed, same
+            reasoning as Задача №179's description removal: this page (shared
+            by /category/$slug and the subcategory route, both
+            tiles-then-list and list-only cases) has no separate
+            "tiles-only" variant to keep it on, so it's gone from both — the
+            architect's own screenshot showed it eating vertical space on the
+            product-list case specifically. The <title>/<meta
+            name="description"> tags on both routes are unrelated, invisible
+            page metadata — untouched. */}
 
         {subcategories.length > 0 && (
           <section className="mt-4 lg:mt-8">
@@ -255,7 +251,11 @@ export function ProductPage({ slug, search }: ProductPageProps) {
           </section>
         )}
 
-        <div className="mt-6 lg:mt-10">
+        {/* Задача №180 — tighter top margin now that there's no heading
+            directly above this on the no-subcategories path (the most
+            common case, per the architect's screenshot) — every bit of
+            vertical space matters for fitting 4-5 cards on a phone screen. */}
+        <div className="mt-3 lg:mt-10">
           {productsLoading ? (
             <div className="flex justify-center py-12 sm:py-24">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -277,7 +277,7 @@ export function ProductPage({ slug, search }: ProductPageProps) {
                   requirement for the subcategory product list specifically.
                   The subcategory tiles section above is untouched — this
                   only affects the product cards themselves. */}
-              <div className="mx-auto flex max-w-2xl flex-col gap-3 sm:gap-4">
+              <div className="mx-auto flex max-w-2xl flex-col gap-2 sm:gap-3">
                 {products.map((p) => (
                   <ProductCard key={p.node.id} product={p} />
                 ))}

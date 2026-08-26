@@ -29,6 +29,14 @@ function formatCatalogPrice(amount: number): string {
  * weightKg field are never part of CatalogProductNode in the first place
  * (see product-adapter.ts) — nothing to explicitly exclude, they never
  * reach this component.
+ *
+ * Задача №180 — squeezed further so ~4-5 cards fit on a typical
+ * ~700-800px-tall phone viewport: photo is a shorter 4:3 rectangle instead
+ * of a square, every block's padding is down to the bare minimum that keeps
+ * text legible, unit/manufacturer/country are folded onto shared lines
+ * instead of their own, and the stepper — the one element the architect
+ * explicitly wants "крупный, заметный" — is the only thing NOT shrunk
+ * (still the same 48px "lg" CartQuantityControl used before).
  */
 export function ProductCard({ product }: { product: CatalogProductNode }) {
   const { t, language } = useTranslation();
@@ -39,14 +47,15 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
   const translations = useTranslatedTexts([p.title, p.description], language);
   const displayTitle = translations[p.title] ?? p.title;
   const displayDescription = p.description ? (translations[p.description] ?? p.description) : null;
+  const manufacturerAndCountry = [p.manufacturer, p.countryOfOrigin].filter(Boolean).join(", ");
 
   return (
     <Link
       to="/product/$handle"
       params={{ handle: p.handle }}
-      className="group grid grid-cols-2 gap-3 overflow-hidden rounded-2xl bg-white py-3 pr-3 transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)] sm:gap-4 sm:py-4 sm:pr-4"
+      className="group grid grid-cols-2 gap-2 overflow-hidden rounded-2xl bg-white py-1 pr-1 transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)] sm:gap-4 sm:py-4 sm:pr-4"
     >
-      <div className="aspect-square w-full overflow-hidden rounded-xl bg-secondary">
+      <div className="aspect-[4/3] w-full overflow-hidden rounded-xl bg-secondary sm:aspect-square">
         {image ? (
           <img
             src={image.url}
@@ -62,46 +71,30 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
       </div>
 
       {/* Info column — same width as the photo (2-col grid), never wider.
-          Each field is its own background block, stacked. Уточнение к
-          Задаче №179 — no border (card separation now comes purely from the
-          gap between cards in ProductPage.tsx's list, not a drawn line),
-          and each block's own vertical padding/gap roughly halved for a
-          denser list. */}
-      <div className="flex min-w-0 flex-col gap-1">
-        <div className="rounded-xl bg-primary px-3 py-1">
+          Each field is its own background block, stacked. Задача №180 —
+          padding/gaps trimmed to the minimum that keeps text legible;
+          unit and manufacturer/country folded onto shared lines instead of
+          separate ones, to keep the whole column shorter than the photo. */}
+      <div className="flex min-w-0 flex-col gap-0.5 sm:gap-1">
+        <div className="rounded-xl bg-primary px-2 py-0.5 sm:px-3 sm:py-1">
           <h3 className="line-clamp-2 text-sm font-medium text-white sm:text-base">
             {displayTitle}
           </h3>
         </div>
 
-        <div className="rounded-xl bg-secondary/60 px-3 py-1">
-          <p className="font-serif text-lg font-semibold text-primary sm:text-xl">
+        <div className="rounded-xl bg-secondary/60 px-2 py-0.5 sm:px-3 sm:py-1">
+          <p className="truncate font-serif text-base font-semibold text-primary sm:text-xl">
             {formatCatalogPrice(parseFloat(price.amount))} {t("product.currencyLabel")}
+            {p.unit && (
+              <span className="ml-1 text-xs font-normal text-muted-foreground">/ {p.unit}</span>
+            )}
           </p>
-          {p.unit && (
-            <p className="text-xs text-muted-foreground">
-              {t("product.unit")}: {p.unit}
-            </p>
-          )}
         </div>
 
-        {(displayDescription || p.manufacturer || p.countryOfOrigin) && (
-          <div className="space-y-0.5 rounded-xl bg-secondary/60 px-3 py-1 text-xs text-muted-foreground">
-            {/* Уточнение к Задаче №179 — single line, no wrap: truncate with
-                ellipsis instead of line-clamp-2, at a slightly smaller size
-                so typical descriptions ("Казахстан второй сорт.") fit
-                without wrapping. */}
-            {displayDescription && <p className="truncate text-[11px]">{displayDescription}</p>}
-            {p.manufacturer && (
-              <p className="truncate">
-                {t("category.manufacturerLabel")}: {p.manufacturer}
-              </p>
-            )}
-            {p.countryOfOrigin && (
-              <p className="truncate">
-                {t("category.countryLabel")}: {p.countryOfOrigin}
-              </p>
-            )}
+        {(displayDescription || manufacturerAndCountry) && (
+          <div className="rounded-xl bg-secondary/60 px-2 py-0.5 text-[11px] text-muted-foreground sm:px-3 sm:py-1 sm:text-xs">
+            {displayDescription && <p className="truncate">{displayDescription}</p>}
+            {manufacturerAndCountry && <p className="truncate">{manufacturerAndCountry}</p>}
           </div>
         )}
 
