@@ -43,6 +43,16 @@ interface SiteHeaderProps {
   showSearch?: boolean;
   showCart?: boolean;
   /**
+   * Задача №175 — the home page ("/") is the root of navigation: there is
+   * nothing above it to go "back" to, and the previous behavior
+   * (history.back() when in-app history exists, else a no-op navigate to
+   * "/") never actually left the page. Opt-out (default true) so every
+   * other existing caller keeps its current back button unchanged — only
+   * the home route passes `false`. Deliberately independent of `showSearch`:
+   * the home page still wants its search bar, just not this button.
+   */
+  showBackButton?: boolean;
+  /**
    * Adds safe-area top padding for the native/Capacitor shell (status bar /
    * notch). Zero-effect on regular desktop/web (env() resolves to 0), but
    * kept opt-in — same reasoning as showLanguageSwitcher — so admin/seller/
@@ -74,6 +84,7 @@ export function SiteHeader({
   showLanguageSwitcher = false,
   showSearch = true,
   showCart = true,
+  showBackButton = true,
   safeAreaTop = false,
   hideSignInButton = false,
   showAccountMenu = true,
@@ -142,8 +153,10 @@ export function SiteHeader({
             way back on mobile (nav below is `lg:` only). Gated on the same
             `showSearch` flag as the rest of this customer-storefront chrome,
             so Admin Platform pages that already opt out of it
-            (`showSearch={false}`) don't get it either. */}
-        {showSearch && (
+            (`showSearch={false}`) don't get it either — plus its own
+            `showBackButton` flag (Задача №175), false only on the home page,
+            which has nothing to go back to. */}
+        {showSearch && showBackButton && (
           <button
             type="button"
             onClick={() => {

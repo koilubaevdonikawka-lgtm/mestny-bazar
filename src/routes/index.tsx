@@ -116,7 +116,9 @@ function Home() {
     // нечем и не нужно.
     <div className="flex flex-col">
       <WelcomeGate />
-      <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly />
+      {/* Задача №175 — no "← Назад" here: the home page is the root of
+          navigation, so there is nothing to go back to. */}
+      <SiteHeader safeAreaTop showAccountMenu={false} cartIconOnly showBackButton={false} />
 
       {/* Горизонтальная панель основных категорий, под шапкой. Клик по
           категории с подкатегориями ВЫБИРАЕТ её (кнопка, не ссылка — не
