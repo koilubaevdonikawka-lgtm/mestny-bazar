@@ -43,6 +43,8 @@ export type MarketplaceEvent =
   | { type: "order.ready_for_delivery"; order: OrderDTO }
   | { type: "order.out_for_delivery"; order: OrderDTO }
   | { type: "order.arrived"; order: OrderDTO }
+  /** Задача №171 — courier marked a CASH order's payment as physically received (no status change). */
+  | { type: "order.cash_payment_received"; order: OrderDTO }
   | { type: "order.delivered"; order: OrderDTO }
   | { type: "category.created"; category: AdminCategoryDTO }
   | { type: "category.updated"; category: AdminCategoryDTO }

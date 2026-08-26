@@ -48,6 +48,15 @@ export const markCourierArrivalFn = createServerFn({ method: "POST" })
     return executeMarkCourierArrival(data.id);
   });
 
+/** Задача №171 — courier marks a CASH order's payment as physically received. */
+export const markCourierCashPaymentReceivedFn = createServerFn({ method: "POST" })
+  .validator((data: unknown) => uuidParamSchema.parse(data))
+  .handler(async ({ data }): Promise<OrderDTO> => {
+    const { executeMarkCourierCashPaymentReceived } =
+      await import("@server/functions/courier.executor");
+    return executeMarkCourierCashPaymentReceived(data.id);
+  });
+
 export const completeCourierDeliveryFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => uuidParamSchema.parse(data))
   .handler(async ({ data }): Promise<OrderDTO> => {

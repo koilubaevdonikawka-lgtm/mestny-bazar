@@ -13,6 +13,7 @@ import { CourierAcceptOrderRule } from "@server/domain/order-lifecycle/rules/cou
 import { CourierStartDeliveryRule } from "@server/domain/order-lifecycle/rules/courier-start-delivery.rule";
 import { CourierArriveRule } from "@server/domain/order-lifecycle/rules/courier-arrive.rule";
 import { CourierCompleteDeliveryRule } from "@server/domain/order-lifecycle/rules/courier-complete-delivery.rule";
+import { CourierMarkCashPaidRule } from "@server/domain/order-lifecycle/rules/courier-mark-cash-paid.rule";
 import { PaymentConfirmedRule } from "@server/domain/order-lifecycle/rules/payment-confirmed.rule";
 
 function ctx(overrides: Partial<OrderLifecycleContext>): OrderLifecycleContext {
@@ -623,5 +624,112 @@ describe("CourierCompleteDeliveryRule", () => {
       allowed: false,
       denialCode: "INVALID_COMPLETE_DELIVERY_TRANSITION",
     });
+  });
+
+  describe("Задача №171 — CASH payment must be marked received before completion", () => {
+    it("denies completing a CASH order whose payment hasn't been marked received", () => {
+      const result = rule.evaluate(
+        ctx({
+          ...applyCtx,
+          actor: courier,
+          currentStatus: OrderStatus.ARRIVED,
+          paymentMethod: "CASH",
+          paymentStatus: "unpaid",
+        }),
+      );
+      expect(result).toMatchObject({ allowed: false, denialCode: "CASH_PAYMENT_NOT_RECEIVED" });
+    });
+
+    it("allows completing a CASH order once its payment is marked received", () => {
+      const result = rule.evaluate(
+        ctx({
+          ...applyCtx,
+          actor: courier,
+          currentStatus: OrderStatus.ARRIVED,
+          paymentMethod: "CASH",
+          paymentStatus: "paid",
+        }),
+      );
+      expect(result.allowed).toBe(true);
+    });
+
+    it("allows completing an ONLINE order regardless of paymentStatus (already confirmed earlier)", () => {
+      const result = rule.evaluate(
+        ctx({
+          ...applyCtx,
+          actor: courier,
+          currentStatus: OrderStatus.ARRIVED,
+          paymentMethod: "ONLINE",
+          paymentStatus: "paid",
+        }),
+      );
+      expect(result.allowed).toBe(true);
+    });
+  });
+});
+
+describe("CourierMarkCashPaidRule", () => {
+  const rule = new CourierMarkCashPaidRule();
+  const courier = { id: "c1", roles: ["courier" as const] };
+  const applyCtx = {
+    reason: "courier_mark_cash_paid",
+    targetStatus: OrderStatus.ARRIVED,
+    assignedCourierId: courier.id,
+    paymentMethod: "CASH" as const,
+  };
+
+  it("applies only to courier_mark_cash_paid -> ARRIVED", () => {
+    expect(rule.applies(ctx(applyCtx))).toBe(true);
+    expect(rule.applies(ctx({ reason: "courier_arrive", targetStatus: OrderStatus.ARRIVED }))).toBe(
+      false,
+    );
+  });
+
+  it("requires courier role", () => {
+    const result = rule.evaluate(
+      ctx({ ...applyCtx, actor: { id: "u1" }, currentStatus: OrderStatus.ARRIVED }),
+    );
+    expect(result).toMatchObject({ allowed: false, denialCode: "COURIER_ROLE_REQUIRED" });
+  });
+
+  it("Задача №135-style — denies when the order is assigned to a different courier", () => {
+    const result = rule.evaluate(
+      ctx({
+        ...applyCtx,
+        actor: courier,
+        currentStatus: OrderStatus.ARRIVED,
+        assignedCourierId: "someone-else",
+      }),
+    );
+    expect(result).toMatchObject({ allowed: false, denialCode: "COURIER_NOT_ASSIGNED" });
+  });
+
+  it("denies from any status other than ARRIVED", () => {
+    const result = rule.evaluate(
+      ctx({ ...applyCtx, actor: courier, currentStatus: OrderStatus.OUT_FOR_DELIVERY }),
+    );
+    expect(result).toMatchObject({
+      allowed: false,
+      denialCode: "INVALID_MARK_CASH_PAID_TRANSITION",
+    });
+  });
+
+  it("denies for an ONLINE order", () => {
+    const result = rule.evaluate(
+      ctx({
+        ...applyCtx,
+        actor: courier,
+        currentStatus: OrderStatus.ARRIVED,
+        paymentMethod: "ONLINE",
+      }),
+    );
+    expect(result).toMatchObject({ allowed: false, denialCode: "NOT_CASH_PAYMENT" });
+  });
+
+  it("allows a CASH order, assigned to this courier, at ARRIVED", () => {
+    expect(
+      rule.evaluate(ctx({ ...applyCtx, actor: courier, currentStatus: OrderStatus.ARRIVED }))
+        .allowed,
+    ).toBe(true);
   });
 });

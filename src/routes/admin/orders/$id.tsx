@@ -23,7 +23,6 @@ import {
   formatMoney,
   formatOrderDate,
   formatOrderStatus,
-  formatPaymentStatus,
   orderRequiresRefund,
 } from "@shared/lib/order-display";
 import { OrderStatus } from "@shared/contracts/order";
@@ -193,7 +192,11 @@ function AdminOrderDetailPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge variant="secondary">{formatOrderStatus(order.status)}</Badge>
-            <Badge variant="outline">{formatPaymentStatus(order.paymentStatus)}</Badge>
+            <Badge variant="outline">
+              {order.paymentMethod === "ONLINE"
+                ? t("admin.orders.paymentOnlineBadge")
+                : t("admin.orders.paymentCashBadge")}
+            </Badge>
             {orderRequiresRefund(order) && (
               <Badge variant="destructive">{t("admin.orders.requiresRefundBadge")}</Badge>
             )}

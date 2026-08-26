@@ -129,6 +129,30 @@ export class CourierOrderService {
     return order;
   }
 
+  /**
+   * Задача №171 — courier marks a CASH order's payment as physically
+   * received on arrival. No status transition (stays ARRIVED) — validation
+   * only, via the lifecycle engine's same-status pattern (CourierAcceptOrderRule).
+   */
+  async markCashPaymentReceived(orderId: string, actor: CourierActor): Promise<OrderDTO> {
+    const order = await this.getOrder(orderId, actor);
+
+    this.orderLifecycle.assertCanTransition({
+      orderId,
+      currentStatus: order.status,
+      targetStatus: order.status,
+      actor: { id: actor.id, roles: actor.roles },
+      reason: "courier_mark_cash_paid",
+      assignedCourierId: order.assignedCourierId,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+    });
+
+    const updated = await this.orders.updatePaymentStatus(orderId, "paid");
+    await this.events.publish({ type: "order.cash_payment_received", order: updated });
+    return updated;
+  }
+
   private async transitionOrder(
     orderId: string,
     targetStatus: OrderDTO["status"],
@@ -144,6 +168,8 @@ export class CourierOrderService {
       actor: { id: actor.id, roles: actor.roles },
       reason,
       assignedCourierId: order.assignedCourierId,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
     });
 
     return this.orders.updateStatus(orderId, order.status, targetStatus);

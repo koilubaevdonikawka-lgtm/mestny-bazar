@@ -568,6 +568,8 @@ export const ky = {
       paymentMethodLabel: "Төлөө ыкмасы",
       paymentOnline: "Онлайн",
       paymentCash: "Накталай",
+      paymentOnlineBadge: "Онлайн төлөм",
+      paymentCashBadge: "Накталай төлөм",
       itemsHeading: "Буйрутманын курамы",
       subtotalLabel: "Аралык сумма",
       deliveryLabel: "Жеткирүү",

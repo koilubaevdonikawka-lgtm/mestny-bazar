@@ -575,6 +575,8 @@ export const ru = {
       paymentMethodLabel: "Способ оплаты",
       paymentOnline: "Онлайн",
       paymentCash: "Наличными",
+      paymentOnlineBadge: "Оплата онлайн",
+      paymentCashBadge: "Оплата наличными",
       itemsHeading: "Состав заказа",
       subtotalLabel: "Подытог",
       deliveryLabel: "Доставка",

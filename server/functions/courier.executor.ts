@@ -36,6 +36,12 @@ export async function executeMarkCourierArrival(orderId: string): Promise<OrderD
   return getServices().courierOrderService.markArrival(orderId, { id: userId, roles });
 }
 
+/** Задача №171 — courier marks a CASH order's payment as physically received on arrival. */
+export async function executeMarkCourierCashPaymentReceived(orderId: string): Promise<OrderDTO> {
+  const { userId, roles } = await requireCourierFromRequest();
+  return getServices().courierOrderService.markCashPaymentReceived(orderId, { id: userId, roles });
+}
+
 export async function executeCompleteCourierDelivery(orderId: string): Promise<OrderDTO> {
   const { userId, roles } = await requireCourierFromRequest();
   return getServices().courierOrderService.completeDelivery(orderId, { id: userId, roles });

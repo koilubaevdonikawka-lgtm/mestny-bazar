@@ -7,6 +7,7 @@ import {
   listCourierOrderHistoryFn,
   listCourierOrdersFn,
   markCourierArrivalFn,
+  markCourierCashPaymentReceivedFn,
   setCourierAvailabilityFn,
   startCourierDeliveryFn,
 } from "@/api/courier.functions";
@@ -33,6 +34,10 @@ export async function startCourierDelivery(id: string): Promise<OrderDTO> {
 
 export async function markCourierArrival(id: string): Promise<OrderDTO> {
   return markCourierArrivalFn({ data: { id } });
+}
+
+export async function markCourierCashPaymentReceived(id: string): Promise<OrderDTO> {
+  return markCourierCashPaymentReceivedFn({ data: { id } });
 }
 
 export async function completeCourierDelivery(id: string): Promise<OrderDTO> {

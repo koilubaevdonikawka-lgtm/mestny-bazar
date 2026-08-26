@@ -188,6 +188,7 @@ import { WarehouseCompleteAssemblyRule } from "@server/domain/order-lifecycle/ru
 import { CourierAcceptOrderRule } from "@server/domain/order-lifecycle/rules/courier-accept-order.rule";
 import { CourierStartDeliveryRule } from "@server/domain/order-lifecycle/rules/courier-start-delivery.rule";
 import { CourierArriveRule } from "@server/domain/order-lifecycle/rules/courier-arrive.rule";
+import { CourierMarkCashPaidRule } from "@server/domain/order-lifecycle/rules/courier-mark-cash-paid.rule";
 import { CourierCompleteDeliveryRule } from "@server/domain/order-lifecycle/rules/courier-complete-delivery.rule";
 import { AddressService } from "@server/domain/address.service";
 import { DeviceTokenService } from "@server/domain/device-token.service";
@@ -438,6 +439,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     new CourierAcceptOrderRule(),
     new CourierStartDeliveryRule(),
     new CourierArriveRule(),
+    new CourierMarkCashPaidRule(),
     new CourierCompleteDeliveryRule(),
     new BootstrapCreatedRule(),
     new PaymentConfirmedRule(),

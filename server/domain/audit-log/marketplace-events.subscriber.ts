@@ -81,6 +81,10 @@ export function subscribeAuditLog(bus: IMarketplaceEventBus, auditLog: IAuditLog
     logOrderEvent("order.arrived", () => ({})),
   );
   bus.subscribe(
+    "order.cash_payment_received",
+    logOrderEvent("order.cash_payment_received", () => ({})),
+  );
+  bus.subscribe(
     "order.delivered",
     logOrderEvent("order.delivered", () => ({})),
   );

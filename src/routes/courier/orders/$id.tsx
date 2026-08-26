@@ -11,6 +11,7 @@ import {
   completeCourierDelivery,
   getCourierOrder,
   markCourierArrival,
+  markCourierCashPaymentReceived,
   startCourierDelivery,
 } from "@/api/courier";
 import { signInWithGoogle } from "@/lib/auth";
@@ -20,7 +21,6 @@ import {
   formatMoney,
   formatOrderDate,
   formatOrderStatus,
-  formatPaymentStatus,
   formatTelHref,
 } from "@shared/lib/order-display";
 import { OrderStatus } from "@shared/contracts/order";
@@ -82,6 +82,15 @@ function CourierOrderDetailPage() {
       toast.success("Прибытие отмечено");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось отметить прибытие"),
+  });
+
+  const markCashPaidMutation = useMutation({
+    mutationFn: () => markCourierCashPaymentReceived(id),
+    onSuccess: () => {
+      invalidate();
+      toast.success("Оплата наличными отмечена как полученная");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Не удалось отметить оплату"),
   });
 
   const completeMutation = useMutation({
@@ -186,13 +195,23 @@ function CourierOrderDetailPage() {
   // order.status is the only durable signal here, same as every other role page.
   const canStartDelivery = isReadyForDelivery;
   const canMarkArrival = order.status === OrderStatus.OUT_FOR_DELIVERY && !arrived;
-  const canCompleteDelivery =
+  const hasArrived =
     order.status === OrderStatus.ARRIVED ||
     (order.status === OrderStatus.OUT_FOR_DELIVERY && arrived);
+  const isCash = order.paymentMethod === "CASH";
+  const cashPaymentReceived = order.paymentStatus === "paid";
+  // Задача №171 — CASH orders only: the courier physically collects payment
+  // on arrival, unlike ONLINE where the Finik webhook confirms it long
+  // before delivery. Server hard-blocks completion until this is marked
+  // (CourierCompleteDeliveryRule) — mirrored here so the button isn't
+  // shown as clickable when it would just fail.
+  const canMarkCashPaid = isCash && hasArrived && !cashPaymentReceived;
+  const canCompleteDelivery = hasArrived && (!isCash || cashPaymentReceived);
   const isBusy =
     acceptMutation.isPending ||
     startMutation.isPending ||
     arriveMutation.isPending ||
+    markCashPaidMutation.isPending ||
     completeMutation.isPending;
 
   return (
@@ -212,7 +231,9 @@ function CourierOrderDetailPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge variant="secondary">{formatOrderStatus(order.status)}</Badge>
-            <Badge variant="outline">{formatPaymentStatus(order.paymentStatus)}</Badge>
+            <Badge variant="outline">
+              {order.paymentMethod === "ONLINE" ? "Оплата онлайн" : "Оплата наличными"}
+            </Badge>
           </div>
         </div>
 
@@ -241,6 +262,15 @@ function CourierOrderDetailPage() {
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 "Отметить прибытие"
+              )}
+            </Button>
+          )}
+          {canMarkCashPaid && (
+            <Button disabled={isBusy} onClick={() => markCashPaidMutation.mutate()}>
+              {markCashPaidMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Взять оплату"
               )}
             </Button>
           )}

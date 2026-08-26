@@ -317,6 +317,66 @@ describe("CourierOrderService", () => {
     );
   });
 
+  it("Задача №171 — completeDelivery passes paymentMethod/paymentStatus through to the lifecycle policy", async () => {
+    const repo = fakeRepo({
+      getById: vi.fn(async () =>
+        makeOrder({ assignedCourierId: courier.id, paymentMethod: "CASH", paymentStatus: "paid" }),
+      ),
+    });
+    const lifecycle = fakeLifecycle();
+    const service = buildService({ repo, lifecycle });
+
+    await service.completeDelivery("order-1", courier);
+
+    expect(lifecycle.assertCanTransition).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentMethod: "CASH", paymentStatus: "paid" }),
+    );
+  });
+
+  it("Задача №171 — markCashPaymentReceived marks payment paid and publishes order.cash_payment_received", async () => {
+    const repo = fakeRepo({
+      getById: vi.fn(async () =>
+        makeOrder({
+          assignedCourierId: courier.id,
+          status: OrderStatus.ARRIVED,
+          paymentMethod: "CASH",
+          paymentStatus: "unpaid",
+        }),
+      ),
+    });
+    const events = fakeEventBus();
+    const service = buildService({ repo, events });
+
+    await service.markCashPaymentReceived("order-1", courier);
+
+    expect(repo.updatePaymentStatus).toHaveBeenCalledWith("order-1", "paid");
+    expect(events.publish).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "order.cash_payment_received" }),
+    );
+  });
+
+  it("Задача №171 — markCashPaymentReceived passes context (assignedCourierId/paymentMethod/paymentStatus) to the lifecycle policy and does not persist when denied", async () => {
+    const repo = fakeRepo({
+      getById: vi.fn(async () =>
+        makeOrder({
+          assignedCourierId: courier.id,
+          status: OrderStatus.ARRIVED,
+          paymentMethod: "CASH",
+          paymentStatus: "unpaid",
+        }),
+      ),
+    });
+    const lifecycle = fakeLifecycle({
+      assertCanTransition: vi.fn(() => {
+        throw new Error("denied");
+      }),
+    });
+    const service = buildService({ repo, lifecycle });
+
+    await expect(service.markCashPaymentReceived("order-1", courier)).rejects.toThrow("denied");
+    expect(repo.updatePaymentStatus).not.toHaveBeenCalled();
+  });
+
   it("Задача №143 — listOrderHistory queries listByCourier scoped to this courier's own id", async () => {
     const repo = fakeRepo({
       listByCourier: vi.fn(async () => ({

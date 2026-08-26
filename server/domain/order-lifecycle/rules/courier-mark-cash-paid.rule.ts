@@ -12,17 +12,18 @@ function isCourier(actor: OrderLifecycleActor): boolean {
 }
 
 /**
- * Courier completes delivery: ARRIVED → DELIVERED.
- * Задача №135 — must be THIS courier's own assigned order (Задача №134
- * found this rule only checked the role, never ownership).
+ * Задача №171 — courier marks a CASH order's payment as physically received
+ * on arrival: no status change (stays ARRIVED), validation only — same
+ * same-status pattern as CourierAcceptOrderRule. ONLINE orders have their
+ * payment confirmed by the Finik webhook long before this point, so there
+ * is nothing for the courier to collect or mark.
  */
-export class CourierCompleteDeliveryRule implements OrderLifecycleRule {
+export class CourierMarkCashPaidRule implements OrderLifecycleRule {
   readonly order = OrderLifecycleOrder.ROLE_PERMISSION;
 
   applies(context: OrderLifecycleContext): boolean {
     return (
-      context.reason === "courier_complete_delivery" &&
-      context.targetStatus === OrderStatus.DELIVERED
+      context.reason === "courier_mark_cash_paid" && context.targetStatus === OrderStatus.ARRIVED
     );
   }
 
@@ -31,7 +32,7 @@ export class CourierCompleteDeliveryRule implements OrderLifecycleRule {
       return {
         allowed: false,
         denialCode: "COURIER_ROLE_REQUIRED",
-        message: "Courier role is required to complete delivery",
+        message: "Courier role is required to mark cash payment received",
       };
     }
 
@@ -43,24 +44,19 @@ export class CourierCompleteDeliveryRule implements OrderLifecycleRule {
       };
     }
 
-    if (
-      context.currentStatus !== OrderStatus.ARRIVED &&
-      context.currentStatus !== OrderStatus.OUT_FOR_DELIVERY
-    ) {
+    if (context.currentStatus !== OrderStatus.ARRIVED) {
       return {
         allowed: false,
-        denialCode: "INVALID_COMPLETE_DELIVERY_TRANSITION",
-        message: "Only arrived orders can be marked as delivered",
+        denialCode: "INVALID_MARK_CASH_PAID_TRANSITION",
+        message: "Cash payment can only be marked received after arrival",
       };
     }
 
-    // Задача №171 — cash is collected by the courier, not confirmed by a
-    // webhook like ONLINE, so delivery cannot complete until it's marked received.
-    if (context.paymentMethod === "CASH" && context.paymentStatus !== "paid") {
+    if (context.paymentMethod !== "CASH") {
       return {
         allowed: false,
-        denialCode: "CASH_PAYMENT_NOT_RECEIVED",
-        message: "Отметьте получение оплаты наличными перед завершением доставки",
+        denialCode: "NOT_CASH_PAYMENT",
+        message: "Only cash-payment orders can be marked paid this way",
       };
     }
 

@@ -566,6 +566,8 @@ export const en = {
       paymentMethodLabel: "Payment method",
       paymentOnline: "Online",
       paymentCash: "Cash",
+      paymentOnlineBadge: "Online payment",
+      paymentCashBadge: "Cash payment",
       itemsHeading: "Order items",
       subtotalLabel: "Subtotal",
       deliveryLabel: "Delivery",

@@ -10,6 +10,7 @@ export type AuditAction =
   | "order.ready_for_delivery"
   | "order.out_for_delivery"
   | "order.arrived"
+  | "order.cash_payment_received"
   | "order.delivered"
   | "category.created"
   | "category.updated"

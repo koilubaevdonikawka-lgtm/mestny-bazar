@@ -115,6 +115,7 @@ describe("subscribeAuditLog", () => {
     await bus.publish({ type: "order.ready_for_delivery", order });
     await bus.publish({ type: "order.out_for_delivery", order });
     await bus.publish({ type: "order.arrived", order });
+    await bus.publish({ type: "order.cash_payment_received", order });
     await bus.publish({ type: "order.delivered", order });
 
     expect(auditLog.records.map((r) => r.action)).toEqual([
@@ -124,6 +125,7 @@ describe("subscribeAuditLog", () => {
       "order.ready_for_delivery",
       "order.out_for_delivery",
       "order.arrived",
+      "order.cash_payment_received",
       "order.delivered",
     ]);
   });
