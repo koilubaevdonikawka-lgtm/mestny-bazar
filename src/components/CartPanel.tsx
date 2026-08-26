@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,12 +21,16 @@ import { useCartStore } from "@/stores/cartStore";
 import { useCheckoutStore } from "@/stores/checkoutStore";
 import { calculateDeliveryFee } from "@/api/delivery-pricing";
 import { listDeliveryZones } from "@/api/delivery-zone";
-import { getOrderStatus } from "@/api/orders";
+import { cancelUnpaidOnlineOrder, getOrderStatus, retryPayment } from "@/api/orders";
 import { CartQuantityControl } from "@/components/CartQuantityControl";
 import { LocationPickerDialog } from "@/components/checkout/LocationPickerDialog";
+import { RetryPaymentButton } from "@/components/RetryPaymentButton";
+import { CancelUnpaidOnlineOrderButton } from "@/components/CancelUnpaidOnlineOrderButton";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
 import { useCreateOrder } from "@/hooks/useCreateOrder";
+import { useSupabaseSession } from "@/hooks/useSupabaseSession";
+import { signInWithGoogle } from "@/lib/auth";
 import { getGeolocationCapability } from "@/lib/capabilities";
 import { reverseGeocode } from "@/lib/reverseGeocode";
 import type { CartLineStatus } from "@shared/contracts/cart";
@@ -80,6 +84,8 @@ export interface CartPanelProps {
  */
 export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps) {
   const { t, language } = useTranslation();
+  const { isAuthenticated } = useSupabaseSession();
+  const queryClient = useQueryClient();
   const VALIDATION_MESSAGE: Record<Exclude<CartLineStatus, "ok">, string> = useMemo(
     () => ({
       price_changed: t("cart.priceChangedWarning"),
@@ -204,6 +210,31 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
     setOrderStatusDismissed(true);
   };
 
+  // Задача №174 — same "returned without paying" actions order-success.tsx
+  // offers (Задача №172), reused as-is here since the last-placed-order view
+  // in the cart is the exact same real-world situation (ONLINE, unpaid,
+  // still CREATED), just reached from a different screen.
+  const retryPaymentMutation = useMutation({
+    mutationFn: () => retryPayment(lastOrderId as string),
+    onSuccess: (result) => {
+      if (!result.paymentUrl) {
+        toast.error(t("orders.retryPaymentError"));
+        return;
+      }
+      window.location.href = result.paymentUrl;
+    },
+    onError: () => toast.error(t("orders.retryPaymentError")),
+  });
+
+  const cancelUnpaidOnlineOrderMutation = useMutation({
+    mutationFn: () => cancelUnpaidOnlineOrder(lastOrderId as string),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["orders", "status", lastOrderId], updated);
+      toast.success(t("orderSuccess.cancelledToast"));
+    },
+    onError: () => toast.error(t("orderSuccess.cancelError")),
+  });
+
   const { submitOrder, isSubmitting } = useCreateOrder();
 
   const handleCheckout = async () => {
@@ -262,6 +293,24 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
   const checkoutBusy = isLoading || isSubmitting;
   const showOrderStatus = items.length === 0 && !!lastOrderId && !orderStatusDismissed;
 
+  // Задача №174 — ONLINE order, still unpaid, still CREATED: the cart's
+  // "returned without completing payment" case, same scenario
+  // order-success.tsx handles (Задача №172) — just reached by closing the
+  // cart and reopening it instead of returning from Finik directly. Gated on
+  // CREATED specifically (not just "not paid") so this reverts back to the
+  // plain Close/Go-to-catalog buttons the moment the order leaves CREATED —
+  // including right after this same cancel action flips it to CANCELLED.
+  const lastOrder = orderStatusQuery.data;
+  const showUnpaidOnlineActions =
+    lastOrder?.status === OrderStatus.CREATED &&
+    lastOrder.paymentMethod === "ONLINE" &&
+    lastOrder.paymentStatus !== "paid" &&
+    lastOrder.paymentStatus !== "refunded";
+
+  const handleSignIn = async () => {
+    await signInWithGoogle();
+  };
+
   // Beautiful, actionable empty state instead of just an icon + caption:
   // heading, description, and a direct way back into the catalog.
   const emptyCartState = (
@@ -289,36 +338,73 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
             <div className="flex-1 flex items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : orderStatusQuery.data ? (
+          ) : lastOrder ? (
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <p className="text-center text-sm text-muted-foreground">
-                {t("orders.orderNumber", { number: orderStatusQuery.data.orderNumber })}
+                {t("orders.orderNumber", { number: lastOrder.orderNumber })}
               </p>
               {/* Задача №173 — only the order's current, actually-reached
                   status, shown once, in green. No step chain/ladder (past or
                   future steps) at all — OrderTimeline's full sequence stays
                   reserved for the customer's own order detail page
-                  (/orders/$id), not the cart. */}
-              <div className="mt-3 flex justify-center">
+                  (/orders/$id), not the cart. Задача №174 — CREATED is
+                  disambiguated by payment method (its own text, not combined
+                  with any other status). */}
+              <div className="mt-3 flex flex-col items-center gap-2">
                 <Badge variant="default" data-testid="cart-order-status-badge">
-                  {formatOrderStatus(orderStatusQuery.data.status)}
+                  {lastOrder.status === OrderStatus.CREATED
+                    ? lastOrder.paymentMethod === "ONLINE"
+                      ? t("cart.orderStatusCreatedOnline")
+                      : t("cart.orderStatusCreatedCash")
+                    : formatOrderStatus(lastOrder.status)}
                 </Badge>
+                {showUnpaidOnlineActions && (
+                  <Badge variant="destructive" data-testid="cart-unpaid-status-badge">
+                    {t("orderSuccess.unpaidStatusBadge")}
+                  </Badge>
+                )}
               </div>
-              <div className="mt-4 flex flex-col items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full"
-                  onClick={handleDismissOrderStatus}
-                >
-                  {t("common.close")}
-                </Button>
-                <Button asChild size="lg" className="h-12 rounded-full px-8 gap-2">
-                  <Link to="/" onClick={() => onNavigate?.()}>
-                    <ArrowLeft className="h-4 w-4" /> {t("cart.emptyCta")}
-                  </Link>
-                </Button>
-              </div>
+              {showUnpaidOnlineActions ? (
+                isAuthenticated === true ? (
+                  <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                    <RetryPaymentButton
+                      order={lastOrder}
+                      isPending={retryPaymentMutation.isPending}
+                      onRetry={() => retryPaymentMutation.mutate()}
+                    />
+                    <CancelUnpaidOnlineOrderButton
+                      order={lastOrder}
+                      isPending={cancelUnpaidOnlineOrderMutation.isPending}
+                      onConfirm={() => cancelUnpaidOnlineOrderMutation.mutate()}
+                    />
+                  </div>
+                ) : (
+                  <div className="mt-4 flex flex-col items-center gap-3">
+                    <p className="text-center text-sm text-muted-foreground">
+                      {t("orderSuccess.retryPaymentSignInPrompt")}
+                    </p>
+                    <Button variant="outline" onClick={() => void handleSignIn()}>
+                      {t("common.signIn")}
+                    </Button>
+                  </div>
+                )
+              ) : (
+                <div className="mt-4 flex flex-col items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full"
+                    onClick={handleDismissOrderStatus}
+                  >
+                    {t("common.close")}
+                  </Button>
+                  <Button asChild size="lg" className="h-12 rounded-full px-8 gap-2">
+                    <Link to="/" onClick={() => onNavigate?.()}>
+                      <ArrowLeft className="h-4 w-4" /> {t("cart.emptyCta")}
+                    </Link>
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             emptyCartState

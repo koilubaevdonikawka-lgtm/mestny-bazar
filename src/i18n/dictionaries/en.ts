@@ -173,6 +173,8 @@ export const en = {
     mapPointSelectedNoAddress: "Point selected",
     mapConfirmButton: "Confirm point",
     mapPointConfirmedToast: "Map point saved",
+    orderStatusCreatedOnline: "Created — online payment",
+    orderStatusCreatedCash: "Created — cash payment",
   },
   checkout: {
     title: "Checkout",

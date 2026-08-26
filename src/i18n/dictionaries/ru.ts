@@ -180,6 +180,9 @@ export const ru = {
     mapPointSelectedNoAddress: "Точка выбрана",
     mapConfirmButton: "Подтвердить точку",
     mapPointConfirmedToast: "Точка на карте сохранена",
+    // Задача №174 — status badge in the cart's "last order" view, CREATED only.
+    orderStatusCreatedOnline: "Создан онлайн",
+    orderStatusCreatedCash: "Создан наличными",
   },
   checkout: {
     title: "Оформление заказа",
