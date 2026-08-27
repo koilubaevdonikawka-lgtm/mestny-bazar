@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { useCartStore } from "@/stores/cartStore";
 import { useCheckoutStore } from "@/stores/checkoutStore";
+import { formatDisplayPrice } from "@/lib/formatPrice";
 import { calculateDeliveryFee } from "@/api/delivery-pricing";
 import { listDeliveryZones } from "@/api/delivery-zone";
 import { cancelUnpaidOnlineOrder, getOrderStatus, retryPayment } from "@/api/orders";
@@ -395,44 +396,6 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                 const lineTotal = parseFloat(item.price.amount) * item.quantity;
                 return (
                   <div key={item.variantId} className="flex gap-3 rounded-2xl bg-secondary/40 p-3">
-                    {/* Корзина → Товар — tapping the photo or title opens the
-                        product page; the containing surface (Sheet) closes
-                        via onNavigate so the user lands directly on it.
-                        Falls back to a non-interactive block for an orphaned
-                        line with no resolvable slug, instead of linking to a
-                        broken route. */}
-                    {(() => {
-                      // An explicit "no photo" placeholder (matches
-                      // ProductCard's own) instead of a blank colored box
-                      // that could read as a loading/broken state.
-                      const image = item.product.node.images?.edges?.[0]?.node;
-                      const thumb = image ? (
-                        <img
-                          src={image.url}
-                          alt={displayTitle}
-                          loading="lazy"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-center text-[10px] leading-tight text-muted-foreground">
-                          {t("common.noPhoto")}
-                        </div>
-                      );
-                      return item.product.node.handle ? (
-                        <Link
-                          to="/product/$handle"
-                          params={{ handle: item.product.node.handle }}
-                          onClick={() => onNavigate?.()}
-                          className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-secondary"
-                        >
-                          {thumb}
-                        </Link>
-                      ) : (
-                        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-secondary">
-                          {thumb}
-                        </div>
-                      );
-                    })()}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
                         {/* 2-line clamp instead of a hard single-line
@@ -473,7 +436,8 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                         </p>
                       )}
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {parseFloat(item.price.amount).toFixed(2)} {item.price.currencyCode}
+                        {formatDisplayPrice(parseFloat(item.price.amount))}{" "}
+                        {t("product.currencyLabel")}
                       </p>
                       {warning && (
                         <p className="mt-1 flex items-center gap-1 text-xs text-destructive">
@@ -489,7 +453,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                       <div className="mt-2 flex items-center justify-between gap-3">
                         <CartQuantityControl product={item.product} size="lg" />
                         <span className="shrink-0 font-serif text-base font-semibold whitespace-nowrap">
-                          {lineTotal.toFixed(2)} {item.price.currencyCode}
+                          {formatDisplayPrice(lineTotal)} {t("product.currencyLabel")}
                         </span>
                       </div>
                     </div>
@@ -502,11 +466,17 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                 phone/name now live on the profile (AddressesPanel's default
                 address + /profile's name/phone form) and are resolved
                 server-side from there at checkout time. Nothing here is
-                collected inline anymore, only shown; incomplete data or a
-                signed-out visitor gets a way to fix it, not an inline form. */}
-            <section className="mt-4 space-y-2">
-              <Label className="text-sm font-medium">{t("checkout.address")}</Label>
-              {readiness.isAuthenticated !== true ? (
+                collected inline anymore, only shown; a signed-out visitor
+                gets a way to fix it, not an inline form.
+                Задача №183 — the incomplete-profile case no longer shows an
+                explanatory card here: the gate itself (handleCheckout above)
+                already redirects to /profile with no re-entry needed, so a
+                second, passive "please complete your profile" card while
+                just browsing the cart was redundant — this section simply
+                renders nothing until there's something real to show. */}
+            {readiness.isAuthenticated !== true ? (
+              <section className="mt-4 space-y-2">
+                <Label className="text-sm font-medium">{t("checkout.address")}</Label>
                 <div className="rounded-xl bg-secondary/40 p-4 text-sm space-y-2">
                   <p className="text-muted-foreground">{t("profile.signInToOrderDescription")}</p>
                   <Button
@@ -519,11 +489,17 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                     {t("common.signIn")}
                   </Button>
                 </div>
-              ) : readiness.isReady === null ? (
+              </section>
+            ) : readiness.isReady === null ? (
+              <section className="mt-4 space-y-2">
+                <Label className="text-sm font-medium">{t("checkout.address")}</Label>
                 <div className="flex justify-center py-3">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
-              ) : readiness.isReady ? (
+              </section>
+            ) : readiness.isReady ? (
+              <section className="mt-4 space-y-2">
+                <Label className="text-sm font-medium">{t("checkout.address")}</Label>
                 <div className="rounded-xl bg-secondary/40 p-4 text-sm space-y-1">
                   <p className="font-medium">{readiness.profile?.fullName}</p>
                   <p className="text-muted-foreground">{readiness.profile?.phone}</p>
@@ -545,19 +521,8 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                     {t("common.edit")}
                   </Link>
                 </div>
-              ) : (
-                <div className="rounded-xl border border-dashed border-border p-4 text-sm space-y-2">
-                  <p className="text-muted-foreground">
-                    {t("profile.completeProfileToOrderDescription")}
-                  </p>
-                  <Button asChild size="sm" className="rounded-xl">
-                    <Link to="/profile" onClick={() => onNavigate?.()}>
-                      {t("profile.goToProfileButton")}
-                    </Link>
-                  </Button>
-                </div>
-              )}
-            </section>
+              </section>
+            ) : null}
 
             <section className="mt-4 space-y-2">
               <Label className="text-sm font-medium">{t("checkout.paymentMethod")}</Label>
@@ -603,7 +568,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                         <strong>
                           {deliveryQuery.data.isFree
                             ? t("cart.free")
-                            : `${deliveryQuery.data.fee.toFixed(2)} ${items[0]?.price.currencyCode || ""}`}
+                            : `${formatDisplayPrice(deliveryQuery.data.fee)} ${t("product.currencyLabel")}`}
                         </strong>
                       </p>
                       {deliveryQuery.data.eta.minMinutes != null && (
@@ -617,8 +582,8 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                       {!deliveryQuery.data.isFree && deliveryQuery.data.freeFrom != null && (
                         <p className="text-muted-foreground">
                           {t("cart.freeDeliveryFromLabel", {
-                            amount: deliveryQuery.data.freeFrom,
-                            remaining: (deliveryQuery.data.freeFrom - totalPrice).toFixed(2),
+                            amount: formatDisplayPrice(deliveryQuery.data.freeFrom),
+                            remaining: formatDisplayPrice(deliveryQuery.data.freeFrom - totalPrice),
                           })}
                         </p>
                       )}
@@ -629,7 +594,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
             <div className="flex justify-between items-center">
               <span className="text-lg">{t("cart.total")}</span>
               <span className="text-2xl font-serif font-semibold">
-                {totalPrice.toFixed(2)} {items[0]?.price.currencyCode || ""}
+                {formatDisplayPrice(totalPrice)} {t("product.currencyLabel")}
               </span>
             </div>
             {/* The single most visually prominent control in the whole

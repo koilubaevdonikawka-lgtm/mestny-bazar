@@ -3,20 +3,7 @@ import { CartQuantityControl } from "@/components/CartQuantityControl";
 import type { CatalogProductNode } from "@shared/lib/product-adapter";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
-
-/**
- * Задача №179 — whole-number display price ("1 сом", not "1.00 KGS"),
- * rounded defensively: production has no non-integer prices today, but
- * `price` is a plain `number` in the schema with no integer constraint, so
- * a future non-integer price rounds to the nearest whole number rather than
- * silently truncating or crashing. Deliberately separate from formatMoney
- * (shared/lib/order-display.ts) — that formatter is shared by cart/checkout/
- * order-history screens showing real transacted totals, out of scope for
- * this catalog-card-only price format change.
- */
-function formatCatalogPrice(amount: number): string {
-  return `${Math.round(amount)}`;
-}
+import { formatDisplayPrice } from "@/lib/formatPrice";
 
 /**
  * Задача №179 — vertical-list layout for the subcategory product list
@@ -84,7 +71,7 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
 
         <div className="rounded-xl bg-secondary/60 px-2 py-0.5 sm:px-3 sm:py-1">
           <p className="truncate font-serif text-base font-semibold text-primary sm:text-xl">
-            {formatCatalogPrice(parseFloat(price.amount))} {t("product.currencyLabel")}
+            {formatDisplayPrice(parseFloat(price.amount))} {t("product.currencyLabel")}
             {p.unit && (
               <span className="ml-1 text-xs font-normal text-muted-foreground">/ {p.unit}</span>
             )}
