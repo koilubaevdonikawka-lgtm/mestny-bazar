@@ -474,7 +474,7 @@ function AdminDeliveryPage() {
               {stores.map((store) => (
                 <li
                   key={store.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-secondary/40 px-4 py-3"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-4 py-3"
                 >
                   <div className="min-w-0">
                     <p className="font-medium truncate">{store.name}</p>
@@ -606,7 +606,7 @@ function AdminDeliveryPage() {
               {zones.map((zone) => (
                 <li
                   key={zone.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-secondary/40 px-4 py-3"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-4 py-3"
                 >
                   <div className="min-w-0">
                     <p className="font-medium truncate">{zone.name}</p>
@@ -713,7 +713,7 @@ function AdminDeliveryPage() {
               {tariffs.map((tariff) => (
                 <li
                   key={tariff.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-secondary/40 px-4 py-3"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-4 py-3"
                 >
                   <div className="min-w-0">
                     <p className="font-medium truncate">
@@ -969,7 +969,7 @@ function AdminDeliveryPage() {
           </form>
 
           {previewMutation.data && (
-            <div className="mt-4 rounded-xl bg-secondary/40 p-4 text-sm">
+            <div className="mt-4 rounded-xl border border-border/60 bg-card p-4 text-sm">
               <p>
                 Тариф: <strong>{previewMutation.data.tariffName}</strong>
               </p>

@@ -119,7 +119,10 @@ function AdminAutomationPage() {
           ) : (
             <ul className="space-y-3">
               {overview.events.map((event) => (
-                <li key={event.eventType} className="rounded-xl bg-secondary/40 px-4 py-3">
+                <li
+                  key={event.eventType}
+                  className="rounded-xl border border-border/60 bg-card px-4 py-3"
+                >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <code className="text-sm font-medium">{event.eventType}</code>
                     <div className="flex flex-wrap gap-1">

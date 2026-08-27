@@ -127,7 +127,7 @@ function AdminDashboardPage() {
                 {data.attention.map((item) => (
                   <li
                     key={item.productId}
-                    className="flex items-center justify-between gap-2 rounded-xl bg-secondary/40 px-4 py-3"
+                    className="flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-4 py-3"
                   >
                     <span className="truncate">{item.name}</span>
                     <Badge variant={item.status === "depleted" ? "destructive" : "secondary"}>
@@ -149,11 +149,11 @@ function AdminDashboardPage() {
               {t("admin.dashboard.warehouseQueueHeading")}
             </h2>
             <ul className="space-y-2">
-              <li className="flex items-center justify-between rounded-xl bg-secondary/40 px-4 py-3">
+              <li className="flex items-center justify-between rounded-xl border border-border/60 bg-card px-4 py-3">
                 <span>{t("admin.dashboard.confirmedAwaitingAssembly")}</span>
                 <Badge variant="secondary">{data.warehouseQueue.confirmed}</Badge>
               </li>
-              <li className="flex items-center justify-between rounded-xl bg-secondary/40 px-4 py-3">
+              <li className="flex items-center justify-between rounded-xl border border-border/60 bg-card px-4 py-3">
                 <span>{t("admin.dashboard.assembling")}</span>
                 <Badge variant="secondary">{data.warehouseQueue.assembling}</Badge>
               </li>

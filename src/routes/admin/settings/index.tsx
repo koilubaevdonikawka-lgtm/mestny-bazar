@@ -178,7 +178,7 @@ function AdminSettingsPage() {
               {settings.map((s) => (
                 <li
                   key={s.key}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-secondary/40 px-4 py-3"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-4 py-3"
                 >
                   <div className="min-w-0">
                     <p className="font-medium truncate">{s.key}</p>

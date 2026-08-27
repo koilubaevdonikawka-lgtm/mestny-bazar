@@ -12,7 +12,7 @@ import { useTranslation } from "@/i18n/LanguageProvider";
 export function MapUnavailableNotice() {
   const { t } = useTranslation();
   return (
-    <div className="flex h-[320px] w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-secondary/30 px-6 text-center">
+    <div className="flex h-[320px] w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card px-6 text-center">
       <MapPinOff className="h-6 w-6 text-muted-foreground" />
       <p className="text-sm text-muted-foreground">{t("cart.mapUnavailable")}</p>
     </div>

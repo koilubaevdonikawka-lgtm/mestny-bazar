@@ -69,7 +69,10 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
           </h3>
         </div>
 
-        <div className="rounded-xl bg-secondary/60 px-2 py-0.5 sm:px-3 sm:py-1">
+        {/* Задача №194 — white instead of the beige --secondary fill; the
+            card itself is already bg-white, so a border is the only thing
+            that still separates this field from its own background. */}
+        <div className="rounded-xl border border-border/60 bg-white px-2 py-0.5 sm:px-3 sm:py-1">
           <p className="truncate font-serif text-base font-semibold text-primary sm:text-xl">
             {formatDisplayPrice(parseFloat(price.amount))} {t("product.currencyLabel")}
             {p.unit && (
@@ -79,7 +82,7 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
         </div>
 
         {(displayDescription || manufacturerAndCountry) && (
-          <div className="rounded-xl bg-secondary/60 px-2 py-0.5 text-[11px] text-muted-foreground sm:px-3 sm:py-1 sm:text-xs">
+          <div className="rounded-xl border border-border/60 bg-white px-2 py-0.5 text-[11px] text-muted-foreground sm:px-3 sm:py-1 sm:text-xs">
             {displayDescription && <p className="truncate">{displayDescription}</p>}
             {manufacturerAndCountry && <p className="truncate">{manufacturerAndCountry}</p>}
           </div>

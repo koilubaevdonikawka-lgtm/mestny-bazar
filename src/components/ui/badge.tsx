@@ -9,8 +9,12 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default: "border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80",
-        secondary:
-          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        // Задача №194 — informational status text (order status, counts,
+        // etc.), never a clickable element: white/card surface instead of
+        // the beige --secondary fill, with a real border (was
+        // border-transparent) so the chip stays visually distinct now that
+        // it no longer has a colored fill of its own.
+        secondary: "border-border bg-card text-secondary-foreground hover:bg-card/80",
         destructive:
           "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
         outline: "text-foreground",

@@ -205,7 +205,7 @@ function QuickBuyPage() {
             pattern. */}
         <section className="mt-6 space-y-2">
           {readiness.isAuthenticated !== true ? (
-            <div className="rounded-xl bg-secondary/40 p-4 text-sm space-y-2">
+            <div className="rounded-xl border border-border/60 bg-card p-4 text-sm space-y-2">
               <p className="text-muted-foreground">{t("profile.signInToOrderDescription")}</p>
               <Button
                 type="button"
@@ -222,7 +222,7 @@ function QuickBuyPage() {
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : readiness.isReady ? (
-            <div className="rounded-xl bg-secondary/40 p-4 text-sm space-y-1">
+            <div className="rounded-xl border border-border/60 bg-card p-4 text-sm space-y-1">
               <p className="font-medium">{readiness.profile?.fullName}</p>
               <p className="text-muted-foreground">{readiness.profile?.phone}</p>
               <p className="text-muted-foreground">{readiness.defaultAddress?.fullAddress}</p>

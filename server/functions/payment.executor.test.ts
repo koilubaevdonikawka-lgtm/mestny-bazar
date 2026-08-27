@@ -4,9 +4,8 @@ const { getServices } = vi.hoisted(() => ({ getServices: vi.fn() }));
 
 vi.mock("@server/di/container", () => ({ getServices }));
 
-const { executeCheckPaymentStatus, OrderNotFoundError } = await import(
-  "@server/functions/payment.executor"
-);
+const { executeCheckPaymentStatus, OrderNotFoundError } =
+  await import("@server/functions/payment.executor");
 
 function fakeOrder(overrides: Record<string, unknown> = {}) {
   return {
@@ -48,9 +47,7 @@ describe("executeCheckPaymentStatus (Задача №186)", () => {
   it("reports paid for a CASH order the courier already marked paid, still with no payment record", async () => {
     getServices.mockReturnValue({
       orderService: {
-        getOrder: vi.fn(async () =>
-          fakeOrder({ paymentMethod: "CASH", paymentStatus: "paid" }),
-        ),
+        getOrder: vi.fn(async () => fakeOrder({ paymentMethod: "CASH", paymentStatus: "paid" })),
       },
       paymentRepository: { getByOrderId: vi.fn(async () => null) },
       paymentService: { recheckStatus: vi.fn() },

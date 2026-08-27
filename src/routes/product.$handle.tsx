@@ -464,12 +464,12 @@ function ProductPage() {
             {(product.manufacturer || product.countryOfOrigin) && (
               <div className="mt-4 flex flex-wrap gap-1.5 lg:mt-6">
                 {product.manufacturer && (
-                  <span className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
+                  <span className="rounded-full border border-border/60 bg-card px-3 py-1 text-xs text-secondary-foreground">
                     {t("category.manufacturerLabel")}: {product.manufacturer}
                   </span>
                 )}
                 {product.countryOfOrigin && (
-                  <span className="rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
+                  <span className="rounded-full border border-border/60 bg-card px-3 py-1 text-xs text-secondary-foreground">
                     {t("category.countryLabel")}: {product.countryOfOrigin}
                   </span>
                 )}

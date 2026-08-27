@@ -404,7 +404,10 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                   // bottom = stepper + line total. Every row line-item shares
                   // this exact same two-row shape, so the list reads as
                   // uniform blocks instead of stacks of varying height.
-                  <div key={item.variantId} className="rounded-2xl bg-secondary/40 p-3 space-y-2">
+                  <div
+                    key={item.variantId}
+                    className="rounded-2xl border border-border/60 bg-card p-3 space-y-2"
+                  >
                     <div className="flex items-start justify-between gap-2">
                       {/* 2-line clamp instead of a hard single-line
                           truncate, so a long product name stays legible
@@ -486,7 +489,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
             {readiness.isAuthenticated !== true ? (
               <section className="mt-4 space-y-2">
                 <Label className="text-sm font-medium">{t("checkout.address")}</Label>
-                <div className="rounded-xl bg-secondary/40 p-4 text-sm space-y-2">
+                <div className="rounded-xl border border-border/60 bg-card p-4 text-sm space-y-2">
                   <p className="text-muted-foreground">{t("profile.signInToOrderDescription")}</p>
                   <Button
                     type="button"
@@ -509,7 +512,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
             ) : readiness.isReady ? (
               <section className="mt-4 space-y-2">
                 <Label className="text-sm font-medium">{t("checkout.address")}</Label>
-                <div className="rounded-xl bg-secondary/40 p-4 text-sm space-y-1">
+                <div className="rounded-xl border border-border/60 bg-card p-4 text-sm space-y-1">
                   <p className="font-medium">{readiness.profile?.fullName}</p>
                   <p className="text-muted-foreground">{readiness.profile?.phone}</p>
                   <p className="text-muted-foreground">{readiness.defaultAddress?.fullAddress}</p>
@@ -542,7 +545,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                 summary above (address/zone naturally comes first, then
                 price, then payment method — matches a typical checkout
                 order). */}
-            <div className="mt-4 rounded-2xl bg-secondary/40 p-4 space-y-2">
+            <div className="mt-4 rounded-2xl border border-border/60 bg-card p-4 space-y-2">
               {zoneId && deliveryQuery.data && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-1.5 text-muted-foreground">

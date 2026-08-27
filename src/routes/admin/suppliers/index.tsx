@@ -207,7 +207,7 @@ function AdminSuppliersPage() {
               {suppliers.map((s) => (
                 <li
                   key={s.id}
-                  className="flex items-center justify-between rounded-xl bg-secondary/40 px-4 py-3"
+                  className="flex items-center justify-between rounded-xl border border-border/60 bg-card px-4 py-3"
                 >
                   <span className="truncate">{s.name}</span>
                   <Badge variant={s.isActive ? "secondary" : "outline"}>
@@ -251,7 +251,10 @@ function AdminSuppliersPage() {
           ) : (
             <ul className="space-y-3 mb-6">
               {supplies.map((supply) => (
-                <li key={supply.id} className="rounded-xl bg-secondary/40 px-4 py-3">
+                <li
+                  key={supply.id}
+                  className="rounded-xl border border-border/60 bg-card px-4 py-3"
+                >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-sm">
                       {supply.items.length} {supply.items.length === 1 ? "позиция" : "позиций"}

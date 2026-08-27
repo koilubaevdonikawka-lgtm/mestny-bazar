@@ -138,7 +138,7 @@ export function AdminDataTable<T>({
       )}
 
       {selectable && bulkActions && bulkActions.length > 0 && selectedIds.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-secondary/60 px-4 py-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card px-4 py-2">
           <span className="text-sm text-muted-foreground">Выбрано: {selectedIds.size}</span>
           {bulkActions.map((action) => (
             <Button
@@ -195,7 +195,7 @@ export function AdminDataTable<T>({
               return (
                 <li
                   key={id}
-                  className="flex flex-wrap items-center gap-3 rounded-xl bg-secondary/40 px-4 py-3"
+                  className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-3"
                 >
                   {selectable && (
                     <Checkbox

@@ -117,7 +117,7 @@ function AdminSecurityPage() {
             {overview.perimeter.map((item) => (
               <li
                 key={item.name}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-secondary/40 px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-4 py-3"
               >
                 <div className="min-w-0">
                   <p className="font-medium">{item.name}</p>
@@ -141,7 +141,7 @@ function AdminSecurityPage() {
           <h2 className="font-serif text-2xl mb-4">{t("admin.security.gapsHeading")}</h2>
           <ul className="space-y-3">
             {overview.gaps.map((gap) => (
-              <li key={gap.name} className="rounded-xl bg-secondary/40 px-4 py-3">
+              <li key={gap.name} className="rounded-xl border border-border/60 bg-card px-4 py-3">
                 <p className="font-medium">{gap.name}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{gap.note}</p>
               </li>

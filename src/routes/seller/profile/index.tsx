@@ -163,7 +163,7 @@ function SellerProfilePage() {
           className="mt-8 rounded-2xl border border-border/60 bg-card p-6 space-y-4"
         >
           {!profile && (
-            <div className="flex items-center gap-3 rounded-xl bg-secondary/40 px-4 py-3 text-sm text-muted-foreground">
+            <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 text-sm text-muted-foreground">
               <Store className="h-4 w-4 flex-shrink-0" />
               Профиль ещё не создан — заполните и сохраните форму ниже.
             </div>

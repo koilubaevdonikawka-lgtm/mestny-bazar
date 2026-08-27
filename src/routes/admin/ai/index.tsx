@@ -130,7 +130,7 @@ function AdminAIPage() {
               {status.workers.map((worker) => (
                 <li
                   key={worker.id}
-                  className="flex items-center justify-between gap-2 rounded-xl bg-secondary/40 px-4 py-3"
+                  className="flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-4 py-3"
                 >
                   <code className="text-sm font-medium">{worker.id}</code>
                   <Badge variant="secondary">Активен</Badge>

@@ -191,7 +191,7 @@ function AdminLogsPage() {
           ) : (
             <ul className="space-y-3">
               {result.items.map((entry) => (
-                <li key={entry.id} className="rounded-xl bg-secondary/40 px-4 py-3">
+                <li key={entry.id} className="rounded-xl border border-border/60 bg-card px-4 py-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <code className="text-sm font-medium">{entry.action}</code>
                     <p className="text-xs text-muted-foreground">
