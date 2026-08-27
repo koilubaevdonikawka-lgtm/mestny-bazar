@@ -568,13 +568,19 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                       })}
                     </p>
                   )}
-                  <Link
-                    to="/profile"
-                    onClick={() => onNavigate?.()}
-                    className="text-xs text-primary underline"
+                  {/* Задача №187 — a real, clearly-bordered button instead
+                      of a small underlined text link: large enough tap
+                      target and legible text for low-vision users, not just
+                      "technically clickable". */}
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="mt-1 h-11 w-full rounded-xl text-sm font-medium"
                   >
-                    {t("common.edit")}
-                  </Link>
+                    <Link to="/profile" onClick={() => onNavigate?.()}>
+                      {t("common.edit")}
+                    </Link>
+                  </Button>
                 </div>
               </section>
             ) : null}

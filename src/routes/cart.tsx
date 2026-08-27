@@ -29,7 +29,10 @@ function CartPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader safeAreaTop showAccountMenu={false} showCart={false} />
+      {/* Задача №187 — no search bar on the cart page itself; nothing here
+          benefits from an in-place product search, and it just adds visual
+          clutter above the checkout flow. */}
+      <SiteHeader safeAreaTop showAccountMenu={false} showCart={false} showSearch={false} />
       <main className="flex-1 mx-auto max-w-lg w-full px-4 py-6 sm:px-6 flex flex-col">
         <h1 className="font-serif text-2xl tracking-tight">{t("cart.yourCartTitle")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
