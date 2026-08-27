@@ -279,6 +279,18 @@ export const ru = {
     personalDataTitle: "Личные данные",
     /** Задача №189 — heading for the merged personal-data + default-address card. */
     personalDataAndAddressTitle: "Личные данные и адрес доставки",
+    /**
+     * Задача №190 — the combined card's single "Адрес" field split into
+     * three: country (static, non-editable — the platform only ever
+     * delivers within Kyrgyzstan, see order-display.ts's own hardcoded
+     * ", Кыргызстан" suffix — a real editable field would be a control for
+     * a choice that doesn't exist), city/district (reuses AddressDTO.city,
+     * not a new column), and the detail address (reuses fullAddress).
+     */
+    countryField: "Страна",
+    countryValue: "Кыргызстан",
+    cityOrDistrictField: "Город или район",
+    detailAddressPlaceholder: "село,ул.№ или мкр.№ подъез.",
     fullNameField: "Имя и фамилия",
     fullNamePlaceholder: "Айгуль Токтосунова",
     phoneField: "Номер телефона",

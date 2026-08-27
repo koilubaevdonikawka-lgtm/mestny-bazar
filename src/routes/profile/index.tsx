@@ -140,6 +140,12 @@ function ProfileAndDefaultAddressCard() {
   const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  // Задача №190 — city reuses AddressDTO.city (already existed, was never
+  // wired into this card before — only AddressesPanel's own separate form
+  // used it). Country isn't a field at all: the platform only ever
+  // delivers within Kyrgyzstan (see order-display.ts's own hardcoded
+  // ", Кыргызстан" suffix) — shown as static text below, not state.
+  const [city, setCity] = useState("");
   const [fullAddress, setFullAddress] = useState("");
   const [zoneId, setZoneId] = useState("");
 
@@ -168,6 +174,7 @@ function ProfileAndDefaultAddressCard() {
   }, [profile]);
 
   useEffect(() => {
+    setCity(defaultAddress?.city ?? "");
     setFullAddress(defaultAddress?.fullAddress ?? "");
     setZoneId(defaultAddress?.zoneId ?? "");
     // Re-syncs only when which address is the default one actually changes
@@ -191,10 +198,12 @@ function ProfileAndDefaultAddressCard() {
       return defaultAddress
         ? updateAddress({
             id: defaultAddress.id,
+            city: city.trim() || undefined,
             fullAddress: fullAddress.trim(),
             zoneId: zoneId || undefined,
           })
         : createAddress({
+            city: city.trim() || undefined,
             fullAddress: fullAddress.trim(),
             zoneId: zoneId || undefined,
             isDefault: true,
@@ -277,10 +286,25 @@ function ProfileAndDefaultAddressCard() {
               />
             </div>
           </div>
+          {/* Задача №190 — the single "Адрес" field split into three:
+              country (static — see the field-level comment above), city/
+              district (reuses AddressDTO.city), and the detail address
+              (reuses fullAddress, with the requested verbatim placeholder). */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="profileCountry">{t("profile.countryField")}</Label>
+              <Input id="profileCountry" value={t("profile.countryValue")} disabled />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="profileCity">{t("profile.cityOrDistrictField")}</Label>
+              <Input id="profileCity" value={city} onChange={(e) => setCity(e.target.value)} />
+            </div>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="profileDefaultAddress">{t("addresses.fullAddressField")}</Label>
             <Input
               id="profileDefaultAddress"
+              placeholder={t("profile.detailAddressPlaceholder")}
               value={fullAddress}
               onChange={(e) => setFullAddress(e.target.value)}
             />
@@ -311,6 +335,14 @@ function ProfileAndDefaultAddressCard() {
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">{t("profile.phoneField")}</p>
             <p className="font-medium">{phone || "—"}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">{t("profile.countryField")}</p>
+            <p className="font-medium">{t("profile.countryValue")}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">{t("profile.cityOrDistrictField")}</p>
+            <p className="font-medium">{city || "—"}</p>
           </div>
           <div className="space-y-1 sm:col-span-2">
             <p className="text-sm text-muted-foreground">{t("addresses.fullAddressField")}</p>

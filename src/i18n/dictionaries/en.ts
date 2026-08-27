@@ -269,6 +269,10 @@ export const en = {
   profile: {
     personalDataTitle: "Personal details",
     personalDataAndAddressTitle: "Personal details & delivery address",
+    countryField: "Country",
+    countryValue: "Kyrgyzstan",
+    cityOrDistrictField: "City or district",
+    detailAddressPlaceholder: "village, street & house, or microdistrict, house & entrance",
     fullNameField: "Full name",
     fullNamePlaceholder: "Jane Doe",
     phoneField: "Phone number",
