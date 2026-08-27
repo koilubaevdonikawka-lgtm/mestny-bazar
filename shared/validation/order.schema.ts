@@ -39,8 +39,9 @@ export const createOrderRequestSchema = z.object({
   deliveryLatitude: z.number().min(-90).max(90).optional(),
   deliveryLongitude: z.number().min(-180).max(180).optional(),
   zoneId: z.string().uuid().optional(),
-  customerName: z.string().trim().min(1).max(200),
-  customerPhone: z.string().trim().min(1).max(30),
+  /** Задача №182 — omitted when the caller relies on the authenticated user's saved Profile (see CreateOrderRequest). */
+  customerName: z.string().trim().min(1).max(200).optional(),
+  customerPhone: z.string().trim().min(1).max(30).optional(),
   paymentMethod: paymentMethodSchema,
   notes: z.string().trim().max(2000).optional(),
   idempotencyKey: z.string().trim().min(1).max(200),

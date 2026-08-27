@@ -14,9 +14,10 @@ import {
 } from "@/api/addresses";
 import { listDeliveryZones } from "@/api/delivery-zone";
 import type { AddressDTO } from "@shared/contracts/delivery";
-import { Loader2, MapPin, Pencil, Plus, Star, Trash2 } from "lucide-react";
+import { Loader2, MapPin, Pencil, Plus, Star, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "@/i18n/LanguageProvider";
+import { LocationPickerDialog } from "@/components/checkout/LocationPickerDialog";
 
 type AddressFormState = {
   label: string;
@@ -26,6 +27,8 @@ type AddressFormState = {
   notes: string;
   zoneId: string;
   isDefault: boolean;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 const emptyForm = (): AddressFormState => ({
@@ -36,6 +39,8 @@ const emptyForm = (): AddressFormState => ({
   notes: "",
   zoneId: "",
   isDefault: false,
+  latitude: null,
+  longitude: null,
 });
 
 /**
@@ -52,6 +57,7 @@ export function AddressesPanel() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<AddressFormState>(emptyForm);
+  const [mapDialogOpen, setMapDialogOpen] = useState(false);
 
   const {
     data: addresses = [],
@@ -133,6 +139,8 @@ export function AddressesPanel() {
       notes: address.notes ?? "",
       zoneId: address.zoneId ?? "",
       isDefault: address.isDefault,
+      latitude: address.latitude,
+      longitude: address.longitude,
     });
     setShowForm(true);
   };
@@ -147,6 +155,8 @@ export function AddressesPanel() {
       notes: form.notes.trim() || undefined,
       zoneId: form.zoneId || undefined,
       isDefault: form.isDefault,
+      latitude: form.latitude,
+      longitude: form.longitude,
     };
 
     if (payload.fullAddress.length < 5) {
@@ -234,6 +244,32 @@ export function AddressesPanel() {
               value={form.fullAddress}
               onChange={(e) => setForm((prev) => ({ ...prev, fullAddress: e.target.value }))}
             />
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setMapDialogOpen(true)}
+              >
+                <MapPin className="h-3.5 w-3.5 mr-1" />
+                {t("addresses.pickOnMapButton")}
+              </Button>
+              {form.latitude != null && form.longitude != null && (
+                <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                  {t("addresses.mapPointSet")}
+                  <button
+                    type="button"
+                    aria-label={t("addresses.mapPointClear")}
+                    onClick={() =>
+                      setForm((prev) => ({ ...prev, latitude: null, longitude: null }))
+                    }
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </span>
+              )}
+            </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
@@ -366,6 +402,19 @@ export function AddressesPanel() {
           ))}
         </ul>
       )}
+
+      <LocationPickerDialog
+        open={mapDialogOpen}
+        onOpenChange={setMapDialogOpen}
+        onConfirm={(location) =>
+          setForm((prev) => ({
+            ...prev,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            fullAddress: prev.fullAddress.trim() || location.address || prev.fullAddress,
+          }))
+        }
+      />
     </div>
   );
 }

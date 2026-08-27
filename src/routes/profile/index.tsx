@@ -1,11 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { AddressesPanel } from "@/components/AddressesPanel";
 import { signInWithGoogle } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { WELCOME_SEEN_KEY } from "@/components/WelcomeGate";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
+import { getMyProfile, updateMyProfile } from "@/api/profile";
 import { Loader2, LogIn, LogOut, Package } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "@/i18n/LanguageProvider";
@@ -100,10 +105,105 @@ function ProfilePage() {
         </Link>
 
         <div className="mt-10">
+          <ProfileInfoForm />
+        </div>
+
+        <div className="mt-10">
           <AddressesPanel />
         </div>
       </div>
     </PageShell>
+  );
+}
+
+/**
+ * Задача №182 — name/phone, moved here from the cart's inline checkout
+ * fields. Together with AddressesPanel's default address + zone, this is
+ * the complete set CheckoutService resolves server-side at order time.
+ */
+function ProfileInfoForm() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+
+  const { data: profile, isLoading } = useQuery({
+    queryKey: ["profile", "me"],
+    queryFn: getMyProfile,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (!profile) return;
+    setFullName(profile.fullName ?? "");
+    setPhone(profile.phone ?? "");
+  }, [profile]);
+
+  const mutation = useMutation({
+    mutationFn: updateMyProfile,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["profile", "me"] });
+      toast.success(t("profile.savedToast"));
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : t("profile.saveError")),
+  });
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (fullName.trim().length < 2) {
+      toast.error(t("profile.nameTooShortError"));
+      return;
+    }
+    if (phone.replace(/\D/g, "").length < 9) {
+      toast.error(t("profile.phoneTooShortError"));
+      return;
+    }
+    mutation.mutate({ fullName: fullName.trim(), phone: phone.trim() });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-2xl border border-border/60 bg-card p-6 space-y-4"
+    >
+      <h2 className="font-serif text-2xl">{t("profile.personalDataTitle")}</h2>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="profileFullName">{t("profile.fullNameField")}</Label>
+          <Input
+            id="profileFullName"
+            placeholder={t("profile.fullNamePlaceholder")}
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="profilePhone">{t("profile.phoneField")}</Label>
+          <Input
+            id="profilePhone"
+            type="tel"
+            placeholder={t("profile.phonePlaceholder")}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+        </div>
+      </div>
+      <Button type="submit" disabled={mutation.isPending}>
+        {mutation.isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          t("profile.saveButton")
+        )}
+      </Button>
+    </form>
   );
 }
 

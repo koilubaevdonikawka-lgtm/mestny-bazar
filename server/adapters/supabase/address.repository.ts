@@ -15,6 +15,8 @@ function mapRow(row: {
   district: string | null;
   notes: string | null;
   zone_id: string | null;
+  latitude: number | null;
+  longitude: number | null;
   is_default: boolean;
 }): AddressDTO {
   return {
@@ -25,9 +27,14 @@ function mapRow(row: {
     district: row.district,
     notes: row.notes,
     zoneId: row.zone_id,
+    latitude: row.latitude,
+    longitude: row.longitude,
     isDefault: row.is_default,
   };
 }
+
+const ADDRESS_COLUMNS =
+  "id, label, full_address, city, district, notes, zone_id, latitude, longitude, is_default";
 
 export class SupabaseAddressRepository implements IAddressRepository {
   /**
@@ -47,7 +54,7 @@ export class SupabaseAddressRepository implements IAddressRepository {
   async listByUser(userId: string): Promise<AddressDTO[]> {
     const { data, error } = await supabaseAdmin
       .from("addresses")
-      .select("id, label, full_address, city, district, notes, zone_id, is_default")
+      .select(ADDRESS_COLUMNS)
       .eq("user_id", userId)
       .order("is_default", { ascending: false });
 
@@ -58,7 +65,7 @@ export class SupabaseAddressRepository implements IAddressRepository {
   async getById(id: string, userId: string): Promise<AddressDTO | null> {
     const { data, error } = await supabaseAdmin
       .from("addresses")
-      .select("id, label, full_address, city, district, notes, zone_id, is_default")
+      .select(ADDRESS_COLUMNS)
       .eq("id", id)
       .eq("user_id", userId)
       .maybeSingle();
@@ -83,9 +90,11 @@ export class SupabaseAddressRepository implements IAddressRepository {
         district: data.district ?? null,
         notes: data.notes ?? null,
         zone_id: data.zoneId ?? null,
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null,
         is_default: false,
       })
-      .select("id, label, full_address, city, district, notes, zone_id, is_default")
+      .select(ADDRESS_COLUMNS)
       .single();
 
     if (error || !row) throw new Error(`Failed to create address: ${error?.message ?? "unknown"}`);
@@ -107,6 +116,8 @@ export class SupabaseAddressRepository implements IAddressRepository {
     if (data.district !== undefined) patch.district = data.district;
     if (data.notes !== undefined) patch.notes = data.notes;
     if (data.zoneId !== undefined) patch.zone_id = data.zoneId;
+    if (data.latitude !== undefined) patch.latitude = data.latitude;
+    if (data.longitude !== undefined) patch.longitude = data.longitude;
     // isDefault:true was already applied atomically above; only a plain
     // is_default:false needs to go through the regular field patch.
     if (data.isDefault === false) patch.is_default = false;
@@ -122,7 +133,7 @@ export class SupabaseAddressRepository implements IAddressRepository {
       .update(patch)
       .eq("id", data.id)
       .eq("user_id", userId)
-      .select("id, label, full_address, city, district, notes, zone_id, is_default")
+      .select(ADDRESS_COLUMNS)
       .single();
 
     if (error || !row) throw new Error(`Failed to update address: ${error?.message ?? "unknown"}`);

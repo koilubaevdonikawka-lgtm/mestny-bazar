@@ -53,6 +53,16 @@ export interface AddressDTO {
   district: string | null;
   notes: string | null;
   zoneId: string | null;
+  /**
+   * Задача №182 — precise coordinates for the profile's saved address, same
+   * NUMERIC(9,6) precision already used for orders.delivery_latitude/
+   * longitude (Задача №151/163) and stores.lat/lng. Set together (via the
+   * map picker) or left both null (manually typed address) — never one
+   * without the other, same convention as checkoutStore's own
+   * deliveryLatitude/Longitude used to enforce client-side.
+   */
+  latitude: number | null;
+  longitude: number | null;
   isDefault: boolean;
 }
 
@@ -63,6 +73,8 @@ export interface CreateAddressRequest {
   district?: string;
   notes?: string;
   zoneId?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   isDefault?: boolean;
 }
 

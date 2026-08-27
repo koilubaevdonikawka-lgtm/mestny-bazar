@@ -16,6 +16,7 @@ import { ProductVariantService } from "@server/domain/product-variant.service";
 import { VariantAttributeService } from "@server/domain/variant-attribute.service";
 import { VariantStockService } from "@server/domain/variant-stock.service";
 import { CheckoutService } from "@server/domain/checkout.service";
+import { ProfileService } from "@server/domain/profile.service";
 import { CourierAdminService } from "@server/domain/courier-admin.service";
 import { CourierAssignmentService } from "@server/domain/courier-assignment.service";
 import { CourierStatusService } from "@server/domain/courier-status.service";
@@ -135,6 +136,8 @@ import { SupabaseStorageAdapter } from "@server/adapters/supabase/storage.servic
 import { SupabaseCourierProfileRepository } from "@server/adapters/supabase/courier-profile.repository";
 import { SupabaseRbacRepository } from "@server/adapters/supabase/rbac.repository";
 import type { IAddressRepository } from "@server/ports/address.repository";
+import type { IProfileRepository } from "@server/ports/profile.repository";
+import { SupabaseProfileRepository } from "@server/adapters/supabase/profile.repository";
 import type { IDeviceTokenRepository } from "@server/ports/device-token.repository";
 import type { ICartRepository } from "@server/ports/cart.repository";
 import type { ICategoryRepository } from "@server/ports/category.repository";
@@ -278,6 +281,7 @@ export interface ServiceContainer {
   ownershipTransferService: OwnershipTransferService;
   roleResolutionService: RoleResolutionService;
   addressService: AddressService;
+  profileService: ProfileService;
   deviceTokenService: DeviceTokenService;
   notificationService: NotificationService;
   notificationCenter: INotificationCenter;
@@ -288,6 +292,7 @@ export interface ServiceContainer {
   orderCascadeService: OrderLifecycleCascadeService;
   sellerProducts: ISellerProductRepository;
   addresses: IAddressRepository;
+  profiles: IProfileRepository;
   deviceTokens: IDeviceTokenRepository;
   cities: ICityRepository;
   cityService: CityService;
@@ -386,6 +391,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const platformOwnership: IPlatformOwnershipRepository = new SupabasePlatformOwnershipRepository();
   const bootstrapRepo: IBootstrapRepository = new SupabaseBootstrapRepository();
   const addresses = new SupabaseAddressRepository();
+  const profiles: IProfileRepository = new SupabaseProfileRepository();
   const deviceTokens = new SupabaseDeviceTokenRepository();
   const carts = new SupabaseCartRepository();
   const settings: ISettingsRepository = new SupabaseSettingsRepository();
@@ -510,6 +516,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
   });
 
   const addressService = new AddressService(addresses);
+  const profileService = new ProfileService(profiles);
   const deviceTokenService = new DeviceTokenService(deviceTokens);
   // Reuses orderProducts — the same product repository CheckoutService
   // validates against, so a cart line and an order line item are validated
@@ -732,6 +739,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     couponService,
     productVariantService,
     variantStockService,
+    profiles,
   );
 
   return {
@@ -756,6 +764,8 @@ export function createServices(env: ServerEnv): ServiceContainer {
     ownershipTransferService,
     roleResolutionService,
     addresses,
+    profiles,
+    profileService,
     carts,
     cities,
     cityService,

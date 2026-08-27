@@ -13,6 +13,8 @@ function makeAddress(overrides: Partial<AddressDTO> = {}): AddressDTO {
     district: null,
     notes: null,
     zoneId: null,
+    latitude: null,
+    longitude: null,
     isDefault: false,
     ...overrides,
   };

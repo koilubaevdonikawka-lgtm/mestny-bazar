@@ -13,6 +13,7 @@ import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
 import type { IPaymentPolicy, PaymentPolicyContext } from "@server/ports/payment-policy.port";
 import type { IProductRepository } from "@server/ports/product.repository";
 import type { ICustomerStatusRepository } from "@server/ports/customer-status.repository";
+import type { IProfileRepository } from "@server/ports/profile.repository";
 import { CheckoutValidationError, ProductNotSynchronized } from "@server/domain/checkout.errors";
 import { InventoryService } from "@server/domain/inventory.service";
 import { OrderService } from "@server/domain/order.service";
@@ -44,10 +45,21 @@ export class CheckoutService {
     private readonly productVariants: ProductVariantService,
     /** Stage 18 — stock-sufficiency check for a requested variant. Not modified, only composed here. */
     private readonly variantStock: VariantStockService,
+    /**
+     * Задача №182 — the cart/quick-buy checkout UI no longer collects
+     * name/phone at all (moved to the profile, filled once); when a request
+     * omits them, they're resolved from the authenticated user's own saved
+     * profile here — server-side, never trusting a client-echoed value for
+     * something the account itself already has on file (CD-01). A request
+     * that DOES supply them (e.g. a future non-profile caller) is used as-is,
+     * unchanged from before.
+     */
+    private readonly profiles: IProfileRepository,
   ) {}
 
   async checkout(userId: string | null, request: CreateOrderRequest): Promise<CreateOrderResponse> {
-    this.validateRequest(request, userId);
+    const { customerName, customerPhone } = await this.resolveCustomerContact(userId, request);
+    this.validateRequest(request, userId, customerName, customerPhone);
 
     // A retried request with the same idempotencyKey must not reserve stock a second
     // time for an order that already exists — short-circuit before touching inventory.
@@ -155,8 +167,8 @@ export class CheckoutService {
         deliveryLatitude: request.deliveryLatitude,
         deliveryLongitude: request.deliveryLongitude,
         zoneId,
-        customerName: request.customerName.trim(),
-        customerPhone: this.normalizePhone(request.customerPhone),
+        customerName,
+        customerPhone,
         paymentMethod: request.paymentMethod,
         notes: request.notes,
         idempotencyKey: request.idempotencyKey,
@@ -265,7 +277,12 @@ export class CheckoutService {
     };
   }
 
-  private validateRequest(request: CreateOrderRequest, userId: string | null): void {
+  private validateRequest(
+    request: CreateOrderRequest,
+    userId: string | null,
+    customerName: string,
+    customerPhone: string,
+  ): void {
     const details: Record<string, string[]> = {};
 
     if (!request.idempotencyKey?.trim()) {
@@ -283,10 +300,10 @@ export class CheckoutService {
         }
       }
     }
-    if (!request.customerName?.trim() || request.customerName.trim().length < 2) {
+    if (!customerName || customerName.length < 2) {
       details.customerName = ["Customer name must be at least 2 characters"];
     }
-    if (this.normalizePhone(request.customerPhone).length < 9) {
+    if (customerPhone.length < 9) {
       details.customerPhone = ["Customer phone must contain at least 9 digits"];
     }
     if (!request.paymentMethod) {
@@ -342,6 +359,34 @@ export class CheckoutService {
     }
 
     throw new CheckoutValidationError({ address: ["Delivery address is required"] });
+  }
+
+  /**
+   * Задача №182 — mirrors resolveAddress()'s fallback-to-saved-data pattern.
+   * A caller that supplies both fields explicitly (e.g. a future non-profile
+   * caller) is used as-is; otherwise, for an authenticated user, resolved
+   * from their own saved Profile server-side (CD-01 — never trust a
+   * client-echoed value for something the account already has on file).
+   * No userId and no explicit values yields empty strings, which
+   * validateRequest() below correctly rejects (same shape as the existing
+   * guest-address-required error).
+   */
+  private async resolveCustomerContact(
+    userId: string | null,
+    request: CreateOrderRequest,
+  ): Promise<{ customerName: string; customerPhone: string }> {
+    if (request.customerName?.trim() && request.customerPhone?.trim()) {
+      return {
+        customerName: request.customerName.trim(),
+        customerPhone: this.normalizePhone(request.customerPhone),
+      };
+    }
+
+    const profile = userId ? await this.profiles.getById(userId) : null;
+    return {
+      customerName: request.customerName?.trim() || profile?.fullName?.trim() || "",
+      customerPhone: this.normalizePhone(request.customerPhone || profile?.phone || ""),
+    };
   }
 
   /**

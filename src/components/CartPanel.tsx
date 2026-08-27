@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -11,8 +10,6 @@ import {
   Trash2,
   AlertTriangle,
   Loader2,
-  LocateFixed,
-  MapPin,
   Truck,
   CreditCard,
 } from "lucide-react";
@@ -23,16 +20,14 @@ import { calculateDeliveryFee } from "@/api/delivery-pricing";
 import { listDeliveryZones } from "@/api/delivery-zone";
 import { cancelUnpaidOnlineOrder, getOrderStatus, retryPayment } from "@/api/orders";
 import { CartQuantityControl } from "@/components/CartQuantityControl";
-import { LocationPickerDialog } from "@/components/checkout/LocationPickerDialog";
 import { RetryPaymentButton } from "@/components/RetryPaymentButton";
 import { CancelUnpaidOnlineOrderButton } from "@/components/CancelUnpaidOnlineOrderButton";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
 import { useCreateOrder } from "@/hooks/useCreateOrder";
+import { useCheckoutReadiness } from "@/hooks/useCheckoutReadiness";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { signInWithGoogle } from "@/lib/auth";
-import { getGeolocationCapability } from "@/lib/capabilities";
-import { reverseGeocode } from "@/lib/reverseGeocode";
 import type { CartLineStatus } from "@shared/contracts/cart";
 import { OrderStatus } from "@shared/contracts/order";
 import { formatOrderStatus } from "@shared/lib/order-display";
@@ -85,6 +80,8 @@ export interface CartPanelProps {
 export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps) {
   const { t, language } = useTranslation();
   const { isAuthenticated } = useSupabaseSession();
+  const readiness = useCheckoutReadiness();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const VALIDATION_MESSAGE: Record<Exclude<CartLineStatus, "ok">, string> = useMemo(
     () => ({
@@ -104,19 +101,11 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
     setLastOrderId(localStorage.getItem(LAST_ORDER_ID_STORAGE_KEY));
   }, []);
   const { items, isLoading, removeItem, validateCart, clearCart } = useCartStore();
-  const {
-    address,
-    zoneId,
-    paymentMethod,
-    customerPhone,
-    setAddress,
-    setAddressFromGeolocation,
-    setZoneId,
-    setPaymentMethod,
-    setCustomerPhone,
-  } = useCheckoutStore();
-  const [isLocating, setIsLocating] = useState(false);
-  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
+  const { paymentMethod, setPaymentMethod } = useCheckoutStore();
+  // Задача №182 — the default saved Address (with its zone) is the single
+  // source of truth for delivery now; nothing here is collected inline
+  // anymore, only displayed (see the read-only "deliver to" summary below).
+  const zoneId = readiness.defaultAddress?.zoneId ?? null;
   const totalItems = items.reduce((s, i) => s + i.quantity, 0);
   const totalPrice = items.reduce((s, i) => s + parseFloat(i.price.amount) * i.quantity, 0);
   const itemTranslations = useTranslatedTexts(
@@ -238,6 +227,21 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
   const { submitOrder, isSubmitting } = useCreateOrder();
 
   const handleCheckout = async () => {
+    // Задача №182 — guest checkout removed entirely, and the cart no longer
+    // collects address/phone/name itself; both gates redirect to where the
+    // missing piece actually gets filled in, instead of failing at the API.
+    if (readiness.isAuthenticated !== true) {
+      await handleSignIn();
+      return;
+    }
+    if (readiness.isReady === null) return;
+    if (!readiness.isReady) {
+      toast.error(t("profile.completeProfileToOrderDescription"));
+      onNavigate?.();
+      await navigate({ to: "/profile" });
+      return;
+    }
+
     const orderItems = items.map((item) => ({
       productSlug: item.product.node.handle,
       quantity: item.quantity,
@@ -256,38 +260,6 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
       useCheckoutStore.getState().reset();
       onOrderPlaced?.();
     });
-  };
-
-  /**
-   * Задача №151 — captures precise GPS coordinates, not just a derived text
-   * guess: reverse geocoding (Nominatim) only fills the address field for
-   * convenience/manual review, the coordinates themselves are what actually
-   * gets saved for courier navigation. Manual typing always stays possible —
-   * every failure path here just falls back to whatever text is already in
-   * the field, never blocks the input.
-   */
-  const handleUseMyLocation = async () => {
-    const geolocation = getGeolocationCapability();
-    if (!geolocation.isSupported()) {
-      toast.error(t("cart.locationUnsupportedError"));
-      return;
-    }
-    setIsLocating(true);
-    try {
-      const position = await geolocation.getCurrentPosition();
-      const resolvedAddress = await reverseGeocode(position.latitude, position.longitude);
-      setAddressFromGeolocation(resolvedAddress ?? address, position.latitude, position.longitude);
-      toast.success(t("cart.locationCapturedToast"));
-    } catch (error) {
-      const code = (error as { code?: number } | null)?.code;
-      toast.error(
-        code === 1 // GeolocationPositionError.PERMISSION_DENIED
-          ? t("cart.locationPermissionDeniedError")
-          : t("cart.locationUnavailableError"),
-      );
-    } finally {
-      setIsLocating(false);
-    }
   };
 
   const checkoutBusy = isLoading || isSubmitting;
@@ -526,86 +498,65 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
               })}
             </div>
 
-            {/* Sequential checkout, inline: address → delivery method →
-                payment method, right here, instead of requiring a trip back
-                to the home page's separate dialogs. Same useCheckoutStore
-                fields/setters those dialogs already use — filling it in
-                here or there stays in sync either way, and handleCheckout's
-                validation below is untouched. */}
+            {/* Задача №182 — deliver-to summary, read-only: address/zone/
+                phone/name now live on the profile (AddressesPanel's default
+                address + /profile's name/phone form) and are resolved
+                server-side from there at checkout time. Nothing here is
+                collected inline anymore, only shown; incomplete data or a
+                signed-out visitor gets a way to fix it, not an inline form. */}
             <section className="mt-4 space-y-2">
-              <Label htmlFor="cart-address" className="text-sm font-medium">
-                {t("checkout.address")}
-              </Label>
-              <Input
-                id="cart-address"
-                type="text"
-                autoComplete="street-address"
-                placeholder={t("home.addressPlaceholder")}
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="h-11 rounded-xl px-4"
-                maxLength={200}
-              />
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="rounded-xl"
-                  disabled={isLocating}
-                  onClick={() => void handleUseMyLocation()}
-                >
-                  {isLocating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <LocateFixed className="h-4 w-4" />
+              <Label className="text-sm font-medium">{t("checkout.address")}</Label>
+              {readiness.isAuthenticated !== true ? (
+                <div className="rounded-xl bg-secondary/40 p-4 text-sm space-y-2">
+                  <p className="text-muted-foreground">{t("profile.signInToOrderDescription")}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={() => void handleSignIn()}
+                  >
+                    {t("common.signIn")}
+                  </Button>
+                </div>
+              ) : readiness.isReady === null ? (
+                <div className="flex justify-center py-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : readiness.isReady ? (
+                <div className="rounded-xl bg-secondary/40 p-4 text-sm space-y-1">
+                  <p className="font-medium">{readiness.profile?.fullName}</p>
+                  <p className="text-muted-foreground">{readiness.profile?.phone}</p>
+                  <p className="text-muted-foreground">{readiness.defaultAddress?.fullAddress}</p>
+                  {readiness.defaultAddress?.zoneId && (
+                    <p className="text-muted-foreground">
+                      {t("addresses.zoneDisplay", {
+                        zoneName:
+                          deliveryZones?.find((z) => z.id === readiness.defaultAddress?.zoneId)
+                            ?.name ?? "—",
+                      })}
+                    </p>
                   )}
-                  {t("cart.useMyLocationButton")}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="rounded-xl"
-                  onClick={() => setIsMapPickerOpen(true)}
-                >
-                  <MapPin className="h-4 w-4" />
-                  {t("cart.useMapButton")}
-                </Button>
-              </div>
-              <Label htmlFor="cart-phone" className="text-sm font-medium">
-                {t("home.phoneLabel")}
-              </Label>
-              <Input
-                id="cart-phone"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder={t("home.phonePlaceholder")}
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                className="h-11 rounded-xl px-4"
-                maxLength={20}
-              />
-            </section>
-
-            <section className="mt-4 space-y-2">
-              <Label htmlFor="cart-zone" className="text-sm font-medium">
-                {t("home.deliveryZoneLabel")}
-              </Label>
-              <select
-                id="cart-zone"
-                value={zoneId ?? ""}
-                onChange={(e) => setZoneId(e.target.value || null)}
-                className="h-11 w-full rounded-xl border border-input bg-background px-4 text-sm"
-              >
-                <option value="">{t("home.zoneNotSelected")}</option>
-                {(deliveryZones ?? []).map((zone) => (
-                  <option key={zone.id} value={zone.id}>
-                    {zone.name}
-                  </option>
-                ))}
-              </select>
+                  <Link
+                    to="/profile"
+                    onClick={() => onNavigate?.()}
+                    className="text-xs text-primary underline"
+                  >
+                    {t("common.edit")}
+                  </Link>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border p-4 text-sm space-y-2">
+                  <p className="text-muted-foreground">
+                    {t("profile.completeProfileToOrderDescription")}
+                  </p>
+                  <Button asChild size="sm" className="rounded-xl">
+                    <Link to="/profile" onClick={() => onNavigate?.()}>
+                      {t("profile.goToProfileButton")}
+                    </Link>
+                  </Button>
+                </div>
+              )}
             </section>
 
             <section className="mt-4 space-y-2">
@@ -642,41 +593,39 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
               from live state. Inside an unbounded ancestor (a plain page),
               this degrades gracefully to normal in-flow layout. */}
           <div className="flex-shrink-0 space-y-3 pt-4 pb-safe border-t bg-background">
-            {zoneId ? (
-              deliveryQuery.data && (
-                <div className="flex items-start gap-2 rounded-xl bg-secondary/40 px-4 py-3 text-sm">
-                  <Truck className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" />
-                  <div>
-                    <p>
-                      {t("cart.deliveryLabel")}:{" "}
-                      <strong>
-                        {deliveryQuery.data.isFree
-                          ? t("cart.free")
-                          : `${deliveryQuery.data.fee.toFixed(2)} ${items[0]?.price.currencyCode || ""}`}
-                      </strong>
-                    </p>
-                    {deliveryQuery.data.eta.minMinutes != null && (
-                      <p className="text-muted-foreground">
-                        {t("cart.etaLabel", {
-                          min: deliveryQuery.data.eta.minMinutes,
-                          max: deliveryQuery.data.eta.maxMinutes ?? "",
-                        })}
+            {zoneId
+              ? deliveryQuery.data && (
+                  <div className="flex items-start gap-2 rounded-xl bg-secondary/40 px-4 py-3 text-sm">
+                    <Truck className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" />
+                    <div>
+                      <p>
+                        {t("cart.deliveryLabel")}:{" "}
+                        <strong>
+                          {deliveryQuery.data.isFree
+                            ? t("cart.free")
+                            : `${deliveryQuery.data.fee.toFixed(2)} ${items[0]?.price.currencyCode || ""}`}
+                        </strong>
                       </p>
-                    )}
-                    {!deliveryQuery.data.isFree && deliveryQuery.data.freeFrom != null && (
-                      <p className="text-muted-foreground">
-                        {t("cart.freeDeliveryFromLabel", {
-                          amount: deliveryQuery.data.freeFrom,
-                          remaining: (deliveryQuery.data.freeFrom - totalPrice).toFixed(2),
-                        })}
-                      </p>
-                    )}
+                      {deliveryQuery.data.eta.minMinutes != null && (
+                        <p className="text-muted-foreground">
+                          {t("cart.etaLabel", {
+                            min: deliveryQuery.data.eta.minMinutes,
+                            max: deliveryQuery.data.eta.maxMinutes ?? "",
+                          })}
+                        </p>
+                      )}
+                      {!deliveryQuery.data.isFree && deliveryQuery.data.freeFrom != null && (
+                        <p className="text-muted-foreground">
+                          {t("cart.freeDeliveryFromLabel", {
+                            amount: deliveryQuery.data.freeFrom,
+                            remaining: (deliveryQuery.data.freeFrom - totalPrice).toFixed(2),
+                          })}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )
-            ) : (
-              <p className="text-xs text-muted-foreground px-1">{t("cart.zoneRequiredHint")}</p>
-            )}
+                )
+              : null}
             <div className="flex justify-between items-center">
               <span className="text-lg">{t("cart.total")}</span>
               <span className="text-2xl font-serif font-semibold">
@@ -689,7 +638,11 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
             <Button
               onClick={handleCheckout}
               className="w-full h-14 rounded-full text-lg font-semibold shadow-lg"
-              disabled={items.length === 0 || checkoutBusy}
+              disabled={
+                items.length === 0 ||
+                checkoutBusy ||
+                (readiness.isAuthenticated === true && readiness.isReady === null)
+              }
             >
               {checkoutBusy ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -703,18 +656,6 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
           </div>
         </>
       )}
-      <LocationPickerDialog
-        open={isMapPickerOpen}
-        onOpenChange={setIsMapPickerOpen}
-        onConfirm={(location) => {
-          setAddressFromGeolocation(
-            location.address ?? address,
-            location.latitude,
-            location.longitude,
-          );
-          toast.success(t("cart.mapPointConfirmedToast"));
-        }}
-      />
     </div>
   );
 }

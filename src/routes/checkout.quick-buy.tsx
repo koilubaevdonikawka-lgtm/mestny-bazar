@@ -3,14 +3,15 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { z } from "zod";
 import { ArrowLeft, CreditCard, Loader2, Package } from "lucide-react";
+import { toast } from "sonner";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { fetchCatalogProduct } from "@/lib/catalog";
 import { listDeliveryZones } from "@/api/delivery-zone";
 import { useCheckoutStore } from "@/stores/checkoutStore";
 import { useCreateOrder } from "@/hooks/useCreateOrder";
+import { useCheckoutReadiness } from "@/hooks/useCheckoutReadiness";
+import { signInWithGoogle } from "@/lib/auth";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
 import { BRAND } from "@/config/brand";
@@ -59,8 +60,7 @@ function QuickBuyPage() {
     enabled: !!productSlug && !!quantity,
   });
 
-  const { address, zoneId, customerPhone, setAddress, setZoneId, setCustomerPhone } =
-    useCheckoutStore();
+  const readiness = useCheckoutReadiness();
   const { data: deliveryZones } = useQuery({
     queryKey: ["delivery", "zones"],
     queryFn: listDeliveryZones,
@@ -95,6 +95,19 @@ function QuickBuyPage() {
 
   const handlePay = async (method: PaymentMethod) => {
     if (!product) return;
+    // Задача №182 — guest checkout removed entirely, and this page no
+    // longer collects address/phone/name itself; both gates redirect to
+    // where the missing piece actually gets filled in.
+    if (readiness.isAuthenticated !== true) {
+      await signInWithGoogle();
+      return;
+    }
+    if (readiness.isReady === null) return;
+    if (!readiness.isReady) {
+      toast.error(t("profile.completeProfileToOrderDescription"));
+      await navigate({ to: "/profile" });
+      return;
+    }
     // Синхронная запись в store перед отправкой — useCreateOrder читает
     // paymentMethod через getState() в момент вызова, поэтому видит именно
     // это значение, а не устаревшее из предыдущего рендера.
@@ -186,57 +199,65 @@ function QuickBuyPage() {
           </div>
         </div>
 
-        <section className="mt-6 space-y-3">
-          <div className="grid gap-2">
-            <Label htmlFor="quickbuy-address">{t("checkout.address")}</Label>
-            <Input
-              id="quickbuy-address"
-              type="text"
-              autoComplete="street-address"
-              placeholder={t("home.addressPlaceholder")}
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="h-11 rounded-xl px-4"
-              maxLength={200}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="quickbuy-phone">{t("home.phoneLabel")}</Label>
-            <Input
-              id="quickbuy-phone"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder={t("home.phonePlaceholder")}
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
-              className="h-11 rounded-xl px-4"
-              maxLength={20}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="quickbuy-zone">{t("home.deliveryZoneLabel")}</Label>
-            <select
-              id="quickbuy-zone"
-              value={zoneId ?? ""}
-              onChange={(e) => setZoneId(e.target.value || null)}
-              className="h-11 w-full rounded-xl border border-input bg-background px-4 text-sm"
-            >
-              <option value="">{t("home.zoneNotSelected")}</option>
-              {(deliveryZones ?? []).map((zone) => (
-                <option key={zone.id} value={zone.id}>
-                  {zone.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Задача №182 — deliver-to summary, read-only: address/zone/phone/
+            name now live on the profile and are resolved server-side from
+            there at checkout time. See CartPanel.tsx for the identical
+            pattern. */}
+        <section className="mt-6 space-y-2">
+          {readiness.isAuthenticated !== true ? (
+            <div className="rounded-xl bg-secondary/40 p-4 text-sm space-y-2">
+              <p className="text-muted-foreground">{t("profile.signInToOrderDescription")}</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-xl"
+                onClick={() => void signInWithGoogle()}
+              >
+                {t("common.signIn")}
+              </Button>
+            </div>
+          ) : readiness.isReady === null ? (
+            <div className="flex justify-center py-3">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : readiness.isReady ? (
+            <div className="rounded-xl bg-secondary/40 p-4 text-sm space-y-1">
+              <p className="font-medium">{readiness.profile?.fullName}</p>
+              <p className="text-muted-foreground">{readiness.profile?.phone}</p>
+              <p className="text-muted-foreground">{readiness.defaultAddress?.fullAddress}</p>
+              {readiness.defaultAddress?.zoneId && (
+                <p className="text-muted-foreground">
+                  {t("addresses.zoneDisplay", {
+                    zoneName:
+                      deliveryZones?.find((z) => z.id === readiness.defaultAddress?.zoneId)?.name ??
+                      "—",
+                  })}
+                </p>
+              )}
+              <Link to="/profile" className="text-xs text-primary underline">
+                {t("common.edit")}
+              </Link>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-border p-4 text-sm space-y-2">
+              <p className="text-muted-foreground">
+                {t("profile.completeProfileToOrderDescription")}
+              </p>
+              <Button asChild size="sm" className="rounded-xl">
+                <Link to="/profile">{t("profile.goToProfileButton")}</Link>
+              </Button>
+            </div>
+          )}
         </section>
 
         <div className="mt-6 grid gap-3">
           <Button
             size="lg"
             className="h-14 rounded-full text-base"
-            disabled={isSubmitting}
+            disabled={
+              isSubmitting || (readiness.isAuthenticated === true && readiness.isReady === null)
+            }
             onClick={() => void handlePay("ONLINE")}
           >
             {submittingMethod === "ONLINE" ? (
@@ -251,7 +272,9 @@ function QuickBuyPage() {
             size="lg"
             variant="outline"
             className="h-14 rounded-full text-base"
-            disabled={isSubmitting}
+            disabled={
+              isSubmitting || (readiness.isAuthenticated === true && readiness.isReady === null)
+            }
             onClick={() => void handlePay("CASH")}
           >
             {submittingMethod === "CASH" ? (

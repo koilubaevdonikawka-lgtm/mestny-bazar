@@ -13,6 +13,9 @@ export const createAddressRequestSchema = z.object({
   district: z.string().trim().max(100).optional(),
   notes: z.string().trim().max(1000).optional(),
   zoneId: z.string().uuid().optional(),
+  /** Задача №182 — set together via the map picker, or omitted (manually typed address). */
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
   isDefault: z.boolean().optional(),
 });
 

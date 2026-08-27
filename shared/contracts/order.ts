@@ -98,8 +98,15 @@ export interface CreateOrderRequest {
   deliveryLatitude?: number;
   deliveryLongitude?: number;
   zoneId?: string;
-  customerName: string;
-  customerPhone: string;
+  /**
+   * Задача №182 — no longer collected in the cart UI; when omitted, the
+   * server resolves both from the authenticated user's saved Profile
+   * (CD-01 — never trust a client-echoed value for something the account
+   * already has on file). Required only for a guest/legacy caller that
+   * supplies them explicitly.
+   */
+  customerName?: string;
+  customerPhone?: string;
   paymentMethod: PaymentMethod;
   notes?: string;
   idempotencyKey: string;

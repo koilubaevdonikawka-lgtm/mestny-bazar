@@ -1,5 +1,5 @@
 import type { CreateOrderRequest, CreateOrderResponse } from "@shared/contracts/order";
-import { resolveUserIdFromRequest } from "@server/auth/resolve-user";
+import { requireUserIdFromRequest } from "@server/auth/resolve-user";
 import { getServices } from "@server/di/container";
 import {
   CheckoutValidationError,
@@ -12,7 +12,9 @@ import { CashPaymentRequiresAuthentication } from "@server/domain/payment-policy
 export async function executeCreateOrder(
   request: CreateOrderRequest,
 ): Promise<CreateOrderResponse> {
-  const userId = await resolveUserIdFromRequest();
+  // Задача №182 — guest checkout removed entirely; order creation (including
+  // ONLINE payment, previously guest-accessible) now requires an account.
+  const userId = await requireUserIdFromRequest();
   try {
     return await getServices().checkout.checkout(userId, request);
   } catch (error) {

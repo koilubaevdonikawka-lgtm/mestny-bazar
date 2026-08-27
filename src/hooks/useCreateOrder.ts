@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useCheckoutStore } from "@/stores/checkoutStore";
 import { createOrder } from "@/api/orders";
 import { useTranslation } from "@/i18n/LanguageProvider";
@@ -10,37 +9,21 @@ import type { CreateOrderItemRequest, CreateOrderResponse } from "@shared/contra
 /**
  * Order-submission core shared between CartDrawer's checkout and the
  * product page's "Купить в один клик" button (Часть 4 задачи о странице
- * товара) — same validation (address/payment method/phone from
- * useCheckoutStore), same customer-name resolution, same createOrder call,
- * same payment-redirect-or-success-page outcome either way. Only the
- * `items` list differs (the whole cart vs. a single product).
+ * товара) — same payment-method validation, same createOrder call, same
+ * payment-redirect-or-success-page outcome either way. Only the `items`
+ * list differs (the whole cart vs. a single product).
+ *
+ * Задача №182 — address/zone/phone/name are no longer collected here at
+ * all: authentication and profile-completeness are gated by the caller
+ * (useCheckoutReadiness, checked before this is ever invoked), and
+ * CheckoutService resolves all four from the caller's saved Profile/default
+ * Address server-side (CD-01 — never trust a client-echoed value for
+ * something the account already has on file).
  */
 export function useCreateOrder() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Reads via useCheckoutStore.getState() rather than the reactive hook,
-  // so a caller that does useCheckoutStore.getState().setPaymentMethod(...)
-  // immediately before submitOrder() in the same synchronous handler (the
-  // quick-buy page's two payment buttons — each click both picks and
-  // submits) always sees that fresh value, not a stale one captured at this
-  // hook's last render.
-  const resolveCustomerName = async (): Promise<string> => {
-    const { customerName, setCustomerName } = useCheckoutStore.getState();
-    if (customerName.trim().length >= 2) return customerName.trim();
-    const { data } = await supabase.auth.getUser();
-    const metaName =
-      data.user?.user_metadata?.full_name ??
-      data.user?.user_metadata?.name ??
-      data.user?.email?.split("@")[0];
-    if (metaName && String(metaName).trim().length >= 2) {
-      const name = String(metaName).trim();
-      setCustomerName(name);
-      return name;
-    }
-    return t("cart.defaultCustomerName");
-  };
 
   /**
    * `onCreated` runs right after the order exists but before the
@@ -53,44 +36,22 @@ export function useCreateOrder() {
     items: CreateOrderItemRequest[],
     onCreated?: (response: CreateOrderResponse) => void | Promise<void>,
   ): Promise<boolean> => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const isAuthenticated = !!sessionData.session?.user;
-    const { address, deliveryLatitude, deliveryLongitude, zoneId, paymentMethod, customerPhone } =
-      useCheckoutStore.getState();
-    const hasManualAddress = address.trim().length >= 5;
-
-    if (!isAuthenticated && !hasManualAddress) {
-      toast.error(t("cart.missingAddressError"));
-      return false;
-    }
+    // Reads via useCheckoutStore.getState() rather than the reactive hook,
+    // so a caller that does useCheckoutStore.getState().setPaymentMethod(...)
+    // immediately before submitOrder() in the same synchronous handler (the
+    // quick-buy page's two payment buttons — each click both picks and
+    // submits) always sees that fresh value, not a stale one captured at
+    // this hook's last render.
+    const { paymentMethod } = useCheckoutStore.getState();
     if (!paymentMethod) {
       toast.error(t("cart.missingPaymentMethodError"));
-      return false;
-    }
-    const phoneDigits = customerPhone.replace(/[^\d]/g, "");
-    if (phoneDigits.length < 9) {
-      toast.error(t("cart.missingPhoneError"));
       return false;
     }
 
     setIsSubmitting(true);
     try {
-      const name = await resolveCustomerName();
       const response = await createOrder({
         items,
-        ...(hasManualAddress ? { addressSnapshot: address.trim() } : {}),
-        // Задача №151 — only sent when the customer actually used the
-        // geolocation button (setAddressFromGeolocation is the only setter
-        // that populates these); a manually-typed address always has both
-        // null here (setAddress clears them), matching the requirement that
-        // coordinates are captured only via the explicit button, never
-        // inferred from a plain text address.
-        ...(deliveryLatitude != null && deliveryLongitude != null
-          ? { deliveryLatitude, deliveryLongitude }
-          : {}),
-        ...(zoneId ? { zoneId } : {}),
-        customerName: name,
-        customerPhone,
         paymentMethod,
         idempotencyKey: useCheckoutStore.getState().getOrCreateIdempotencyKey(),
       });

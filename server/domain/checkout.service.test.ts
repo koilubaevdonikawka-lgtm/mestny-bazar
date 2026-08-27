@@ -29,10 +29,12 @@ import type {
 } from "@server/ports/variant-stock.repository";
 import type { ISellerProductRepository } from "@server/ports/seller-product.repository";
 import type { IStockPolicy, StockPolicyResult } from "@server/ports/stock-policy.port";
+import type { IProfileRepository } from "@server/ports/profile.repository";
 import type { CreateOrderRequest, OrderDTO } from "@shared/contracts/order";
 import type { ProductDTO } from "@shared/contracts/catalog";
 import type { CouponDTO } from "@shared/contracts/coupon";
 import type { ProductVariantDTO } from "@shared/contracts/product-variant";
+import type { ProfileDTO } from "@shared/contracts/user";
 
 const PRODUCT_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -236,6 +238,25 @@ function fakeCustomerStatusRepository(
   return { isBlocked: vi.fn(async () => false), ...overrides };
 }
 
+function makeProfile(overrides: Partial<ProfileDTO> = {}): ProfileDTO {
+  return {
+    id: "user-1",
+    fullName: "Profile Name",
+    phone: "996700111111",
+    roles: [],
+    createdAt: new Date().toISOString(),
+    ...overrides,
+  };
+}
+
+function fakeProfileRepository(overrides: Partial<IProfileRepository> = {}): IProfileRepository {
+  return {
+    getById: vi.fn(async () => makeProfile()),
+    update: vi.fn(async () => makeProfile()),
+    ...overrides,
+  };
+}
+
 function fakeCouponRepository(overrides: Partial<ICouponRepository> = {}): ICouponRepository {
   return {
     listAll: vi.fn(async () => []),
@@ -341,6 +362,7 @@ function buildCheckoutService(deps: {
   couponRepo?: ICouponRepository;
   productVariantRepo?: IProductVariantRepository;
   variantStockRepo?: IVariantStockRepository;
+  profileRepo?: IProfileRepository;
 }) {
   const orderRepo = deps.orderRepo ?? fakeOrderRepository();
   const productRepo = deps.productRepo ?? fakeProductRepository();
@@ -388,6 +410,7 @@ function buildCheckoutService(deps: {
     coupons,
     productVariants,
     variantStock,
+    deps.profileRepo ?? fakeProfileRepository(),
   );
 
   return { checkout, orderRepo, productRepo, productVariantRepo, variantStockRepo };
@@ -552,6 +575,8 @@ describe("CheckoutService.checkout", () => {
       district: null,
       notes: null,
       zoneId: "zone-9",
+      latitude: null,
+      longitude: null,
       isDefault: false,
     };
     const addressRepo = fakeAddressRepository({ getById: vi.fn(async () => address) });
@@ -649,6 +674,8 @@ describe("CheckoutService.checkout — address resolution", () => {
     district: null,
     notes: null,
     zoneId: "zone-9",
+    latitude: null,
+    longitude: null,
     isDefault: false,
   };
 
@@ -691,6 +718,57 @@ describe("CheckoutService.checkout — address resolution", () => {
 
     await expect(
       checkout.checkout("user-1", makeRequest({ addressSnapshot: undefined })),
+    ).rejects.toMatchObject({ name: "CheckoutValidationError" });
+  });
+});
+
+describe("CheckoutService.checkout — Задача №182 customer contact resolution", () => {
+  it("resolves customerName/customerPhone from the authenticated user's saved profile when the request omits them", async () => {
+    const orderRepo = fakeOrderRepository();
+    const profileRepo = fakeProfileRepository({
+      getById: vi.fn(async () =>
+        makeProfile({ fullName: "Айгуль Токтосунова", phone: "996555123456" }),
+      ),
+    });
+    const { checkout } = buildCheckoutService({ orderRepo, profileRepo });
+
+    await checkout.checkout(
+      "user-1",
+      makeRequest({ customerName: undefined, customerPhone: undefined }),
+    );
+
+    expect(profileRepo.getById).toHaveBeenCalledWith("user-1");
+    expect(orderRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customerName: "Айгуль Токтосунова",
+        customerPhone: "996555123456",
+      }),
+    );
+  });
+
+  it("uses request-supplied customerName/customerPhone as-is without consulting the profile", async () => {
+    const profileRepo = fakeProfileRepository();
+    const { checkout } = buildCheckoutService({ profileRepo });
+
+    await checkout.checkout(
+      "user-1",
+      makeRequest({ customerName: "Explicit Name", customerPhone: "996700999999" }),
+    );
+
+    expect(profileRepo.getById).not.toHaveBeenCalled();
+  });
+
+  it("rejects checkout when the authenticated user's profile has no name/phone on file and the request omits them", async () => {
+    const profileRepo = fakeProfileRepository({
+      getById: vi.fn(async () => makeProfile({ fullName: null, phone: null })),
+    });
+    const { checkout } = buildCheckoutService({ profileRepo });
+
+    await expect(
+      checkout.checkout(
+        "user-1",
+        makeRequest({ customerName: undefined, customerPhone: undefined }),
+      ),
     ).rejects.toMatchObject({ name: "CheckoutValidationError" });
   });
 });
