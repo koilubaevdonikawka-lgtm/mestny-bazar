@@ -187,6 +187,8 @@ export const ru = {
     // Задача №174 — status badge in the cart's "last order" view, CREATED only.
     orderStatusCreatedOnline: "Создан онлайн",
     orderStatusCreatedCash: "Создан наличными",
+    /** Задача №187 — compact "edit" button for the deliver-to summary card; deliberately not common.edit (shared with AddressesPanel/quick-buy). */
+    editAddressButton: "Изменить",
   },
   checkout: {
     title: "Оформление заказа",

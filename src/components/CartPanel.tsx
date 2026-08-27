@@ -471,52 +471,6 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
               })}
             </div>
 
-            {/* Задача №184 — moved here (was pinned at the very bottom,
-                item-subtotal-only) right after the line items and before
-                everything else, so the customer sees the full order cost —
-                items + delivery, one final number — before choosing how to
-                pay, not scrolled past it at the end. */}
-            <div className="mt-4 rounded-2xl bg-secondary/40 p-4 space-y-2">
-              {zoneId && deliveryQuery.data && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-1.5 text-muted-foreground">
-                    <Truck className="h-4 w-4" />
-                    {t("cart.deliveryLabel")}
-                  </span>
-                  <span className="font-medium">
-                    {deliveryQuery.data.isFree
-                      ? t("cart.free")
-                      : `${formatDisplayPrice(deliveryQuery.data.fee)} ${t("product.currencyLabel")}`}
-                  </span>
-                </div>
-              )}
-              {zoneId && deliveryQuery.data && deliveryQuery.data.eta.minMinutes != null && (
-                <p className="text-xs text-muted-foreground">
-                  {t("cart.etaLabel", {
-                    min: deliveryQuery.data.eta.minMinutes,
-                    max: deliveryQuery.data.eta.maxMinutes ?? "",
-                  })}
-                </p>
-              )}
-              {zoneId &&
-                deliveryQuery.data &&
-                !deliveryQuery.data.isFree &&
-                deliveryQuery.data.freeFrom != null && (
-                  <p className="text-xs text-muted-foreground">
-                    {t("cart.freeDeliveryFromLabel", {
-                      amount: formatDisplayPrice(deliveryQuery.data.freeFrom),
-                      remaining: formatDisplayPrice(deliveryQuery.data.freeFrom - totalPrice),
-                    })}
-                  </p>
-                )}
-              <div className="flex items-center justify-between border-t border-border/60 pt-2">
-                <span className="text-lg">{t("cart.total")}</span>
-                <span className="text-2xl font-serif font-semibold">
-                  {formatDisplayPrice(grandTotal)} {t("product.currencyLabel")}
-                </span>
-              </div>
-            </div>
-
             {/* Задача №182 — deliver-to summary, read-only: address/zone/
                 phone/name now live on the profile (AddressesPanel's default
                 address + /profile's name/phone form) and are resolved
@@ -568,22 +522,66 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                       })}
                     </p>
                   )}
-                  {/* Задача №187 — a real, clearly-bordered button instead
-                      of a small underlined text link: large enough tap
-                      target and legible text for low-vision users, not just
-                      "technically clickable". */}
-                  <Button
-                    asChild
-                    variant="outline"
-                    className="mt-1 h-11 w-full rounded-xl text-sm font-medium"
-                  >
+                  {/* Задача №187 — compact green button (same accent as the
+                      active bottom-tab, variant="default" = bg-primary),
+                      left-aligned (natural block position, no centering) and
+                      half the width of a standard full-width button here. */}
+                  <Button asChild size="sm" className="mt-1 w-1/2 rounded-xl">
                     <Link to="/profile" onClick={() => onNavigate?.()}>
-                      {t("common.edit")}
+                      {t("cart.editAddressButton")}
                     </Link>
                   </Button>
                 </div>
               </section>
             ) : null}
+
+            {/* Задача №184 — the full order cost — items + delivery, one
+                final number — shown before choosing how to pay.
+                Задача №187 — moved to sit directly above the payment-method
+                section below (nothing between them), after the deliver-to
+                summary above (address/zone naturally comes first, then
+                price, then payment method — matches a typical checkout
+                order). */}
+            <div className="mt-4 rounded-2xl bg-secondary/40 p-4 space-y-2">
+              {zoneId && deliveryQuery.data && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <Truck className="h-4 w-4" />
+                    {t("cart.deliveryLabel")}
+                  </span>
+                  <span className="font-medium">
+                    {deliveryQuery.data.isFree
+                      ? t("cart.free")
+                      : `${formatDisplayPrice(deliveryQuery.data.fee)} ${t("product.currencyLabel")}`}
+                  </span>
+                </div>
+              )}
+              {zoneId && deliveryQuery.data && deliveryQuery.data.eta.minMinutes != null && (
+                <p className="text-xs text-muted-foreground">
+                  {t("cart.etaLabel", {
+                    min: deliveryQuery.data.eta.minMinutes,
+                    max: deliveryQuery.data.eta.maxMinutes ?? "",
+                  })}
+                </p>
+              )}
+              {zoneId &&
+                deliveryQuery.data &&
+                !deliveryQuery.data.isFree &&
+                deliveryQuery.data.freeFrom != null && (
+                  <p className="text-xs text-muted-foreground">
+                    {t("cart.freeDeliveryFromLabel", {
+                      amount: formatDisplayPrice(deliveryQuery.data.freeFrom),
+                      remaining: formatDisplayPrice(deliveryQuery.data.freeFrom - totalPrice),
+                    })}
+                  </p>
+                )}
+              <div className="flex items-center justify-between border-t border-border/60 pt-2">
+                <span className="text-lg">{t("cart.total")}</span>
+                <span className="text-2xl font-serif font-semibold">
+                  {formatDisplayPrice(grandTotal)} {t("product.currencyLabel")}
+                </span>
+              </div>
+            </div>
 
             {/* Задача №184 — choosing a method is now step 1 of checkout
                 itself, not an independent preference: picking one reveals

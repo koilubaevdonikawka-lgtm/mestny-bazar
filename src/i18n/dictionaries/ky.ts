@@ -177,6 +177,7 @@ export const ky = {
     mapPointConfirmedToast: "Картадагы чекит сакталды",
     orderStatusCreatedOnline: "Түзүлдү — онлайн төлөм",
     orderStatusCreatedCash: "Түзүлдү — накталай төлөм",
+    editAddressButton: "Өзгөртүү",
   },
   checkout: {
     title: "Буйрутманы тариздөө",
