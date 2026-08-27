@@ -148,8 +148,10 @@ export const ru = {
     lineTotalLabel: "Сумма позиции",
     itemsInCartOne: "{{count}} товар в корзине",
     itemsInCartMany: "{{count}} товаров в корзине",
-    checkout: "Оформить заказ",
     total: "Итого",
+    /** Задача №184 — confirm buttons that appear right under the payment-method choice, replacing a single always-visible "Оформить заказ" button. */
+    confirmPayOnline: "Оплатить",
+    confirmPayCash: "Оформить",
     remove: "Убрать",
     removeItemAriaLabel: "Убрать товар",
     decreaseQuantityAriaLabel: "Уменьшить количество",

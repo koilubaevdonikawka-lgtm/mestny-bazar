@@ -50,6 +50,18 @@ function toLineInput(item: CartItem): CartLineInput {
 }
 
 /**
+ * Задача №184 — per-variant debounce state for stepQuantity, module-scope
+ * (not store state): timers aren't serializable and have no business
+ * surviving a page reload anyway, and every CartQuantityControl instance
+ * for the same variant (grid card + cart row) must share the same pending
+ * timer/rollback-target regardless of which instance's button was clicked.
+ */
+const quantityDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+/** The last server-confirmed quantity for a variant with a debounce in flight — what a failed commit rolls back to. */
+const lastConfirmedQuantities = new Map<string, number>();
+const QUANTITY_DEBOUNCE_MS = 3000;
+
+/**
  * True when the server rejected the request because the bearer token was
  * missing/invalid (`server/auth/resolve-user.ts` → `UnauthorizedError`) —
  * i.e. `mode` says "authenticated" but the session backing it is actually
@@ -135,7 +147,21 @@ interface CartStore {
   pendingVariantIds: Set<string>;
   /** Resolves true only if the item was actually added — callers must not show a success toast otherwise. */
   addItem: (item: CartItem) => Promise<boolean>;
-  updateQuantity: (variantId: string, quantity: number) => Promise<void>;
+  /**
+   * Задача №184 — replaces the old updateQuantity: applies the new quantity
+   * to local state immediately (no network call, no loading state on this
+   * click), then debounces the actual server sync by QUANTITY_DEBOUNCE_MS —
+   * a burst of +/- clicks collapses into a single request fired 3s after the
+   * last one, instead of one request (and one loading spinner) per click.
+   * A target quantity <= 0 skips the debounce entirely and goes straight to
+   * removeItem — deletion is already an immediate, deliberate action
+   * elsewhere in this UI (the cart row's own trash button), so reaching
+   * zero via the stepper takes the same immediate path rather than sitting
+   * around for 3 more seconds first.
+   */
+  stepQuantity: (variantId: string, delta: number) => void;
+  /** Internal — the debounced server sync stepQuantity schedules; not meant to be called directly by UI code. */
+  commitQuantity: (variantId: string, quantity: number) => Promise<void>;
   removeItem: (variantId: string) => Promise<void>;
   clearCart: () => Promise<void>;
   /** Re-validates every line against IProductRepository; returns null if the cart is empty or the check failed. */
@@ -211,41 +237,86 @@ export const useCartStore = create<CartStore>()(
         }
       },
 
-      updateQuantity: async (variantId, quantity) => {
-        if (quantity <= 0) return get().removeItem(variantId);
+      stepQuantity: (variantId, delta) => {
         const { items, mode } = get();
         const item = items.find((i) => i.variantId === variantId);
         if (!item) return;
+        const nextQuantity = item.quantity + delta;
 
-        if (mode === "guest") {
-          set({ items: items.map((i) => (i.variantId === variantId ? { ...i, quantity } : i)) });
+        if (nextQuantity <= 0) {
+          const existingTimer = quantityDebounceTimers.get(variantId);
+          if (existingTimer) clearTimeout(existingTimer);
+          quantityDebounceTimers.delete(variantId);
+          lastConfirmedQuantities.delete(variantId);
+          void get().removeItem(variantId);
           return;
         }
 
-        set((state) => ({
-          isLoading: true,
-          pendingVariantIds: new Set(state.pendingVariantIds).add(variantId),
-        }));
+        if (mode === "guest") {
+          set({
+            items: items.map((i) =>
+              i.variantId === variantId ? { ...i, quantity: nextQuantity } : i,
+            ),
+          });
+          return;
+        }
+
+        // Optimistic — the displayed quantity changes now, no loading state.
+        // Only remember the pre-burst quantity once per burst (the first
+        // click), so a rollback after several clicks restores the value
+        // before ANY of them, not just the last one.
+        if (!lastConfirmedQuantities.has(variantId)) {
+          lastConfirmedQuantities.set(variantId, item.quantity);
+        }
+        set({
+          items: items.map((i) =>
+            i.variantId === variantId ? { ...i, quantity: nextQuantity } : i,
+          ),
+        });
+
+        const existingTimer = quantityDebounceTimers.get(variantId);
+        if (existingTimer) clearTimeout(existingTimer);
+        quantityDebounceTimers.set(
+          variantId,
+          setTimeout(() => {
+            quantityDebounceTimers.delete(variantId);
+            void get().commitQuantity(variantId, nextQuantity);
+          }, QUANTITY_DEBOUNCE_MS),
+        );
+      },
+
+      /** Задача №184 — fires QUANTITY_DEBOUNCE_MS after the last stepQuantity call for this variant; not meant to be called directly by UI code. */
+      commitQuantity: async (variantId, quantity) => {
+        const item = get().items.find((i) => i.variantId === variantId);
+        if (!item) {
+          lastConfirmedQuantities.delete(variantId);
+          return;
+        }
+
         try {
           const cart = await updateCartItem(toIdentifier(item), quantity);
           set({ items: cart.items.map(fromCartItemDTO) });
+          lastConfirmedQuantities.delete(variantId);
         } catch (e) {
           if (isUnauthorized(e)) {
-            const current = get().items;
-            set({
-              mode: "guest",
-              items: current.map((i) => (i.variantId === variantId ? { ...i, quantity } : i)),
-            });
+            // Session is actually dead — same fallback as addItem/removeItem:
+            // drop to guest mode and keep the optimistic quantity as the new
+            // local truth (there's no live server value left to roll back to).
+            set({ mode: "guest" });
+            lastConfirmedQuantities.delete(variantId);
             return;
           }
           console.error("Failed to update quantity:", e);
+          const rollbackQuantity = lastConfirmedQuantities.get(variantId);
+          lastConfirmedQuantities.delete(variantId);
+          if (rollbackQuantity != null) {
+            set((state) => ({
+              items: state.items.map((i) =>
+                i.variantId === variantId ? { ...i, quantity: rollbackQuantity } : i,
+              ),
+            }));
+          }
           toast.error("Не удалось обновить количество товара. Попробуйте ещё раз.");
-        } finally {
-          set((state) => {
-            const pendingVariantIds = new Set(state.pendingVariantIds);
-            pendingVariantIds.delete(variantId);
-            return { isLoading: false, pendingVariantIds };
-          });
         }
       },
 

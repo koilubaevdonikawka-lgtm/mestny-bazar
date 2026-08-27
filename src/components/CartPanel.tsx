@@ -149,6 +149,9 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
     enabled: active && !!zoneId && totalItems > 0,
     retry: false,
   });
+  const deliveryFee =
+    zoneId && deliveryQuery.data && !deliveryQuery.data.isFree ? deliveryQuery.data.fee : 0;
+  const grandTotal = totalPrice + deliveryFee;
 
   useEffect(() => {
     if (!active) return;
@@ -395,71 +398,123 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                   itemTranslations[item.product.node.title] ?? item.product.node.title;
                 const lineTotal = parseFloat(item.price.amount) * item.quantity;
                 return (
-                  <div key={item.variantId} className="flex gap-3 rounded-2xl bg-secondary/40 p-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        {/* 2-line clamp instead of a hard single-line
-                            truncate, so a long product name stays legible
-                            instead of being cut down to a few characters;
-                            still bounded so one item can't grow the row
-                            unpredictably. */}
-                        {item.product.node.handle ? (
-                          <Link
-                            to="/product/$handle"
-                            params={{ handle: item.product.node.handle }}
-                            onClick={() => onNavigate?.()}
-                            className="line-clamp-2 min-w-0 text-sm font-medium hover:underline"
-                          >
-                            {displayTitle}
-                          </Link>
-                        ) : (
-                          <h4 className="line-clamp-2 min-w-0 text-sm font-medium">
-                            {displayTitle}
-                          </h4>
-                        )}
+                  // Задача №184 — flattened to one column (no more photo
+                  // column, Задача №183) and reorganized into two aligned
+                  // rows for symmetry: top = name + unit price + delete,
+                  // bottom = stepper + line total. Every row line-item shares
+                  // this exact same two-row shape, so the list reads as
+                  // uniform blocks instead of stacks of varying height.
+                  <div key={item.variantId} className="rounded-2xl bg-secondary/40 p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      {/* 2-line clamp instead of a hard single-line
+                          truncate, so a long product name stays legible
+                          instead of being cut down to a few characters;
+                          still bounded so one item can't grow the row
+                          unpredictably. */}
+                      {item.product.node.handle ? (
+                        <Link
+                          to="/product/$handle"
+                          params={{ handle: item.product.node.handle }}
+                          onClick={() => onNavigate?.()}
+                          className="line-clamp-2 min-w-0 flex-1 text-sm font-medium hover:underline"
+                        >
+                          {displayTitle}
+                        </Link>
+                      ) : (
+                        <h4 className="line-clamp-2 min-w-0 flex-1 text-sm font-medium">
+                          {displayTitle}
+                        </h4>
+                      )}
+                      <div className="flex shrink-0 items-center gap-1">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {formatDisplayPrice(parseFloat(item.price.amount))}{" "}
+                          {t("product.currencyLabel")}
+                        </span>
                         {/* Direct removal, no confirmation dialog — a
                             shortcut on top of the stepper's own
                             decrement-to-zero removal below. */}
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-11 w-11 shrink-0 -mr-2 -mt-1 text-muted-foreground"
+                          className="h-8 w-8 shrink-0 text-muted-foreground"
                           aria-label={t("cart.removeItemAriaLabel")}
                           onClick={() => removeItem(item.variantId)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                      {item.selectedOptions.length > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          {item.selectedOptions.map((o) => o.value).join(" • ")}
-                        </p>
-                      )}
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {formatDisplayPrice(parseFloat(item.price.amount))}{" "}
-                        {t("product.currencyLabel")}
+                    </div>
+                    {item.selectedOptions.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {item.selectedOptions.map((o) => o.value).join(" • ")}
                       </p>
-                      {warning && (
-                        <p className="mt-1 flex items-center gap-1 text-xs text-destructive">
-                          <AlertTriangle className="h-3 w-3 flex-shrink-0" />
-                          {warning}
-                        </p>
-                      )}
-                      {/* Quantity control lives directly on the cart row —
-                          same shared component/store as the catalog and
-                          product page, so all three always agree on the
-                          quantity. Line total sits opposite it, always the
-                          up-to-date price × qty (recomputed every render). */}
-                      <div className="mt-2 flex items-center justify-between gap-3">
-                        <CartQuantityControl product={item.product} size="lg" />
-                        <span className="shrink-0 font-serif text-base font-semibold whitespace-nowrap">
-                          {formatDisplayPrice(lineTotal)} {t("product.currencyLabel")}
-                        </span>
-                      </div>
+                    )}
+                    {warning && (
+                      <p className="flex items-center gap-1 text-xs text-destructive">
+                        <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                        {warning}
+                      </p>
+                    )}
+                    {/* Quantity control lives directly on the cart row —
+                        same shared component/store as the catalog and
+                        product page, so all three always agree on the
+                        quantity. Line total sits opposite it, always the
+                        up-to-date price × qty (recomputed every render). */}
+                    <div className="flex items-center justify-between gap-3">
+                      <CartQuantityControl product={item.product} size="lg" />
+                      <span className="shrink-0 font-serif text-base font-semibold whitespace-nowrap">
+                        {formatDisplayPrice(lineTotal)} {t("product.currencyLabel")}
+                      </span>
                     </div>
                   </div>
                 );
               })}
+            </div>
+
+            {/* Задача №184 — moved here (was pinned at the very bottom,
+                item-subtotal-only) right after the line items and before
+                everything else, so the customer sees the full order cost —
+                items + delivery, one final number — before choosing how to
+                pay, not scrolled past it at the end. */}
+            <div className="mt-4 rounded-2xl bg-secondary/40 p-4 space-y-2">
+              {zoneId && deliveryQuery.data && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <Truck className="h-4 w-4" />
+                    {t("cart.deliveryLabel")}
+                  </span>
+                  <span className="font-medium">
+                    {deliveryQuery.data.isFree
+                      ? t("cart.free")
+                      : `${formatDisplayPrice(deliveryQuery.data.fee)} ${t("product.currencyLabel")}`}
+                  </span>
+                </div>
+              )}
+              {zoneId && deliveryQuery.data && deliveryQuery.data.eta.minMinutes != null && (
+                <p className="text-xs text-muted-foreground">
+                  {t("cart.etaLabel", {
+                    min: deliveryQuery.data.eta.minMinutes,
+                    max: deliveryQuery.data.eta.maxMinutes ?? "",
+                  })}
+                </p>
+              )}
+              {zoneId &&
+                deliveryQuery.data &&
+                !deliveryQuery.data.isFree &&
+                deliveryQuery.data.freeFrom != null && (
+                  <p className="text-xs text-muted-foreground">
+                    {t("cart.freeDeliveryFromLabel", {
+                      amount: formatDisplayPrice(deliveryQuery.data.freeFrom),
+                      remaining: formatDisplayPrice(deliveryQuery.data.freeFrom - totalPrice),
+                    })}
+                  </p>
+                )}
+              <div className="flex items-center justify-between border-t border-border/60 pt-2">
+                <span className="text-lg">{t("cart.total")}</span>
+                <span className="text-2xl font-serif font-semibold">
+                  {formatDisplayPrice(grandTotal)} {t("product.currencyLabel")}
+                </span>
+              </div>
             </div>
 
             {/* Задача №182 — deliver-to summary, read-only: address/zone/
@@ -524,6 +579,14 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
               </section>
             ) : null}
 
+            {/* Задача №184 — choosing a method is now step 1 of checkout
+                itself, not an independent preference: picking one reveals
+                the actual confirm button below (payOnline/payCash — the
+                button reused as-is per that same choice, see handleCheckout
+                above), replacing the old always-visible, method-agnostic
+                "Оформить заказ" button. No more selection toast either —
+                the confirm button appearing right underneath already is
+                the feedback that the click registered. */}
             <section className="mt-4 space-y-2">
               <Label className="text-sm font-medium">{t("checkout.paymentMethod")}</Label>
               <div className="grid grid-cols-2 gap-2">
@@ -531,10 +594,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                   type="button"
                   variant={paymentMethod === "CASH" ? "default" : "outline"}
                   className="h-11 rounded-xl text-sm"
-                  onClick={() => {
-                    setPaymentMethod("CASH");
-                    toast.success(t("home.cashPaymentSelectedToast"));
-                  }}
+                  onClick={() => setPaymentMethod("CASH")}
                 >
                   {t("home.payCashButton")}
                 </Button>
@@ -542,10 +602,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                   type="button"
                   variant={paymentMethod === "ONLINE" ? "default" : "outline"}
                   className="h-11 rounded-xl text-sm"
-                  onClick={() => {
-                    setPaymentMethod("ONLINE");
-                    toast.info(t("home.onlinePaymentSelectedToast"));
-                  }}
+                  onClick={() => setPaymentMethod("ONLINE")}
                 >
                   <CreditCard className="h-4 w-4" /> {t("home.payOnlineButton")}
                 </Button>
@@ -553,72 +610,37 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
             </section>
           </div>
           {/* Pinned bottom panel (inside a bounded-height ancestor, e.g.
-              CartDrawer's SheetContent) — total + checkout button always
-              stay in reach without scrolling, recomputed on every render
-              from live state. Inside an unbounded ancestor (a plain page),
-              this degrades gracefully to normal in-flow layout. */}
-          <div className="flex-shrink-0 space-y-3 pt-4 pb-safe border-t bg-background">
-            {zoneId
-              ? deliveryQuery.data && (
-                  <div className="flex items-start gap-2 rounded-xl bg-secondary/40 px-4 py-3 text-sm">
-                    <Truck className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" />
-                    <div>
-                      <p>
-                        {t("cart.deliveryLabel")}:{" "}
-                        <strong>
-                          {deliveryQuery.data.isFree
-                            ? t("cart.free")
-                            : `${formatDisplayPrice(deliveryQuery.data.fee)} ${t("product.currencyLabel")}`}
-                        </strong>
-                      </p>
-                      {deliveryQuery.data.eta.minMinutes != null && (
-                        <p className="text-muted-foreground">
-                          {t("cart.etaLabel", {
-                            min: deliveryQuery.data.eta.minMinutes,
-                            max: deliveryQuery.data.eta.maxMinutes ?? "",
-                          })}
-                        </p>
-                      )}
-                      {!deliveryQuery.data.isFree && deliveryQuery.data.freeFrom != null && (
-                        <p className="text-muted-foreground">
-                          {t("cart.freeDeliveryFromLabel", {
-                            amount: formatDisplayPrice(deliveryQuery.data.freeFrom),
-                            remaining: formatDisplayPrice(deliveryQuery.data.freeFrom - totalPrice),
-                          })}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )
-              : null}
-            <div className="flex justify-between items-center">
-              <span className="text-lg">{t("cart.total")}</span>
-              <span className="text-2xl font-serif font-semibold">
-                {formatDisplayPrice(totalPrice)} {t("product.currencyLabel")}
-              </span>
+              CartDrawer's SheetContent) — the confirm button always stays in
+              reach without scrolling. Inside an unbounded ancestor (a plain
+              page), this degrades gracefully to normal in-flow layout. Empty
+              (renders nothing) until a payment method is actually chosen. */}
+          {paymentMethod && (
+            <div className="flex-shrink-0 pt-4 pb-safe border-t bg-background">
+              {/* The single most visually prominent control in the whole
+                  panel: tallest, boldest text, shadow — so this unmistakably
+                  reads as the primary, final action. */}
+              <Button
+                onClick={handleCheckout}
+                className="w-full h-14 rounded-full text-lg font-semibold shadow-lg"
+                disabled={
+                  items.length === 0 ||
+                  checkoutBusy ||
+                  (readiness.isAuthenticated === true && readiness.isReady === null)
+                }
+              >
+                {checkoutBusy ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    <ShoppingCart className="w-5 h-5 mr-2" />
+                    {paymentMethod === "ONLINE"
+                      ? t("cart.confirmPayOnline")
+                      : t("cart.confirmPayCash")}
+                  </>
+                )}
+              </Button>
             </div>
-            {/* The single most visually prominent control in the whole
-                panel: tallest, boldest text, shadow — so checkout
-                unmistakably reads as the primary action. */}
-            <Button
-              onClick={handleCheckout}
-              className="w-full h-14 rounded-full text-lg font-semibold shadow-lg"
-              disabled={
-                items.length === 0 ||
-                checkoutBusy ||
-                (readiness.isAuthenticated === true && readiness.isReady === null)
-              }
-            >
-              {checkoutBusy ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  <ShoppingCart className="w-5 h-5 mr-2" />
-                  {t("cart.checkout")}
-                </>
-              )}
-            </Button>
-          </div>
+          )}
         </>
       )}
     </div>

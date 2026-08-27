@@ -46,7 +46,7 @@ export function CartQuantityControl({
 }) {
   const items = useCartStore((s) => s.items);
   const addItem = useCartStore((s) => s.addItem);
-  const updateQuantity = useCartStore((s) => s.updateQuantity);
+  const stepQuantity = useCartStore((s) => s.stepQuantity);
   const { t, language } = useTranslation();
 
   const p = product.node;
@@ -89,11 +89,15 @@ export function CartQuantityControl({
     }
   };
 
+  // Задача №184 — optimistic + debounced: stepQuantity updates the
+  // displayed number immediately (no network call, no loading state here —
+  // see cartStore.ts) and only syncs to the server 3s after the last click
+  // in a burst, so accumulating a quantity by repeated clicking is instant.
   const handleStep = (e: React.MouseEvent, delta: number) => {
     e.preventDefault();
     e.stopPropagation();
     if (!variant) return;
-    void updateQuantity(variant.id, quantity + delta);
+    stepQuantity(variant.id, delta);
   };
 
   // Этап №8, п.7 — out of stock must be obvious immediately, not just a
