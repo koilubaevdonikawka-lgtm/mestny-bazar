@@ -289,7 +289,8 @@ export const ru = {
      */
     countryField: "Страна",
     countryValue: "Кыргызстан",
-    cityOrDistrictField: "Город или район",
+    /** Задача №192 — label only, still backed by AddressDTO.city (key name unchanged). */
+    cityOrDistrictField: "Область",
     detailAddressPlaceholder: "село,ул.№ или мкр.№ подъез.",
     fullNameField: "Имя и фамилия",
     fullNamePlaceholder: "Айгуль Токтосунова",

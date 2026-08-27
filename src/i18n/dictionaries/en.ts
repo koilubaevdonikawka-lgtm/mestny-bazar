@@ -271,7 +271,7 @@ export const en = {
     personalDataAndAddressTitle: "Personal details & delivery address",
     countryField: "Country",
     countryValue: "Kyrgyzstan",
-    cityOrDistrictField: "City or district",
+    cityOrDistrictField: "Region",
     detailAddressPlaceholder: "village, street & house, or microdistrict, house & entrance",
     fullNameField: "Full name",
     fullNamePlaceholder: "Jane Doe",

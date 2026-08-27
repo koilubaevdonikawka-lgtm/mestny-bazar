@@ -271,7 +271,7 @@ export const ky = {
     personalDataAndAddressTitle: "Жеке маалымат жана жеткирүү дареги",
     countryField: "Өлкө",
     countryValue: "Кыргызстан",
-    cityOrDistrictField: "Шаар же район",
+    cityOrDistrictField: "Облус",
     detailAddressPlaceholder: "айыл, көчө №, же мкр. №, кире бериш",
     fullNameField: "Аты-жөнү",
     fullNamePlaceholder: "Айгүл Токтосунова",
