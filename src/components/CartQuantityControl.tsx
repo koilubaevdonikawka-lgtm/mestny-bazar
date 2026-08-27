@@ -47,11 +47,18 @@ export function CartQuantityControl({
   const items = useCartStore((s) => s.items);
   const addItem = useCartStore((s) => s.addItem);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
-  const isLoading = useCartStore((s) => s.isLoading);
   const { t, language } = useTranslation();
 
   const p = product.node;
   const variant = p.variants.edges[0]?.node;
+  // Задача №181 — scoped to THIS control's own variant, not the store's
+  // global `isLoading` (still used elsewhere, e.g. CartPanel's checkout
+  // button, for "any cart operation in flight"). Reading the global flag
+  // here meant adding one product on the subcategory list (Задача №179/180
+  // put several of these controls on screen at once) showed a loading
+  // spinner on every OTHER product's card too — none of them were actually
+  // waiting on anything.
+  const isLoading = useCartStore((s) => (variant ? s.pendingVariantIds.has(variant.id) : false));
   const cartItem = variant ? items.find((i) => i.variantId === variant.id) : undefined;
   const quantity = cartItem?.quantity ?? 0;
   const translations = useTranslatedTexts([p.title], language);

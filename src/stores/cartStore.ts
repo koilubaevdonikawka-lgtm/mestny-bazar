@@ -121,6 +121,18 @@ interface CartStore {
   /** "authenticated" means the server cart is the source of truth; "guest" means localStorage is. */
   mode: "guest" | "authenticated";
   isLoading: boolean;
+  /**
+   * Задача №181 — per-variant in-flight tracking, separate from `isLoading`
+   * above. `isLoading` is a single global flag (CartPanel's checkout button
+   * correctly waits on "any cart operation in flight" — that use is
+   * unchanged), but every `CartQuantityControl` instance on a page (the
+   * product list, Задача №179/180) also read that SAME global flag for its
+   * own spinner/disabled state — adding one product showed a loading
+   * spinner on every OTHER product card too, since none of them were
+   * scoped to "is *this* variant's request in flight". This set holds
+   * exactly the variantIds with a request in flight right now.
+   */
+  pendingVariantIds: Set<string>;
   /** Resolves true only if the item was actually added — callers must not show a success toast otherwise. */
   addItem: (item: CartItem) => Promise<boolean>;
   updateQuantity: (variantId: string, quantity: number) => Promise<void>;
@@ -142,6 +154,7 @@ export const useCartStore = create<CartStore>()(
       items: [],
       mode: "guest",
       isLoading: false,
+      pendingVariantIds: new Set(),
 
       addItem: async (item) => {
         const { items, mode } = get();
@@ -160,7 +173,10 @@ export const useCartStore = create<CartStore>()(
           return true;
         }
 
-        set({ isLoading: true });
+        set((state) => ({
+          isLoading: true,
+          pendingVariantIds: new Set(state.pendingVariantIds).add(item.variantId),
+        }));
         try {
           const cart = await addCartItem(toLineInput(item));
           set({ items: cart.items.map(fromCartItemDTO) });
@@ -187,7 +203,11 @@ export const useCartStore = create<CartStore>()(
           toast.error("Не удалось добавить товар в корзину. Попробуйте ещё раз.");
           return false;
         } finally {
-          set({ isLoading: false });
+          set((state) => {
+            const pendingVariantIds = new Set(state.pendingVariantIds);
+            pendingVariantIds.delete(item.variantId);
+            return { isLoading: false, pendingVariantIds };
+          });
         }
       },
 
@@ -202,7 +222,10 @@ export const useCartStore = create<CartStore>()(
           return;
         }
 
-        set({ isLoading: true });
+        set((state) => ({
+          isLoading: true,
+          pendingVariantIds: new Set(state.pendingVariantIds).add(variantId),
+        }));
         try {
           const cart = await updateCartItem(toIdentifier(item), quantity);
           set({ items: cart.items.map(fromCartItemDTO) });
@@ -218,7 +241,11 @@ export const useCartStore = create<CartStore>()(
           console.error("Failed to update quantity:", e);
           toast.error("Не удалось обновить количество товара. Попробуйте ещё раз.");
         } finally {
-          set({ isLoading: false });
+          set((state) => {
+            const pendingVariantIds = new Set(state.pendingVariantIds);
+            pendingVariantIds.delete(variantId);
+            return { isLoading: false, pendingVariantIds };
+          });
         }
       },
 
@@ -232,7 +259,10 @@ export const useCartStore = create<CartStore>()(
           return;
         }
 
-        set({ isLoading: true });
+        set((state) => ({
+          isLoading: true,
+          pendingVariantIds: new Set(state.pendingVariantIds).add(variantId),
+        }));
         try {
           const cart = await removeCartItem(toIdentifier(item));
           set({ items: cart.items.map(fromCartItemDTO) });
@@ -245,7 +275,11 @@ export const useCartStore = create<CartStore>()(
           console.error("Failed to remove item:", e);
           toast.error("Не удалось удалить товар из корзины. Попробуйте ещё раз.");
         } finally {
-          set({ isLoading: false });
+          set((state) => {
+            const pendingVariantIds = new Set(state.pendingVariantIds);
+            pendingVariantIds.delete(variantId);
+            return { isLoading: false, pendingVariantIds };
+          });
         }
       },
 
