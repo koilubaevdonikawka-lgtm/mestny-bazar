@@ -1,3 +1,5 @@
+import type { PaymentMethod } from "@shared/contracts/order";
+
 export type PaymentProviderStatus = "pending" | "awaiting" | "paid" | "failed" | "refunded";
 
 /**
@@ -69,10 +71,21 @@ export interface PaymentRecordDTO {
   updatedAt: string;
 }
 
-/** Result of checking a payment's status from the customer-facing return page. */
+/**
+ * Result of checking a payment's status from the customer-facing return page.
+ * Задача №186 — paymentMethod added so the return page (/order-success) can
+ * gate its own "payment not completed" retry screen the same way
+ * CartPanel.tsx already does (Задача №174): that screen only ever makes
+ * sense for an abandoned ONLINE payment, never for CASH, whose "unpaid"
+ * paymentStatus right after checkout is completely normal (the courier
+ * confirms payment separately, later). The order is already fetched
+ * server-side to compute `status` below, so surfacing its paymentMethod too
+ * costs no extra query.
+ */
 export interface PaymentStatusCheckDTO {
   status: PaymentRecordStatus;
   orderStatus: string;
+  paymentMethod: PaymentMethod;
 }
 
 /** Result of retrying payment for an order whose previous attempt never reached a terminal success (БАГ 3). */

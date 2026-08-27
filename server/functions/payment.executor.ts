@@ -18,11 +18,16 @@ export async function executeCheckPaymentStatus(orderId: string): Promise<Paymen
     return {
       status: order.paymentStatus === "paid" ? "paid" : "pending",
       orderStatus: order.status,
+      paymentMethod: order.paymentMethod,
     };
   }
 
   const reconciled = await services.paymentService.recheckStatus(payment.id);
-  return { status: reconciled.status, orderStatus: order.status };
+  return {
+    status: reconciled.status,
+    orderStatus: order.status,
+    paymentMethod: order.paymentMethod,
+  };
 }
 
 export { OrderNotFoundError };

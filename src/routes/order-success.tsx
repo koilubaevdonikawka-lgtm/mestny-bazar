@@ -23,6 +23,7 @@ import { cancelUnpaidOnlineOrder, getOrderStatus, retryPayment } from "@/api/ord
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { signInWithGoogle } from "@/lib/auth";
 import { useTranslation } from "@/i18n/LanguageProvider";
+import type { PaymentMethod } from "@shared/contracts/order";
 
 /**
  * How long to wait on this page before treating a still-"pending" payment as
@@ -56,6 +57,14 @@ function OrderSuccessPage() {
   const [paymentState, setPaymentState] = useState<PaymentCheckState>(
     orderId ? "checking" : "idle",
   );
+  // Задача №186 — arrives in the same checkPaymentStatus response used to
+  // resolve paymentState above (the order is already fetched server-side to
+  // compute that status, so this costs no extra request), specifically so
+  // it's known BEFORE showRetry below is first computed — not gated behind
+  // showRetry already being true, which used to be a chicken-and-egg problem
+  // (the full order, via getOrderStatus, only loaded once showRetry was
+  // already true).
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
 
   useEffect(() => {
     if (!orderId) return;
@@ -64,6 +73,7 @@ function OrderSuccessPage() {
     checkPaymentStatus(orderId)
       .then((result) => {
         if (cancelled) return;
+        setPaymentMethod(result.paymentMethod);
         if (result.status === "paid") setPaymentState("paid");
         else if (result.status === "failed" || result.status === "expired")
           setPaymentState("failed");
@@ -90,7 +100,15 @@ function OrderSuccessPage() {
     return () => clearTimeout(timer);
   }, [paymentState]);
 
-  const showRetry = paymentState === "failed" || (paymentState === "pending" && pendingTimedOut);
+  // Задача №186 — this "payment not completed" retry screen only ever makes
+  // sense for an abandoned ONLINE payment. A CASH order's paymentStatus is
+  // legitimately "unpaid" until the courier collects payment later — that's
+  // completely normal, not a failure, so it must never flip this screen on
+  // regardless of paymentState/pendingTimedOut (mirrors the same
+  // paymentMethod === "ONLINE" gate CartPanel.tsx already applies, Задача №174).
+  const showRetry =
+    paymentMethod === "ONLINE" &&
+    (paymentState === "failed" || (paymentState === "pending" && pendingTimedOut));
 
   const { isAuthenticated } = useSupabaseSession();
 
