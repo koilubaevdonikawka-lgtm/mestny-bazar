@@ -299,6 +299,8 @@ export const ru = {
     goToProfileButton: "Перейти в профиль",
     signInToOrderTitle: "Войдите, чтобы оформить заказ",
     signInToOrderDescription: "Оформление заказа доступно только авторизованным пользователям.",
+    /** Задача №188 — lightweight top-of-page link to order history, replacing the old full-card "Заказы" link. */
+    orderHistoryLink: "История",
   },
   orderSuccess: {
     paymentFailedTitle: "Оплата не прошла",

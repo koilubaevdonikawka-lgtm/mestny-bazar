@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { WELCOME_SEEN_KEY } from "@/components/WelcomeGate";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { getMyProfile, updateMyProfile } from "@/api/profile";
-import { Loader2, LogIn, LogOut, Package } from "lucide-react";
+import { Loader2, LogIn, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { BRAND } from "@/config/brand";
@@ -84,25 +84,23 @@ function ProfilePage() {
   return (
     <PageShell>
       <div className="mx-auto max-w-3xl px-6 py-12">
+        {/* Задача №188 — the search bar this page's SiteHeader used to show
+            is gone; sign-out and a lightweight link to order history now
+            live up top instead, replacing the old full-card "Заказы" link
+            below (same destination, /orders — just one way to reach it now,
+            not two). */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="font-serif text-4xl tracking-tight">{t("nav.profile")}</h1>
-          <Button variant="outline" className="rounded-full" onClick={() => void handleSignOut()}>
-            <LogOut className="h-4 w-4 mr-2" />
-            {t("account.signOutFromDialog")}
-          </Button>
-        </div>
-
-        <Link
-          to="/orders"
-          className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-card p-6 transition-colors hover:border-primary/40"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-secondary">
-              <Package className="h-5 w-5 text-primary" />
-            </div>
-            <span className="font-serif text-xl">{t("nav.orders")}</span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" className="rounded-full" onClick={() => void handleSignOut()}>
+              <LogOut className="h-4 w-4 mr-2" />
+              {t("account.signOutFromDialog")}
+            </Button>
+            <Button asChild variant="link">
+              <Link to="/orders">{t("profile.orderHistoryLink")}</Link>
+            </Button>
           </div>
-        </Link>
+        </div>
 
         <div className="mt-10">
           <ProfileInfoForm />
@@ -124,6 +122,11 @@ function ProfilePage() {
 function ProfileInfoForm() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  // Задача №188 — merges what used to be two permanently-visible controls
+  // (always-editable fields + a single always-there "Сохранить" button)
+  // into one Редактировать/Сохранить toggle: read-only by default, editable
+  // once the toggle is clicked, back to read-only once saved.
+  const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
 
@@ -144,12 +147,17 @@ function ProfileInfoForm() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["profile", "me"] });
       toast.success(t("profile.savedToast"));
+      setIsEditing(false);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : t("profile.saveError")),
   });
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
+    if (!isEditing) {
+      setIsEditing(true);
+      return;
+    }
     if (fullName.trim().length < 2) {
       toast.error(t("profile.nameTooShortError"));
       return;
@@ -175,32 +183,47 @@ function ProfileInfoForm() {
       className="rounded-2xl border border-border/60 bg-card p-6 space-y-4"
     >
       <h2 className="font-serif text-2xl">{t("profile.personalDataTitle")}</h2>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="profileFullName">{t("profile.fullNameField")}</Label>
-          <Input
-            id="profileFullName"
-            placeholder={t("profile.fullNamePlaceholder")}
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-          />
+      {isEditing ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="profileFullName">{t("profile.fullNameField")}</Label>
+            <Input
+              id="profileFullName"
+              placeholder={t("profile.fullNamePlaceholder")}
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="profilePhone">{t("profile.phoneField")}</Label>
+            <Input
+              id="profilePhone"
+              type="tel"
+              placeholder={t("profile.phonePlaceholder")}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="profilePhone">{t("profile.phoneField")}</Label>
-          <Input
-            id="profilePhone"
-            type="tel"
-            placeholder={t("profile.phonePlaceholder")}
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">{t("profile.fullNameField")}</p>
+            <p className="font-medium">{fullName || "—"}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">{t("profile.phoneField")}</p>
+            <p className="font-medium">{phone || "—"}</p>
+          </div>
         </div>
-      </div>
+      )}
       <Button type="submit" disabled={mutation.isPending}>
         {mutation.isPending ? (
           <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
+        ) : isEditing ? (
           t("profile.saveButton")
+        ) : (
+          t("common.edit")
         )}
       </Button>
     </form>
@@ -210,7 +233,9 @@ function ProfileInfoForm() {
 function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader safeAreaTop showAccountMenu={false} showCart={false} />
+      {/* Задача №188 — no search bar on /profile; replaced up top by the
+          sign-out/order-history controls (see ProfilePage below). */}
+      <SiteHeader safeAreaTop showAccountMenu={false} showCart={false} showSearch={false} />
       <main className="flex-1">{children}</main>
     </div>
   );

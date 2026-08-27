@@ -290,6 +290,7 @@ export const ky = {
     goToProfileButton: "Профилге өтүү",
     signInToOrderTitle: "Буйрутма тариздөө үчүн кириңиз",
     signInToOrderDescription: "Буйрутма тариздөө үчүн аккаунт керек.",
+    orderHistoryLink: "Тарых",
   },
   orderSuccess: {
     paymentFailedTitle: "Төлөм өтпөй калды",

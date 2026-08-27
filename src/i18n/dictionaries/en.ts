@@ -290,6 +290,7 @@ export const en = {
     goToProfileButton: "Go to profile",
     signInToOrderTitle: "Sign in to place an order",
     signInToOrderDescription: "Placing an order requires an account.",
+    orderHistoryLink: "History",
   },
   orderSuccess: {
     paymentFailedTitle: "Payment failed",
