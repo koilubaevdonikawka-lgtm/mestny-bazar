@@ -268,6 +268,7 @@ export const ky = {
   },
   profile: {
     personalDataTitle: "Жеке маалымат",
+    personalDataAndAddressTitle: "Жеке маалымат жана жеткирүү дареги",
     fullNameField: "Аты-жөнү",
     fullNamePlaceholder: "Айгүл Токтосунова",
     phoneField: "Телефон номери",

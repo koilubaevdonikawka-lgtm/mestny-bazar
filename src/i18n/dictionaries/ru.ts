@@ -277,6 +277,8 @@ export const ru = {
   },
   profile: {
     personalDataTitle: "Личные данные",
+    /** Задача №189 — heading for the merged personal-data + default-address card. */
+    personalDataAndAddressTitle: "Личные данные и адрес доставки",
     fullNameField: "Имя и фамилия",
     fullNamePlaceholder: "Айгуль Токтосунова",
     phoneField: "Номер телефона",

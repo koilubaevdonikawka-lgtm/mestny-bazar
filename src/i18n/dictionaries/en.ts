@@ -268,6 +268,7 @@ export const en = {
   },
   profile: {
     personalDataTitle: "Personal details",
+    personalDataAndAddressTitle: "Personal details & delivery address",
     fullNameField: "Full name",
     fullNamePlaceholder: "Jane Doe",
     phoneField: "Phone number",

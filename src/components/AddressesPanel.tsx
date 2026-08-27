@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -304,6 +303,10 @@ export function AddressesPanel() {
   };
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
+  // Задача №189 — the default address is shown/edited in the combined
+  // personal-data + default-address card (profile/index.tsx) instead; this
+  // list only ever needs to show the others.
+  const nonDefaultAddresses = addresses.filter((address) => !address.isDefault);
 
   if (isLoading) {
     return (
@@ -379,61 +382,72 @@ export function AddressesPanel() {
           )}
         </div>
       ) : (
-        <ul className="mt-8 space-y-4">
-          {addresses.map((address) => (
-            <li key={address.id} className="rounded-2xl border border-border/60 bg-card p-6">
-              {editingId === address.id ? (
-                // Задача №188 — this row's own inline edit form, in place of
-                // the read-only summary below: the Редактировать/Сохранить
-                // toggle button that opened it lives inside AddressFormFields
-                // as the submit button (type="submit", label swapped to
-                // "Сохранить"). Delete/default-toggle don't apply here (the
-                // summary they're attached to isn't shown right now) — only
-                // Cancel, a genuinely separate action from saving.
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <h2 className="font-serif text-xl">{t("addresses.editTitle")}</h2>
-                  <AddressFormFields
-                    form={form}
-                    setForm={setForm}
-                    onCancel={resetForm}
-                    isSaving={isSaving}
-                    submitLabel={t("profile.saveButton")}
-                    deliveryZones={deliveryZones}
-                    onOpenMapDialog={() => setMapDialogOpen(true)}
-                    t={t}
-                  />
-                </form>
-              ) : (
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
+        // Задача №189 — the default address itself is now shown/edited in
+        // the combined card above (ProfileAndDefaultAddressCard,
+        // src/routes/profile/index.tsx) — only OTHER (non-default)
+        // addresses render here, each keeping its own full set of controls
+        // exactly as before. Nothing renders below at all when the default
+        // is the customer's only saved address (addresses.length > 0 but
+        // nonDefaultAddresses is empty) — showing the "no addresses" empty
+        // state here would contradict the address already visible above.
+        nonDefaultAddresses.length > 0 && (
+          <ul className="mt-8 space-y-4">
+            {nonDefaultAddresses.map((address) => (
+              <li key={address.id} className="rounded-2xl border border-border/60 bg-card p-6">
+                {editingId === address.id ? (
+                  // Задача №188 — this row's own inline edit form, in place of
+                  // the read-only summary below: the Редактировать/Сохранить
+                  // toggle button that opened it lives inside AddressFormFields
+                  // as the submit button (type="submit", label swapped to
+                  // "Сохранить"). Delete/default-toggle don't apply here (the
+                  // summary they're attached to isn't shown right now) — only
+                  // Cancel, a genuinely separate action from saving.
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <h2 className="font-serif text-xl">{t("addresses.editTitle")}</h2>
+                    <AddressFormFields
+                      form={form}
+                      setForm={setForm}
+                      onCancel={resetForm}
+                      isSaving={isSaving}
+                      submitLabel={t("profile.saveButton")}
+                      deliveryZones={deliveryZones}
+                      onOpenMapDialog={() => setMapDialogOpen(true)}
+                      t={t}
+                    />
+                  </form>
+                ) : (
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      {/* Задача №189 — no default-address Badge here: every
+                          row in this list is, by construction, non-default
+                          (the default one lives in the combined card above),
+                          so the badge could never actually show. */}
                       <p className="font-serif text-xl">
                         {address.label || t("addresses.fallbackLabel")}
                       </p>
-                      {address.isDefault && (
-                        <Badge variant="secondary">{t("addresses.defaultBadge")}</Badge>
+                      <p className="mt-2 text-muted-foreground">{address.fullAddress}</p>
+                      {(address.city || address.district) && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {[address.city, address.district].filter(Boolean).join(", ")}
+                        </p>
+                      )}
+                      {address.zoneId && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {t("addresses.zoneDisplay", {
+                            zoneName:
+                              deliveryZones?.find((z) => z.id === address.zoneId)?.name ?? "—",
+                          })}
+                        </p>
+                      )}
+                      {address.notes && (
+                        <p className="text-sm text-muted-foreground mt-1">{address.notes}</p>
                       )}
                     </div>
-                    <p className="mt-2 text-muted-foreground">{address.fullAddress}</p>
-                    {(address.city || address.district) && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {[address.city, address.district].filter(Boolean).join(", ")}
-                      </p>
-                    )}
-                    {address.zoneId && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {t("addresses.zoneDisplay", {
-                          zoneName:
-                            deliveryZones?.find((z) => z.id === address.zoneId)?.name ?? "—",
-                        })}
-                      </p>
-                    )}
-                    {address.notes && (
-                      <p className="text-sm text-muted-foreground mt-1">{address.notes}</p>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {!address.isDefault && (
+                    <div className="flex flex-wrap gap-2">
+                      {/* Задача №189 — unconditional now: every row here is
+                          non-default by construction, so "make default" always
+                          applies (unlike before, when this list also held the
+                          already-default address, for which the button hid). */}
                       <Button
                         variant="outline"
                         size="sm"
@@ -443,30 +457,30 @@ export function AddressesPanel() {
                         <Star className="h-3.5 w-3.5 mr-1" />
                         {t("addresses.defaultBadge")}
                       </Button>
-                    )}
-                    {/* Задача №188 — the Редактировать/Сохранить toggle: this
+                      {/* Задача №188 — the Редактировать/Сохранить toggle: this
                         is the "Редактировать" half (opens this row's inline
                         form above); the "Сохранить" half is that form's own
                         submit button, not a second button here. */}
-                    <Button variant="outline" size="sm" onClick={() => openEdit(address)}>
-                      <Pencil className="h-3.5 w-3.5 mr-1" />
-                      {t("common.edit")}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={deleteMutation.isPending}
-                      onClick={() => deleteMutation.mutate(address.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-1" />
-                      {t("common.delete")}
-                    </Button>
+                      <Button variant="outline" size="sm" onClick={() => openEdit(address)}>
+                        <Pencil className="h-3.5 w-3.5 mr-1" />
+                        {t("common.edit")}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={deleteMutation.isPending}
+                        onClick={() => deleteMutation.mutate(address.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        {t("common.delete")}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        )
       )}
 
       <LocationPickerDialog
