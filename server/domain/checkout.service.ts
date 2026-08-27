@@ -5,6 +5,7 @@ import type {
   OrderStatus,
 } from "@shared/contracts/order";
 import { OrderStatus as OrderStatusEnum } from "@shared/contracts/order";
+import type { AddressDTO } from "@shared/contracts/delivery";
 import type { IAddressRepository } from "@server/ports/address.repository";
 import type { ICheckoutPaymentHandler } from "@server/ports/checkout-payment.port";
 import type { IDeliveryZoneRepository } from "@server/ports/delivery-zone.repository";
@@ -26,6 +27,14 @@ import type { ProductVariantDTO } from "@shared/contracts/product-variant";
 import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
 import { isUuid } from "@server/domain/shared/uuid";
 import { logger } from "@shared/observability/logger";
+
+/**
+ * Задача №191 — same static value the profile UI already shows for
+ * "Страна" (Задача №190, ProfileAndDefaultAddressCard): the platform only
+ * ever delivers within Kyrgyzstan, so this is never a per-address field —
+ * just the leading, always-present part of the human-readable snapshot.
+ */
+const DEFAULT_COUNTRY = "Кыргызстан";
 
 export class CheckoutService {
   constructor(
@@ -336,9 +345,16 @@ export class CheckoutService {
       if (!address) {
         throw new CheckoutValidationError({ addressId: ["Address not found"] });
       }
-      return { snapshot: address.fullAddress, addressId: address.id, zoneId: address.zoneId };
+      return {
+        snapshot: await this.buildAddressSnapshot(address),
+        addressId: address.id,
+        zoneId: address.zoneId,
+      };
     }
 
+    // A caller-supplied snapshot is trusted verbatim, same as
+    // resolveCustomerContact()'s explicit-value branch — this is the guest/
+    // non-profile path, there's no saved Address record to enrich it from.
     if (request.addressSnapshot?.trim()) {
       return { snapshot: request.addressSnapshot.trim(), addressId: null, zoneId: null };
     }
@@ -348,7 +364,7 @@ export class CheckoutService {
       const defaultAddress = addresses.find((entry) => entry.isDefault);
       if (defaultAddress) {
         return {
-          snapshot: defaultAddress.fullAddress,
+          snapshot: await this.buildAddressSnapshot(defaultAddress),
           addressId: defaultAddress.id,
           zoneId: defaultAddress.zoneId,
         };
@@ -359,6 +375,26 @@ export class CheckoutService {
     }
 
     throw new CheckoutValidationError({ address: ["Delivery address is required"] });
+  }
+
+  /**
+   * Задача №191 — the order's addressSnapshot used to be just
+   * address.fullAddress ("1- мкр 36"), dropping city/zone/country entirely
+   * even though all three are known for a saved Address — admin and courier
+   * order detail pages only ever render this stored string as-is (never
+   * recomposed from the order's own city/zoneId, there's no such data on
+   * OrderDTO to recompose from), so anything left out here is gone for good.
+   * Builds "Кыргызстан, <город/район>, <зона>, <детальный адрес>",
+   * skipping any part that's actually missing (city/zone are optional on
+   * Address) rather than leaving an empty segment between commas.
+   */
+  private async buildAddressSnapshot(
+    address: Pick<AddressDTO, "city" | "fullAddress" | "zoneId">,
+  ): Promise<string> {
+    const zoneName = address.zoneId ? (await this.zones.getById(address.zoneId))?.name : null;
+    return [DEFAULT_COUNTRY, address.city, zoneName, address.fullAddress]
+      .filter((part): part is string => !!part?.trim())
+      .join(", ");
   }
 
   /**

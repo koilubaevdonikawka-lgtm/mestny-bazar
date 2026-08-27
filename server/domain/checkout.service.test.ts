@@ -722,6 +722,102 @@ describe("CheckoutService.checkout — address resolution", () => {
   });
 });
 
+describe("CheckoutService.checkout — Задача №191 address snapshot enrichment", () => {
+  const addressWithCityAndZone = {
+    id: "address-1",
+    label: null,
+    fullAddress: "1- мкр 36",
+    city: "Бишкек",
+    district: null,
+    notes: null,
+    zoneId: "zone-9",
+    latitude: null,
+    longitude: null,
+    isDefault: false,
+  };
+
+  it("builds a full country/city/zone/detail snapshot for a request-supplied addressId", async () => {
+    const addressRepo = fakeAddressRepository({
+      getById: vi.fn(async () => addressWithCityAndZone),
+    });
+    const zoneRepo = fakeZoneRepository({
+      getById: vi.fn(async () => ({
+        id: "zone-9",
+        cityId: "city-1",
+        storeId: null,
+        name: "Джал",
+        sortOrder: 1,
+        isActive: true,
+      })),
+    });
+    const orderRepo = fakeOrderRepository();
+    const { checkout } = buildCheckoutService({ addressRepo, zoneRepo, orderRepo });
+
+    await checkout.checkout("user-1", makeRequest({ addressId: "address-1" }));
+
+    expect(orderRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        addressSnapshot: "Кыргызстан, Бишкек, Джал, 1- мкр 36",
+      }),
+    );
+  });
+
+  it("builds the same enriched snapshot when falling back to the default saved address", async () => {
+    const addressRepo = fakeAddressRepository({
+      listByUser: vi.fn(async () => [{ ...addressWithCityAndZone, isDefault: true }]),
+    });
+    const zoneRepo = fakeZoneRepository({
+      getById: vi.fn(async () => ({
+        id: "zone-9",
+        cityId: "city-1",
+        storeId: null,
+        name: "Джал",
+        sortOrder: 1,
+        isActive: true,
+      })),
+    });
+    const orderRepo = fakeOrderRepository();
+    const { checkout } = buildCheckoutService({ addressRepo, zoneRepo, orderRepo });
+
+    await checkout.checkout("user-1", makeRequest({ addressSnapshot: undefined }));
+
+    expect(orderRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        addressSnapshot: "Кыргызстан, Бишкек, Джал, 1- мкр 36",
+      }),
+    );
+  });
+
+  it("omits city/zone cleanly (no stray commas) when the saved address has neither", async () => {
+    const addressRepo = fakeAddressRepository({
+      getById: vi.fn(async () => ({
+        ...addressWithCityAndZone,
+        city: null,
+        zoneId: null,
+      })),
+    });
+    const orderRepo = fakeOrderRepository();
+    const { checkout } = buildCheckoutService({ addressRepo, orderRepo });
+
+    await checkout.checkout("user-1", makeRequest({ addressId: "address-1" }));
+
+    expect(orderRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ addressSnapshot: "Кыргызстан, 1- мкр 36" }),
+    );
+  });
+
+  it("trusts a request-supplied addressSnapshot verbatim, without prepending country/city", async () => {
+    const orderRepo = fakeOrderRepository();
+    const { checkout } = buildCheckoutService({ orderRepo });
+
+    await checkout.checkout(null, makeRequest({ addressSnapshot: "г. Кант, ул. Ленина 12" }));
+
+    expect(orderRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ addressSnapshot: "г. Кант, ул. Ленина 12" }),
+    );
+  });
+});
+
 describe("CheckoutService.checkout — Задача №182 customer contact resolution", () => {
   it("resolves customerName/customerPhone from the authenticated user's saved profile when the request omits them", async () => {
     const orderRepo = fakeOrderRepository();
