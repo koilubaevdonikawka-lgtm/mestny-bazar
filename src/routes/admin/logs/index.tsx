@@ -1,42 +1,41 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { z } from "zod";
 import type { AuditLogEntryDTO } from "@shared/contracts/audit-log";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { listAuditLog } from "@/api/logs";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { useTranslation } from "@/i18n/LanguageProvider";
+import type { Language } from "@/i18n/languages";
 import type { TranslationKey } from "@/i18n/t";
+import {
+  getAuditActionLabel,
+  getAuditEntityTypeLabel,
+  listAuditActionOptions,
+  listAuditEntityTypeOptions,
+} from "@/i18n/audit-log-labels";
 import { FileText, Loader2, LogIn, ShieldAlert } from "lucide-react";
 
 type Translate = (key: TranslationKey, params?: Record<string, string | number>) => string;
 
-/**
- * Задача №199 — actions/entityTypes dictionaries are keyed by the exact
- * technical strings (e.g. "order.confirmed", "delivery_zone"), so a lookup
- * miss (a backend action added before its label lands here) falls back to
- * the raw technical string instead of the ugly literal dictionary path.
- */
-function actionLabel(t: Translate, action: string): string {
-  const key = `admin.logs.actions.${action}` as TranslationKey;
-  const label = t(key);
-  return label === key ? action : label;
-}
-
-function entityTypeLabel(t: Translate, entityType: string): string {
-  const key = `admin.logs.entityTypes.${entityType}` as TranslationKey;
-  const label = t(key);
-  return label === key ? entityType : label;
-}
+/** Sentinel for the "no filter" <SelectItem> — Radix Select rejects an empty-string value, and "all" maps to `undefined` before it reaches the API filter. */
+const ALL_FILTER_VALUE = "all";
 
 /** Never renders a bare UUID — falls back to a localized "(unavailable)" using the entity type. */
-function entityDisplay(t: Translate, entry: AuditLogEntryDTO): string {
-  const typeLabel = entityTypeLabel(t, entry.entityType);
+function entityDisplay(t: Translate, language: Language, entry: AuditLogEntryDTO): string {
+  const typeLabel = getAuditEntityTypeLabel(language, entry.entityType);
   if (entry.entityName == null) {
     return t("admin.logs.entityUnavailable", { type: typeLabel });
   }
@@ -71,16 +70,19 @@ export const Route = createFileRoute("/admin/logs/")({
 
 function AdminLogsPage() {
   const { isAuthenticated } = useSupabaseSession();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const search = Route.useSearch();
-  const [action, setAction] = useState("");
-  const [entityType, setEntityType] = useState(search.entityType ?? "");
+  const [action, setAction] = useState(ALL_FILTER_VALUE);
+  const [entityType, setEntityType] = useState(search.entityType ?? ALL_FILTER_VALUE);
   const [entityId, setEntityId] = useState(search.entityId ?? "");
   const [page, setPage] = useState(1);
 
+  const actionOptions = useMemo(() => listAuditActionOptions(language), [language]);
+  const entityTypeOptions = useMemo(() => listAuditEntityTypeOptions(language), [language]);
+
   const filters = {
-    action: action.trim() || undefined,
-    entityType: entityType.trim() || undefined,
+    action: action === ALL_FILTER_VALUE ? undefined : action,
+    entityType: entityType === ALL_FILTER_VALUE ? undefined : entityType,
     entityId: entityId.trim() || undefined,
     page,
     pageSize: 25,
@@ -180,27 +182,51 @@ function AdminLogsPage() {
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="grid gap-2">
               <Label htmlFor="log-action">{t("admin.logs.actionLabel")}</Label>
-              <Input
-                id="log-action"
+              <Select
                 value={action}
-                onChange={(e) => {
-                  setAction(e.target.value);
+                onValueChange={(value) => {
+                  setAction(value);
                   handleFilterChange();
                 }}
-                placeholder={t("admin.logs.actionPlaceholder")}
-              />
+              >
+                <SelectTrigger id="log-action">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_FILTER_VALUE}>
+                    {t("admin.logs.allActionsOption")}
+                  </SelectItem>
+                  {actionOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="log-entity">{t("admin.logs.entityTypeLabel")}</Label>
-              <Input
-                id="log-entity"
+              <Select
                 value={entityType}
-                onChange={(e) => {
-                  setEntityType(e.target.value);
+                onValueChange={(value) => {
+                  setEntityType(value);
                   handleFilterChange();
                 }}
-                placeholder={t("admin.logs.entityTypePlaceholder")}
-              />
+              >
+                <SelectTrigger id="log-entity">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_FILTER_VALUE}>
+                    {t("admin.logs.allEntityTypesOption")}
+                  </SelectItem>
+                  {entityTypeOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="log-entity-id">{t("admin.logs.entityIdLabel")}</Label>
@@ -228,12 +254,20 @@ function AdminLogsPage() {
               {result.items.map((entry) => (
                 <li key={entry.id} className="rounded-xl border border-border/60 bg-card px-4 py-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-medium">{actionLabel(t, entry.action)}</p>
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <p className="text-sm font-medium">
+                        {getAuditActionLabel(language, entry.action)}
+                      </p>
+                      <code className="text-[10px] text-muted-foreground/70">{entry.action}</code>
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       {new Date(entry.occurredAt).toLocaleString("ru-RU")}
                     </p>
                   </div>
-                  <p className="mt-1 text-sm">{entityDisplay(t, entry)}</p>
+                  <div className="mt-1 flex flex-wrap items-baseline gap-2">
+                    <p className="text-sm">{entityDisplay(t, language, entry)}</p>
+                    <code className="text-[10px] text-muted-foreground/70">{entry.entityType}</code>
+                  </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">{actorDisplay(t, entry)}</p>
                 </li>
               ))}
