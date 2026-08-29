@@ -34,9 +34,10 @@ export function CartQuantityControl({
    */
   showLabel?: boolean;
   /** Задача №179 — overrides the showLabel "Add" button's text (defaults to
-   * product.addToCart, "Добавить в корзину", the product page's existing
-   * wording) — the new subcategory list card wants the shorter "Добавить"
-   * without changing the product page's own button. */
+   * product.addToCart, "Добавить в корзину") — the catalog card passes
+   * product.addToCartShort ("В корзину" as of Задача №204) without changing
+   * the product page's own button, which uses its own separate key
+   * (product.addToCartShortButton) and isn't affected by this prop at all. */
   addLabel?: string;
   /** Задача №179 — consumer-facing unit label (e.g. "кг", "шт"), shown next
    * to the quantity count once the stepper is active. Opt-in (default null)
@@ -133,7 +134,15 @@ export function CartQuantityControl({
         variant="default"
         className={
           showLabel
-            ? `${barHeightClass} w-full shrink-0 gap-2 rounded-full text-base font-semibold shadow-md ${noFillClass} ${className}`
+            ? // Задача №204 — text/icon only, still no fill/border: font-bold
+              // text-primary appended after noFillClass wins over its
+              // text-foreground/font-semibold (twMerge keeps the
+              // last-declared class per utility group). The Plus icon has no
+              // className of its own below — it inherits this same color via
+              // currentColor, same as it already inherited text-foreground
+              // before this change. Scoped to just this (showLabel) branch —
+              // the icon-only branch below keeps noFillClass untouched.
+              `${barHeightClass} w-full shrink-0 gap-2 rounded-full text-base font-semibold shadow-md ${noFillClass} font-bold text-primary ${className}`
             : `${buttonSizeClass} shrink-0 rounded-full ${noFillClass} ${className}`
         }
         aria-label={addLabel ?? t("product.addToCart")}

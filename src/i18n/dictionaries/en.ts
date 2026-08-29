@@ -86,7 +86,7 @@ export const en = {
   },
   product: {
     addToCart: "Add to cart",
-    addToCartShort: "Add",
+    addToCartShort: "To cart",
     addedToCartToast: "Added to cart",
     decreaseQuantity: "Decrease quantity",
     increaseQuantity: "Increase quantity",
