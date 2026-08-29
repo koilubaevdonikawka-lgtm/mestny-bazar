@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
 import { CartDrawer } from "./CartDrawer";
 import { AccountMenu } from "./AccountMenu";
@@ -55,6 +56,14 @@ interface SiteHeaderProps {
    * non-customer caller keeps its icon.
    */
   showAccountMenu?: boolean;
+  /**
+   * Задача №198 — rendered in the same top-left slot the search bar
+   * occupies, in its place, when `showSearch` is false. Lets a caller like
+   * AdminLayout put its own chrome (Назад/На главную) exactly where the
+   * search bar used to be, instead of a separate row below the header.
+   * Ignored while `showSearch` is true.
+   */
+  leftSlot?: ReactNode;
 }
 
 export function SiteHeader({
@@ -65,6 +74,7 @@ export function SiteHeader({
   safeAreaTop = false,
   hideSignInButton = false,
   showAccountMenu = true,
+  leftSlot,
 }: SiteHeaderProps = {}) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -109,7 +119,7 @@ export function SiteHeader({
         {/* flex-1 spacer kept even when search is hidden (Admin Platform) — it's
             what pushes nav/account/cart to the right; only its contents are
             conditional, so hiding search doesn't collapse the header layout. */}
-        <div className="relative flex-1 max-w-xl">{showSearch && <SearchBar />}</div>
+        <div className="relative flex-1 max-w-xl">{showSearch ? <SearchBar /> : leftSlot}</div>
         <nav className="hidden lg:flex items-center gap-6 text-sm">
           <a href="#categories" className="hover:text-primary transition-colors">
             {t("nav.categories")}

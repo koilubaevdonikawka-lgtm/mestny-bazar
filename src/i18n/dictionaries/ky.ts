@@ -367,7 +367,7 @@ export const ky = {
   },
   admin: {
     common: {
-      backToHub: "Административдик платформа",
+      backToHome: "Башкы бетке",
       signInPrompt: "Администратордун каттоо эсеби менен кириңиз.",
       accessDeniedTitle: "Кирүү тыюу салынган",
       adminOnlyMessage: "Бул бет администраторлор үчүн гана жеткиликтүү.",

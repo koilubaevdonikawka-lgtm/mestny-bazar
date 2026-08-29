@@ -391,7 +391,7 @@ export const ru = {
   },
   admin: {
     common: {
-      backToHub: "Административная платформа",
+      backToHome: "На главную",
       signInPrompt: "Войдите с учётной записью администратора.",
       accessDeniedTitle: "Доступ запрещён",
       adminOnlyMessage: "Эта страница доступна только администраторам.",

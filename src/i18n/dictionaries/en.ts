@@ -364,7 +364,7 @@ export const en = {
   },
   admin: {
     common: {
-      backToHub: "Admin Platform",
+      backToHome: "Home",
       signInPrompt: "Sign in with an administrator account.",
       accessDeniedTitle: "Access denied",
       adminOnlyMessage: "This page is only available to administrators.",
