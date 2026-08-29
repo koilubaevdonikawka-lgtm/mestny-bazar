@@ -115,6 +115,12 @@ export function CartQuantityControl({
   }
 
   if (quantity <= 0) {
+    // Задача №201 — bg-accent (ripe tomato, styles.css) instead of the
+    // default variant's bg-primary green, scoped to just this button via
+    // className (twMerge-overridden, not a change to buttonVariants'
+    // shared "default" — every other button on the site keeps its green).
+    // No border/ring utility added here, so nothing new to strip off.
+    const ctaColorClass = "bg-accent text-accent-foreground hover:bg-accent/90";
     return (
       <Button
         onClick={handleAdd}
@@ -123,8 +129,8 @@ export function CartQuantityControl({
         variant="default"
         className={
           showLabel
-            ? `${barHeightClass} w-full shrink-0 gap-2 rounded-full text-base font-semibold shadow-md ${className}`
-            : `${buttonSizeClass} shrink-0 rounded-full ${className}`
+            ? `${barHeightClass} w-full shrink-0 gap-2 rounded-full text-base font-semibold shadow-md ${ctaColorClass} ${className}`
+            : `${buttonSizeClass} shrink-0 rounded-full ${ctaColorClass} ${className}`
         }
         aria-label={addLabel ?? t("product.addToCart")}
       >

@@ -63,16 +63,21 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
           unit and manufacturer/country folded onto shared lines instead of
           separate ones, to keep the whole column shorter than the photo. */}
       <div className="flex min-w-0 flex-col gap-0.5 sm:gap-1">
-        <div className="rounded-xl bg-primary px-2 py-0.5 sm:px-3 sm:py-1">
-          <h3 className="line-clamp-2 text-sm font-medium text-white sm:text-base">
+        {/* Задача №201 — beige --secondary fill instead of bg-primary: the
+            green brand color is reserved for the header/footer/other site
+            buttons (out of scope here), so the name plate now uses the same
+            warm-neutral pairing as the rest of the design system instead of
+            a green block. */}
+        <div className="rounded-xl bg-secondary px-2 py-0.5 sm:px-3 sm:py-1">
+          <h3 className="line-clamp-2 text-sm font-medium text-secondary-foreground sm:text-base">
             {displayTitle}
           </h3>
         </div>
 
-        {/* Задача №194 — white instead of the beige --secondary fill; the
-            card itself is already bg-white, so a border is the only thing
-            that still separates this field from its own background. */}
-        <div className="rounded-xl border border-border/60 bg-white px-2 py-0.5 sm:px-3 sm:py-1">
+        {/* Задача №201 — dropped the border: it read as a leftover outline
+            once the plate had nothing to be "highlighted" against (the card
+            itself is already bg-white, same as this block). */}
+        <div className="rounded-xl bg-white px-2 py-0.5 sm:px-3 sm:py-1">
           <p className="truncate font-serif text-base font-semibold text-primary sm:text-xl">
             {formatDisplayPrice(parseFloat(price.amount))} {t("product.currencyLabel")}
             {p.unit && (
@@ -82,7 +87,7 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
         </div>
 
         {(displayDescription || manufacturerAndCountry) && (
-          <div className="rounded-xl border border-border/60 bg-white px-2 py-0.5 text-[11px] text-muted-foreground sm:px-3 sm:py-1 sm:text-xs">
+          <div className="rounded-xl bg-white px-2 py-0.5 text-[11px] text-muted-foreground sm:px-3 sm:py-1 sm:text-xs">
             {displayDescription && <p className="truncate">{displayDescription}</p>}
             {manufacturerAndCountry && <p className="truncate">{manufacturerAndCountry}</p>}
           </div>
