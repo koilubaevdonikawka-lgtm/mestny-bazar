@@ -265,14 +265,22 @@ function CourierOrderDetailPage() {
             </Button>
           )}
           {canMarkCashPaid && (
-            <Button disabled={isBusy} onClick={() => markCashPaidMutation.mutate()}>
-              {markCashPaidMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Взять оплату"
-              )}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button disabled={isBusy} onClick={() => markCashPaidMutation.mutate()}>
+                {markCashPaidMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Взять оплату"
+                )}
+              </Button>
+              <span className="text-sm font-semibold">
+                {formatMoney(order.total, order.currency)}
+              </span>
+            </div>
           )}
+          {/* Задача №211 — persists once paid, independent of hasArrived, so it
+              stays visible through DELIVERED too, not just while ARRIVED. */}
+          {isCash && cashPaymentReceived && <Badge variant="secondary">Оплата получена</Badge>}
           {canCompleteDelivery && (
             <Button disabled={isBusy} onClick={() => completeMutation.mutate()}>
               {completeMutation.isPending ? (

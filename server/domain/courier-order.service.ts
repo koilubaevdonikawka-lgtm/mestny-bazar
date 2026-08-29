@@ -137,6 +137,17 @@ export class CourierOrderService {
   async markCashPaymentReceived(orderId: string, actor: CourierActor): Promise<OrderDTO> {
     const order = await this.getOrder(orderId, actor);
 
+    // Задача №211 — idempotency: a repeat tap (double-click race, retry
+    // after a network blip) must not throw and must not duplicate the
+    // audit trail/re-publish the event for a payment already recorded.
+    // The lifecycle rule (CourierMarkCashPaidRule) only checks role/
+    // assignment/status/paymentMethod, never paymentStatus, so this has
+    // to be the short-circuit — returning the already-paid order as-is,
+    // no side effects.
+    if (order.paymentStatus === "paid") {
+      return order;
+    }
+
     this.orderLifecycle.assertCanTransition({
       orderId,
       currentStatus: order.status,
@@ -149,7 +160,11 @@ export class CourierOrderService {
     });
 
     const updated = await this.orders.updatePaymentStatus(orderId, "paid");
-    await this.events.publish({ type: "order.cash_payment_received", order: updated });
+    await this.events.publish({
+      type: "order.cash_payment_received",
+      order: updated,
+      courierId: actor.id,
+    });
     return updated;
   }
 

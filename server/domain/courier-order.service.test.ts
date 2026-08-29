@@ -333,7 +333,7 @@ describe("CourierOrderService", () => {
     );
   });
 
-  it("Задача №171 — markCashPaymentReceived marks payment paid and publishes order.cash_payment_received", async () => {
+  it("Задача №171 — markCashPaymentReceived marks payment paid and publishes order.cash_payment_received with the collecting courier's id", async () => {
     const repo = fakeRepo({
       getById: vi.fn(async () =>
         makeOrder({
@@ -351,8 +351,60 @@ describe("CourierOrderService", () => {
 
     expect(repo.updatePaymentStatus).toHaveBeenCalledWith("order-1", "paid");
     expect(events.publish).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "order.cash_payment_received" }),
+      expect.objectContaining({ type: "order.cash_payment_received", courierId: courier.id }),
     );
+  });
+
+  it("Задача №211 — markCashPaymentReceived is idempotent: a repeat tap on an already-paid order does not throw, re-persist, or re-publish", async () => {
+    const repo = fakeRepo({
+      getById: vi.fn(async () =>
+        makeOrder({
+          assignedCourierId: courier.id,
+          status: OrderStatus.ARRIVED,
+          paymentMethod: "CASH",
+          paymentStatus: "paid",
+        }),
+      ),
+    });
+    const lifecycle = fakeLifecycle();
+    const events = fakeEventBus();
+    const service = buildService({ repo, lifecycle, events });
+
+    const result = await service.markCashPaymentReceived("order-1", courier);
+
+    expect(result.paymentStatus).toBe("paid");
+    expect(lifecycle.assertCanTransition).not.toHaveBeenCalled();
+    expect(repo.updatePaymentStatus).not.toHaveBeenCalled();
+    expect(events.publish).not.toHaveBeenCalled();
+  });
+
+  it("Задача №211 — markCashPaymentReceived is rejected for an ONLINE order (CourierMarkCashPaidRule's NOT_CASH_PAYMENT check)", async () => {
+    // paymentStatus: "unpaid" (not "paid") deliberately — the idempotency
+    // short-circuit above only fires on an already-"paid" order, and an
+    // ONLINE order's Finik-confirmed payment would already be "paid" by
+    // this point, which would trivially skip the lifecycle check this
+    // test means to exercise.
+    const repo = fakeRepo({
+      getById: vi.fn(async () =>
+        makeOrder({
+          assignedCourierId: courier.id,
+          status: OrderStatus.ARRIVED,
+          paymentMethod: "ONLINE",
+          paymentStatus: "unpaid",
+        }),
+      ),
+    });
+    const lifecycle = fakeLifecycle({
+      assertCanTransition: vi.fn(() => {
+        throw new Error("Only cash-payment orders can be marked paid this way");
+      }),
+    });
+    const service = buildService({ repo, lifecycle });
+
+    await expect(service.markCashPaymentReceived("order-1", courier)).rejects.toThrow(
+      "Only cash-payment orders can be marked paid this way",
+    );
+    expect(repo.updatePaymentStatus).not.toHaveBeenCalled();
   });
 
   it("Задача №171 — markCashPaymentReceived passes context (assignedCourierId/paymentMethod/paymentStatus) to the lifecycle policy and does not persist when denied", async () => {

@@ -80,10 +80,21 @@ export function subscribeAuditLog(bus: IMarketplaceEventBus, auditLog: IAuditLog
     "order.arrived",
     logOrderEvent("order.arrived", () => ({})),
   );
-  bus.subscribe(
-    "order.cash_payment_received",
-    logOrderEvent("order.cash_payment_received", () => ({})),
-  );
+  // Задача №211 — not logOrderEvent: that helper always hardcodes
+  // actorId: null, but this event now carries a real courierId (which
+  // courier physically collected the cash) that the audit journal should
+  // show as the actor, not "не указано".
+  bus.subscribe("order.cash_payment_received", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "order.cash_payment_received",
+      occurredAt: new Date().toISOString(),
+      entityType: "order",
+      entityId: event.order.id,
+      actorId: event.courierId,
+      payload: orderPayload(event.order),
+    });
+  });
   bus.subscribe(
     "order.delivered",
     logOrderEvent("order.delivered", () => ({})),

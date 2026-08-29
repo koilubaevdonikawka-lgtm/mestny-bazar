@@ -115,7 +115,7 @@ describe("subscribeAuditLog", () => {
     await bus.publish({ type: "order.ready_for_delivery", order });
     await bus.publish({ type: "order.out_for_delivery", order });
     await bus.publish({ type: "order.arrived", order });
-    await bus.publish({ type: "order.cash_payment_received", order });
+    await bus.publish({ type: "order.cash_payment_received", order, courierId: "courier-1" });
     await bus.publish({ type: "order.delivered", order });
 
     expect(auditLog.records.map((r) => r.action)).toEqual([
@@ -128,6 +128,24 @@ describe("subscribeAuditLog", () => {
       "order.cash_payment_received",
       "order.delivered",
     ]);
+  });
+
+  it("Задача №211 — order.cash_payment_received records the collecting courier as actorId, not null", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+    const order = makeOrder({ status: "ARRIVED", paymentMethod: "CASH", paymentStatus: "paid" });
+
+    await bus.publish({ type: "order.cash_payment_received", order, courierId: "courier-42" });
+
+    expect(auditLog.records).toHaveLength(1);
+    expect(auditLog.records[0]).toMatchObject({
+      action: "order.cash_payment_received",
+      entityType: "order",
+      entityId: order.id,
+      actorId: "courier-42",
+      payload: expect.objectContaining({ orderNumber: order.orderNumber, total: order.total }),
+    });
   });
 
   it("appends records for order.paid and every payment.* event (Промпт №075)", async () => {
