@@ -78,6 +78,17 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
           </h3>
         </div>
 
+        {/* Задача №205 — reordered below the name: description/variant now
+            comes before price (name → description → price → button), price
+            moved down to sit right above the Add button. No style/class
+            changes on either block, order only. */}
+        {(displayDescription || manufacturerAndCountry) && (
+          <div className="rounded-xl bg-white px-2 py-0.5 text-[11px] text-muted-foreground sm:px-3 sm:py-1 sm:text-xs">
+            {displayDescription && <p className="truncate">{displayDescription}</p>}
+            {manufacturerAndCountry && <p className="truncate">{manufacturerAndCountry}</p>}
+          </div>
+        )}
+
         {/* Задача №201 — dropped the border: it read as a leftover outline
             once the plate had nothing to be "highlighted" against (the card
             itself is already bg-white, same as this block). */}
@@ -89,13 +100,6 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
             )}
           </p>
         </div>
-
-        {(displayDescription || manufacturerAndCountry) && (
-          <div className="rounded-xl bg-white px-2 py-0.5 text-[11px] text-muted-foreground sm:px-3 sm:py-1 sm:text-xs">
-            {displayDescription && <p className="truncate">{displayDescription}</p>}
-            {manufacturerAndCountry && <p className="truncate">{manufacturerAndCountry}</p>}
-          </div>
-        )}
 
         <div className="mt-auto">
           <CartQuantityControl
