@@ -222,7 +222,7 @@ function Home() {
               type="button"
               onClick={() => scrollCategoriesBy(-1)}
               aria-label={t("nav.scrollCategoriesLeft")}
-              className="absolute left-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/90 text-black shadow-md backdrop-blur-sm transition-transform hover:scale-105"
+              className="absolute left-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black text-white shadow-md transition-transform hover:scale-105"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
@@ -232,7 +232,7 @@ function Home() {
               type="button"
               onClick={() => scrollCategoriesBy(1)}
               aria-label={t("nav.scrollCategoriesRight")}
-              className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/90 text-black shadow-md backdrop-blur-sm transition-transform hover:scale-105"
+              className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black text-white shadow-md transition-transform hover:scale-105"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
