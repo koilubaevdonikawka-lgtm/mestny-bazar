@@ -215,6 +215,10 @@ function ProductPage() {
 
   const images = product.images.edges;
   const activeImage = images[selectedImage] ?? images[0];
+  // Задача №206 — cyclic within this same product's own photos, not a
+  // different product (that's still goToSibling, used only by swipe below).
+  const goToPrevImage = () => setSelectedImage((i) => (i - 1 + images.length) % images.length);
+  const goToNextImage = () => setSelectedImage((i) => (i + 1) % images.length);
   const price = product.priceRange.minVariantPrice;
   const variant = product.variants.edges[0]?.node;
   const maxQuantity = product.inStock ? Math.max(1, product.stock) : 1;
@@ -371,25 +375,28 @@ function ProductPage() {
                   {t("product.outOfStock")}
                 </div>
               )}
-              {/* Quick prev/next within the category — overlaid on the image
-                  so it costs zero extra vertical space; swipe on the same
-                  image area does the same thing (п.2). Only rendered when
-                  there actually is a neighbour to go to. */}
-              {prevSibling && (
+              {/* Задача №206 — these switch this same product's own photos
+                  now (cyclic), not a different product; overlaid on the
+                  image so they cost zero extra vertical space. Rendered
+                  whenever there's more than one photo, regardless of
+                  category-sibling existence. Swiping the image area still
+                  navigates to a different product (goToSibling below, via
+                  handleImageTouchStart/End) — untouched. */}
+              {images.length > 1 && (
                 <button
                   type="button"
-                  onClick={() => goToSibling(prevSibling.slug)}
-                  aria-label={t("product.prevProduct")}
+                  onClick={goToPrevImage}
+                  aria-label={t("product.prevImage")}
                   className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/85 text-foreground shadow-md backdrop-blur-sm transition-transform hover:scale-105"
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
               )}
-              {nextSibling && (
+              {images.length > 1 && (
                 <button
                   type="button"
-                  onClick={() => goToSibling(nextSibling.slug)}
-                  aria-label={t("product.nextProduct")}
+                  onClick={goToNextImage}
+                  aria-label={t("product.nextImage")}
                   className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/85 text-foreground shadow-md backdrop-blur-sm transition-transform hover:scale-105"
                 >
                   <ChevronRight className="h-5 w-5" />

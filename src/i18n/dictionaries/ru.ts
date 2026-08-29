@@ -112,8 +112,8 @@ export const ru = {
     notFoundTitle: "Продукт не найден",
     backToCategories: "Назад к категориям",
     returnToAdmin: "Вернуться в административную панель",
-    prevProduct: "Предыдущий товар",
-    nextProduct: "Следующий товар",
+    prevImage: "Предыдущее фото",
+    nextImage: "Следующее фото",
   },
   category: {
     loadErrorTitle: "Не удалось загрузить категорию",

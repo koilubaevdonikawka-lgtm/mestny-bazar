@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ImageUploadField } from "@/components/shared/ImageUploadField";
+import { MultiImageUploadField } from "@/components/shared/MultiImageUploadField";
 import {
   getSellerProduct,
   hideSellerProduct,
@@ -59,7 +59,7 @@ function SellerProductDetailPage() {
     price: "",
     stock: "",
     unit: "",
-    imageUrl: "",
+    imageUrls: [] as string[],
   });
 
   useEffect(() => {
@@ -71,7 +71,16 @@ function SellerProductDetailPage() {
         price: String(product.price),
         stock: String(product.stock),
         unit: product.unit ?? "",
-        imageUrl: product.imageUrl ?? "",
+        // Задача №206 — a product saved before this feature existed has
+        // imageUrls: [] (never backfilled) but still has its old imageUrl —
+        // show that single photo as the gallery's only item so editing an
+        // old product doesn't silently show an empty uploader.
+        imageUrls:
+          product.imageUrls.length > 0
+            ? product.imageUrls
+            : product.imageUrl
+              ? [product.imageUrl]
+              : [],
       });
     }
   }, [product]);
@@ -128,7 +137,11 @@ function SellerProductDetailPage() {
       price,
       stock,
       unit: form.unit.trim() || undefined,
-      imageUrl: form.imageUrl.trim() || undefined,
+      // Задача №206 — imageUrl (the cover) is not sent separately: the
+      // repository already derives it from imageUrls[0] whenever imageUrls
+      // is provided (server/adapters/supabase/seller-product.repository.ts),
+      // so sending both would be redundant, not "more correct".
+      imageUrls: form.imageUrls,
     });
   };
 
@@ -312,23 +325,19 @@ function SellerProductDetailPage() {
               />
             </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="unit">Единица</Label>
-              <Input
-                id="unit"
-                value={form.unit}
-                onChange={(e) => setForm((prev) => ({ ...prev, unit: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <ImageUploadField
-                value={form.imageUrl || null}
-                onChange={(url) => setForm((prev) => ({ ...prev, imageUrl: url ?? "" }))}
-                context="product"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="unit">Единица</Label>
+            <Input
+              id="unit"
+              value={form.unit}
+              onChange={(e) => setForm((prev) => ({ ...prev, unit: e.target.value }))}
+            />
           </div>
+          <MultiImageUploadField
+            values={form.imageUrls}
+            onChange={(imageUrls) => setForm((prev) => ({ ...prev, imageUrls }))}
+            context="product"
+          />
           <Button type="submit" disabled={isBusy}>
             {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Сохранить"}
           </Button>

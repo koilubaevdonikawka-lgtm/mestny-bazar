@@ -103,8 +103,8 @@ export const en = {
     notFoundTitle: "Product not found",
     backToCategories: "Back to categories",
     returnToAdmin: "Return to admin panel",
-    prevProduct: "Previous product",
-    nextProduct: "Next product",
+    prevImage: "Previous photo",
+    nextImage: "Next photo",
   },
   category: {
     loadErrorTitle: "Failed to load the category",

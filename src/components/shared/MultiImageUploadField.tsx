@@ -18,6 +18,8 @@ interface MultiImageUploadFieldProps {
   /** Small muted caption under the label — e.g. product's "prepare the background yourself" note (Промпт №107). Omitted entirely for contexts that don't need one, so category/banner/courier stay unchanged. */
   hint?: string;
   disabled?: boolean;
+  /** Задача №206 — matches seller-product.schema.ts's imageUrls cap (max 10), the only real limit today; kept as an overridable prop rather than hardcoded so this stays reusable for a future context with a different cap. */
+  maxImages?: number;
 }
 
 /**
@@ -33,8 +35,10 @@ export function MultiImageUploadField({
   label = "Фотографии товара",
   hint,
   disabled,
+  maxImages = 10,
 }: MultiImageUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const atLimit = values.length >= maxImages;
 
   const mutation = useMutation({
     mutationFn: (file: File) => uploadImage(file, context),
@@ -48,6 +52,10 @@ export function MultiImageUploadField({
     e.target.value = "";
     if (!file) return;
 
+    if (atLimit) {
+      toast.error(`Максимум ${maxImages} фотографий`);
+      return;
+    }
     if (!(MEDIA_UPLOAD_ALLOWED_MIME_TYPES as readonly string[]).includes(file.type)) {
       toast.error("Поддерживаются только изображения PNG, JPEG, WEBP или AVIF");
       return;
@@ -85,29 +93,32 @@ export function MultiImageUploadField({
             </button>
           </div>
         ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={disabled || mutation.isPending}
-          onClick={() => inputRef.current?.click()}
-        >
-          {mutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ImagePlus className="h-4 w-4" />
-          )}
-          Добавить фото
-        </Button>
+        {!atLimit && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled || mutation.isPending}
+            onClick={() => inputRef.current?.click()}
+          >
+            {mutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ImagePlus className="h-4 w-4" />
+            )}
+            Добавить фото
+          </Button>
+        )}
         <input
           ref={inputRef}
           type="file"
           accept={MEDIA_UPLOAD_ALLOWED_MIME_TYPES.join(",")}
           className="hidden"
           onChange={handleFileChange}
-          disabled={disabled}
+          disabled={disabled || atLimit}
         />
       </div>
+      {atLimit && <p className="text-xs text-muted-foreground">Максимум {maxImages} фотографий</p>}
     </div>
   );
 }

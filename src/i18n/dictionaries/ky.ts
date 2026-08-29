@@ -103,8 +103,8 @@ export const ky = {
     notFoundTitle: "Продукт табылган жок",
     backToCategories: "Категорияларга кайтуу",
     returnToAdmin: "Админ-панелге кайтуу",
-    prevProduct: "Мурунку товар",
-    nextProduct: "Кийинки товар",
+    prevImage: "Мурунку сүрөт",
+    nextImage: "Кийинки сүрөт",
   },
   category: {
     loadErrorTitle: "Категорияны жүктөө мүмкүн болбоду",
