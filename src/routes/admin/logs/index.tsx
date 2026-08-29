@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { z } from "zod";
+import type { AuditLogEntryDTO } from "@shared/contracts/audit-log";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,48 @@ import { listAuditLog } from "@/api/logs";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { useTranslation } from "@/i18n/LanguageProvider";
+import type { TranslationKey } from "@/i18n/t";
 import { FileText, Loader2, LogIn, ShieldAlert } from "lucide-react";
+
+type Translate = (key: TranslationKey, params?: Record<string, string | number>) => string;
+
+/**
+ * Задача №199 — actions/entityTypes dictionaries are keyed by the exact
+ * technical strings (e.g. "order.confirmed", "delivery_zone"), so a lookup
+ * miss (a backend action added before its label lands here) falls back to
+ * the raw technical string instead of the ugly literal dictionary path.
+ */
+function actionLabel(t: Translate, action: string): string {
+  const key = `admin.logs.actions.${action}` as TranslationKey;
+  const label = t(key);
+  return label === key ? action : label;
+}
+
+function entityTypeLabel(t: Translate, entityType: string): string {
+  const key = `admin.logs.entityTypes.${entityType}` as TranslationKey;
+  const label = t(key);
+  return label === key ? entityType : label;
+}
+
+/** Never renders a bare UUID — falls back to a localized "(unavailable)" using the entity type. */
+function entityDisplay(t: Translate, entry: AuditLogEntryDTO): string {
+  const typeLabel = entityTypeLabel(t, entry.entityType);
+  if (entry.entityName == null) {
+    return t("admin.logs.entityUnavailable", { type: typeLabel });
+  }
+  if (entry.entityType === "order") {
+    return t("admin.orders.orderNumberPrefix", { number: entry.entityName });
+  }
+  return t("admin.logs.entityWithName", { type: typeLabel, name: entry.entityName });
+}
+
+/** Never renders a bare UUID — actorKind tells us why there's no name to show. */
+function actorDisplay(t: Translate, entry: AuditLogEntryDTO): string {
+  if (entry.actorKind === "resolved" && entry.actorName) return entry.actorName;
+  if (entry.actorKind === "system") return t("admin.logs.actorSystem");
+  if (entry.actorKind === "unresolved") return t("admin.logs.actorUnavailable");
+  return t("admin.logs.actorUnknown");
+}
 
 // Задача этапа №3 — entityId/entityType уже поддерживались
 // API (AuditLogListParams), но эта страница их не
@@ -186,15 +228,13 @@ function AdminLogsPage() {
               {result.items.map((entry) => (
                 <li key={entry.id} className="rounded-xl border border-border/60 bg-card px-4 py-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <code className="text-sm font-medium">{entry.action}</code>
+                    <p className="text-sm font-medium">{actionLabel(t, entry.action)}</p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(entry.occurredAt).toLocaleString("ru-RU")}
                     </p>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {entry.entityType}:{entry.entityId}
-                    {entry.actorId ? t("admin.logs.actorSuffix", { actorId: entry.actorId }) : ""}
-                  </p>
+                  <p className="mt-1 text-sm">{entityDisplay(t, entry)}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{actorDisplay(t, entry)}</p>
                 </li>
               ))}
             </ul>

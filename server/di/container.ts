@@ -584,7 +584,13 @@ export function createServices(env: ServerEnv): ServiceContainer {
   };
   const integrationsStatusService = new IntegrationsStatusService(secretPresence);
   const securityOverviewService = new SecurityOverviewService();
-  const auditLogQueryService = new AuditLogQueryService(auditLog);
+  const auditLogQueryService = new AuditLogQueryService(
+    auditLog,
+    profiles,
+    catalogProducts,
+    suppliers,
+    adminZones,
+  );
 
   // Auto-assignment orchestrator (platform-lifecycle.md §3) — needs
   // courierStatus/orders (candidates + workload) + the policy + events.
