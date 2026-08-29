@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { z } from "zod";
@@ -10,7 +10,7 @@ import { listAuditLog } from "@/api/logs";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { useTranslation } from "@/i18n/LanguageProvider";
-import { ArrowLeft, FileText, Loader2, LogIn, ShieldAlert } from "lucide-react";
+import { FileText, Loader2, LogIn, ShieldAlert } from "lucide-react";
 
 // Задача этапа №3 — entityId/entityType уже поддерживались
 // API (AuditLogListParams), но эта страница их не
@@ -132,13 +132,6 @@ function AdminLogsPage() {
   return (
     <AdminLayout>
       <div className="mx-auto max-w-4xl px-6 py-12">
-        <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
-          <Link to="/admin">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            {t("admin.common.backToHub")}
-          </Link>
-        </Button>
-
         <h1 className="font-serif text-4xl tracking-tight">{t("admin.logs.title")}</h1>
 
         <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">

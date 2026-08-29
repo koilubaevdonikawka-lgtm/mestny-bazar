@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { SiteHeader } from "@/components/SiteHeader";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -56,17 +56,17 @@ function AdminOrdersPage() {
 
   if (isAuthenticated === null) {
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="flex justify-center py-24">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="max-w-md mx-auto text-center py-24">
           <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
             <LogIn className="h-6 w-6 text-primary" />
@@ -77,17 +77,17 @@ function AdminOrdersPage() {
             {t("common.signIn")}
           </Button>
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
   if (isLoading) {
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="flex justify-center py-24">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
@@ -100,7 +100,7 @@ function AdminOrdersPage() {
       message.toLowerCase().includes("authentication") || message.includes("Unauthorized");
 
     return (
-      <PageShell>
+      <AdminLayout>
         <div className="max-w-md mx-auto text-center py-24">
           {isForbidden ? (
             <>
@@ -129,12 +129,12 @@ function AdminOrdersPage() {
             </>
           )}
         </div>
-      </PageShell>
+      </AdminLayout>
     );
   }
 
   return (
-    <PageShell>
+    <AdminLayout>
       <div className="mx-auto max-w-3xl px-6 py-12">
         <h1 className="font-serif text-4xl tracking-tight">{t("admin.orders.title")}</h1>
 
@@ -220,15 +220,6 @@ function AdminOrdersPage() {
           </div>
         )}
       </div>
-    </PageShell>
-  );
-}
-
-function PageShell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen flex flex-col">
-      <SiteHeader showSearch={false} showCart={false} showLanguageSwitcher />
-      <main className="flex-1">{children}</main>
-    </div>
+    </AdminLayout>
   );
 }

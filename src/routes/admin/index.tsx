@@ -103,7 +103,7 @@ function AdminPlatformHome() {
 
   if (isAuthenticated === null) {
     return (
-      <AdminLayout>
+      <AdminLayout showBackNav={false}>
         <div className="flex justify-center py-24">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -113,7 +113,7 @@ function AdminPlatformHome() {
 
   if (!isAuthenticated) {
     return (
-      <AdminLayout>
+      <AdminLayout showBackNav={false}>
         <div className="max-w-md mx-auto text-center py-24">
           <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
             <LogIn className="h-6 w-6 text-primary" />
@@ -129,7 +129,7 @@ function AdminPlatformHome() {
   }
 
   return (
-    <AdminLayout>
+    <AdminLayout showBackNav={false}>
       <div className="mx-auto max-w-5xl px-6 py-12">
         <h1 className="font-serif text-4xl tracking-tight">{t("admin.hub.title")}</h1>
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ import type { UserRole } from "@shared/contracts/user";
 import type { AdminScope } from "@shared/contracts/user-admin";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
-import { ArrowLeft, Loader2, LogIn, ShieldAlert, Users as UsersIcon } from "lucide-react";
+import { Loader2, LogIn, ShieldAlert, Users as UsersIcon } from "lucide-react";
 import { toast } from "sonner";
 
 // Roles/scopes render as a dense row of adjacent click-to-toggle badges — a
@@ -203,13 +203,6 @@ function AdminUsersPage() {
   return (
     <AdminLayout>
       <div className="mx-auto max-w-4xl px-6 py-12">
-        <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
-          <Link to="/admin">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Административная платформа
-          </Link>
-        </Button>
-
         <h1 className="font-serif text-4xl tracking-tight">Пользователи и права</h1>
 
         <section className="mt-8 rounded-2xl border border-border/60 bg-card p-6">

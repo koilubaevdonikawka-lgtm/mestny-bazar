@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { listSellers, rejectSeller, verifySeller } from "@/api/seller-profile";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
-import { ArrowLeft, Loader2, LogIn, ShieldAlert, Store } from "lucide-react";
+import { Loader2, LogIn, ShieldAlert, Store } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/sellers/")({
@@ -129,13 +129,6 @@ function AdminSellersPage() {
   return (
     <AdminLayout>
       <div className="mx-auto max-w-3xl px-6 py-12">
-        <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
-          <Link to="/admin">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Административная платформа
-          </Link>
-        </Button>
-
         <h1 className="font-serif text-4xl tracking-tight">Продавцы</h1>
 
         <section className="mt-8 rounded-2xl border border-border/60 bg-card p-6">

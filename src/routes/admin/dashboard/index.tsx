@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { formatMoney } from "@shared/lib/order-display";
 import { useTranslation } from "@/i18n/LanguageProvider";
-import { AlertTriangle, ArrowLeft, Loader2, LogIn, ShieldAlert } from "lucide-react";
+import { AlertTriangle, Loader2, LogIn, ShieldAlert } from "lucide-react";
 
 const REFETCH_INTERVAL_MS = 30_000;
 
@@ -92,13 +92,6 @@ function AdminDashboardPage() {
   return (
     <AdminLayout>
       <div className="mx-auto max-w-5xl px-6 py-12">
-        <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
-          <Link to="/admin">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            {t("admin.common.backToHub")}
-          </Link>
-        </Button>
-
         <h1 className="font-serif text-4xl tracking-tight">{t("admin.dashboard.title")}</h1>
 
         <div className="mt-8 grid gap-4 grid-cols-2 lg:grid-cols-4">

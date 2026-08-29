@@ -1,11 +1,11 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { getSalesAnalytics } from "@/api/analytics";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
-import { ArrowLeft, BarChart3, Loader2, LogIn, ShieldAlert } from "lucide-react";
+import { BarChart3, Loader2, LogIn, ShieldAlert } from "lucide-react";
 
 export const Route = createFileRoute("/admin/analytics/")({
   component: AdminAnalyticsPage,
@@ -104,13 +104,6 @@ function AdminAnalyticsPage() {
   return (
     <AdminLayout>
       <div className="mx-auto max-w-4xl px-6 py-12">
-        <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
-          <Link to="/admin">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Административная платформа
-          </Link>
-        </Button>
-
         <h1 className="font-serif text-4xl tracking-tight">Аналитика продаж</h1>
 
         <div className="mt-8 grid gap-4 grid-cols-2 sm:grid-cols-3">

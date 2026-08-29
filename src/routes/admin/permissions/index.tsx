@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -32,7 +32,7 @@ import { listUsers } from "@/api/user-admin";
 import type { RbacPermissionDTO, RbacRoleDTO } from "@shared/contracts/rbac";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
-import { ArrowLeft, Loader2, Lock, LogIn, ShieldAlert, Trash2 } from "lucide-react";
+import { Loader2, Lock, LogIn, ShieldAlert, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/permissions/")({
@@ -133,13 +133,6 @@ function AdminPermissionsPage() {
   return (
     <AdminLayout>
       <div className="mx-auto max-w-5xl px-6 py-12">
-        <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
-          <Link to="/admin">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Административная платформа
-          </Link>
-        </Button>
-
         <div className="flex items-center gap-3">
           <Lock className="h-7 w-7 text-primary" />
           <h1 className="font-serif text-4xl tracking-tight">Права доступа</h1>

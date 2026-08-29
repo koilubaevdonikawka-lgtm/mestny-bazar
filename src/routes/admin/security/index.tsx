@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { getSecurityOverview } from "@/api/security-overview";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { useTranslation } from "@/i18n/LanguageProvider";
-import { ArrowLeft, Loader2, LogIn, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Loader2, LogIn, ShieldAlert, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/admin/security/")({
   component: AdminSecurityPage,
@@ -102,13 +102,6 @@ function AdminSecurityPage() {
   return (
     <AdminLayout>
       <div className="mx-auto max-w-3xl px-6 py-12">
-        <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
-          <Link to="/admin">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            {t("admin.common.backToHub")}
-          </Link>
-        </Button>
-
         <h1 className="font-serif text-4xl tracking-tight">{t("admin.security.title")}</h1>
 
         <section className="mt-8 rounded-2xl border border-border/60 bg-card p-6">
