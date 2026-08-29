@@ -1,4 +1,4 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ import {
   orderRequiresRefund,
 } from "@shared/lib/order-display";
 import { OrderStatus } from "@shared/contracts/order";
-import { ArrowLeft, Loader2, LogIn, ShieldAlert } from "lucide-react";
+import { Loader2, LogIn, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/orders/$id")({
@@ -147,9 +147,6 @@ function AdminOrderDetailPage() {
           ) : (
             <p className="text-muted-foreground">{message}</p>
           )}
-          <Button asChild size="lg" className="mt-6 h-12 rounded-full">
-            <Link to="/admin/orders">{t("admin.orders.backToListLink")}</Link>
-          </Button>
         </div>
       </AdminLayout>
     );
@@ -175,13 +172,6 @@ function AdminOrderDetailPage() {
   return (
     <AdminLayout>
       <div className="mx-auto max-w-3xl px-6 py-12">
-        <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
-          <Link to="/admin/orders">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            {t("admin.orders.allOrdersLink")}
-          </Link>
-        </Button>
-
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="font-serif text-4xl tracking-tight">

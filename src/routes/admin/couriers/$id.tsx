@@ -32,7 +32,7 @@ import { formatMoney, formatOrderDate, formatOrderStatus } from "@shared/lib/ord
 import { formatVehicleType } from "@shared/lib/courier-display";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
-import { ArrowLeft, Loader2, LogIn, ShieldAlert } from "lucide-react";
+import { Loader2, LogIn, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/couriers/$id")({
@@ -172,13 +172,6 @@ function AdminCourierDetailPage() {
   return (
     <AdminLayout>
       <div className="mx-auto max-w-3xl px-6 py-12">
-        <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
-          <Link to="/admin/couriers">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Курьеры
-          </Link>
-        </Button>
-
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-center gap-4">
             {profile.photoUrl && (

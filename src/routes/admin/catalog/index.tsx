@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -51,7 +51,6 @@ import {
   ChevronDown,
   Eye,
   EyeOff,
-  Home,
   Loader2,
   LogIn,
   Package,
@@ -900,18 +899,6 @@ function AdminCatalogPage() {
         >
           <ArrowLeft className="h-3.5 w-3.5 mr-1" />
           {t("admin.catalog.backButton")}
-        </Button>
-        <Button
-          asChild
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 rounded-full px-2.5 text-xs"
-        >
-          <Link to="/admin">
-            <Home className="h-3.5 w-3.5 mr-1" />
-            {t("admin.catalog.fixedNavHome")}
-          </Link>
         </Button>
       </div>
 
