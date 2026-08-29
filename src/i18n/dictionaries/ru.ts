@@ -32,6 +32,8 @@ export const ru = {
     catalog: "Каталог",
     info: "Информация",
     categories: "Категории",
+    scrollCategoriesLeft: "Прокрутить категории влево",
+    scrollCategoriesRight: "Прокрутить категории вправо",
     cart: "Корзина",
     orders: "Заказы",
     profile: "Профиль",

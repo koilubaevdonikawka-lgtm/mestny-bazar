@@ -29,6 +29,8 @@ export const en = {
     catalog: "Catalog",
     info: "Info",
     categories: "Categories",
+    scrollCategoriesLeft: "Scroll categories left",
+    scrollCategoriesRight: "Scroll categories right",
     cart: "Cart",
     orders: "Orders",
     profile: "Profile",

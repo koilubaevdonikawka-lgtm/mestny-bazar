@@ -29,6 +29,8 @@ export const ky = {
     catalog: "Каталог",
     info: "Маалымат",
     categories: "Категориялар",
+    scrollCategoriesLeft: "Категорияларды солго жылдыруу",
+    scrollCategoriesRight: "Категорияларды оңго жылдыруу",
     cart: "Себет",
     orders: "Буйрутмалар",
     profile: "Профиль",

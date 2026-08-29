@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { useResetOnAppForeground } from "@/hooks/useResetOnAppForeground";
 import { listCategories } from "@/api/category";
@@ -83,6 +84,41 @@ function Home() {
     return counts;
   }, [categories]);
 
+  // Задача №208 — scroll-hint arrows over the top category nav's own
+  // overflow-x-auto strip. 2px epsilon absorbs sub-pixel rounding (fractional
+  // scrollWidth on some zoom levels/DPRs), not a real "almost at the edge"
+  // gap — without it, a strip that exactly fits could flicker an arrow on
+  // for a fraction of a pixel of rounding error.
+  const CATEGORY_SCROLL_EDGE_EPSILON_PX = 2;
+  const categoriesScrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollCategoriesLeft, setCanScrollCategoriesLeft] = useState(false);
+  const [canScrollCategoriesRight, setCanScrollCategoriesRight] = useState(false);
+
+  const updateCategoryScrollArrows = useCallback(() => {
+    const el = categoriesScrollRef.current;
+    if (!el) return;
+    setCanScrollCategoriesLeft(el.scrollLeft > CATEGORY_SCROLL_EDGE_EPSILON_PX);
+    setCanScrollCategoriesRight(
+      el.scrollLeft + el.clientWidth < el.scrollWidth - CATEGORY_SCROLL_EDGE_EPSILON_PX,
+    );
+  }, []);
+
+  useEffect(() => {
+    updateCategoryScrollArrows();
+    // Viewport width can change (resize, orientation change, devtools
+    // responsive resize during testing) without the strip itself ever
+    // firing a scroll event — re-check then too, on top of the mount/
+    // category-list-change check above and the onScroll handler below.
+    window.addEventListener("resize", updateCategoryScrollArrows);
+    return () => window.removeEventListener("resize", updateCategoryScrollArrows);
+  }, [topLevelCategories, updateCategoryScrollArrows]);
+
+  const scrollCategoriesBy = (direction: 1 | -1) => {
+    const el = categoriesScrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction * el.clientWidth * 0.8, behavior: "smooth" });
+  };
+
   // design.md — purely additive: the Hero below only changes if an admin
   // actually publishes an active banner; an empty result renders nothing.
   const { data: banners } = useQuery({
@@ -138,9 +174,13 @@ function Home() {
       {topLevelCategories.length > 0 && (
         <nav
           aria-label={t("nav.categories")}
-          className="sticky top-[calc(4rem+1px+env(safe-area-inset-top))] z-30 border-b border-border/60 bg-background"
+          className="sticky top-[calc(4rem+1px+env(safe-area-inset-top))] z-30 border-b border-border/60 bg-background relative"
         >
-          <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 pt-3 pb-3 sm:px-6">
+          <div
+            ref={categoriesScrollRef}
+            onScroll={updateCategoryScrollArrows}
+            className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 pt-3 pb-3 sm:px-6"
+          >
             {topLevelCategories.map((c) => {
               const displayName =
                 language === DEFAULT_LANGUAGE ? c.name : (pageTranslations[c.name] ?? c.name);
@@ -169,6 +209,34 @@ function Home() {
               );
             })}
           </div>
+
+          {/* Задача №208 — scroll-hint arrows, overlaid on the strip's own
+              edges (same visual language as the product page's photo
+              prev/next overlay: bg-background/90 shadow-md backdrop-blur-sm).
+              Each one only renders when there's genuinely something to
+              scroll to in that direction — never a decorative always-on
+              element, and both disappear together on a wide screen where
+              every category already fits without scrolling. */}
+          {canScrollCategoriesLeft && (
+            <button
+              type="button"
+              onClick={() => scrollCategoriesBy(-1)}
+              aria-label={t("nav.scrollCategoriesLeft")}
+              className="absolute left-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/90 text-foreground shadow-md backdrop-blur-sm transition-transform hover:scale-105"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+          )}
+          {canScrollCategoriesRight && (
+            <button
+              type="button"
+              onClick={() => scrollCategoriesBy(1)}
+              aria-label={t("nav.scrollCategoriesRight")}
+              className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/90 text-foreground shadow-md backdrop-blur-sm transition-transform hover:scale-105"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          )}
         </nav>
       )}
 
