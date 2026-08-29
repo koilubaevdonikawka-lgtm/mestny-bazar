@@ -63,13 +63,17 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
           unit and manufacturer/country folded onto shared lines instead of
           separate ones, to keep the whole column shorter than the photo. */}
       <div className="flex min-w-0 flex-col gap-0.5 sm:gap-1">
-        {/* Задача №201 — beige --secondary fill instead of bg-primary: the
-            green brand color is reserved for the header/footer/other site
-            buttons (out of scope here), so the name plate now uses the same
-            warm-neutral pairing as the rest of the design system instead of
-            a green block. */}
-        <div className="rounded-xl bg-secondary px-2 py-0.5 sm:px-3 sm:py-1">
-          <h3 className="line-clamp-2 text-sm font-medium text-secondary-foreground sm:text-base">
+        {/* Задача №202 — Задача №201 swapped bg-primary green for bg-secondary
+            beige, which was itself still a colored plate — the actual ask was
+            no fill at all. No bg/border here now (rounded-xl dropped too,
+            since border-radius is a no-op without a fill/border to round);
+            padding kept only to match the price/description blocks' rhythm
+            below. text-foreground (not text-primary) mirrors how the product
+            detail page (/product/$handle) styles its own <h1> title — plain
+            body-text color, no accent — the price is the only place that
+            gets text-primary. */}
+        <div className="px-2 py-0.5 sm:px-3 sm:py-1">
+          <h3 className="line-clamp-2 text-sm font-medium text-foreground sm:text-base">
             {displayTitle}
           </h3>
         </div>

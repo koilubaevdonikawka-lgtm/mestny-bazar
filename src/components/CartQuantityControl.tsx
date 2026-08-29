@@ -115,12 +115,16 @@ export function CartQuantityControl({
   }
 
   if (quantity <= 0) {
-    // Задача №201 — bg-accent (ripe tomato, styles.css) instead of the
-    // default variant's bg-primary green, scoped to just this button via
-    // className (twMerge-overridden, not a change to buttonVariants'
-    // shared "default" — every other button on the site keeps its green).
-    // No border/ring utility added here, so nothing new to strip off.
-    const ctaColorClass = "bg-accent text-accent-foreground hover:bg-accent/90";
+    // Задача №202 — Задача №201 swapped bg-primary for bg-accent, still a
+    // colored fill; the actual ask is no fill at all, just text on the
+    // card's own white. bg-white/hover:bg-white cancel both the default
+    // variant's bg-primary AND its separate hover:bg-primary/90 (twMerge
+    // treats hover: as its own modifier-scoped group — overriding the bare
+    // bg- alone wouldn't stop a green flash on hover). text-foreground
+    // matches the name plate's own change, same reasoning: plain readable
+    // dark text, not a brand color. No border/ring added — scoped via
+    // className only, buttonVariants' shared "default" is untouched.
+    const noFillClass = "bg-white hover:bg-white text-foreground";
     return (
       <Button
         onClick={handleAdd}
@@ -129,8 +133,8 @@ export function CartQuantityControl({
         variant="default"
         className={
           showLabel
-            ? `${barHeightClass} w-full shrink-0 gap-2 rounded-full text-base font-semibold shadow-md ${ctaColorClass} ${className}`
-            : `${buttonSizeClass} shrink-0 rounded-full ${ctaColorClass} ${className}`
+            ? `${barHeightClass} w-full shrink-0 gap-2 rounded-full text-base font-semibold shadow-md ${noFillClass} ${className}`
+            : `${buttonSizeClass} shrink-0 rounded-full ${noFillClass} ${className}`
         }
         aria-label={addLabel ?? t("product.addToCart")}
       >
