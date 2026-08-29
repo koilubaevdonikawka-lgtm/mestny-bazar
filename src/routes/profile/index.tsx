@@ -13,7 +13,8 @@ import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { getMyProfile, updateMyProfile } from "@/api/profile";
 import { createAddress, deleteAddress, listAddresses, updateAddress } from "@/api/addresses";
 import { listDeliveryZones } from "@/api/delivery-zone";
-import { Loader2, LogIn, LogOut, Trash2 } from "lucide-react";
+import { LocationPickerDialog } from "@/components/checkout/LocationPickerDialog";
+import { Loader2, LogIn, LogOut, MapPin, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { BRAND } from "@/config/brand";
@@ -148,6 +149,12 @@ function ProfileAndDefaultAddressCard() {
   const [city, setCity] = useState("");
   const [fullAddress, setFullAddress] = useState("");
   const [zoneId, setZoneId] = useState("");
+  // Задача №195 — "Отметить на карте" here permanently updates the saved
+  // Address (unlike the same button/dialog in the cart, which only ever
+  // sets a one-off, this-order-only override in checkoutStore).
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [mapDialogOpen, setMapDialogOpen] = useState(false);
 
   const { data: profile, isLoading: isProfileLoading } = useQuery({
     queryKey: ["profile", "me"],
@@ -177,6 +184,8 @@ function ProfileAndDefaultAddressCard() {
     setCity(defaultAddress?.city ?? "");
     setFullAddress(defaultAddress?.fullAddress ?? "");
     setZoneId(defaultAddress?.zoneId ?? "");
+    setLatitude(defaultAddress?.latitude ?? null);
+    setLongitude(defaultAddress?.longitude ?? null);
     // Re-syncs only when which address is the default one actually changes
     // (e.g. after a save) — not on every unrelated addresses-list refetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -201,11 +210,15 @@ function ProfileAndDefaultAddressCard() {
             city: city.trim() || undefined,
             fullAddress: fullAddress.trim(),
             zoneId: zoneId || undefined,
+            latitude,
+            longitude,
           })
         : createAddress({
             city: city.trim() || undefined,
             fullAddress: fullAddress.trim(),
             zoneId: zoneId || undefined,
+            latitude,
+            longitude,
             isDefault: true,
           });
     },
@@ -308,6 +321,9 @@ function ProfileAndDefaultAddressCard() {
               value={fullAddress}
               onChange={(e) => setFullAddress(e.target.value)}
             />
+            {latitude != null && longitude != null && (
+              <p className="text-xs text-muted-foreground">{t("addresses.mapPointSet")}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="profileDefaultZone">{t("home.deliveryZoneLabel")}</Label>
@@ -365,6 +381,12 @@ function ProfileAndDefaultAddressCard() {
             t("common.edit")
           )}
         </Button>
+        {isEditing && (
+          <Button type="button" variant="outline" onClick={() => setMapDialogOpen(true)}>
+            <MapPin className="h-4 w-4 mr-2" />
+            {t("cart.markOnMapButton")}
+          </Button>
+        )}
         {defaultAddress && !isEditing && (
           <Button
             type="button"
@@ -377,6 +399,15 @@ function ProfileAndDefaultAddressCard() {
           </Button>
         )}
       </div>
+      <LocationPickerDialog
+        open={mapDialogOpen}
+        onOpenChange={setMapDialogOpen}
+        onConfirm={(location) => {
+          setLatitude(location.latitude);
+          setLongitude(location.longitude);
+          setFullAddress((prev) => prev.trim() || location.address || prev);
+        }}
+      />
     </form>
   );
 }

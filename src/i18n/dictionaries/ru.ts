@@ -189,6 +189,16 @@ export const ru = {
     orderStatusCreatedCash: "Создан наличными",
     /** Задача №187 — compact "edit" button for the deliver-to summary card; deliberately not common.edit (shared with AddressesPanel/quick-buy). */
     editAddressButton: "Изменить",
+    /**
+     * Задача №195 — same label used in both the profile's edit form
+     * (permanent Address update) and the cart (one-off, this-order-only
+     * override) — the button does the same thing (opens the same
+     * LocationPickerDialog); only what happens with the result differs.
+     */
+    markOnMapButton: "Отметить на карте",
+    orderAddressOverrideLabel: "Адрес для этого заказа",
+    orderAddressOverrideHint: "Не изменяет сохранённый адрес в профиле — только для этого заказа.",
+    clearOrderAddressOverride: "Убрать и использовать адрес профиля",
   },
   checkout: {
     title: "Оформление заказа",

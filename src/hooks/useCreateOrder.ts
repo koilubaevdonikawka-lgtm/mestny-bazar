@@ -42,7 +42,8 @@ export function useCreateOrder() {
     // quick-buy page's two payment buttons — each click both picks and
     // submits) always sees that fresh value, not a stale one captured at
     // this hook's last render.
-    const { paymentMethod } = useCheckoutStore.getState();
+    const { paymentMethod, overrideAddress, overrideLatitude, overrideLongitude, overrideZoneId } =
+      useCheckoutStore.getState();
     if (!paymentMethod) {
       toast.error(t("cart.missingPaymentMethodError"));
       return false;
@@ -54,12 +55,29 @@ export function useCreateOrder() {
         items,
         paymentMethod,
         idempotencyKey: useCheckoutStore.getState().getOrCreateIdempotencyKey(),
+        // Задача №195 — "Отметить на карте" in the cart: a one-off address
+        // for THIS order only, explicitly overriding the profile's saved
+        // default address CheckoutService would otherwise resolve (never
+        // written back to that saved Address). Omitted entirely when unset,
+        // same as every checkout before this task.
+        ...(overrideAddress
+          ? {
+              addressSnapshot: overrideAddress,
+              ...(overrideLatitude != null && overrideLongitude != null
+                ? { deliveryLatitude: overrideLatitude, deliveryLongitude: overrideLongitude }
+                : {}),
+              ...(overrideZoneId ? { zoneId: overrideZoneId } : {}),
+            }
+          : {}),
       });
 
       // Order created — this attempt reached a terminal outcome, so the next
       // checkout (this order or a brand new one) must mint a fresh key
-      // rather than reuse this now-consumed one.
+      // rather than reuse this now-consumed one; the one-off address
+      // override is a single-order concern too, must not silently apply to
+      // whatever the customer orders next.
       useCheckoutStore.getState().resetIdempotencyKey();
+      useCheckoutStore.getState().clearAddressOverride();
 
       if (onCreated) await onCreated(response);
 

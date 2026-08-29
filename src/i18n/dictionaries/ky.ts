@@ -178,6 +178,11 @@ export const ky = {
     orderStatusCreatedOnline: "Түзүлдү — онлайн төлөм",
     orderStatusCreatedCash: "Түзүлдү — накталай төлөм",
     editAddressButton: "Өзгөртүү",
+    markOnMapButton: "Картадан белгилөө",
+    orderAddressOverrideLabel: "Ушул буйрутма үчүн дарек",
+    orderAddressOverrideHint:
+      "Профилдеги сакталган даректи өзгөртпөйт — бир гана ушул буйрутма үчүн.",
+    clearOrderAddressOverride: "Алып салуу жана профиль дарегин колдонуу",
   },
   checkout: {
     title: "Буйрутманы тариздөө",

@@ -179,6 +179,10 @@ export const en = {
     orderStatusCreatedOnline: "Created — online payment",
     orderStatusCreatedCash: "Created — cash payment",
     editAddressButton: "Edit",
+    markOnMapButton: "Mark on map",
+    orderAddressOverrideLabel: "Address for this order",
+    orderAddressOverrideHint: "Doesn't change your saved profile address — only this order.",
+    clearOrderAddressOverride: "Clear and use the profile address",
   },
   checkout: {
     title: "Checkout",

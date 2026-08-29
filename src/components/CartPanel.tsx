@@ -12,6 +12,8 @@ import {
   Loader2,
   Truck,
   CreditCard,
+  MapPin,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCartStore } from "@/stores/cartStore";
@@ -21,6 +23,7 @@ import { calculateDeliveryFee } from "@/api/delivery-pricing";
 import { listDeliveryZones } from "@/api/delivery-zone";
 import { cancelUnpaidOnlineOrder, getOrderStatus, retryPayment } from "@/api/orders";
 import { CartQuantityControl } from "@/components/CartQuantityControl";
+import { LocationPickerDialog } from "@/components/checkout/LocationPickerDialog";
 import { RetryPaymentButton } from "@/components/RetryPaymentButton";
 import { CancelUnpaidOnlineOrderButton } from "@/components/CancelUnpaidOnlineOrderButton";
 import { useTranslation } from "@/i18n/LanguageProvider";
@@ -102,11 +105,22 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
     setLastOrderId(localStorage.getItem(LAST_ORDER_ID_STORAGE_KEY));
   }, []);
   const { items, isLoading, removeItem, validateCart, clearCart } = useCartStore();
-  const { paymentMethod, setPaymentMethod } = useCheckoutStore();
+  const {
+    paymentMethod,
+    setPaymentMethod,
+    overrideAddress,
+    overrideZoneId,
+    setAddressOverride,
+    clearAddressOverride,
+  } = useCheckoutStore();
+  const [mapDialogOpen, setMapDialogOpen] = useState(false);
   // Задача №182 — the default saved Address (with its zone) is the single
   // source of truth for delivery now; nothing here is collected inline
   // anymore, only displayed (see the read-only "deliver to" summary below).
-  const zoneId = readiness.defaultAddress?.zoneId ?? null;
+  // Задача №195 — a one-off "Отметить на карте" override (this order only)
+  // carries its own frozen-at-pick-time zoneId, preferred here so the
+  // preview matches exactly what submitOrder will actually send.
+  const zoneId = overrideAddress ? overrideZoneId : (readiness.defaultAddress?.zoneId ?? null);
   const totalItems = items.reduce((s, i) => s + i.quantity, 0);
   const totalPrice = items.reduce((s, i) => s + parseFloat(i.price.amount) * i.quantity, 0);
   const itemTranslations = useTranslatedTexts(
@@ -510,32 +524,84 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                 </div>
               </section>
             ) : readiness.isReady ? (
-              <section className="mt-4 space-y-2">
-                <Label className="text-sm font-medium">{t("checkout.address")}</Label>
-                <div className="rounded-xl border border-border/60 bg-card p-4 text-sm space-y-1">
-                  <p className="font-medium">{readiness.profile?.fullName}</p>
-                  <p className="text-muted-foreground">{readiness.profile?.phone}</p>
-                  <p className="text-muted-foreground">{readiness.defaultAddress?.fullAddress}</p>
-                  {readiness.defaultAddress?.zoneId && (
-                    <p className="text-muted-foreground">
-                      {t("addresses.zoneDisplay", {
-                        zoneName:
-                          deliveryZones?.find((z) => z.id === readiness.defaultAddress?.zoneId)
-                            ?.name ?? "—",
-                      })}
-                    </p>
+              <>
+                <section className="mt-4 space-y-2">
+                  <Label className="text-sm font-medium">{t("checkout.address")}</Label>
+                  <div className="rounded-xl border border-border/60 bg-card p-4 text-sm space-y-1">
+                    <p className="font-medium">{readiness.profile?.fullName}</p>
+                    <p className="text-muted-foreground">{readiness.profile?.phone}</p>
+                    <p className="text-muted-foreground">{readiness.defaultAddress?.fullAddress}</p>
+                    {readiness.defaultAddress?.zoneId && (
+                      <p className="text-muted-foreground">
+                        {t("addresses.zoneDisplay", {
+                          zoneName:
+                            deliveryZones?.find((z) => z.id === readiness.defaultAddress?.zoneId)
+                              ?.name ?? "—",
+                        })}
+                      </p>
+                    )}
+                    {/* Задача №187 — compact green button (same accent as the
+                        active bottom-tab, variant="default" = bg-primary),
+                        left-aligned (natural block position, no centering) and
+                        half the width of a standard full-width button here. */}
+                    <Button asChild size="sm" className="mt-1 w-1/2 rounded-xl">
+                      <Link to="/profile" onClick={() => onNavigate?.()}>
+                        {t("cart.editAddressButton")}
+                      </Link>
+                    </Button>
+                  </div>
+                </section>
+
+                {/* Задача №195 — "Отметить на карте" here is a ONE-OFF
+                    replacement for this order only (useCheckoutStore's
+                    overrideAddress/Latitude/Longitude/ZoneId), never written
+                    back to the profile's saved default address above — kept
+                    visually separate (its own card, explicit "not your saved
+                    address" hint) specifically so it can't be mistaken for a
+                    permanent profile change. */}
+                <section className="mt-4 space-y-2">
+                  {overrideAddress ? (
+                    <div className="rounded-xl border border-primary/40 bg-card p-4 text-sm space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-medium">{t("cart.orderAddressOverrideLabel")}</p>
+                        <button
+                          type="button"
+                          aria-label={t("cart.clearOrderAddressOverride")}
+                          onClick={() => clearAddressOverride()}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <p className="text-muted-foreground">{overrideAddress}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t("cart.orderAddressOverrideHint")}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-1 w-1/2 rounded-xl"
+                        onClick={() => setMapDialogOpen(true)}
+                      >
+                        <MapPin className="h-3.5 w-3.5 mr-1" />
+                        {t("cart.markOnMapButton")}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl"
+                      onClick={() => setMapDialogOpen(true)}
+                    >
+                      <MapPin className="h-3.5 w-3.5 mr-1" />
+                      {t("cart.markOnMapButton")}
+                    </Button>
                   )}
-                  {/* Задача №187 — compact green button (same accent as the
-                      active bottom-tab, variant="default" = bg-primary),
-                      left-aligned (natural block position, no centering) and
-                      half the width of a standard full-width button here. */}
-                  <Button asChild size="sm" className="mt-1 w-1/2 rounded-xl">
-                    <Link to="/profile" onClick={() => onNavigate?.()}>
-                      {t("cart.editAddressButton")}
-                    </Link>
-                  </Button>
-                </div>
-              </section>
+                </section>
+              </>
             ) : null}
 
             {/* Задача №184 — the full order cost — items + delivery, one
@@ -650,6 +716,18 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
           )}
         </>
       )}
+      <LocationPickerDialog
+        open={mapDialogOpen}
+        onOpenChange={setMapDialogOpen}
+        onConfirm={(location) =>
+          setAddressOverride({
+            address: location.address ?? `${location.latitude}, ${location.longitude}`,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            zoneId: readiness.defaultAddress?.zoneId ?? null,
+          })
+        }
+      />
     </div>
   );
 }
