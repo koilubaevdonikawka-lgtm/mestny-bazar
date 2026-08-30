@@ -48,12 +48,23 @@ function InfoPage() {
   };
   // Native-only: getPushNotificationCapability() resolves to the unsupported
   // web stub everywhere else, so isSupported() is false there.
+  // Задача №216 — requestPermission() itself already never throws (caught
+  // internally, resolves "error" instead); this try/catch is an outer
+  // safety net so a tap on this button can never take down the app no
+  // matter what, per the task's explicit requirement.
   const handleEnableNotifications = async () => {
-    const status = await getPushNotificationCapability().requestPermission();
-    if (status === "granted") {
-      toast.success(t("push.grantedToast"));
-    } else if (status === "denied") {
-      toast.error(t("push.deniedToast"));
+    try {
+      const status = await getPushNotificationCapability().requestPermission();
+      if (status === "granted") {
+        toast.success(t("push.grantedToast"));
+      } else if (status === "denied") {
+        toast.error(t("push.deniedToast"));
+      } else if (status === "error") {
+        toast.error(t("push.errorToast"));
+      }
+    } catch (error) {
+      console.error("[push] handleEnableNotifications failed", error);
+      toast.error(t("push.errorToast"));
     }
   };
   const handleSignIn = async () => {

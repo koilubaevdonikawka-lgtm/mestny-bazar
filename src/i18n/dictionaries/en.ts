@@ -353,6 +353,7 @@ export const en = {
     enableButton: "Enable notifications",
     grantedToast: "Notifications enabled",
     deniedToast: "Notifications denied. Enable them in your device settings.",
+    errorToast: "Couldn't enable notifications. Please try again later.",
   },
   auth: {
     signInPrompt: "Sign in to continue",

@@ -53,7 +53,7 @@ export interface DeepLinkCapability {
   addListener(handler: DeepLinkHandler): () => void;
 }
 
-export type PushPermissionStatus = "granted" | "denied" | "prompt" | "unsupported";
+export type PushPermissionStatus = "granted" | "denied" | "prompt" | "unsupported" | "error";
 
 export interface PushNotificationCapability {
   isSupported(): boolean;

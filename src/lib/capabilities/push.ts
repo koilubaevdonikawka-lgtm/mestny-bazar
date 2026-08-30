@@ -33,18 +33,38 @@ function ensureListeners(): Promise<void> {
 export const nativePush: PushNotificationCapability = {
   isSupported: () => isNativePlatform(),
 
+  /**
+   * Задача №216 — real on-device crash (adb logcat, TECNO CL6/Android 15):
+   * FATAL EXCEPTION: CapacitorPlugins, NullPointerException inside
+   * Capacitor's own Bridge.getPermissionStates() (reached from
+   * PushNotifications.requestPermissions()) killed the whole app process
+   * before this promise ever settled. Root cause fixed at the native layer
+   * (android/app/proguard-rules.pro — R8 was stripping/mistransforming
+   * Capacitor's own core framework classes, unprotected by its bundled
+   * consumer proguard rules), confirmed via a real on-device A/B test.
+   * try/catch here is defense in depth for genuinely different failure
+   * modes this can't structurally prevent — a device with no Google Play
+   * Services, register()'s Firebase getToken() rejecting, or any other
+   * native/plugin error — so a permission-request tap can never take the
+   * whole app down, whatever the cause.
+   */
   requestPermission: async (): Promise<PushPermissionStatus> => {
     if (!isNativePlatform()) return "unsupported";
 
-    const { PushNotifications } = await import("@capacitor/push-notifications");
-    await ensureListeners();
+    try {
+      const { PushNotifications } = await import("@capacitor/push-notifications");
+      await ensureListeners();
 
-    const status = await PushNotifications.requestPermissions();
-    if (status.receive !== "granted") {
-      return status.receive === "denied" ? "denied" : "prompt";
+      const status = await PushNotifications.requestPermissions();
+      if (status.receive !== "granted") {
+        return status.receive === "denied" ? "denied" : "prompt";
+      }
+
+      await PushNotifications.register();
+      return "granted";
+    } catch (error) {
+      console.error("[push] requestPermission failed", error);
+      return "error";
     }
-
-    await PushNotifications.register();
-    return "granted";
   },
 };
