@@ -60,6 +60,7 @@ import { Route as WarehouseOrdersIdRouteImport } from './routes/warehouse/orders
 import { Route as SellerProductsIdRouteImport } from './routes/seller/products/$id'
 import { Route as CourierOrdersIdRouteImport } from './routes/courier/orders/$id'
 import { Route as AdminOrdersIdRouteImport } from './routes/admin/orders/$id'
+import { Route as AdminMarketingBroadcastRouteImport } from './routes/admin/marketing/broadcast'
 import { Route as AdminCouriersIdRouteImport } from './routes/admin/couriers/$id'
 import { Route as CategoryCategorySlugSubcategorySubcategorySlugRouteImport } from './routes/category.$categorySlug.subcategory.$subcategorySlug'
 
@@ -318,6 +319,11 @@ const AdminOrdersIdRoute = AdminOrdersIdRouteImport.update({
   path: '/orders/$id',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminMarketingBroadcastRoute = AdminMarketingBroadcastRouteImport.update({
+  id: '/marketing/broadcast',
+  path: '/marketing/broadcast',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminCouriersIdRoute = AdminCouriersIdRouteImport.update({
   id: '/couriers/$id',
   path: '/couriers/$id',
@@ -355,6 +361,7 @@ export interface FileRoutesByFullPath {
   '/orders/': typeof OrdersIndexRoute
   '/profile/': typeof ProfileIndexRoute
   '/admin/couriers/$id': typeof AdminCouriersIdRoute
+  '/admin/marketing/broadcast': typeof AdminMarketingBroadcastRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/courier/orders/$id': typeof CourierOrdersIdRoute
   '/seller/products/$id': typeof SellerProductsIdRoute
@@ -409,6 +416,7 @@ export interface FileRoutesByTo {
   '/orders': typeof OrdersIndexRoute
   '/profile': typeof ProfileIndexRoute
   '/admin/couriers/$id': typeof AdminCouriersIdRoute
+  '/admin/marketing/broadcast': typeof AdminMarketingBroadcastRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/courier/orders/$id': typeof CourierOrdersIdRoute
   '/seller/products/$id': typeof SellerProductsIdRoute
@@ -465,6 +473,7 @@ export interface FileRoutesById {
   '/orders/': typeof OrdersIndexRoute
   '/profile/': typeof ProfileIndexRoute
   '/admin/couriers/$id': typeof AdminCouriersIdRoute
+  '/admin/marketing/broadcast': typeof AdminMarketingBroadcastRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/courier/orders/$id': typeof CourierOrdersIdRoute
   '/seller/products/$id': typeof SellerProductsIdRoute
@@ -522,6 +531,7 @@ export interface FileRouteTypes {
     | '/orders/'
     | '/profile/'
     | '/admin/couriers/$id'
+    | '/admin/marketing/broadcast'
     | '/admin/orders/$id'
     | '/courier/orders/$id'
     | '/seller/products/$id'
@@ -576,6 +586,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/profile'
     | '/admin/couriers/$id'
+    | '/admin/marketing/broadcast'
     | '/admin/orders/$id'
     | '/courier/orders/$id'
     | '/seller/products/$id'
@@ -631,6 +642,7 @@ export interface FileRouteTypes {
     | '/orders/'
     | '/profile/'
     | '/admin/couriers/$id'
+    | '/admin/marketing/broadcast'
     | '/admin/orders/$id'
     | '/courier/orders/$id'
     | '/seller/products/$id'
@@ -1046,6 +1058,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminOrdersIdRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/marketing/broadcast': {
+      id: '/admin/marketing/broadcast'
+      path: '/marketing/broadcast'
+      fullPath: '/admin/marketing/broadcast'
+      preLoaderRoute: typeof AdminMarketingBroadcastRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/couriers/$id': {
       id: '/admin/couriers/$id'
       path: '/couriers/$id'
@@ -1066,6 +1085,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   AdminCouriersIdRoute: typeof AdminCouriersIdRoute
+  AdminMarketingBroadcastRoute: typeof AdminMarketingBroadcastRoute
   AdminOrdersIdRoute: typeof AdminOrdersIdRoute
   AdminAiIndexRoute: typeof AdminAiIndexRoute
   AdminAnalyticsIndexRoute: typeof AdminAnalyticsIndexRoute
@@ -1092,6 +1112,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   AdminCouriersIdRoute: AdminCouriersIdRoute,
+  AdminMarketingBroadcastRoute: AdminMarketingBroadcastRoute,
   AdminOrdersIdRoute: AdminOrdersIdRoute,
   AdminAiIndexRoute: AdminAiIndexRoute,
   AdminAnalyticsIndexRoute: AdminAnalyticsIndexRoute,

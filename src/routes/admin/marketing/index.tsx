@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -10,7 +10,7 @@ import { createCoupon, listCoupons, updateCoupon } from "@/api/marketing";
 import type { CouponDiscountType } from "@shared/contracts/coupon";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
-import { Loader2, LogIn, ShieldAlert, Tag } from "lucide-react";
+import { Bell, Loader2, LogIn, ShieldAlert, Tag } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/marketing/")({
@@ -151,7 +151,20 @@ function AdminMarketingPage() {
       <div className="mx-auto max-w-3xl px-6 py-12">
         <h1 className="font-serif text-4xl tracking-tight">Маркетинг — купоны</h1>
 
-        <section className="mt-8 rounded-2xl border border-border/60 bg-card p-6">
+        <Link
+          to="/admin/marketing/broadcast"
+          className="mt-6 flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-4 hover:bg-muted/40"
+        >
+          <Bell className="h-5 w-5 shrink-0 text-primary" />
+          <div>
+            <p className="font-medium">Массовая рассылка push</p>
+            <p className="text-sm text-muted-foreground">
+              Отправить одно уведомление всем покупателям сразу
+            </p>
+          </div>
+        </Link>
+
+        <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">
           {!coupons || coupons.length === 0 ? (
             <div className="py-8 text-center">
               <Tag className="h-6 w-6 text-primary mx-auto mb-4" />

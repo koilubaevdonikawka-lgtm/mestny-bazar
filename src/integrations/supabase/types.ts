@@ -1589,6 +1589,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      push_broadcasts: {
+        Row: {
+          body: string;
+          created_at: string;
+          id: string;
+          recipient_count: number;
+          sent_by: string;
+          title: string;
+        };
+        Insert: {
+          body: string;
+          created_at?: string;
+          id?: string;
+          recipient_count: number;
+          sent_by: string;
+          title: string;
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+          id?: string;
+          recipient_count?: number;
+          sent_by?: string;
+          title?: string;
+        };
+        Relationships: [];
+      };
       rbac_permissions: {
         Row: {
           action: string;

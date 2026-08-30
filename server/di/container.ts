@@ -228,6 +228,9 @@ import { subscribeAuditLog } from "@server/domain/audit-log";
 import type { IPushNotifier } from "@server/ports/push-notifier.port";
 import { createPushNotifier } from "@server/adapters/notifications/push-notifier.factory";
 import { subscribePushNotifications } from "@server/domain/push";
+import type { IPushBroadcastRepository } from "@server/ports/push-broadcast.repository";
+import { SupabasePushBroadcastRepository } from "@server/adapters/supabase/push-broadcast.repository";
+import { PushBroadcastService } from "@server/domain/push-broadcast.service";
 import { SupabaseAuditLog } from "@server/adapters/supabase/audit-log.repository";
 import {
   AIMediaWorker,
@@ -313,6 +316,8 @@ export interface ServiceContainer {
   deliveryTariffAdminService: DeliveryTariffAdminService;
   deliveryTariffService: DeliveryTariffService;
   pushNotifier: IPushNotifier;
+  pushBroadcasts: IPushBroadcastRepository;
+  pushBroadcastService: PushBroadcastService;
   adminCategories: IAdminCategoryRepository;
   stock: IStockRepository;
   stockPolicy: IStockPolicy;
@@ -708,6 +713,13 @@ export function createServices(env: ServerEnv): ServiceContainer {
   subscribeAuditLog(marketplaceEvents, auditLog);
   const pushNotifier = createPushNotifier(env, deviceTokens);
   subscribePushNotifications(marketplaceEvents, pushNotifier);
+  const pushBroadcasts: IPushBroadcastRepository = new SupabasePushBroadcastRepository();
+  const pushBroadcastService = new PushBroadcastService(
+    deviceTokens,
+    userAdmin,
+    pushBroadcasts,
+    pushNotifier,
+  );
   const aiWorkers = new AIWorkerRegistry();
   const mediaMetadata = new MediaMetadataService();
   const mediaQualityAnalyzer = new MediaQualityAnalyzerService();
@@ -797,6 +809,8 @@ export function createServices(env: ServerEnv): ServiceContainer {
     deliveryTariffAdminService,
     deliveryTariffService,
     pushNotifier,
+    pushBroadcasts,
+    pushBroadcastService,
     adminCategories,
     stock,
     stockPolicy,

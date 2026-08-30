@@ -11,4 +11,6 @@ export interface IDeviceTokenRepository {
   listByUserId(userId: string): Promise<DeviceTokenDTO[]>;
   /** Задача №215 — FCM returned UNREGISTERED/INVALID_ARGUMENT for this token; it no longer exists on the device, remove it so future sends don't keep retrying it. */
   deleteByToken(token: string): Promise<void>;
+  /** Задача №218 — every distinct user with at least one registered device, platform-wide (not scoped to one user like listByUserId) — the raw candidate list for a broadcast, before PushBroadcastService excludes staff accounts. */
+  listDistinctUserIds(): Promise<string[]>;
 }

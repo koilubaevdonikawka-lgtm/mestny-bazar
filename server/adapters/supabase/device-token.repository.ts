@@ -28,4 +28,10 @@ export class SupabaseDeviceTokenRepository implements IDeviceTokenRepository {
     const { error } = await supabaseAdmin.from("device_tokens").delete().eq("token", token);
     if (error) throw new Error(`Failed to delete device token: ${error.message}`);
   }
+
+  async listDistinctUserIds(): Promise<string[]> {
+    const { data, error } = await supabaseAdmin.from("device_tokens").select("user_id");
+    if (error) throw new Error(`Failed to list device token users: ${error.message}`);
+    return [...new Set((data ?? []).map((row) => row.user_id as string))];
+  }
 }

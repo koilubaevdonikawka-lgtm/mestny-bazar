@@ -54,6 +54,7 @@ function fakeDeviceTokenRepo(
     upsert: vi.fn(async () => {}),
     listByUserId: vi.fn(async () => []),
     deleteByToken: vi.fn(async () => {}),
+    listDistinctUserIds: vi.fn(async () => []),
     ...overrides,
   };
 }
