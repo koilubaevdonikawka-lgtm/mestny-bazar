@@ -38,6 +38,13 @@ interface AdminLayoutProps {
  * otherwise empty). A genuine "Назад" (router.history.back(), same
  * canGoBack pattern SiteHeader/search.tsx already use for the customer-facing
  * back button) sits alongside "На главную".
+ *
+ * Задача №213 — `showBackButton={false}` below is required, not incidental:
+ * SiteHeader's own back button used to be silently hidden here as a side
+ * effect of `showSearch={false}` (an accidental coupling, fixed in
+ * SiteHeader.tsx). Now that the two are independent, this explicit opt-out
+ * keeps this file's own Назад/На главную above as the one and only back
+ * control, instead of a second, redundant arrow appearing next to it.
  */
 export function AdminLayout({ children, showBackNav = true }: AdminLayoutProps) {
   const { t } = useTranslation();
@@ -50,6 +57,7 @@ export function AdminLayout({ children, showBackNav = true }: AdminLayoutProps) 
       <SiteHeader
         showSearch={false}
         showCart={false}
+        showBackButton={false}
         showLanguageSwitcher
         leftSlot={
           showBackNav && (

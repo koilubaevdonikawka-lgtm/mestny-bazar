@@ -30,8 +30,17 @@ interface SiteHeaderProps {
    * (history.back() when in-app history exists, else a no-op navigate to
    * "/") never actually left the page. Opt-out (default true) so every
    * other existing caller keeps its current back button unchanged — only
-   * the home route passes `false`. Deliberately independent of `showSearch`:
-   * the home page still wants its search bar, just not this button.
+   * the home route passes `false`.
+   *
+   * Задача №213 — independent of `showSearch` for every caller, not just the
+   * home page: the two used to be accidentally coupled (`showSearch &&
+   * showBackButton`), which meant every caller that hid the search bar
+   * (Admin Platform, courier panel, several customer pages) silently lost
+   * the header's back button too, with no way to have one without the
+   * other. A caller that already renders its own dedicated back-navigation
+   * chrome elsewhere (e.g. AdminLayout's `leftSlot`, `search.tsx`'s own
+   * inline Назад/Домой row) must now pass `showBackButton={false}` itself to
+   * avoid showing two.
    */
   showBackButton?: boolean;
   /**
@@ -93,13 +102,17 @@ export function SiteHeader({
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 h-16 flex items-center gap-3">
         {/* Этап №7 навигационного аудита — the only site-wide, always-visible
-            way back on mobile (nav below is `lg:` only). Gated on the same
-            `showSearch` flag as the rest of this customer-storefront chrome,
-            so Admin Platform pages that already opt out of it
-            (`showSearch={false}`) don't get it either — plus its own
-            `showBackButton` flag (Задача №175), false only on the home page,
-            which has nothing to go back to. */}
-        {showSearch && showBackButton && (
+            way back on mobile (nav below is `lg:` only).
+            Задача №213 — independent of `showSearch` (that flag now controls
+            only the search bar/leftSlot, per its own doc comment): a caller
+            that wants the search bar hidden does not thereby also want the
+            back button hidden — that was an accidental coupling, not a
+            deliberate design. Gated only on `showBackButton` (Задача №175),
+            false only on the home page, which has nothing to go back to; a
+            caller with its own dedicated back-navigation chrome (e.g.
+            AdminLayout's `leftSlot`) opts out explicitly via
+            `showBackButton={false}` to avoid showing two. */}
+        {showBackButton && (
           <button
             type="button"
             onClick={() => {

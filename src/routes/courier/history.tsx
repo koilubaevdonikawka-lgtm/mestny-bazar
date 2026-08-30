@@ -9,7 +9,7 @@ import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { formatMoney, formatOrderDate, formatOrderStatus } from "@shared/lib/order-display";
 import { calculateCourierEarnings, summarizeCourierEarnings } from "@shared/lib/courier-earnings";
 import { OrderStatus } from "@shared/contracts/order";
-import { ArrowLeft, Loader2, LogIn, Package, ShieldAlert } from "lucide-react";
+import { Loader2, LogIn, Package, ShieldAlert } from "lucide-react";
 
 export const Route = createFileRoute("/courier/history")({
   component: CourierHistoryPage,
@@ -121,13 +121,6 @@ function CourierHistoryPage() {
   return (
     <PageShell>
       <div className="mx-auto max-w-3xl px-6 py-12">
-        <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
-          <Link to="/courier/orders">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Заказы для доставки
-          </Link>
-        </Button>
-
         <h1 className="font-serif text-4xl tracking-tight">История и заработок</h1>
 
         <div className="mt-6 grid grid-cols-3 gap-3">

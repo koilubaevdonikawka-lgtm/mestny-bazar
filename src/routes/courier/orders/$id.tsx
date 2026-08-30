@@ -23,7 +23,7 @@ import {
   formatTelHref,
 } from "@shared/lib/order-display";
 import { OrderStatus } from "@shared/contracts/order";
-import { ArrowLeft, Loader2, LogIn, Phone, ShieldAlert } from "lucide-react";
+import { Loader2, LogIn, Phone, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/courier/orders/$id")({
@@ -216,13 +216,6 @@ function CourierOrderDetailPage() {
   return (
     <PageShell>
       <div className="mx-auto max-w-3xl px-6 py-12">
-        <Button asChild variant="ghost" className="mb-6 -ml-2 rounded-full">
-          <Link to="/courier/orders">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Заказы для доставки
-          </Link>
-        </Button>
-
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="font-serif text-4xl tracking-tight">Заказ №{order.orderNumber}</h1>
