@@ -36,7 +36,7 @@ function PrivacyPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader safeAreaTop showAccountMenu={false} showCart={false} />
+      <SiteHeader safeAreaTop showAccountMenu={false} showCart={false} showSignInFallback />
       <main className="flex-1 mx-auto max-w-2xl w-full px-4 py-8 sm:px-6">
         <Button asChild variant="ghost" className="-ml-2 rounded-full">
           <Link to="/">

@@ -4,8 +4,12 @@ import { CartDrawer } from "./CartDrawer";
 import { AccountMenu } from "./AccountMenu";
 import { SearchBar } from "./SearchBar";
 import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 import { useTranslation } from "@/i18n/LanguageProvider";
+import { useSupabaseSession } from "@/hooks/useSupabaseSession";
+import { signInWithGoogle } from "@/lib/auth";
+import { isNativePlatform } from "@/lib/capabilities/platform";
 
 interface SiteHeaderProps {
   /**
@@ -66,6 +70,22 @@ interface SiteHeaderProps {
    */
   showAccountMenu?: boolean;
   /**
+   * Срочная проверка (мобильный вход) — every customer page hides
+   * AccountMenu (above) on the assumption that BottomTabBar's "Профиль" tab
+   * is the mobile equivalent, but that tab bar is native-only
+   * (isNativePlatform() gate in __root.tsx) and never renders on web, mobile
+   * or desktop. That left signed-out web visitors with no visible sign-in
+   * path on pages that don't already show one of their own (ProfilePage's
+   * own centered CTA, checkout.quick-buy's inline "deliver-to" CTA, a
+   * non-empty CartPanel's own CTA) — just a one-time WelcomeGate on first
+   * visit. Opt-in (default false) and explicitly set only on the browsing
+   * pages confirmed to have no sign-in CTA of their own, specifically to
+   * avoid ever showing two "Войти" prompts on one screen. No-op on native
+   * (BottomTabBar's "Профиль" tab already covers it there) and once already
+   * signed in.
+   */
+  showSignInFallback?: boolean;
+  /**
    * Задача №198 — rendered in the same top-left slot the search bar
    * occupies, in its place, when `showSearch` is false. Lets a caller like
    * AdminLayout put its own chrome (Назад/На главную) exactly where the
@@ -83,11 +103,17 @@ export function SiteHeader({
   safeAreaTop = false,
   hideSignInButton = false,
   showAccountMenu = true,
+  showSignInFallback = false,
   leftSlot,
 }: SiteHeaderProps = {}) {
   const { t } = useTranslation();
   const router = useRouter();
   const navigate = useNavigate();
+  // Срочная проверка (мобильный вход) — only read when it's actually needed;
+  // see the fallback CTA below and its doc comment on showSignInFallback.
+  const { isAuthenticated } = useSupabaseSession();
+  const showWebSignInFallback =
+    showSignInFallback && isAuthenticated === false && !isNativePlatform();
 
   // Задача №1 — standard "← Назад" replacing the previous Home-icon button:
   // real back navigation when there's an in-app previous screen to return
@@ -146,6 +172,18 @@ export function SiteHeader({
         </nav>
         {showLanguageSwitcher && <LanguageSwitcher />}
         {showAccountMenu && <AccountMenu hideSignInCta={hideSignInButton} />}
+        {/* Срочная проверка (мобильный вход) — restores a "Войти" entry
+            point on web (mobile and desktop) for pages that hide the full
+            AccountMenu; see the doc comment on showAccountMenu above. */}
+        {showWebSignInFallback && (
+          <Button
+            variant="outline"
+            className="h-11 rounded-full px-4"
+            onClick={() => void signInWithGoogle()}
+          >
+            {t("common.signIn")}
+          </Button>
+        )}
         {/* Задача №177/178 — the "i" info/contacts dialog that used to live
             here (customer pages only, via the now-removed cartIconOnly flag)
             moved to its own full-screen route (/info), linked from
