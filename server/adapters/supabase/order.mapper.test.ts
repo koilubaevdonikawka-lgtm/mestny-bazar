@@ -23,6 +23,7 @@ describe("mapOrderRowToDto", () => {
   function fakeRow() {
     return {
       id: "order-1",
+      user_id: "user-1",
       order_number: 42,
       status: "preparing" as const,
       payment_status: "paid" as const,
@@ -54,6 +55,7 @@ describe("mapOrderRowToDto", () => {
 
     expect(dto).toMatchObject({
       id: "order-1",
+      userId: "user-1",
       orderNumber: 42,
       status: OrderStatus.ASSEMBLING,
       paymentStatus: "paid",

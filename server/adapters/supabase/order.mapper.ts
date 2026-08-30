@@ -49,6 +49,7 @@ export function fromDbOrderStatus(status: DbOrderStatus): OrderDTO["status"] {
 
 interface DbOrderRow {
   id: string;
+  user_id: string | null;
   order_number: number;
   status: DbOrderStatus;
   payment_status: OrderDTO["paymentStatus"];
@@ -92,6 +93,7 @@ export function mapOrderRowToDto(
 ): OrderDTO {
   return {
     id: row.id,
+    userId: row.user_id,
     orderNumber: row.order_number,
     status: fromDbOrderStatus(row.status),
     paymentStatus: row.payment_status,

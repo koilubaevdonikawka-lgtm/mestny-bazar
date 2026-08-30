@@ -10,6 +10,7 @@ import type { OrderDTO } from "@shared/contracts/order";
 function makeOrder(overrides: Partial<OrderDTO> = {}): OrderDTO {
   return {
     id: "order-1",
+    userId: null,
     orderNumber: 1,
     status: "CONFIRMED",
     paymentStatus: "paid",

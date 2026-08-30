@@ -225,6 +225,9 @@ import {
 } from "@server/domain/marketplace-events";
 import type { IAuditLog } from "@server/ports/audit-log.port";
 import { subscribeAuditLog } from "@server/domain/audit-log";
+import type { IPushNotifier } from "@server/ports/push-notifier.port";
+import { createPushNotifier } from "@server/adapters/notifications/push-notifier.factory";
+import { subscribePushNotifications } from "@server/domain/push";
 import { SupabaseAuditLog } from "@server/adapters/supabase/audit-log.repository";
 import {
   AIMediaWorker,
@@ -309,6 +312,7 @@ export interface ServiceContainer {
   deliveryZoneAdminService: DeliveryZoneAdminService;
   deliveryTariffAdminService: DeliveryTariffAdminService;
   deliveryTariffService: DeliveryTariffService;
+  pushNotifier: IPushNotifier;
   adminCategories: IAdminCategoryRepository;
   stock: IStockRepository;
   stockPolicy: IStockPolicy;
@@ -702,6 +706,8 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const notificationCenter = new NotificationCenter(orderEvents, notifications);
   subscribeNotificationCenter(marketplaceEvents, notificationCenter);
   subscribeAuditLog(marketplaceEvents, auditLog);
+  const pushNotifier = createPushNotifier(env, deviceTokens);
+  subscribePushNotifications(marketplaceEvents, pushNotifier);
   const aiWorkers = new AIWorkerRegistry();
   const mediaMetadata = new MediaMetadataService();
   const mediaQualityAnalyzer = new MediaQualityAnalyzerService();
@@ -790,6 +796,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     deliveryZoneAdminService,
     deliveryTariffAdminService,
     deliveryTariffService,
+    pushNotifier,
     adminCategories,
     stock,
     stockPolicy,

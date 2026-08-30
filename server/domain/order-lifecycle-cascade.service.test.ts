@@ -14,6 +14,7 @@ import { CUSTOMER_CANCELLATION_WINDOW_MS } from "@shared/lib/order-cancellation"
 function makeOrder(overrides: Partial<OrderDTO> = {}): OrderDTO {
   return {
     id: "order-1",
+    userId: null,
     orderNumber: 1,
     status: OrderStatus.CREATED,
     paymentStatus: "unpaid",

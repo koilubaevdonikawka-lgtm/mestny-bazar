@@ -42,6 +42,13 @@ export const serverEnvSchema = z.object({
   // when this is missing, so the app boots with zero AI configuration
   // (Промпт №088/089).
   GOOGLE_AI_API_KEY: z.string().optional(),
+
+  // Задача №215 — Firebase service account JSON (type/project_id/private_key/
+  // client_email/...), the whole file content as one secret value. Optional,
+  // same fallback pattern as FINIK_*/TELEGRAM_*: FcmPushAdapter is simply not
+  // constructed when absent (container.ts), push notifications are a side
+  // effect, never a boot requirement.
+  FIREBASE_SERVICE_ACCOUNT_JSON: z.string().optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

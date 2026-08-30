@@ -41,7 +41,7 @@ export function mergeNotes(
 }
 
 const ORDER_COLUMNS =
-  "id, order_number, status, payment_status, subtotal, delivery_fee, discount_amount, coupon_code, total, currency, customer_name, customer_phone, address_snapshot, delivery_latitude, delivery_longitude, notes, finik_payment_url, paid_at, created_at, assigned_courier_id, zone_id, delivery_tariff_id, delivery_eta_min_minutes, delivery_eta_max_minutes";
+  "id, user_id, order_number, status, payment_status, subtotal, delivery_fee, discount_amount, coupon_code, total, currency, customer_name, customer_phone, address_snapshot, delivery_latitude, delivery_longitude, notes, finik_payment_url, paid_at, created_at, assigned_courier_id, zone_id, delivery_tariff_id, delivery_eta_min_minutes, delivery_eta_max_minutes";
 
 /** Postgres unique_violation — see https://www.postgresql.org/docs/current/errcodes-appendix.html */
 const UNIQUE_VIOLATION = "23505";
@@ -269,6 +269,7 @@ export class SupabaseOrderRepository implements IOrderRepository {
   private async mapOrdersWithItems(
     orders: Array<{
       id: string;
+      user_id: string | null;
       order_number: number;
       status: Parameters<typeof mapOrderRowToDto>[0]["status"];
       payment_status: OrderDTO["paymentStatus"];

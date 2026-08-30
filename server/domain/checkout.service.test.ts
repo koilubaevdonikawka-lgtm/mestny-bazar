@@ -62,6 +62,7 @@ function makeProduct(overrides: Partial<ProductDTO> = {}): ProductDTO {
 function makeOrderDTO(overrides: Partial<OrderDTO> = {}): OrderDTO {
   return {
     id: "order-1",
+    userId: null,
     orderNumber: 1,
     status: "CREATED",
     paymentStatus: "unpaid",

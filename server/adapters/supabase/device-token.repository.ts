@@ -1,5 +1,5 @@
 import type { DevicePlatform } from "@shared/contracts/push";
-import type { IDeviceTokenRepository } from "@server/ports/device-token.repository";
+import type { DeviceTokenDTO, IDeviceTokenRepository } from "@server/ports/device-token.repository";
 import { supabaseAdmin } from "@server/adapters/supabase/client";
 
 export class SupabaseDeviceTokenRepository implements IDeviceTokenRepository {
@@ -9,5 +9,23 @@ export class SupabaseDeviceTokenRepository implements IDeviceTokenRepository {
       .upsert({ user_id: userId, token, platform }, { onConflict: "user_id,token" });
 
     if (error) throw new Error(`Failed to save device token: ${error.message}`);
+  }
+
+  async listByUserId(userId: string): Promise<DeviceTokenDTO[]> {
+    const { data, error } = await supabaseAdmin
+      .from("device_tokens")
+      .select("token, platform")
+      .eq("user_id", userId);
+
+    if (error) throw new Error(`Failed to list device tokens: ${error.message}`);
+    return (data ?? []).map((row) => ({
+      token: row.token,
+      platform: row.platform as DevicePlatform,
+    }));
+  }
+
+  async deleteByToken(token: string): Promise<void> {
+    const { error } = await supabaseAdmin.from("device_tokens").delete().eq("token", token);
+    if (error) throw new Error(`Failed to delete device token: ${error.message}`);
   }
 }

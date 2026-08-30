@@ -31,6 +31,8 @@ export interface OrderItemDTO {
 
 export interface OrderDTO {
   id: string;
+  /** orders.user_id (Задача №215) — the buyer's auth user id, for buyer-facing push (FcmPushAdapter resolves device_tokens by this). Null for guest ONLINE checkout (20260716100000_guest_checkout_nullable_user.sql) — no device_tokens to look up, push is simply skipped for that order. */
+  userId: string | null;
   orderNumber: number;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
