@@ -1,12 +1,18 @@
 import type {
   CreateDeliveryTariffRequest,
   DeliveryTariffDTO,
+  PublicDeliveryTariffDTO,
   UpdateDeliveryTariffRequest,
 } from "@shared/contracts/delivery";
 import { requireAdminFromRequest } from "@server/auth/resolve-user";
 import { getServices } from "@server/di/container";
 
 const MODULE = "delivery";
+
+/** Buyer-facing, anonymous — same trust model as listActiveBanners/executeListDeliveryZones (design.md). */
+export async function executeListPublicDeliveryTariffs(): Promise<PublicDeliveryTariffDTO[]> {
+  return getServices().deliveryTariffService.listActiveForStorefront();
+}
 
 /**
  * Tariff management is also reachable by the admin-marketing scope

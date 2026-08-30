@@ -33,6 +33,7 @@ function makeTariff(overrides: Partial<DeliveryTariffDTO> = {}): DeliveryTariffD
 function fakeRepo(overrides: Partial<IDeliveryTariffRepository> = {}): IDeliveryTariffRepository {
   return {
     listAll: vi.fn(async () => []),
+    listActive: vi.fn(async () => []),
     listActiveForZone: vi.fn(async () => []),
     getById: vi.fn(async () => makeTariff()),
     create: vi.fn(async () => makeTariff()),

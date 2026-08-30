@@ -159,6 +159,21 @@ export interface UpdateDeliveryTariffRequest extends Partial<CreateDeliveryTarif
   id: string;
 }
 
+/**
+ * Storefront-facing — «Информация» screen (Задача №214). Deliberately thin:
+ * no id/priority/validFrom-To/minOrderAmount/etc. admin-only fields, and no
+ * minOrderForFreeDelivery — DeliveryCalculator (delivery-calculator.ts)
+ * already stopped honoring that field for the real checkout quote (isFree
+ * is always false there), so surfacing it here would advertise a threshold
+ * that never actually zeroes the fee.
+ */
+export interface PublicDeliveryTariffDTO {
+  zoneId: string;
+  zoneName: string;
+  /** DeliveryCalculator's per-extra-kg rate beyond the 40kg-included base — the one tariff field that actually drives the real checkout fee today. */
+  pricePerExtraKg: number;
+}
+
 export interface DeliveryEtaEstimate {
   minMinutes: number | null;
   maxMinutes: number | null;

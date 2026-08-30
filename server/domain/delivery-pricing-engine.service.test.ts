@@ -61,6 +61,7 @@ function fakeTariffs(
 ): IDeliveryTariffRepository {
   return {
     listAll: vi.fn(async () => []),
+    listActive: vi.fn(async () => []),
     listActiveForZone: vi.fn(async () => [makeTariff()]),
     getById: vi.fn(async () => null),
     create: vi.fn(),

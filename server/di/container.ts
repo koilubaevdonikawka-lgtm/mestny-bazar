@@ -35,6 +35,7 @@ import { CityService } from "@server/domain/city.service";
 import { DeliveryZoneService } from "@server/domain/delivery-zone.service";
 import { DeliveryZoneAdminService } from "@server/domain/delivery-zone-admin.service";
 import { DeliveryTariffAdminService } from "@server/domain/delivery-tariff-admin.service";
+import { DeliveryTariffService } from "@server/domain/delivery-tariff.service";
 import { DeliveryCalculator } from "@server/domain/delivery-calculator";
 import { DeliveryPricingEngine } from "@server/domain/delivery-pricing-engine.service";
 import { DeliveryZonePolicyService } from "@server/domain/delivery-zone-policy/delivery-zone-policy.service";
@@ -307,6 +308,7 @@ export interface ServiceContainer {
   deliveryZoneService: DeliveryZoneService;
   deliveryZoneAdminService: DeliveryZoneAdminService;
   deliveryTariffAdminService: DeliveryTariffAdminService;
+  deliveryTariffService: DeliveryTariffService;
   adminCategories: IAdminCategoryRepository;
   stock: IStockRepository;
   stockPolicy: IStockPolicy;
@@ -557,6 +559,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     deliveryTariffs,
     marketplaceEvents,
   );
+  const deliveryTariffService = new DeliveryTariffService(deliveryTariffs, zones);
 
   const settingsService = new SettingsService(settings, marketplaceEvents);
   const analyticsService = new AnalyticsService(orders);
@@ -786,6 +789,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     deliveryZoneService,
     deliveryZoneAdminService,
     deliveryTariffAdminService,
+    deliveryTariffService,
     adminCategories,
     stock,
     stockPolicy,

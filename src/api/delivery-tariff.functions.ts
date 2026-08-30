@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { DeliveryTariffDTO } from "@shared/contracts/delivery";
+import type { DeliveryTariffDTO, PublicDeliveryTariffDTO } from "@shared/contracts/delivery";
 import {
   createDeliveryTariffRequestSchema,
   updateDeliveryTariffRequestSchema,
@@ -10,6 +10,14 @@ export const listDeliveryTariffsFn = createServerFn({ method: "GET" }).handler(
     const { executeListDeliveryTariffs } =
       await import("@server/functions/delivery-tariff.executor");
     return executeListDeliveryTariffs();
+  },
+);
+
+export const listPublicDeliveryTariffsFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<PublicDeliveryTariffDTO[]> => {
+    const { executeListPublicDeliveryTariffs } =
+      await import("@server/functions/delivery-tariff.executor");
+    return executeListPublicDeliveryTariffs();
   },
 );
 

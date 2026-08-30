@@ -366,6 +366,8 @@ export const ru = {
     paymentInfo: "Оплата: онлайн или наличными",
     deliveryPricingInfo:
       "Доставка: 60 сом за заказ до 40 кг, далее +2 сом за каждый дополнительный килограмм по городу Кант",
+    deliveryHeading: "Доставка",
+    deliveryPerZoneLine: "{{zoneName}} — {{price}} сом/кг",
     copyright: "© {{year}} {{brand}}. Все права защищены.",
   },
   account: {

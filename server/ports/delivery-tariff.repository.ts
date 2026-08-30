@@ -7,6 +7,8 @@ import type {
 export interface IDeliveryTariffRepository {
   /** Admin-facing full list, active and inactive. */
   listAll(): Promise<DeliveryTariffDTO[]>;
+  /** Active tariffs across every zone, unfiltered by zone — storefront listing (Задача №214), never a pricing decision by itself. */
+  listActive(): Promise<DeliveryTariffDTO[]>;
   /**
    * Active tariffs applicable to a zone right now — the zone's own tariffs
    * plus platform-wide default tariffs (zoneId null). Consumed by

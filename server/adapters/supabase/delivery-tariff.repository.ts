@@ -64,6 +64,17 @@ export class SupabaseDeliveryTariffRepository implements IDeliveryTariffReposito
     return (data ?? []).map(mapTariffRow);
   }
 
+  async listActive(): Promise<DeliveryTariffDTO[]> {
+    const { data, error } = await supabaseAdmin
+      .from("delivery_tariffs")
+      .select(TARIFF_SELECT)
+      .eq("is_active", true)
+      .order("priority", { ascending: true });
+
+    if (error) throw new Error(`Failed to list active delivery tariffs: ${error.message}`);
+    return (data ?? []).map(mapTariffRow);
+  }
+
   /** Zone-owned tariffs OR platform-wide defaults (zone_id null) — both are candidates for the Rule Engine. */
   async listActiveForZone(zoneId: string): Promise<DeliveryTariffDTO[]> {
     const { data, error } = await supabaseAdmin

@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Button } from "@/components/ui/button";
@@ -12,16 +13,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { WELCOME_SEEN_KEY } from "@/components/WelcomeGate";
 import { BRAND } from "@/config/brand";
 import { CONTACT } from "@/config/contact";
+import { listPublicDeliveryTariffs } from "@/api/delivery-tariff";
 
 /**
  * Задача №178 — a real, full-screen, own-URL page for what used to be
  * SiteHeader's "i" icon dialog (moved once already, into BottomTabBar's
- * "Информация" tab as a dialog, Задача №177). A dialog has no location the
- * router (or BottomTabBar's own active-tab check, which reads
- * location.pathname) can ever see as "current" — only a real route can be
- * highlighted as the active bottom tab. Content is unchanged from before:
- * same footer.tagline/workingHours/paymentInfo/deliveryPricingInfo/
- * CONTACT.email/privacy link/sign-in-out, same push-notification button.
+ * "Информация" tab as a dialog, Задача №177).
+ *
+ * Задача №214 — workingHours (static "Пн–Вс, 8:00–22:00") dropped entirely
+ * (the store has no fixed hours worth advertising), and the static
+ * deliveryPricingInfo hardcode replaced by the real active tariff list from
+ * the admin "Доставка" section (isActive=true only, via the public
+ * listPublicDeliveryTariffs — no admin auth, PublicDeliveryTariffDTO strips
+ * every admin-only field). Loading/error follow this codebase's existing
+ * convention for lightweight public lists (e.g. Home's categories query):
+ * `data ?? []`, no skeleton/error UI — the block simply renders once data
+ * arrives and stays absent otherwise.
  */
 export const Route = createFileRoute("/info")({
   component: InfoPage,
@@ -53,8 +60,16 @@ function InfoPage() {
     await signInWithGoogle();
   };
 
-  const brandTranslations = useTranslatedTexts([BRAND.name], language);
-  const displayBrandName = brandTranslations[BRAND.name] ?? BRAND.name;
+  const tariffsQuery = useQuery({
+    queryKey: ["public", "delivery-tariffs"],
+    queryFn: listPublicDeliveryTariffs,
+    staleTime: 60 * 1000,
+  });
+  const tariffs = tariffsQuery.data ?? [];
+
+  const zoneNames = tariffs.map((tariff) => tariff.zoneName);
+  const translatedTexts = useTranslatedTexts([BRAND.name, ...zoneNames], language);
+  const displayBrandName = translatedTexts[BRAND.name] ?? BRAND.name;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -71,9 +86,22 @@ function InfoPage() {
         </div>
 
         <ul className="mt-8 space-y-3 rounded-2xl border border-border/60 bg-card p-6 text-sm text-muted-foreground">
-          <li>{t("footer.workingHours")}</li>
           <li>{t("footer.paymentInfo")}</li>
-          <li>{t("footer.deliveryPricingInfo")}</li>
+          {tariffs.length > 0 && (
+            <li>
+              <p className="text-foreground">{t("footer.deliveryHeading")}</p>
+              <ul className="mt-1 space-y-1">
+                {tariffs.map((tariff) => (
+                  <li key={tariff.zoneId}>
+                    {t("footer.deliveryPerZoneLine", {
+                      zoneName: translatedTexts[tariff.zoneName] ?? tariff.zoneName,
+                      price: tariff.pricePerExtraKg,
+                    })}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          )}
           <li>
             <a href={`mailto:${CONTACT.email}`} className="hover:text-foreground">
               {CONTACT.email}

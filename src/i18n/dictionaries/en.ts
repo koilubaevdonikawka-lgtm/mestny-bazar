@@ -340,6 +340,8 @@ export const en = {
     paymentInfo: "Payment: online or cash",
     deliveryPricingInfo:
       "Delivery: 60 KGS for orders up to 40 kg, +2 KGS per extra kilogram in Kant",
+    deliveryHeading: "Delivery",
+    deliveryPerZoneLine: "{{zoneName}} — {{price}} som/kg",
     copyright: "© {{year}} {{brand}}. All rights reserved.",
   },
   account: {
