@@ -57,6 +57,8 @@ function fakeRepo(overrides: Partial<IOrderRepository> = {}): IOrderRepository {
     assignCourier: vi.fn(async (_id, courierId) => makeOrder({ assignedCourierId: courierId })),
 
     countActiveDeliveriesByCourier: vi.fn(async () => 0),
+    markCashCollected: vi.fn(async () => makeOrder()),
+    getCashCollectedTodayByCourier: vi.fn(async () => 0),
 
     listByStatusesForCourier: vi.fn(async () => []),
     listByCourier: vi.fn(async () => ({

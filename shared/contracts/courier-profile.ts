@@ -46,6 +46,8 @@ export interface CourierListItemDTO extends CourierProfileDTO {
   isAvailable: boolean;
   lastSeenAt: string | null;
   activeDeliveries: number;
+  /** Задача №212 — sum of order.total this courier has collected in cash since UTC midnight today. */
+  cashCollectedToday: number;
 }
 
 export interface CreateCourierProfileRequest {

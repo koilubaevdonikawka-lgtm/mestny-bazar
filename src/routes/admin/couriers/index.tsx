@@ -33,6 +33,7 @@ import {
   type CourierListItemDTO,
 } from "@shared/contracts/courier-profile";
 import { formatVehicleType } from "@shared/lib/courier-display";
+import { formatMoney } from "@shared/lib/order-display";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { Bike, Loader2, LogIn, ShieldAlert, UserPlus } from "lucide-react";
@@ -50,6 +51,15 @@ function AdminCouriersPage() {
   const { isAuthenticated } = useSupabaseSession();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
+  // Задача №212 — per-courier reveal-on-click for "collected in cash today", not persisted.
+  const [revealedCashCouriers, setRevealedCashCouriers] = useState<Set<string>>(new Set());
+  const toggleCashRevealed = (userId: string) =>
+    setRevealedCashCouriers((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
 
   const handleSignIn = async () => {
     await signInWithGoogle();
@@ -259,6 +269,29 @@ function AdminCouriersPage() {
                 sortable: true,
                 sortValue: (c) => c.activeDeliveries,
                 render: (c) => c.activeDeliveries,
+              },
+              {
+                key: "cashToday",
+                header: "Наличные сегодня",
+                className: "w-40 shrink-0",
+                render: (c) =>
+                  revealedCashCouriers.has(c.userId) ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleCashRevealed(c.userId)}
+                      className="font-medium underline decoration-dotted underline-offset-4"
+                    >
+                      {formatMoney(c.cashCollectedToday, "KGS")}
+                    </button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleCashRevealed(c.userId)}
+                    >
+                      Сумма за сегодня
+                    </Button>
+                  ),
               },
             ]}
             rowActions={(c) => (

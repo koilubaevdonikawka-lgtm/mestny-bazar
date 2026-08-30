@@ -162,9 +162,20 @@ function CourierHistoryPage() {
                     {formatOrderStatus(order.status)}
                   </Badge>
                   <div className="text-right">
-                    <p className="text-sm text-muted-foreground">
-                      Доставка: {formatMoney(order.deliveryFee, order.currency)}
-                    </p>
+                    {order.paymentMethod === "CASH" && order.paymentStatus === "paid" ? (
+                      <>
+                        <p className="text-sm text-muted-foreground">
+                          За товар: {formatMoney(order.subtotal, order.currency)}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          За доставку: {formatMoney(order.deliveryFee, order.currency)}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Доставка: {formatMoney(order.deliveryFee, order.currency)}
+                      </p>
+                    )}
                     {order.status === OrderStatus.DELIVERED && (
                       <p className="font-semibold">
                         {formatMoney(calculateCourierEarnings(order), order.currency)}

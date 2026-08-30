@@ -55,6 +55,8 @@ function fakeRepo(overrides: Partial<IOrderRepository> = {}): IOrderRepository {
     getTodaySummary: vi.fn(async () => ({ orderCount: 0, revenue: 0 })),
     assignCourier: vi.fn(async (_id, courierId) => makeOrder({ assignedCourierId: courierId })),
     countActiveDeliveriesByCourier: vi.fn(async () => 0),
+    markCashCollected: vi.fn(async () => makeOrder()),
+    getCashCollectedTodayByCourier: vi.fn(async () => 0),
     listByStatusesForCourier: vi.fn(async () => []),
     listByCourier: vi.fn(async () => ({
       items: [],
@@ -333,7 +335,7 @@ describe("CourierOrderService", () => {
     );
   });
 
-  it("Задача №171 — markCashPaymentReceived marks payment paid and publishes order.cash_payment_received with the collecting courier's id", async () => {
+  it("Задача №212 — markCashPaymentReceived persists via markCashCollected and does NOT publish any event (Журналы событий reversal)", async () => {
     const repo = fakeRepo({
       getById: vi.fn(async () =>
         makeOrder({
@@ -349,13 +351,13 @@ describe("CourierOrderService", () => {
 
     await service.markCashPaymentReceived("order-1", courier);
 
-    expect(repo.updatePaymentStatus).toHaveBeenCalledWith("order-1", "paid");
-    expect(events.publish).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "order.cash_payment_received", courierId: courier.id }),
-    );
+    expect(repo.markCashCollected).toHaveBeenCalledWith("order-1", courier.id);
+    expect(repo.updatePaymentStatus).not.toHaveBeenCalled();
+    // Задача №212 — reverses №171/№211's audit-log publication for this action.
+    expect(events.publish).not.toHaveBeenCalled();
   });
 
-  it("Задача №211 — markCashPaymentReceived is idempotent: a repeat tap on an already-paid order does not throw, re-persist, or re-publish", async () => {
+  it("Задача №211 — markCashPaymentReceived is idempotent: a repeat tap on an already-paid order does not throw or re-persist", async () => {
     const repo = fakeRepo({
       getById: vi.fn(async () =>
         makeOrder({
@@ -374,7 +376,7 @@ describe("CourierOrderService", () => {
 
     expect(result.paymentStatus).toBe("paid");
     expect(lifecycle.assertCanTransition).not.toHaveBeenCalled();
-    expect(repo.updatePaymentStatus).not.toHaveBeenCalled();
+    expect(repo.markCashCollected).not.toHaveBeenCalled();
     expect(events.publish).not.toHaveBeenCalled();
   });
 
@@ -404,7 +406,7 @@ describe("CourierOrderService", () => {
     await expect(service.markCashPaymentReceived("order-1", courier)).rejects.toThrow(
       "Only cash-payment orders can be marked paid this way",
     );
-    expect(repo.updatePaymentStatus).not.toHaveBeenCalled();
+    expect(repo.markCashCollected).not.toHaveBeenCalled();
   });
 
   it("Задача №171 — markCashPaymentReceived passes context (assignedCourierId/paymentMethod/paymentStatus) to the lifecycle policy and does not persist when denied", async () => {
@@ -426,7 +428,7 @@ describe("CourierOrderService", () => {
     const service = buildService({ repo, lifecycle });
 
     await expect(service.markCashPaymentReceived("order-1", courier)).rejects.toThrow("denied");
-    expect(repo.updatePaymentStatus).not.toHaveBeenCalled();
+    expect(repo.markCashCollected).not.toHaveBeenCalled();
   });
 
   it("Задача №143 — listOrderHistory queries listByCourier scoped to this courier's own id", async () => {

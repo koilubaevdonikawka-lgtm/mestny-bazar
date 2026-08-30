@@ -465,4 +465,38 @@ export class SupabaseOrderRepository implements IOrderRepository {
     if (error) throw new Error(`Failed to count courier deliveries: ${error.message}`);
     return count ?? 0;
   }
+
+  async markCashCollected(orderId: string, courierId: string): Promise<OrderDTO> {
+    const now = new Date().toISOString();
+    const { error } = await supabaseAdmin
+      .from("orders")
+      .update({
+        payment_status: "paid",
+        paid_at: now,
+        cash_collected_at: now,
+        cash_collected_by: courierId,
+      })
+      .eq("id", orderId);
+
+    if (error) throw new Error(`Failed to mark cash collected: ${error.message}`);
+
+    const order = await this.getById(orderId);
+    if (!order) throw new OrderNotFoundError();
+    return order;
+  }
+
+  // Задача №212 — same UTC-midnight "today" convention as getTodaySummary above.
+  async getCashCollectedTodayByCourier(courierId: string): Promise<number> {
+    const startOfDay = new Date();
+    startOfDay.setUTCHours(0, 0, 0, 0);
+
+    const { data, error } = await supabaseAdmin
+      .from("orders")
+      .select("total")
+      .eq("cash_collected_by", courierId)
+      .gte("cash_collected_at", startOfDay.toISOString());
+
+    if (error) throw new Error(`Failed to sum today's cash collected: ${error.message}`);
+    return (data ?? []).reduce((sum, row) => sum + Number(row.total), 0);
+  }
 }

@@ -78,6 +78,17 @@ export interface IOrderRepository {
   assignCourier(orderId: string, courierId: string): Promise<OrderDTO>;
   /** Active (READY_FOR_DELIVERY/OUT_FOR_DELIVERY/ARRIVED) deliveries currently assigned to this courier — CourierAssignmentService workload input. */
   countActiveDeliveriesByCourier(courierId: string): Promise<number>;
+  /**
+   * Задача №212 — single atomic write for a courier physically collecting a
+   * CASH order's payment: sets payment_status/paid_at (same contract as
+   * updatePaymentStatus's "paid" branch) plus the dedicated
+   * cash_collected_at/cash_collected_by pair that getCashCollectedTodayByCourier
+   * below aggregates from — kept separate from updatePaymentStatus so the
+   * ONLINE/Finik webhook path never touches these two columns.
+   */
+  markCashCollected(orderId: string, courierId: string): Promise<OrderDTO>;
+  /** Sum of order.total for this courier's cash collections since server-computed UTC midnight — same "today" convention as getTodaySummary. Admin Couriers card. */
+  getCashCollectedTodayByCourier(courierId: string): Promise<number>;
   /** Filters at the query level to only orders assigned to this courier — closes the shared-queue gap (couriers.md). */
   listByStatusesForCourier(statuses: OrderStatus[], courierId: string): Promise<OrderDTO[]>;
   /** Paginated order history for a specific courier — Couriers admin detail card (Промпт №068). */

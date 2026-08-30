@@ -1011,6 +1011,8 @@ export type Database = {
         Row: {
           address_snapshot: string;
           assigned_courier_id: string | null;
+          cash_collected_at: string | null;
+          cash_collected_by: string | null;
           coupon_code: string | null;
           created_at: string;
           currency: string;
@@ -1041,6 +1043,8 @@ export type Database = {
         Insert: {
           address_snapshot: string;
           assigned_courier_id?: string | null;
+          cash_collected_at?: string | null;
+          cash_collected_by?: string | null;
           coupon_code?: string | null;
           created_at?: string;
           currency?: string;
@@ -1071,6 +1075,8 @@ export type Database = {
         Update: {
           address_snapshot?: string;
           assigned_courier_id?: string | null;
+          cash_collected_at?: string | null;
+          cash_collected_by?: string | null;
           coupon_code?: string | null;
           created_at?: string;
           currency?: string;

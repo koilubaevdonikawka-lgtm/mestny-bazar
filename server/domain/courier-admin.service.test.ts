@@ -21,6 +21,7 @@ function fakeCourierStatusRepo(
 function fakeOrderRepo(overrides: Partial<IOrderRepository> = {}): IOrderRepository {
   return {
     countActiveDeliveriesByCourier: vi.fn(async () => 0),
+    getCashCollectedTodayByCourier: vi.fn(async () => 0),
     ...overrides,
   } as IOrderRepository;
 }
@@ -75,6 +76,9 @@ describe("CourierAdminService.listCouriers", () => {
       countActiveDeliveriesByCourier: vi.fn(async (courierId: string) =>
         courierId === "c1" ? 2 : 0,
       ),
+      getCashCollectedTodayByCourier: vi.fn(async (courierId: string) =>
+        courierId === "c1" ? 1500 : 0,
+      ),
     });
     const service = new CourierAdminService(courierStatus, orders, courierProfiles);
 
@@ -86,12 +90,14 @@ describe("CourierAdminService.listCouriers", () => {
         isAvailable: true,
         lastSeenAt: "2026-08-01T00:00:00.000Z",
         activeDeliveries: 2,
+        cashCollectedToday: 1500,
       }),
       expect.objectContaining({
         userId: "c2",
         isAvailable: false,
         lastSeenAt: "2026-08-01T00:05:00.000Z",
         activeDeliveries: 0,
+        cashCollectedToday: 0,
       }),
     ]);
   });

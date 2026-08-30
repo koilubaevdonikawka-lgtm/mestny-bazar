@@ -26,6 +26,8 @@ export class CourierAdminService {
           isAvailable: status?.isAvailable ?? false,
           lastSeenAt: status?.lastSeenAt ?? null,
           activeDeliveries: await this.orders.countActiveDeliveriesByCourier(profile.userId),
+          // Задача №212 — Курьеры admin card's "cash collected today" button.
+          cashCollectedToday: await this.orders.getCashCollectedTodayByCourier(profile.userId),
         };
       }),
     );

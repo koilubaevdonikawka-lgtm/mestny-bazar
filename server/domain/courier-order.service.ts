@@ -133,17 +133,26 @@ export class CourierOrderService {
    * Задача №171 — courier marks a CASH order's payment as physically
    * received on arrival. No status transition (stays ARRIVED) — validation
    * only, via the lifecycle engine's same-status pattern (CourierAcceptOrderRule).
+   *
+   * Задача №212 — reverses №171/№211's publication of this action to the
+   * shared audit trail (Журналы событий): that event bus publish call is
+   * removed below. The fact itself is still recorded — just on the order
+   * row (cash_collected_at/cash_collected_by, via markCashCollected), not
+   * the shared marketplace-event/audit-log mechanism. The
+   * order.cash_payment_received event type and its audit-log subscription
+   * are deliberately left in place (dormant, never triggered from here
+   * anymore) — this task's instruction was scoped to removing the publish
+   * call specifically, not the type/subscriber.
    */
   async markCashPaymentReceived(orderId: string, actor: CourierActor): Promise<OrderDTO> {
     const order = await this.getOrder(orderId, actor);
 
     // Задача №211 — idempotency: a repeat tap (double-click race, retry
-    // after a network blip) must not throw and must not duplicate the
-    // audit trail/re-publish the event for a payment already recorded.
-    // The lifecycle rule (CourierMarkCashPaidRule) only checks role/
-    // assignment/status/paymentMethod, never paymentStatus, so this has
-    // to be the short-circuit — returning the already-paid order as-is,
-    // no side effects.
+    // after a network blip) must not throw and must not re-persist a
+    // payment already recorded. The lifecycle rule (CourierMarkCashPaidRule)
+    // only checks role/assignment/status/paymentMethod, never paymentStatus,
+    // so this has to be the short-circuit — returning the already-paid
+    // order as-is, no side effects.
     if (order.paymentStatus === "paid") {
       return order;
     }
@@ -159,13 +168,7 @@ export class CourierOrderService {
       paymentStatus: order.paymentStatus,
     });
 
-    const updated = await this.orders.updatePaymentStatus(orderId, "paid");
-    await this.events.publish({
-      type: "order.cash_payment_received",
-      order: updated,
-      courierId: actor.id,
-    });
-    return updated;
+    return this.orders.markCashCollected(orderId, actor.id);
   }
 
   private async transitionOrder(
