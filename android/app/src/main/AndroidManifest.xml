@@ -52,4 +52,10 @@
          Google Play hide the app from devices without GPS hardware entirely. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- @capacitor/push-notifications (src/lib/capabilities/push.ts requestPermission()
+         calls PushNotifications.requestPermissions()/register()) — required at runtime
+         on Android 13+ (API 33) for the notification permission prompt/token registration
+         to work at all; without it, requestPermissions() silently fails on API 33+ devices. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>
