@@ -4,17 +4,18 @@ import { DEFAULT_LANGUAGE, isSupportedLanguage, type Language } from "@/i18n/lan
 import { ru, type Dictionary } from "@/i18n/dictionaries/ru";
 import { en } from "@/i18n/dictionaries/en";
 import { ky } from "@/i18n/dictionaries/ky";
+import { zh } from "@/i18n/dictionaries/zh";
 import { translate, type TranslationKey } from "@/i18n/t";
 
 /**
- * Static UI-chrome dictionaries — only for the three languages that have
- * one (Промпт №100 deliberately does not add a dictionary per new Gemini
- * language, per its own rules). Every other supported language falls back
+ * Static UI-chrome dictionaries — only for the four customer-facing
+ * languages (ru/ky/en/zh, Задача №225 follow-up). Every other
+ * SUPPORTED_LANGUAGES entry (not offered in LanguageSwitcher) falls back
  * to `en` below for this static chrome text; their dynamic, admin-authored
  * content (categories/products/banners/app name) is still fully translated
  * via useTranslatedTexts → AiTranslationService, unaffected by this map.
  */
-const dictionaries: Partial<Record<Language, Dictionary>> = { ru, ky, en };
+const dictionaries: Partial<Record<Language, Dictionary>> = { ru, ky, en, zh };
 
 const STORAGE_KEY = "mestny-bazar-language";
 

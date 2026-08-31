@@ -2,11 +2,13 @@
  * Supported UI languages (Промпт №100) — a single, scalable source: adding a
  * language is a one-line addition here (code + native label), nothing else.
  *
- * `ru`/`ky`/`en` are the three languages with their own static dictionary
- * under src/i18n/dictionaries/ (hand-authored UI chrome text). Every other
- * code below is drawn from Google's own documented list of languages "all
- * Gemini models" understand and respond in — no static dictionary exists or
- * is added for them; their UI chrome falls back to the English dictionary
+ * `ru`/`ky`/`en`/`zh` are the four languages with their own static dictionary
+ * under src/i18n/dictionaries/ (hand-authored UI chrome text) — these are
+ * also the only four offered to customers, via CUSTOMER_VISIBLE_LANGUAGES
+ * below (Задача №225 follow-up). Every other code below is drawn from
+ * Google's own documented list of languages "all Gemini models" understand
+ * and respond in — no static dictionary exists or is added for them; their
+ * UI chrome falls back to the English dictionary
  * (LanguageProvider.tsx), while all admin/seller-authored dynamic content
  * (categories, products, banners, app name) is translated for them through
  * the existing, unmodified AiTranslationService/CachedTranslationService —
@@ -72,6 +74,21 @@ export const SUPPORTED_LANGUAGES = [
 ] as const;
 export type Language = (typeof SUPPORTED_LANGUAGES)[number];
 export const DEFAULT_LANGUAGE: Language = "ru";
+
+/**
+ * Languages actually offered to the customer in LanguageSwitcher (Задача
+ * №225 follow-up) — a curated subset of SUPPORTED_LANGUAGES, which stays
+ * full-size because the backend translation pipeline (useTranslatedTexts →
+ * CachedTranslationService → AiTranslationService → GoogleAiAdapter) can
+ * still translate dynamic content into any of those languages on request.
+ * All four have their own static UI-chrome dictionary (ru/ky/en/zh.ts).
+ */
+export const CUSTOMER_VISIBLE_LANGUAGES = [
+  "ru",
+  "ky",
+  "en",
+  "zh",
+] as const satisfies readonly Language[];
 
 export const LANGUAGE_LABELS: Record<Language, string> = {
   ru: "Русский",

@@ -1,20 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { signInWithGoogle } from "@/lib/auth";
 import { BRAND } from "@/config/brand";
-import type { Language } from "@/i18n/languages";
+import { CUSTOMER_VISIBLE_LANGUAGES, LANGUAGE_LABELS } from "@/i18n/languages";
 
 /** Exported so AccountMenu's sign-out can clear it — the next person on a shared device sees WelcomeGate again. */
 export const WELCOME_SEEN_KEY = "mestny-bazar-welcome-seen";
-
-const QUICK_LANGUAGES: { code: Language; label: string }[] = [
-  { code: "ru", label: "Русский" },
-  { code: "ky", label: "Кыргызча" },
-  { code: "en", label: "English" },
-];
 
 /**
  * Единый экран входа/регистрации/выбора языка при первом визите — заменяет
@@ -74,7 +67,7 @@ export function WelcomeGate() {
         <p className="mt-2 text-muted-foreground">{t("home.tagline")}</p>
 
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          {QUICK_LANGUAGES.map(({ code, label }) => (
+          {CUSTOMER_VISIBLE_LANGUAGES.map((code) => (
             <Button
               key={code}
               type="button"
@@ -83,10 +76,9 @@ export function WelcomeGate() {
               className="rounded-full"
               onClick={() => setLanguage(code)}
             >
-              {label}
+              {LANGUAGE_LABELS[code]}
             </Button>
           ))}
-          <LanguageSwitcher />
         </div>
 
         <div className="mt-8 grid gap-3">
