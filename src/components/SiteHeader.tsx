@@ -157,8 +157,29 @@ export function SiteHeader({
         )}
         {/* flex-1 spacer kept even when search is hidden (Admin Platform) — it's
             what pushes nav/account/cart to the right; only its contents are
-            conditional, so hiding search doesn't collapse the header layout. */}
-        <div className="relative flex-1 max-w-xl">{showSearch ? <SearchBar /> : leftSlot}</div>
+            conditional, so hiding search doesn't collapse the header layout.
+            Задача №225 — showLanguageSwitcher now renders right next to the
+            search field (only when search itself is shown) instead of the
+            header's right-hand cluster: min-w-0 on the search wrapper lets
+            it shrink below its own content width on narrow screens (a flex
+            item won't shrink past that by default), while shrink-0 on the
+            switcher keeps it from ever getting squeezed out. */}
+        <div className="flex flex-1 max-w-xl items-center gap-2">
+          {showSearch ? (
+            <>
+              <div className="relative min-w-0 flex-1">
+                <SearchBar />
+              </div>
+              {showLanguageSwitcher && (
+                <div className="shrink-0">
+                  <LanguageSwitcher />
+                </div>
+              )}
+            </>
+          ) : (
+            leftSlot
+          )}
+        </div>
         <nav className="hidden lg:flex items-center gap-6 text-sm">
           <a href="#categories" className="hover:text-primary transition-colors">
             {t("nav.categories")}
@@ -170,7 +191,6 @@ export function SiteHeader({
             {t("header.deliveryLink")}
           </a>
         </nav>
-        {showLanguageSwitcher && <LanguageSwitcher />}
         {showAccountMenu && <AccountMenu hideSignInCta={hideSignInButton} />}
         {/* Срочная проверка (мобильный вход) — restores a "Войти" entry
             point on web (mobile and desktop) for pages that hide the full

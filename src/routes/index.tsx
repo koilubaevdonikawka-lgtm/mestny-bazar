@@ -160,6 +160,7 @@ function Home() {
         showCart={false}
         showBackButton={false}
         showSignInFallback
+        showLanguageSwitcher
       />
 
       {/* Горизонтальная панель основных категорий, под шапкой. Клик по
