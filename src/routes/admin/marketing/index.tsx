@@ -10,7 +10,7 @@ import { createCoupon, listCoupons, updateCoupon } from "@/api/marketing";
 import type { CouponDiscountType } from "@shared/contracts/coupon";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
-import { Bell, Loader2, LogIn, ShieldAlert, Tag } from "lucide-react";
+import { Bell, Image as ImageIcon, Loader2, LogIn, ShieldAlert, Tag } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/marketing/")({
@@ -149,20 +149,34 @@ function AdminMarketingPage() {
   return (
     <AdminLayout>
       <div className="mx-auto max-w-3xl px-6 py-12">
-        <h1 className="font-serif text-4xl tracking-tight">Маркетинг — купоны</h1>
+        <h1 className="font-serif text-4xl tracking-tight">Маркетинг</h1>
 
-        <Link
-          to="/admin/marketing/broadcast"
-          className="mt-6 flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-4 hover:bg-muted/40"
-        >
-          <Bell className="h-5 w-5 shrink-0 text-primary" />
-          <div>
-            <p className="font-medium">Массовая рассылка push</p>
-            <p className="text-sm text-muted-foreground">
-              Отправить одно уведомление всем покупателям сразу
-            </p>
-          </div>
-        </Link>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <Link
+            to="/admin/marketing/banners"
+            className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-4 hover:bg-muted/40"
+          >
+            <ImageIcon className="h-5 w-5 shrink-0 text-primary" />
+            <div>
+              <p className="font-medium">Баннеры</p>
+              <p className="text-sm text-muted-foreground">Заголовок, картинка, ссылка, период</p>
+            </div>
+          </Link>
+          <Link
+            to="/admin/marketing/broadcast"
+            className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-4 hover:bg-muted/40"
+          >
+            <Bell className="h-5 w-5 shrink-0 text-primary" />
+            <div>
+              <p className="font-medium">Массовая рассылка push</p>
+              <p className="text-sm text-muted-foreground">
+                Отправить одно уведомление всем покупателям сразу
+              </p>
+            </div>
+          </Link>
+        </div>
+
+        <h2 className="mt-8 font-serif text-2xl tracking-tight">Купоны</h2>
 
         <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">
           {!coupons || coupons.length === 0 ? (

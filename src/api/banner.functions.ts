@@ -15,7 +15,7 @@ export const listActiveBannersFn = createServerFn({ method: "GET" }).handler(
 
 export const listBannersFn = createServerFn({ method: "GET" }).handler(
   async (): Promise<BannerDTO[]> => {
-    const { executeListBanners } = await import("@server/functions/design.executor");
+    const { executeListBanners } = await import("@server/functions/banner.executor");
     return executeListBanners();
   },
 );
@@ -23,13 +23,13 @@ export const listBannersFn = createServerFn({ method: "GET" }).handler(
 export const createBannerFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => createBannerRequestSchema.parse(data))
   .handler(async ({ data }): Promise<BannerDTO> => {
-    const { executeCreateBanner } = await import("@server/functions/design.executor");
+    const { executeCreateBanner } = await import("@server/functions/banner.executor");
     return executeCreateBanner(data);
   });
 
 export const updateBannerFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => updateBannerRequestSchema.parse(data))
   .handler(async ({ data }): Promise<BannerDTO> => {
-    const { executeUpdateBanner } = await import("@server/functions/design.executor");
+    const { executeUpdateBanner } = await import("@server/functions/banner.executor");
     return executeUpdateBanner(data);
   });

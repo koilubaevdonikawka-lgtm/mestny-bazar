@@ -4,7 +4,7 @@ import {
   listActiveBannersFn,
   listBannersFn,
   updateBannerFn,
-} from "@/api/design.functions";
+} from "@/api/banner.functions";
 
 export async function listActiveBanners(): Promise<BannerDTO[]> {
   return listActiveBannersFn();

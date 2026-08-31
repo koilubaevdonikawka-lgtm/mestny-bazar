@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { useResetOnAppForeground } from "@/hooks/useResetOnAppForeground";
 import { listCategories } from "@/api/category";
-import { listActiveBanners } from "@/api/design";
+import { listActiveBanners } from "@/api/banner";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { DEFAULT_LANGUAGE } from "@/i18n/languages";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";

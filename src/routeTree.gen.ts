@@ -61,6 +61,7 @@ import { Route as SellerProductsIdRouteImport } from './routes/seller/products/$
 import { Route as CourierOrdersIdRouteImport } from './routes/courier/orders/$id'
 import { Route as AdminOrdersIdRouteImport } from './routes/admin/orders/$id'
 import { Route as AdminMarketingBroadcastRouteImport } from './routes/admin/marketing/broadcast'
+import { Route as AdminMarketingBannersRouteImport } from './routes/admin/marketing/banners'
 import { Route as AdminCouriersIdRouteImport } from './routes/admin/couriers/$id'
 import { Route as CategoryCategorySlugSubcategorySubcategorySlugRouteImport } from './routes/category.$categorySlug.subcategory.$subcategorySlug'
 
@@ -324,6 +325,11 @@ const AdminMarketingBroadcastRoute = AdminMarketingBroadcastRouteImport.update({
   path: '/marketing/broadcast',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminMarketingBannersRoute = AdminMarketingBannersRouteImport.update({
+  id: '/marketing/banners',
+  path: '/marketing/banners',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminCouriersIdRoute = AdminCouriersIdRouteImport.update({
   id: '/couriers/$id',
   path: '/couriers/$id',
@@ -361,6 +367,7 @@ export interface FileRoutesByFullPath {
   '/orders/': typeof OrdersIndexRoute
   '/profile/': typeof ProfileIndexRoute
   '/admin/couriers/$id': typeof AdminCouriersIdRoute
+  '/admin/marketing/banners': typeof AdminMarketingBannersRoute
   '/admin/marketing/broadcast': typeof AdminMarketingBroadcastRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/courier/orders/$id': typeof CourierOrdersIdRoute
@@ -416,6 +423,7 @@ export interface FileRoutesByTo {
   '/orders': typeof OrdersIndexRoute
   '/profile': typeof ProfileIndexRoute
   '/admin/couriers/$id': typeof AdminCouriersIdRoute
+  '/admin/marketing/banners': typeof AdminMarketingBannersRoute
   '/admin/marketing/broadcast': typeof AdminMarketingBroadcastRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/courier/orders/$id': typeof CourierOrdersIdRoute
@@ -473,6 +481,7 @@ export interface FileRoutesById {
   '/orders/': typeof OrdersIndexRoute
   '/profile/': typeof ProfileIndexRoute
   '/admin/couriers/$id': typeof AdminCouriersIdRoute
+  '/admin/marketing/banners': typeof AdminMarketingBannersRoute
   '/admin/marketing/broadcast': typeof AdminMarketingBroadcastRoute
   '/admin/orders/$id': typeof AdminOrdersIdRoute
   '/courier/orders/$id': typeof CourierOrdersIdRoute
@@ -531,6 +540,7 @@ export interface FileRouteTypes {
     | '/orders/'
     | '/profile/'
     | '/admin/couriers/$id'
+    | '/admin/marketing/banners'
     | '/admin/marketing/broadcast'
     | '/admin/orders/$id'
     | '/courier/orders/$id'
@@ -586,6 +596,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/profile'
     | '/admin/couriers/$id'
+    | '/admin/marketing/banners'
     | '/admin/marketing/broadcast'
     | '/admin/orders/$id'
     | '/courier/orders/$id'
@@ -642,6 +653,7 @@ export interface FileRouteTypes {
     | '/orders/'
     | '/profile/'
     | '/admin/couriers/$id'
+    | '/admin/marketing/banners'
     | '/admin/marketing/broadcast'
     | '/admin/orders/$id'
     | '/courier/orders/$id'
@@ -1065,6 +1077,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminMarketingBroadcastRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/marketing/banners': {
+      id: '/admin/marketing/banners'
+      path: '/marketing/banners'
+      fullPath: '/admin/marketing/banners'
+      preLoaderRoute: typeof AdminMarketingBannersRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/couriers/$id': {
       id: '/admin/couriers/$id'
       path: '/couriers/$id'
@@ -1085,6 +1104,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   AdminCouriersIdRoute: typeof AdminCouriersIdRoute
+  AdminMarketingBannersRoute: typeof AdminMarketingBannersRoute
   AdminMarketingBroadcastRoute: typeof AdminMarketingBroadcastRoute
   AdminOrdersIdRoute: typeof AdminOrdersIdRoute
   AdminAiIndexRoute: typeof AdminAiIndexRoute
@@ -1112,6 +1132,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   AdminCouriersIdRoute: AdminCouriersIdRoute,
+  AdminMarketingBannersRoute: AdminMarketingBannersRoute,
   AdminMarketingBroadcastRoute: AdminMarketingBroadcastRoute,
   AdminOrdersIdRoute: AdminOrdersIdRoute,
   AdminAiIndexRoute: AdminAiIndexRoute,

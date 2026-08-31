@@ -1,16 +1,23 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ForbiddenError, UnauthorizedError } from "@server/domain/orders.errors";
 
-const { requireAdminFromRequest, requireSellerFromRequest, requireModulePermission, getServices } =
-  vi.hoisted(() => ({
-    requireAdminFromRequest: vi.fn(),
-    requireSellerFromRequest: vi.fn(),
-    requireModulePermission: vi.fn(),
-    getServices: vi.fn(),
-  }));
+const {
+  requireAdminFromRequest,
+  requireSellerFromRequest,
+  requireModulePermission,
+  assertMarketingAccess,
+  getServices,
+} = vi.hoisted(() => ({
+  requireAdminFromRequest: vi.fn(),
+  requireSellerFromRequest: vi.fn(),
+  requireModulePermission: vi.fn(),
+  assertMarketingAccess: vi.fn(),
+  getServices: vi.fn(),
+}));
 
 vi.mock("@server/auth/resolve-user", () => ({ requireAdminFromRequest, requireSellerFromRequest }));
 vi.mock("@server/auth/require-module-permission", () => ({ requireModulePermission }));
+vi.mock("@server/auth/assert-marketing-access", () => ({ assertMarketingAccess }));
 vi.mock("@server/di/container", () => ({ getServices }));
 
 const { executeUploadImage } = await import("@server/functions/media-upload.executor");
@@ -43,21 +50,27 @@ describe("media-upload.executor", () => {
     expect(uploadImage).toHaveBeenCalledWith(fakeInput);
   });
 
-  it("banner context: requires admin + existing permissionPolicy design-module assert", async () => {
+  it("banner context: requires admin + the real marketing-scope check (Задача №219 — moved off the old 'design' module)", async () => {
     requireAdminFromRequest.mockResolvedValue({ userId: "admin-1", roles: ["admin"] });
-    const assert = vi.fn();
     const uploadImage = vi.fn(async () => ({ url: "https://x/b.png" }));
-    getServices.mockReturnValue({
-      mediaUploadService: { uploadImage },
-      permissionPolicy: { assert },
-    });
+    getServices.mockReturnValue({ mediaUploadService: { uploadImage } });
 
     await executeUploadImage({ ...fakeInput, context: "banner" });
 
-    expect(assert).toHaveBeenCalledWith(
-      expect.objectContaining({ module: "design", actor: { id: "admin-1", roles: ["admin"] } }),
-    );
+    expect(assertMarketingAccess).toHaveBeenCalledWith("admin-1", ["admin"]);
     expect(requireModulePermission).not.toHaveBeenCalled();
+  });
+
+  it("banner context: denies the upload when the marketing-scope check rejects", async () => {
+    requireAdminFromRequest.mockResolvedValue({ userId: "admin-1", roles: ["admin"] });
+    assertMarketingAccess.mockRejectedValueOnce(new Error("Access denied"));
+    const uploadImage = vi.fn();
+    getServices.mockReturnValue({ mediaUploadService: { uploadImage } });
+
+    await expect(executeUploadImage({ ...fakeInput, context: "banner" })).rejects.toThrow(
+      "Access denied",
+    );
+    expect(uploadImage).not.toHaveBeenCalled();
   });
 
   it("courier context: requires admin + requireModulePermission(couriers, edit)", async () => {

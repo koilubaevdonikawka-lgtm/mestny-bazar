@@ -11,7 +11,6 @@ import {
   Bike,
   Bot,
   FileText,
-  Image as ImageIcon,
   LayoutDashboard,
   Loader2,
   LogIn,
@@ -59,7 +58,6 @@ interface NavEntry {
     | "/admin/analytics"
     | "/admin/finance"
     | "/admin/marketing"
-    | "/admin/design"
     | "/admin/settings"
     | "/admin/automation"
     | "/admin/integrations"
@@ -86,7 +84,6 @@ const NAV_ENTRIES: NavEntry[] = [
   { labelKey: "admin.hub.navAi", to: "/admin/ai", icon: Bot },
   { labelKey: "admin.hub.navIntegrations", to: "/admin/integrations", icon: Plug },
   { labelKey: "admin.hub.navAutomation", to: "/admin/automation", icon: Zap },
-  { labelKey: "admin.hub.navDesign", to: "/admin/design", icon: ImageIcon },
   { labelKey: "admin.hub.navSettings", to: "/admin/settings", icon: Settings },
   { labelKey: "admin.hub.navPermissions", to: "/admin/permissions", icon: Lock },
   { labelKey: "admin.hub.navLogs", to: "/admin/logs", icon: FileText },

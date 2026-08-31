@@ -1,11 +1,10 @@
 import { requireAdminFromRequest, requireSellerFromRequest } from "@server/auth/resolve-user";
 import { requireModulePermission } from "@server/auth/require-module-permission";
+import { assertMarketingAccess } from "@server/auth/assert-marketing-access";
 import { getServices } from "@server/di/container";
 import { MediaUploadContext, type UploadImageResponse } from "@shared/contracts/media-upload";
 import type { UploadImageInput } from "@server/domain/media-upload.service";
 import { ForbiddenError } from "@server/domain/orders.errors";
-
-const MODULE = "design";
 
 /**
  * Per-context gating mirrors what each existing module's own executor
@@ -37,7 +36,7 @@ async function authorizeUploadContext(context: UploadImageInput["context"]): Pro
   const { userId, roles } = await requireAdminFromRequest();
 
   if (context === MediaUploadContext.BANNER) {
-    getServices().permissionPolicy.assert({ actor: { id: userId, roles }, module: MODULE });
+    await assertMarketingAccess(userId, roles);
     return;
   }
 
