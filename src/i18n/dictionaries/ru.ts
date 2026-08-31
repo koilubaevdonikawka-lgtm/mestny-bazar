@@ -23,6 +23,7 @@ export const ru = {
     signIn: "Войти",
     signInAgain: "Войти снова",
     signOut: "Выйти",
+    language: "Язык",
     error: "Ошибка",
     noPhoto: "Нет фото",
     showMore: "Показать ещё",

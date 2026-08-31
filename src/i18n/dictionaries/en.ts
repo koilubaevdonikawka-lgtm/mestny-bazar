@@ -20,6 +20,7 @@ export const en = {
     signIn: "Sign in",
     signInAgain: "Sign in again",
     signOut: "Sign out",
+    language: "Language",
     error: "Error",
     noPhoto: "No photo",
     showMore: "Show more",

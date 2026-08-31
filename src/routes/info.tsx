@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Button } from "@/components/ui/button";
+import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
 import { Bell, LogIn, LogOut, Store } from "lucide-react";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
@@ -96,7 +97,18 @@ function InfoPage() {
           </div>
         </div>
 
-        <ul className="mt-8 space-y-3 rounded-2xl border border-border/60 bg-card p-6 text-sm text-muted-foreground">
+        {/* Задача №222 — WelcomeGate's language picker only shows once per
+            device (localStorage-gated); after that a signed-in or already-
+            dismissed guest had no way to change language anywhere on the
+            customer site, desktop or mobile. /info is the established
+            reachable-on-mobile overflow surface (same fix pattern as
+            showSignInFallback/showWebSignInFallback for "Войти"). */}
+        <div className="mt-6 flex items-center justify-between rounded-2xl border border-border/60 bg-card px-4 py-3">
+          <span className="text-sm text-foreground">{t("common.language")}</span>
+          <LanguageSwitcher />
+        </div>
+
+        <ul className="mt-6 space-y-3 rounded-2xl border border-border/60 bg-card p-6 text-sm text-muted-foreground">
           <li>{t("footer.paymentInfo")}</li>
           {tariffs.length > 0 && (
             <li>

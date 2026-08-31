@@ -20,6 +20,7 @@ export const ky = {
     signIn: "Кирүү",
     signInAgain: "Кайра кирүү",
     signOut: "Чыгуу",
+    language: "Тил",
     error: "Ката",
     noPhoto: "Сүрөт жок",
     showMore: "Дагы көрсөтүү",
