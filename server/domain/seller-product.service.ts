@@ -65,7 +65,19 @@ export class SellerProductService {
     this.validatePrice(data.price);
     if (data.stock !== undefined) this.validateStock(data.stock);
     if (data.categoryId) await this.assertCategoryExists(data.categoryId);
-    if (data.sortOrder != null) await this.assertSortOrderFree(data.sortOrder);
+
+    // Задача №231 — a product always ends up with a real position in the
+    // single global order: an explicit value (including a fraction, to
+    // insert between two existing products) is checked for conflicts as
+    // before; left empty/omitted, the server auto-assigns current-max+1
+    // (this.products.getNextSortOrder() — a real SQL MAX() over the
+    // numeric column, not a JS comparison of possibly-imprecise strings).
+    let sortOrder = data.sortOrder;
+    if (sortOrder != null) {
+      await this.assertSortOrderFree(sortOrder);
+    } else {
+      sortOrder = await this.products.getNextSortOrder();
+    }
 
     const slug = await this.resolveUniqueSlug(data.slug?.trim() || slugify(data.name, "product"));
     const isAdmin = sellerId === null;
@@ -85,6 +97,7 @@ export class SellerProductService {
       ...data,
       slug,
       publicationStatus: targetStatus,
+      sortOrder,
     });
 
     // ai.md — the AI quality-analysis trigger reacts to a product actually
@@ -204,14 +217,16 @@ export class SellerProductService {
   }
 
   /**
-   * Задача №230 — soft (not DB-enforced) duplicate check: two products
+   * Задача №230/231 — soft (not DB-enforced) duplicate check: two products
    * silently sharing a sort_order would make their relative order
    * ambiguous/flip-floppy, so this catches the common case with a clear
    * message naming the other product, without a hard uniqueness constraint
    * (a constraint would also complicate the NULL-for-unnumbered-products
-   * default this feature relies on).
+   * default this feature relies on). sortOrder is the decimal string as
+   * typed by the admin — comparison happens server-side against the real
+   * numeric column (see repository.findBySortOrder), never as a JS number.
    */
-  private async assertSortOrderFree(sortOrder: number, exceptId?: string): Promise<void> {
+  private async assertSortOrderFree(sortOrder: string, exceptId?: string): Promise<void> {
     const conflict = await this.products.findBySortOrder(sortOrder, exceptId);
     if (conflict) {
       throw new SellerProductValidationError(

@@ -23,9 +23,11 @@ export interface ISellerProductRepository {
   /** sellerId: null means no ownership scoping — admin may delete any product. */
   delete(id: string, sellerId: string | null): Promise<void>;
   slugExists(slug: string, exceptId?: string): Promise<boolean>;
-  /** Задача №230 — soft duplicate-sortOrder check; returns the conflicting product's id/name, if any. */
+  /** Задача №230/231 — soft duplicate-sortOrder check; returns the conflicting product's id/name, if any. sortOrder is a decimal string. */
   findBySortOrder(
-    sortOrder: number,
+    sortOrder: string,
     exceptId?: string,
   ): Promise<{ id: string; name: string } | null>;
+  /** Задача №231 — current-max+1 (decimal string), computed via SQL MAX() server-side. */
+  getNextSortOrder(): Promise<string>;
 }

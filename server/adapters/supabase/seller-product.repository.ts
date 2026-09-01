@@ -11,8 +11,14 @@ import type { ISellerProductRepository } from "@server/ports/seller-product.repo
 import { supabaseAdmin } from "@server/adapters/supabase/client";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 
+// Задача №231 — selects sort_order_text (a generated text mirror of the
+// real numeric sort_order column), never the raw numeric column itself:
+// PostgREST serializes a `text` column as a JSON string, which
+// supabase-js's JSON.parse preserves verbatim, whereas a JSON *number*
+// literal would be parsed into a lossy IEEE-754 double before this code
+// ever runs — see the migration for the full explanation.
 const PRODUCT_SELECT =
-  "id, name, slug, description, price, currency, unit, image_url, image_urls, manufacturer, country_of_origin, sku, weight_kg, stock, publication_status, category_id, sort_order";
+  "id, name, slug, description, price, currency, unit, image_url, image_urls, manufacturer, country_of_origin, sku, weight_kg, stock, publication_status, category_id, sort_order_text";
 
 function mapRow(row: {
   id: string;
@@ -31,7 +37,7 @@ function mapRow(row: {
   stock: number;
   publication_status: ProductPublicationStatus;
   category_id: string | null;
-  sort_order: number | null;
+  sort_order_text: string | null;
 }): SellerProductDTO {
   return {
     id: row.id,
@@ -50,7 +56,7 @@ function mapRow(row: {
     stock: Number(row.stock),
     publicationStatus: row.publication_status,
     categoryId: row.category_id,
-    sortOrder: row.sort_order == null ? null : Number(row.sort_order),
+    sortOrder: row.sort_order_text,
   };
 }
 
@@ -114,9 +120,16 @@ export class SupabaseSellerProductRepository implements ISellerProductRepository
     return !!data;
   }
 
-  /** Задача №230 — soft duplicate-sortOrder check: names the conflicting product so the service can raise a clear, specific error. */
+  /**
+   * Задача №230/231 — soft duplicate-sortOrder check: names the conflicting
+   * product so the service can raise a clear, specific error. `sortOrder`
+   * is a decimal string filtered against the real numeric column —
+   * PostgREST/Postgres cast it for the equality comparison, so "1.10"
+   * correctly matches an existing "1.1" (real decimal equality, not string
+   * equality).
+   */
   async findBySortOrder(
-    sortOrder: number,
+    sortOrder: string,
     exceptId?: string,
   ): Promise<{ id: string; name: string } | null> {
     let query = supabaseAdmin.from("products").select("id, name").eq("sort_order", sortOrder);
@@ -124,6 +137,20 @@ export class SupabaseSellerProductRepository implements ISellerProductRepository
     const { data, error } = await query.maybeSingle();
     if (error) throw new Error(`Failed to check sort order: ${error.message}`);
     return data ?? null;
+  }
+
+  /**
+   * Задача №231 — current-max+1 for auto-assigning a new product's
+   * sort_order, computed entirely server-side via the next_product_sort_order
+   * SQL function (real Postgres numeric MAX(), unbounded precision — never
+   * a JS Math.max over possibly-imprecise parsed numbers). The function
+   * itself returns text for the same JSON-number-vs-string reason as
+   * sort_order_text.
+   */
+  async getNextSortOrder(): Promise<string> {
+    const { data, error } = await supabaseAdmin.rpc("next_product_sort_order");
+    if (error) throw new Error(`Failed to compute next sort order: ${error.message}`);
+    return data;
   }
 
   async create(

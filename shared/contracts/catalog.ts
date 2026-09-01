@@ -37,15 +37,17 @@ export interface ProductDTO {
   countryOfOrigin: string | null;
   /** Kilograms — used for the weight-based delivery fee formula (docs/delivery/delivery-pricing.md). Null counts as 0 kg. */
   weightKg: number | null;
-  /** Fractional manual display order (Задача №230) — null = not yet numbered, sorts after every numbered product (see ProductSortBy/product.repository.ts's list()). */
-  sortOrder: number | null;
   category?: Pick<CategoryDTO, "id" | "name" | "slug">;
 }
 
 /**
  * `popularity` = units sold across non-cancelled orders (order_items),
  * computed by the repository — never a fabricated/static value. `newest` is
- * the pre-existing default ordering (created_at desc).
+ * the pre-existing explicit ordering (created_at desc) — kept for deep-link
+ * compatibility. When `sortBy` is omitted entirely (every storefront
+ * surface today), the repository orders by the admin-only sort_order
+ * column instead (Задача №230/231) — that column is never exposed on
+ * ProductDTO itself, it only drives this implicit default.
  */
 export type ProductSortBy = "newest" | "popularity" | "price_asc" | "price_desc" | "name";
 

@@ -71,6 +71,7 @@ function fakeSellerProductRepo(
     delete: vi.fn(async () => {}),
     slugExists: vi.fn(async () => false),
     findBySortOrder: vi.fn(async () => null),
+    getNextSortOrder: vi.fn(async () => "1"),
     ...overrides,
   };
 }

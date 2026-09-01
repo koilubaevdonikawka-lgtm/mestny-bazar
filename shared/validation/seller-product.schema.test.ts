@@ -72,13 +72,23 @@ describe("createSellerProductRequestSchema", () => {
     ).toThrow();
   });
 
-  it("accepts a fractional sortOrder (Задача №230 — insert between two products)", () => {
+  it("accepts a fractional sortOrder as a decimal string (Задача №230/231 — insert between two products)", () => {
     const result = createSellerProductRequestSchema.parse({
       name: "Хлеб",
       price: 50,
-      sortOrder: 1.1,
+      sortOrder: "1.1",
     });
-    expect(result.sortOrder).toBe(1.1);
+    expect(result.sortOrder).toBe("1.1");
+  });
+
+  it("accepts an arbitrarily long decimal string without any precision loss (the whole point of it being a string, not a number)", () => {
+    const long = "1.15555555555555555555555555555555555555";
+    const result = createSellerProductRequestSchema.parse({
+      name: "Хлеб",
+      price: 50,
+      sortOrder: long,
+    });
+    expect(result.sortOrder).toBe(long);
   });
 
   it("accepts a null sortOrder (not yet numbered)", () => {
@@ -90,9 +100,21 @@ describe("createSellerProductRequestSchema", () => {
     expect(result.sortOrder).toBeNull();
   });
 
-  it("rejects a non-finite sortOrder", () => {
+  it("rejects a non-numeric sortOrder string", () => {
     expect(() =>
-      createSellerProductRequestSchema.parse({ name: "Хлеб", price: 50, sortOrder: Infinity }),
+      createSellerProductRequestSchema.parse({ name: "Хлеб", price: 50, sortOrder: "abc" }),
+    ).toThrow();
+  });
+
+  it("rejects a sortOrder sent as a JS number (must be a string — see contract comment on why)", () => {
+    expect(() =>
+      createSellerProductRequestSchema.parse({ name: "Хлеб", price: 50, sortOrder: 1.1 }),
+    ).toThrow();
+  });
+
+  it("rejects scientific notation / non-plain-decimal formats", () => {
+    expect(() =>
+      createSellerProductRequestSchema.parse({ name: "Хлеб", price: 50, sortOrder: "1e10" }),
     ).toThrow();
   });
 });

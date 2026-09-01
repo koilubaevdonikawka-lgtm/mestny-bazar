@@ -567,10 +567,10 @@ export const zh = {
       skuLabel: "货号或条形码（如有）",
       weightLabel: "重量，公斤（用于计算配送费）",
       weightPlaceholder: "例如：0.5",
-      productSortOrderLabel: "排序编号",
+      productSortOrderLabel: "商品排序编号",
       productSortOrderPlaceholder: "例如：1.1",
       productSortOrderHint:
-        "小数值可以让商品插入到现有商品之间，而无需更改其他编号 — 例如：1.1 表示紧跟在 №1 商品之后显示。",
+        "整个商品目录使用统一排序（与分类无关）。小数值可以让商品插入到现有商品之间，而无需更改其他编号 — 例如：1.1 表示紧跟在 №1 商品之后显示。创建时留空 — 系统会自动分配编号（当前最大值 + 1）。",
       publicationStatusLabel: "发布状态",
       productStatusDraft: "草稿",
       productStatusPublished: "已发布",

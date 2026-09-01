@@ -96,7 +96,7 @@ export interface ProductFormState {
   sku: string;
   /** Kilograms, empty string = not set (nullable — see docs/delivery/delivery-pricing.md). */
   weightKg: string;
-  /** Fractional manual display order (Задача №230), empty string = not set (nullable). */
+  /** Global manual display order (Задача №230/231) — a decimal string (see SellerProductDTO.sortOrder), empty = not set. On create, empty auto-assigns current-max+1 server-side. */
   sortOrder: string;
   publicationStatus: ProductPublicationStatus;
   imageUrls: string[];
@@ -129,15 +129,20 @@ export function parseWeightKg(raw: string): number | null | "invalid" {
   return value;
 }
 
-/** Same "empty = not set" convention as parseWeightKg, but unbounded below
- * zero isn't restricted either — sort_order is just a fractional-index
- * position (Задача №230), not a physical quantity. */
-export function parseSortOrder(raw: string): number | null | "invalid" {
+/**
+ * Задача №230/231 — same "empty = not set" convention as parseWeightKg, but
+ * deliberately returns the STRING itself (never `Number(...)`), validated
+ * only by format: sort_order must round-trip arbitrarily long decimals
+ * (e.g. "1.15555555555") without ever passing through a JS double, which
+ * is exactly what `Number()` would do. The regex mirrors the server's own
+ * decimalStringSchema (shared/validation/seller-product.schema.ts).
+ */
+const DECIMAL_STRING_RE = /^-?\d+(\.\d+)?$/;
+export function parseSortOrder(raw: string): string | null | "invalid" {
   const trimmed = raw.trim();
   if (!trimmed) return null;
-  const value = Number(trimmed);
-  if (!Number.isFinite(value)) return "invalid";
-  return value;
+  if (!DECIMAL_STRING_RE.test(trimmed)) return "invalid";
+  return trimmed;
 }
 
 export function toProductForm(product: SellerProductDTO): ProductFormState {
@@ -150,7 +155,7 @@ export function toProductForm(product: SellerProductDTO): ProductFormState {
     countryOfOrigin: product.countryOfOrigin ?? "",
     sku: product.sku ?? "",
     weightKg: product.weightKg == null ? "" : String(product.weightKg),
-    sortOrder: product.sortOrder == null ? "" : String(product.sortOrder),
+    sortOrder: product.sortOrder ?? "",
     publicationStatus: product.publicationStatus,
     imageUrls: product.imageUrls,
   };
@@ -1278,8 +1283,8 @@ export function ProductFormFields({
           </Label>
           <Input
             id={`${idPrefix}-sort-order`}
-            type="number"
-            step="0.1"
+            type="text"
+            inputMode="decimal"
             placeholder={t("admin.catalog.productSortOrderPlaceholder")}
             value={form.sortOrder}
             onChange={(e) => setForm({ ...form, sortOrder: e.target.value })}

@@ -26,8 +26,21 @@ export interface SellerProductDTO {
   stock: number;
   publicationStatus: ProductPublicationStatus;
   categoryId: string | null;
-  /** Fractional manual display order (Задача №230, same idea as CategoryDTO.sortOrder but NUMERIC — supports inserting between two products, e.g. 1.1 between 1 and 2, without renumbering the rest). Null = not yet numbered. */
-  sortOrder: number | null;
+  /**
+   * Global, category-independent manual display order (Задача №230/231).
+   * A DECIMAL STRING, deliberately not `number` — a JS double can't hold
+   * arbitrarily long fractions (e.g. "1.15555555555") without rounding, and
+   * supabase-js parses every HTTP response with the platform's native
+   * JSON.parse *inside the library*, which would silently turn a JSON
+   * number literal into a lossy double before this code ever runs. The
+   * string is compared/stored as Postgres `numeric` server-side (real
+   * decimal semantics — never JS number comparison) and always read back
+   * through products.sort_order_text (a generated text mirror column PostgREST
+   * serializes as a JSON string, not a number — see the Задача №231
+   * migration). Admin/seller-only — never sent to a customer-facing DTO.
+   * Null = not yet numbered.
+   */
+  sortOrder: string | null;
 }
 
 export interface CreateSellerProductRequest {
@@ -45,8 +58,14 @@ export interface CreateSellerProductRequest {
   weightKg?: number | null;
   stock?: number;
   categoryId?: string;
-  /** Задача №230 — fractional manual display order. Omitted/undefined = leave unset (null). */
-  sortOrder?: number | null;
+  /**
+   * Задача №230/231 — decimal string (see SellerProductDTO.sortOrder for
+   * why not `number`). On create: omitted/empty (null) auto-assigns
+   * current-max+1 (SellerProductService.createProduct, via a SQL MAX() —
+   * never a JS Math.max). On update: omitted leaves the existing value
+   * untouched; explicit null clears it back to unset.
+   */
+  sortOrder?: string | null;
   /**
    * Only meaningful when the actor is an admin (Промпт №103 — unified product
    * lifecycle) — SellerProductService always forces DRAFT on seller_create

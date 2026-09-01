@@ -1501,7 +1501,10 @@ export type Database = {
           seller_id: string | null;
           sku: string | null;
           slug: string;
-          sort_order: number | null;
+          /** Задача №231 — typed as string throughout this codebase (filter/write only — never SELECTed raw, see sort_order_text) so no call site is tempted to round-trip it through a JS number. */
+          sort_order: string | null;
+          /** Задача №231 — read-only generated text mirror of sort_order (see migration comment); always select this, never the raw numeric column, to avoid JSON.parse precision loss on long decimals. */
+          sort_order_text: string | null;
           stock: number;
           unit: string | null;
           updated_at: string;
@@ -1525,7 +1528,8 @@ export type Database = {
           seller_id?: string | null;
           sku?: string | null;
           slug: string;
-          sort_order?: number | null;
+          /** Задача №231 — write as a decimal string (Postgres casts it via its own text-to-numeric parser, never a JS float) — never write sort_order_text, it's generated. */
+          sort_order?: string | null;
           stock?: number;
           unit?: string | null;
           updated_at?: string;
@@ -1549,7 +1553,7 @@ export type Database = {
           seller_id?: string | null;
           sku?: string | null;
           slug?: string;
-          sort_order?: number | null;
+          sort_order?: string | null;
           stock?: number;
           unit?: string | null;
           updated_at?: string;
@@ -2024,6 +2028,8 @@ export type Database = {
         Args: { p_coupon_id: string };
         Returns: undefined;
       };
+      /** Задача №231 — returns text (not numeric) on purpose, see migration comment: avoids JSON.parse precision loss for long decimals. */
+      next_product_sort_order: { Args: never; Returns: string };
       release_product_stock: { Args: { items: Json }; Returns: undefined };
       release_variant_stock: { Args: { items: Json }; Returns: undefined };
       reserve_product_stock: { Args: { items: Json }; Returns: undefined };

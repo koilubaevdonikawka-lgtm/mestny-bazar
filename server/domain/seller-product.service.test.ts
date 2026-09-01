@@ -62,6 +62,7 @@ function fakeRepo(overrides: Partial<ISellerProductRepository> = {}): ISellerPro
     delete: vi.fn(async () => {}),
     slugExists: vi.fn(async () => false),
     findBySortOrder: vi.fn(async () => null),
+    getNextSortOrder: vi.fn(async () => "1"),
     ...overrides,
   };
 }
@@ -275,29 +276,34 @@ describe("SellerProductService.createProduct", () => {
     const service = new SellerProductService(repo, fakeCategories(), fakePolicy(), fakeEventBus());
 
     await expect(
-      service.createProduct("seller-1", { name: "Fresh Bread", price: 10, sortOrder: 1.1 }),
+      service.createProduct("seller-1", { name: "Fresh Bread", price: 10, sortOrder: "1.1" }),
     ).rejects.toBeInstanceOf(SellerProductValidationError);
     expect(repo.create).not.toHaveBeenCalled();
   });
 
-  it("allows creation when sortOrder is null/unset — no duplicate check is even attempted", async () => {
+  it("auto-assigns sortOrder via getNextSortOrder (SQL MAX()+1) when left null/unset, without running the duplicate check", async () => {
     const findBySortOrder = vi.fn(async () => null);
-    const repo = fakeRepo({ findBySortOrder });
+    const getNextSortOrder = vi.fn(async () => "41");
+    const repo = fakeRepo({ findBySortOrder, getNextSortOrder });
     const service = new SellerProductService(repo, fakeCategories(), fakePolicy(), fakeEventBus());
 
     await service.createProduct("seller-1", { name: "Fresh Bread", price: 10 });
     expect(findBySortOrder).not.toHaveBeenCalled();
-    expect(repo.create).toHaveBeenCalled();
+    expect(getNextSortOrder).toHaveBeenCalled();
+    expect(repo.create).toHaveBeenCalledWith(
+      "seller-1",
+      expect.objectContaining({ sortOrder: "41" }),
+    );
   });
 
   it("allows creation when sortOrder is free", async () => {
     const repo = fakeRepo({ findBySortOrder: vi.fn(async () => null) });
     const service = new SellerProductService(repo, fakeCategories(), fakePolicy(), fakeEventBus());
 
-    await service.createProduct("seller-1", { name: "Fresh Bread", price: 10, sortOrder: 1.1 });
+    await service.createProduct("seller-1", { name: "Fresh Bread", price: 10, sortOrder: "1.1" });
     expect(repo.create).toHaveBeenCalledWith(
       "seller-1",
-      expect.objectContaining({ sortOrder: 1.1 }),
+      expect.objectContaining({ sortOrder: "1.1" }),
     );
   });
 
@@ -407,7 +413,7 @@ describe("SellerProductService.updateProduct", () => {
     const service = new SellerProductService(repo, fakeCategories(), fakePolicy(), fakeEventBus());
 
     await expect(
-      service.updateProduct("seller-1", { id: "product-1", sortOrder: 2 }),
+      service.updateProduct("seller-1", { id: "product-1", sortOrder: "2" }),
     ).rejects.toBeInstanceOf(SellerProductValidationError);
     expect(repo.update).not.toHaveBeenCalled();
   });
@@ -417,9 +423,20 @@ describe("SellerProductService.updateProduct", () => {
     const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()), findBySortOrder });
     const service = new SellerProductService(repo, fakeCategories(), fakePolicy(), fakeEventBus());
 
-    await service.updateProduct("seller-1", { id: "product-1", sortOrder: 1 });
-    expect(findBySortOrder).toHaveBeenCalledWith(1, "product-1");
+    await service.updateProduct("seller-1", { id: "product-1", sortOrder: "1" });
+    expect(findBySortOrder).toHaveBeenCalledWith("1", "product-1");
     expect(repo.update).toHaveBeenCalled();
+  });
+
+  it("leaves sortOrder untouched on update when omitted, and does not auto-assign (auto-assign is create-only)", async () => {
+    const getNextSortOrder = vi.fn(async () => "999");
+    const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()), getNextSortOrder });
+    const service = new SellerProductService(repo, fakeCategories(), fakePolicy(), fakeEventBus());
+
+    await service.updateProduct("seller-1", { id: "product-1", price: 20 });
+    expect(getNextSortOrder).not.toHaveBeenCalled();
+    const [, patch] = (repo.update as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(patch.sortOrder).toBeUndefined();
   });
 
   it("leaves unspecified fields unvalidated and applies the patch when nothing changed is invalid", async () => {

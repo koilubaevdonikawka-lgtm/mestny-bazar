@@ -584,10 +584,10 @@ export const en = {
       skuLabel: "SKU or barcode (if used)",
       weightLabel: "Weight, kg (for delivery pricing)",
       weightPlaceholder: "e.g. 0.5",
-      productSortOrderLabel: "Sort order",
+      productSortOrderLabel: "Product sort order",
       productSortOrderPlaceholder: "e.g.: 1.1",
       productSortOrderHint:
-        "Fractional values let you insert a product between existing ones without changing any other numbers — e.g.: 1.1 to show it right after product #1.",
+        "One shared order across the whole catalog (categories don't matter). Fractional values let you insert a product between existing ones without changing any other numbers — e.g.: 1.1 to show it right after product #1. Leave it empty when creating — a number is assigned automatically (current max + 1).",
       publicationStatusLabel: "Publication status",
       productStatusDraft: "Draft",
       productStatusPublished: "Published",
