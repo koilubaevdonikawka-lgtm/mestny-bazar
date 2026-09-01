@@ -567,6 +567,10 @@ export const zh = {
       skuLabel: "货号或条形码（如有）",
       weightLabel: "重量，公斤（用于计算配送费）",
       weightPlaceholder: "例如：0.5",
+      productSortOrderLabel: "排序编号",
+      productSortOrderPlaceholder: "例如：1.1",
+      productSortOrderHint:
+        "小数值可以让商品插入到现有商品之间，而无需更改其他编号 — 例如：1.1 表示紧跟在 №1 商品之后显示。",
       publicationStatusLabel: "发布状态",
       productStatusDraft: "草稿",
       productStatusPublished: "已发布",
@@ -580,6 +584,7 @@ export const zh = {
       productNameMinLengthError: "商品名称长度不能少于 2 个字符",
       invalidPriceError: "请输入有效的价格",
       invalidWeightError: "请输入有效的重量（非负数）或留空",
+      invalidSortOrderError: "请输入有效的排序编号或留空",
       productCreatedAndEditingToast: "商品已创建 — 已打开编辑",
       productCreatedToast: "商品已创建",
       productCreateError: "创建商品失败",

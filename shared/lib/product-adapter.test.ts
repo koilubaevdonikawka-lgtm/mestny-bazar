@@ -23,6 +23,7 @@ function fakeProduct(overrides: Partial<ProductDTO> = {}): ProductDTO {
     manufacturer: null,
     countryOfOrigin: null,
     weightKg: null,
+    sortOrder: null,
     ...overrides,
   };
 }

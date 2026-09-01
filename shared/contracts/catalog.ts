@@ -37,6 +37,8 @@ export interface ProductDTO {
   countryOfOrigin: string | null;
   /** Kilograms — used for the weight-based delivery fee formula (docs/delivery/delivery-pricing.md). Null counts as 0 kg. */
   weightKg: number | null;
+  /** Fractional manual display order (Задача №230) — null = not yet numbered, sorts after every numbered product (see ProductSortBy/product.repository.ts's list()). */
+  sortOrder: number | null;
   category?: Pick<CategoryDTO, "id" | "name" | "slug">;
 }
 

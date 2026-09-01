@@ -25,6 +25,7 @@ export const createSellerProductRequestSchema = z.object({
   stock: z.number().int().min(0).max(1_000_000).optional(),
   categoryId: z.string().uuid().optional(),
   publicationStatus: z.nativeEnum(ProductPublicationStatus).optional(),
+  sortOrder: z.number().finite().nullable().optional(),
 });
 
 export const updateSellerProductRequestSchema = createSellerProductRequestSchema

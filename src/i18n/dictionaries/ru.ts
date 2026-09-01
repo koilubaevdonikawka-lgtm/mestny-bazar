@@ -614,6 +614,10 @@ export const ru = {
       skuLabel: "Артикул или штрихкод (если используется)",
       weightLabel: "Вес, кг (для расчёта доставки)",
       weightPlaceholder: "например, 0.5",
+      productSortOrderLabel: "Порядковый номер",
+      productSortOrderPlaceholder: "Например: 1.1",
+      productSortOrderHint:
+        "Дробные значения позволяют вставить товар между существующими без изменения других номеров — например: 1.1, чтобы показать товар сразу после товара №1.",
       publicationStatusLabel: "Статус публикации",
       productStatusDraft: "Черновик",
       productStatusPublished: "Опубликован",
@@ -627,6 +631,7 @@ export const ru = {
       productNameMinLengthError: "Название товара должно содержать минимум 2 символа",
       invalidPriceError: "Укажите корректную цену",
       invalidWeightError: "Укажите корректный вес (неотрицательное число) или оставьте поле пустым",
+      invalidSortOrderError: "Укажите корректный порядковый номер или оставьте поле пустым",
       productCreatedAndEditingToast: "Товар создан — открыт для редактирования",
       productCreatedToast: "Товар создан",
       productCreateError: "Не удалось создать товар",

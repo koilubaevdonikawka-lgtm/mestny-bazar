@@ -65,6 +65,7 @@ export class SellerProductService {
     this.validatePrice(data.price);
     if (data.stock !== undefined) this.validateStock(data.stock);
     if (data.categoryId) await this.assertCategoryExists(data.categoryId);
+    if (data.sortOrder != null) await this.assertSortOrderFree(data.sortOrder);
 
     const slug = await this.resolveUniqueSlug(data.slug?.trim() || slugify(data.name, "product"));
     const isAdmin = sellerId === null;
@@ -106,6 +107,7 @@ export class SellerProductService {
     if (data.price !== undefined) this.validatePrice(data.price);
     if (data.stock !== undefined) this.validateStock(data.stock);
     if (data.categoryId) await this.assertCategoryExists(data.categoryId);
+    if (data.sortOrder != null) await this.assertSortOrderFree(data.sortOrder, data.id);
 
     const isAdmin = sellerId === null;
     let patch = { ...data };
@@ -198,6 +200,24 @@ export class SellerProductService {
     const category = await this.categories.getById(categoryId);
     if (!category) {
       throw new SellerProductValidationError("Category not found", "categoryId");
+    }
+  }
+
+  /**
+   * Задача №230 — soft (not DB-enforced) duplicate check: two products
+   * silently sharing a sort_order would make their relative order
+   * ambiguous/flip-floppy, so this catches the common case with a clear
+   * message naming the other product, without a hard uniqueness constraint
+   * (a constraint would also complicate the NULL-for-unnumbered-products
+   * default this feature relies on).
+   */
+  private async assertSortOrderFree(sortOrder: number, exceptId?: string): Promise<void> {
+    const conflict = await this.products.findBySortOrder(sortOrder, exceptId);
+    if (conflict) {
+      throw new SellerProductValidationError(
+        `Sort order ${sortOrder} is already used by "${conflict.name}"`,
+        "sortOrder",
+      );
     }
   }
 

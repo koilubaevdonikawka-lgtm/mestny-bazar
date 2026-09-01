@@ -588,6 +588,10 @@ export const ky = {
       skuLabel: "Артикул же штрихкод (колдонулса)",
       weightLabel: "Салмагы, кг (жеткирүү баасын эсептөө үчүн)",
       weightPlaceholder: "мисалы, 0.5",
+      productSortOrderLabel: "Иреттик номер",
+      productSortOrderPlaceholder: "Мисалы: 1.1",
+      productSortOrderHint:
+        "Бөлчөк маанилер товарды башка номерлерди өзгөртпөй эле бар товарлардын арасына коюуга мүмкүнчүлүк берет — мисалы: 1.1, товарды №1 товардан кийин көрсөтүү үчүн.",
       publicationStatusLabel: "Жарыялоо статусу",
       productStatusDraft: "Долбоор",
       productStatusPublished: "Жарыяланды",
@@ -601,6 +605,7 @@ export const ky = {
       productNameMinLengthError: "Товардын аталышы кеминде 2 белгиден турушу керек",
       invalidPriceError: "Туура баа көрсөтүңүз",
       invalidWeightError: "Туура салмак көрсөтүңүз (терс эмес сан) же бош калтырыңыз",
+      invalidSortOrderError: "Туура иреттик номерди көрсөтүңүз же бош калтырыңыз",
       productCreatedAndEditingToast: "Товар түзүлдү — түзөтүү үчүн ачылды",
       productCreatedToast: "Товар түзүлдү",
       productCreateError: "Товарды түзүү мүмкүн болбоду",

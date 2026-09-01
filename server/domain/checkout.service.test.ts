@@ -55,6 +55,7 @@ function makeProduct(overrides: Partial<ProductDTO> = {}): ProductDTO {
     manufacturer: null,
     countryOfOrigin: null,
     weightKg: null,
+    sortOrder: null,
     ...overrides,
   };
 }

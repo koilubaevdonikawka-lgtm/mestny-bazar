@@ -40,6 +40,7 @@ function makeSellerProduct(overrides: Partial<SellerProductDTO> = {}): SellerPro
     stock: 10,
     publicationStatus: "PUBLISHED",
     categoryId: null,
+    sortOrder: null,
     ...overrides,
   };
 }
@@ -69,6 +70,7 @@ function fakeSellerProductRepo(
     setPublicationStatus: vi.fn(async () => makeSellerProduct()),
     delete: vi.fn(async () => {}),
     slugExists: vi.fn(async () => false),
+    findBySortOrder: vi.fn(async () => null),
     ...overrides,
   };
 }

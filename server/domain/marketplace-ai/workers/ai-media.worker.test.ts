@@ -78,6 +78,7 @@ function fakeProduct(overrides: Partial<SellerProductDTO> = {}): SellerProductDT
     stock: 10,
     publicationStatus: ProductPublicationStatus.PUBLISHED,
     categoryId: null,
+    sortOrder: null,
     ...overrides,
   };
 }

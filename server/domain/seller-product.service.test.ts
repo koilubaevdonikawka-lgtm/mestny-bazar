@@ -29,6 +29,7 @@ function makeProduct(overrides: Partial<SellerProductDTO> = {}): SellerProductDT
     stock: 5,
     publicationStatus: "DRAFT",
     categoryId: null,
+    sortOrder: null,
     ...overrides,
   };
 }
@@ -60,6 +61,7 @@ function fakeRepo(overrides: Partial<ISellerProductRepository> = {}): ISellerPro
     ),
     delete: vi.fn(async () => {}),
     slugExists: vi.fn(async () => false),
+    findBySortOrder: vi.fn(async () => null),
     ...overrides,
   };
 }
@@ -266,6 +268,39 @@ describe("SellerProductService.createProduct", () => {
     expect(repo.create).toHaveBeenCalled();
   });
 
+  it("rejects creation when sortOrder is already used by another product", async () => {
+    const repo = fakeRepo({
+      findBySortOrder: vi.fn(async () => ({ id: "other-product", name: "Existing Product" })),
+    });
+    const service = new SellerProductService(repo, fakeCategories(), fakePolicy(), fakeEventBus());
+
+    await expect(
+      service.createProduct("seller-1", { name: "Fresh Bread", price: 10, sortOrder: 1.1 }),
+    ).rejects.toBeInstanceOf(SellerProductValidationError);
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  it("allows creation when sortOrder is null/unset — no duplicate check is even attempted", async () => {
+    const findBySortOrder = vi.fn(async () => null);
+    const repo = fakeRepo({ findBySortOrder });
+    const service = new SellerProductService(repo, fakeCategories(), fakePolicy(), fakeEventBus());
+
+    await service.createProduct("seller-1", { name: "Fresh Bread", price: 10 });
+    expect(findBySortOrder).not.toHaveBeenCalled();
+    expect(repo.create).toHaveBeenCalled();
+  });
+
+  it("allows creation when sortOrder is free", async () => {
+    const repo = fakeRepo({ findBySortOrder: vi.fn(async () => null) });
+    const service = new SellerProductService(repo, fakeCategories(), fakePolicy(), fakeEventBus());
+
+    await service.createProduct("seller-1", { name: "Fresh Bread", price: 10, sortOrder: 1.1 });
+    expect(repo.create).toHaveBeenCalledWith(
+      "seller-1",
+      expect.objectContaining({ sortOrder: 1.1 }),
+    );
+  });
+
   it("a seller is always bootstrapped into DRAFT via reason seller_create, ignoring any publicationStatus sent", async () => {
     const repo = fakeRepo();
     const policy = fakePolicy();
@@ -362,6 +397,29 @@ describe("SellerProductService.updateProduct", () => {
       service.updateProduct("seller-1", { id: "product-1", categoryId: "missing-cat" }),
     ).rejects.toBeInstanceOf(SellerProductValidationError);
     expect(repo.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects an update whose sortOrder is already used by another product", async () => {
+    const repo = fakeRepo({
+      getById: vi.fn(async () => makeProduct()),
+      findBySortOrder: vi.fn(async () => ({ id: "other-product", name: "Existing Product" })),
+    });
+    const service = new SellerProductService(repo, fakeCategories(), fakePolicy(), fakeEventBus());
+
+    await expect(
+      service.updateProduct("seller-1", { id: "product-1", sortOrder: 2 }),
+    ).rejects.toBeInstanceOf(SellerProductValidationError);
+    expect(repo.update).not.toHaveBeenCalled();
+  });
+
+  it("excludes the product's own id from the sortOrder duplicate check (keeping the same value is not a conflict with itself)", async () => {
+    const findBySortOrder = vi.fn(async () => null);
+    const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()), findBySortOrder });
+    const service = new SellerProductService(repo, fakeCategories(), fakePolicy(), fakeEventBus());
+
+    await service.updateProduct("seller-1", { id: "product-1", sortOrder: 1 });
+    expect(findBySortOrder).toHaveBeenCalledWith(1, "product-1");
+    expect(repo.update).toHaveBeenCalled();
   });
 
   it("leaves unspecified fields unvalidated and applies the patch when nothing changed is invalid", async () => {

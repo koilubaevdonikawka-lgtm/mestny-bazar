@@ -72,8 +72,11 @@ function SearchPage() {
     refetch: refetchProducts,
   } = useQuery({
     queryKey: ["products", "search-page-all", debouncedSearch],
-    queryFn: () =>
-      listProducts({ sortBy: "name", pageSize: ALL_PRODUCTS_PAGE_SIZE, search: debouncedSearch }),
+    // Задача №230: no explicit sortBy — falls through to the repository's
+    // new default (admin-controlled sort_order asc, unnumbered products by
+    // created_at desc), same ordering as the rest of the storefront now
+    // uses instead of the old hardcoded alphabetical sort.
+    queryFn: () => listProducts({ pageSize: ALL_PRODUCTS_PAGE_SIZE, search: debouncedSearch }),
     staleTime: 60 * 1000,
   });
   const {

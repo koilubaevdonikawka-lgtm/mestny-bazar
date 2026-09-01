@@ -23,4 +23,9 @@ export interface ISellerProductRepository {
   /** sellerId: null means no ownership scoping — admin may delete any product. */
   delete(id: string, sellerId: string | null): Promise<void>;
   slugExists(slug: string, exceptId?: string): Promise<boolean>;
+  /** Задача №230 — soft duplicate-sortOrder check; returns the conflicting product's id/name, if any. */
+  findBySortOrder(
+    sortOrder: number,
+    exceptId?: string,
+  ): Promise<{ id: string; name: string } | null>;
 }

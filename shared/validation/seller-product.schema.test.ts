@@ -71,6 +71,30 @@ describe("createSellerProductRequestSchema", () => {
       createSellerProductRequestSchema.parse({ name: "Хлеб", price: 50, weightKg: -1 }),
     ).toThrow();
   });
+
+  it("accepts a fractional sortOrder (Задача №230 — insert between two products)", () => {
+    const result = createSellerProductRequestSchema.parse({
+      name: "Хлеб",
+      price: 50,
+      sortOrder: 1.1,
+    });
+    expect(result.sortOrder).toBe(1.1);
+  });
+
+  it("accepts a null sortOrder (not yet numbered)", () => {
+    const result = createSellerProductRequestSchema.parse({
+      name: "Хлеб",
+      price: 50,
+      sortOrder: null,
+    });
+    expect(result.sortOrder).toBeNull();
+  });
+
+  it("rejects a non-finite sortOrder", () => {
+    expect(() =>
+      createSellerProductRequestSchema.parse({ name: "Хлеб", price: 50, sortOrder: Infinity }),
+    ).toThrow();
+  });
 });
 
 describe("updateSellerProductRequestSchema", () => {

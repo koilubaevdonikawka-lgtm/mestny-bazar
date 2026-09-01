@@ -26,6 +26,8 @@ export interface SellerProductDTO {
   stock: number;
   publicationStatus: ProductPublicationStatus;
   categoryId: string | null;
+  /** Fractional manual display order (Задача №230, same idea as CategoryDTO.sortOrder but NUMERIC — supports inserting between two products, e.g. 1.1 between 1 and 2, without renumbering the rest). Null = not yet numbered. */
+  sortOrder: number | null;
 }
 
 export interface CreateSellerProductRequest {
@@ -43,6 +45,8 @@ export interface CreateSellerProductRequest {
   weightKg?: number | null;
   stock?: number;
   categoryId?: string;
+  /** Задача №230 — fractional manual display order. Omitted/undefined = leave unset (null). */
+  sortOrder?: number | null;
   /**
    * Only meaningful when the actor is an admin (Промпт №103 — unified product
    * lifecycle) — SellerProductService always forces DRAFT on seller_create

@@ -1501,6 +1501,7 @@ export type Database = {
           seller_id: string | null;
           sku: string | null;
           slug: string;
+          sort_order: number | null;
           stock: number;
           unit: string | null;
           updated_at: string;
@@ -1524,6 +1525,7 @@ export type Database = {
           seller_id?: string | null;
           sku?: string | null;
           slug: string;
+          sort_order?: number | null;
           stock?: number;
           unit?: string | null;
           updated_at?: string;
@@ -1547,6 +1549,7 @@ export type Database = {
           seller_id?: string | null;
           sku?: string | null;
           slug?: string;
+          sort_order?: number | null;
           stock?: number;
           unit?: string | null;
           updated_at?: string;

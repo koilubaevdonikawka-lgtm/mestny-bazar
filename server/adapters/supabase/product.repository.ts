@@ -63,6 +63,7 @@ interface ProductRow {
   manufacturer: string | null;
   country_of_origin: string | null;
   weight_kg: number | null;
+  sort_order: number | null;
   /** Only present when fetched via PRODUCT_SELECT_WITH_CATEGORY (single-product reads). */
   categories?: CategoryEmbed | CategoryEmbed[] | null;
 }
@@ -86,6 +87,7 @@ function mapProduct(row: ProductRow): ProductDTO {
     manufacturer: row.manufacturer,
     countryOfOrigin: row.country_of_origin,
     weightKg: row.weight_kg == null ? null : Number(row.weight_kg),
+    sortOrder: row.sort_order == null ? null : Number(row.sort_order),
     ...(categoryEmbed
       ? { category: { id: categoryEmbed.id, name: categoryEmbed.name, slug: categoryEmbed.slug } }
       : {}),
@@ -93,7 +95,7 @@ function mapProduct(row: ProductRow): ProductDTO {
 }
 
 const PRODUCT_SELECT =
-  "id, name, slug, description, price, currency, unit, image_url, image_urls, stock, category_id, manufacturer, country_of_origin, weight_kg";
+  "id, name, slug, description, price, currency, unit, image_url, image_urls, stock, category_id, manufacturer, country_of_origin, weight_kg, sort_order";
 
 /** Adds the category name/slug — used only by single-product reads (the
  * product detail page needs to display the category), never by the listing
@@ -162,6 +164,14 @@ export class SupabaseProductRepository implements IProductRepository {
       return { items, total, page, pageSize, hasMore: from + items.length < total };
     }
 
+    // Задача №230: an explicit `sortBy` (a real dropdown/deep-link choice)
+    // keeps its old exact meaning — "newest" still means created_at desc,
+    // nothing else. Only the *implicit* default (no sortBy at all, the case
+    // every storefront surface hits today since ProductPage.tsx's own
+    // sort UI was removed — Часть 3) switches to the new admin-controlled
+    // sort_order; NULLs (not yet numbered) fall back to created_at desc,
+    // same tiebreak as before, so an unnumbered product never disappears
+    // or jumps around.
     switch (params.sortBy) {
       case "price_asc":
         query = query.order("price", { ascending: true });
@@ -173,8 +183,12 @@ export class SupabaseProductRepository implements IProductRepository {
         query = query.order("name", { ascending: true });
         break;
       case "newest":
-      default:
         query = query.order("created_at", { ascending: false });
+        break;
+      default:
+        query = query
+          .order("sort_order", { ascending: true, nullsFirst: false })
+          .order("created_at", { ascending: false });
         break;
     }
 

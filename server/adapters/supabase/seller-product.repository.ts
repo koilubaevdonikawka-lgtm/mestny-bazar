@@ -12,7 +12,7 @@ import { supabaseAdmin } from "@server/adapters/supabase/client";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 
 const PRODUCT_SELECT =
-  "id, name, slug, description, price, currency, unit, image_url, image_urls, manufacturer, country_of_origin, sku, weight_kg, stock, publication_status, category_id";
+  "id, name, slug, description, price, currency, unit, image_url, image_urls, manufacturer, country_of_origin, sku, weight_kg, stock, publication_status, category_id, sort_order";
 
 function mapRow(row: {
   id: string;
@@ -31,6 +31,7 @@ function mapRow(row: {
   stock: number;
   publication_status: ProductPublicationStatus;
   category_id: string | null;
+  sort_order: number | null;
 }): SellerProductDTO {
   return {
     id: row.id,
@@ -49,6 +50,7 @@ function mapRow(row: {
     stock: Number(row.stock),
     publicationStatus: row.publication_status,
     categoryId: row.category_id,
+    sortOrder: row.sort_order == null ? null : Number(row.sort_order),
   };
 }
 
@@ -112,6 +114,18 @@ export class SupabaseSellerProductRepository implements ISellerProductRepository
     return !!data;
   }
 
+  /** Задача №230 — soft duplicate-sortOrder check: names the conflicting product so the service can raise a clear, specific error. */
+  async findBySortOrder(
+    sortOrder: number,
+    exceptId?: string,
+  ): Promise<{ id: string; name: string } | null> {
+    let query = supabaseAdmin.from("products").select("id, name").eq("sort_order", sortOrder);
+    if (exceptId) query = query.neq("id", exceptId);
+    const { data, error } = await query.maybeSingle();
+    if (error) throw new Error(`Failed to check sort order: ${error.message}`);
+    return data ?? null;
+  }
+
   async create(
     sellerId: string | null,
     data: CreateSellerProductRequest,
@@ -137,6 +151,7 @@ export class SupabaseSellerProductRepository implements ISellerProductRepository
         publication_status: status,
         is_active: isActiveForCatalog(status),
         category_id: data.categoryId ?? null,
+        sort_order: data.sortOrder ?? null,
       })
       .select(PRODUCT_SELECT)
       .single();
@@ -169,6 +184,7 @@ export class SupabaseSellerProductRepository implements ISellerProductRepository
     if (data.weightKg !== undefined) patch.weight_kg = data.weightKg;
     if (data.stock !== undefined) patch.stock = data.stock;
     if (data.categoryId !== undefined) patch.category_id = data.categoryId;
+    if (data.sortOrder !== undefined) patch.sort_order = data.sortOrder;
     if (data.publicationStatus !== undefined) {
       patch.publication_status = data.publicationStatus;
       patch.is_active = isActiveForCatalog(data.publicationStatus);

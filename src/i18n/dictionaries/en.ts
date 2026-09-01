@@ -584,6 +584,10 @@ export const en = {
       skuLabel: "SKU or barcode (if used)",
       weightLabel: "Weight, kg (for delivery pricing)",
       weightPlaceholder: "e.g. 0.5",
+      productSortOrderLabel: "Sort order",
+      productSortOrderPlaceholder: "e.g.: 1.1",
+      productSortOrderHint:
+        "Fractional values let you insert a product between existing ones without changing any other numbers — e.g.: 1.1 to show it right after product #1.",
       publicationStatusLabel: "Publication status",
       productStatusDraft: "Draft",
       productStatusPublished: "Published",
@@ -597,6 +601,7 @@ export const en = {
       productNameMinLengthError: "Product name must be at least 2 characters",
       invalidPriceError: "Enter a valid price",
       invalidWeightError: "Enter a valid weight (non-negative number) or leave it empty",
+      invalidSortOrderError: "Enter a valid sort order or leave it empty",
       productCreatedAndEditingToast: "Product created — opened for editing",
       productCreatedToast: "Product created",
       productCreateError: "Failed to create the product",

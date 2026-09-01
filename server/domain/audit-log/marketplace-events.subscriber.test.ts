@@ -242,6 +242,7 @@ describe("subscribeAuditLog", () => {
       stock: 10,
       publicationStatus: "PUBLISHED" as const,
       categoryId: null,
+      sortOrder: null,
     };
 
     await bus.publish({ type: "product.published", product });

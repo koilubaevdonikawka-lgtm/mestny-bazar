@@ -96,6 +96,8 @@ export interface ProductFormState {
   sku: string;
   /** Kilograms, empty string = not set (nullable — see docs/delivery/delivery-pricing.md). */
   weightKg: string;
+  /** Fractional manual display order (Задача №230), empty string = not set (nullable). */
+  sortOrder: string;
   publicationStatus: ProductPublicationStatus;
   imageUrls: string[];
 }
@@ -109,6 +111,7 @@ export const emptyProductForm = (): ProductFormState => ({
   countryOfOrigin: "",
   sku: "",
   weightKg: "",
+  sortOrder: "",
   publicationStatus: ProductPublicationStatus.PUBLISHED,
   imageUrls: [],
 });
@@ -126,6 +129,17 @@ export function parseWeightKg(raw: string): number | null | "invalid" {
   return value;
 }
 
+/** Same "empty = not set" convention as parseWeightKg, but unbounded below
+ * zero isn't restricted either — sort_order is just a fractional-index
+ * position (Задача №230), not a physical quantity. */
+export function parseSortOrder(raw: string): number | null | "invalid" {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const value = Number(trimmed);
+  if (!Number.isFinite(value)) return "invalid";
+  return value;
+}
+
 export function toProductForm(product: SellerProductDTO): ProductFormState {
   return {
     name: product.name,
@@ -136,6 +150,7 @@ export function toProductForm(product: SellerProductDTO): ProductFormState {
     countryOfOrigin: product.countryOfOrigin ?? "",
     sku: product.sku ?? "",
     weightKg: product.weightKg == null ? "" : String(product.weightKg),
+    sortOrder: product.sortOrder == null ? "" : String(product.sortOrder),
     publicationStatus: product.publicationStatus,
     imageUrls: product.imageUrls,
   };
@@ -451,6 +466,11 @@ function AdminCatalogPage() {
       toast.error(t("admin.catalog.invalidWeightError"));
       return;
     }
+    const sortOrder = parseSortOrder(productForm.sortOrder);
+    if (sortOrder === "invalid") {
+      toast.error(t("admin.catalog.invalidSortOrderError"));
+      return;
+    }
     createAndEditRef.current = andEdit;
     createProductMutation.mutate({
       categoryId,
@@ -462,6 +482,7 @@ function AdminCatalogPage() {
       countryOfOrigin: productForm.countryOfOrigin.trim() || undefined,
       sku: productForm.sku.trim() || undefined,
       weightKg,
+      sortOrder,
       publicationStatus: productForm.publicationStatus,
       imageUrls: productForm.imageUrls,
     });
@@ -483,6 +504,11 @@ function AdminCatalogPage() {
       toast.error(t("admin.catalog.invalidWeightError"));
       return;
     }
+    const sortOrder = parseSortOrder(editProductForm.sortOrder);
+    if (sortOrder === "invalid") {
+      toast.error(t("admin.catalog.invalidSortOrderError"));
+      return;
+    }
     updateProductMutation.mutate({
       id,
       name: editProductForm.name.trim(),
@@ -493,6 +519,7 @@ function AdminCatalogPage() {
       countryOfOrigin: editProductForm.countryOfOrigin.trim() || undefined,
       sku: editProductForm.sku.trim() || undefined,
       weightKg,
+      sortOrder,
       publicationStatus: editProductForm.publicationStatus,
       imageUrls: editProductForm.imageUrls,
     });
@@ -1241,6 +1268,23 @@ export function ProductFormFields({
             value={form.weightKg}
             onChange={(e) => setForm({ ...form, weightKg: e.target.value })}
           />
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-2">
+          <Label htmlFor={`${idPrefix}-sort-order`}>
+            {t("admin.catalog.productSortOrderLabel")}
+          </Label>
+          <Input
+            id={`${idPrefix}-sort-order`}
+            type="number"
+            step="0.1"
+            placeholder={t("admin.catalog.productSortOrderPlaceholder")}
+            value={form.sortOrder}
+            onChange={(e) => setForm({ ...form, sortOrder: e.target.value })}
+          />
+          <p className="text-xs text-muted-foreground">{t("admin.catalog.productSortOrderHint")}</p>
         </div>
       </div>
 
