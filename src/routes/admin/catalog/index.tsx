@@ -789,9 +789,15 @@ function AdminCatalogPage() {
       key={product.id}
       className="flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card"
     >
+      {/* Задача №240 — object-contain (not object-cover): a fixed
+          aspect-square box with object-cover crops any photo whose real
+          aspect ratio isn't 1:1 (a tall narrow bottle loses its neck/base
+          to fill the square). object-contain shows the whole photo,
+          letterboxed on bg-secondary/40 when needed — the box itself stays
+          the same fixed size, so grid tiles stay uniform either way. */}
       <div className="aspect-square w-full overflow-hidden bg-secondary/40">
         {product.imageUrl ? (
-          <img src={product.imageUrl} alt="" className="h-full w-full object-cover" />
+          <img src={product.imageUrl} alt="" className="h-full w-full object-contain" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted-foreground">
             <Package className="h-5 w-5" />
