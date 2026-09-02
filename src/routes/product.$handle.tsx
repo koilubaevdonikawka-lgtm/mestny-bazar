@@ -8,17 +8,10 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { fetchCatalogProduct } from "@/lib/catalog";
-import { listProducts } from "@/api/catalog";
 import { useCartStore } from "@/stores/cartStore";
 import { BRAND } from "@/config/brand";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
-import { PLATFORM_VARIANT_PREFIX } from "@shared/lib/product-adapter";
-
-/** Same "candidate cap" idiom as product.repository.ts's POPULARITY_CANDIDATE_CAP
- * — large enough to cover any real category for prev/next ordering, without
- * being an actual paginated fetch. */
-const SIBLING_PRODUCTS_LIMIT = 200;
 
 /** `from=admin` — set only by the admin catalog's own "view on storefront"
  * link (Этап №3); everywhere else this is simply absent, so the "return to
@@ -119,52 +112,6 @@ function ProductPage() {
     retry: false,
   });
 
-  const categorySlug = product?.category?.slug;
-  // node.id is PLATFORM_VARIANT_PREFIX + the real product id (see
-  // toCatalogProductNode) — recovered here rather than adding a second,
-  // redundant raw-id field to the shared node shape.
-  const rawProductId = product ? product.id.slice(PLATFORM_VARIANT_PREFIX.length) : undefined;
-
-  // Этап №3 — quick prev/next navigation within the current category.
-  // Same category ordering as the category page's own default ("newest"),
-  // current product included (unlike a facet query) so its index can be
-  // located.
-  const { data: siblingResult } = useQuery({
-    queryKey: ["category-products-order", categorySlug],
-    queryFn: () => listProducts({ categorySlug, pageSize: SIBLING_PRODUCTS_LIMIT }),
-    enabled: !!categorySlug,
-  });
-  const siblingProducts = siblingResult?.items ?? [];
-  const siblingIndex = siblingProducts.findIndex((p) => p.id === rawProductId);
-  const prevSibling = siblingIndex > 0 ? siblingProducts[siblingIndex - 1] : undefined;
-  const nextSibling =
-    siblingIndex >= 0 && siblingIndex < siblingProducts.length - 1
-      ? siblingProducts[siblingIndex + 1]
-      : undefined;
-
-  // Preserves `from=admin` across prev/next so an admin browsing several
-  // products in a row via swipe keeps the "return to admin panel" button,
-  // instead of it disappearing after the first swipe.
-  const goToSibling = (slug: string) => {
-    void navigate({ to: "/product/$handle", params: { handle: slug }, search });
-  };
-
-  const SWIPE_THRESHOLD_PX = 50;
-  const handleImageTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0]?.clientX ?? null;
-  };
-  const handleImageTouchEnd = (e: React.TouchEvent) => {
-    const startX = touchStartX.current;
-    touchStartX.current = null;
-    if (startX === null) return;
-    const deltaX = (e.changedTouches[0]?.clientX ?? startX) - startX;
-    if (deltaX <= -SWIPE_THRESHOLD_PX && nextSibling) {
-      goToSibling(nextSibling.slug);
-    } else if (deltaX >= SWIPE_THRESHOLD_PX && prevSibling) {
-      goToSibling(prevSibling.slug);
-    }
-  };
-
   // Called unconditionally (rules of hooks) — falls back to empty strings
   // before the product has loaded; useTranslatedTexts filters those out.
   const translations = useTranslatedTexts(
@@ -215,10 +162,32 @@ function ProductPage() {
 
   const images = product.images.edges;
   const activeImage = images[selectedImage] ?? images[0];
-  // Задача №206 — cyclic within this same product's own photos, not a
-  // different product (that's still goToSibling, used only by swipe below).
+  // Задача №206 — cyclic within this same product's own photos.
   const goToPrevImage = () => setSelectedImage((i) => (i - 1 + images.length) % images.length);
   const goToNextImage = () => setSelectedImage((i) => (i + 1) % images.length);
+
+  // Задача №238 — swipe now only cycles this product's own photos (same
+  // behavior as the arrow buttons above), never navigates to a different
+  // product. The cross-product sibling machinery this used to call
+  // (prevSibling/nextSibling/goToSibling, and the category-order query
+  // behind them) was removed outright rather than left dead — nothing else
+  // on this page read it. Browsing other products in the category still
+  // works, just via the subcategory's own product list, not a swipe here.
+  const SWIPE_THRESHOLD_PX = 50;
+  const handleImageTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0]?.clientX ?? null;
+  };
+  const handleImageTouchEnd = (e: React.TouchEvent) => {
+    const startX = touchStartX.current;
+    touchStartX.current = null;
+    if (startX === null || images.length <= 1) return;
+    const deltaX = (e.changedTouches[0]?.clientX ?? startX) - startX;
+    if (deltaX <= -SWIPE_THRESHOLD_PX) {
+      goToNextImage();
+    } else if (deltaX >= SWIPE_THRESHOLD_PX) {
+      goToPrevImage();
+    }
+  };
   const price = product.priceRange.minVariantPrice;
   const variant = product.variants.edges[0]?.node;
   const maxQuantity = product.inStock ? Math.max(1, product.stock) : 1;
@@ -375,13 +344,10 @@ function ProductPage() {
                   {t("product.outOfStock")}
                 </div>
               )}
-              {/* Задача №206 — these switch this same product's own photos
-                  now (cyclic), not a different product; overlaid on the
-                  image so they cost zero extra vertical space. Rendered
-                  whenever there's more than one photo, regardless of
-                  category-sibling existence. Swiping the image area still
-                  navigates to a different product (goToSibling below, via
-                  handleImageTouchStart/End) — untouched. */}
+              {/* Задача №206/№238 — these switch this same product's own
+                  photos (cyclic), overlaid on the image so they cost zero
+                  extra vertical space. Swiping the image area does the same
+                  thing (handleImageTouchStart/End above). */}
               {images.length > 1 && (
                 <button
                   type="button"
