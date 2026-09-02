@@ -41,7 +41,7 @@ function makeCategory(overrides: Partial<AdminCategoryDTO> = {}): AdminCategoryD
     slug: "dairy",
     description: null,
     imageUrl: null,
-    sortOrder: 0,
+    sortOrder: "0",
     isActive: true,
     nameKg: null,
     parentId: null,
@@ -77,6 +77,7 @@ function fakeCategories(
     update: vi.fn(async () => makeCategory()),
     delete: vi.fn(async () => {}),
     slugExists: vi.fn(async () => false),
+    findBySortOrder: vi.fn(async () => null),
     ...overrides,
   };
 }

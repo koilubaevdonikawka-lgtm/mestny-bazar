@@ -17,7 +17,7 @@ const CATEGORY: CategoryDTO = {
   slug: "muka-krupy",
   description: null,
   imageUrl: null,
-  sortOrder: 1,
+  sortOrder: "1",
   nameKg: null,
   parentId: null,
 };

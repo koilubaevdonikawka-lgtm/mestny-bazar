@@ -16,7 +16,7 @@ function makeCategory(overrides: Partial<AdminCategoryDTO> = {}): AdminCategoryD
     slug: "molochnye-produkty",
     description: null,
     imageUrl: null,
-    sortOrder: 0,
+    sortOrder: "0",
     isActive: true,
     nameKg: null,
     parentId: null,
@@ -32,6 +32,7 @@ function fakeRepo(overrides: Partial<IAdminCategoryRepository> = {}): IAdminCate
     update: vi.fn(async () => makeCategory()),
     delete: vi.fn(async () => {}),
     slugExists: vi.fn(async () => false),
+    findBySortOrder: vi.fn(async () => null),
     ...overrides,
   };
 }
@@ -122,6 +123,64 @@ describe("CategoryAdminService.createCategory", () => {
     await service.createCategory({ name: "Dairy", parentId: "parent-1" });
     expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ parentId: "parent-1" }));
   });
+
+  it("rejects creation when sortOrder is already used by a sibling under the same parentId", async () => {
+    const repo = fakeRepo({
+      findBySortOrder: vi.fn(async () => ({ id: "other-cat", name: "Existing Subcategory" })),
+    });
+    const service = new CategoryAdminService(repo, fakeEventBus());
+
+    await expect(
+      service.createCategory({ name: "Dairy", parentId: "parent-1", sortOrder: "1.1" }),
+    ).rejects.toBeInstanceOf(CategoryValidationError);
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
+  it("scopes the duplicate check to the same parentId (findBySortOrder called with it)", async () => {
+    const findBySortOrder = vi.fn(async () => null);
+    const repo = fakeRepo({ findBySortOrder });
+    const service = new CategoryAdminService(repo, fakeEventBus());
+
+    await service.createCategory({ name: "Dairy", parentId: "parent-1", sortOrder: "1.1" });
+    expect(findBySortOrder).toHaveBeenCalledWith("1.1", "parent-1", undefined);
+  });
+
+  it("scopes the duplicate check to parentId null for a top-level category", async () => {
+    const findBySortOrder = vi.fn(async () => null);
+    const repo = fakeRepo({ findBySortOrder });
+    const service = new CategoryAdminService(repo, fakeEventBus());
+
+    await service.createCategory({ name: "Dairy", sortOrder: "2" });
+    expect(findBySortOrder).toHaveBeenCalledWith("2", null, undefined);
+  });
+
+  it("skips the duplicate check entirely when sortOrder is omitted — the repository auto-assigns", async () => {
+    const findBySortOrder = vi.fn(async () => null);
+    const repo = fakeRepo({ findBySortOrder });
+    const service = new CategoryAdminService(repo, fakeEventBus());
+
+    await service.createCategory({ name: "Dairy", parentId: "parent-1" });
+    expect(findBySortOrder).not.toHaveBeenCalled();
+    expect(repo.create).toHaveBeenCalled();
+  });
+
+  it("two categories under DIFFERENT parents may share the same sortOrder — not treated as a conflict", async () => {
+    // findBySortOrder itself is scoped by parentId (tested via the
+    // repository directly and end-to-end); here we confirm the service
+    // passes the *correct* parentId through unmodified rather than, say,
+    // checking globally.
+    const findBySortOrder = vi.fn(async (_sortOrder: string, parentId: string | null) =>
+      parentId === "parent-A" ? null : null,
+    );
+    const repo = fakeRepo({ findBySortOrder });
+    const service = new CategoryAdminService(repo, fakeEventBus());
+
+    await service.createCategory({ name: "Sub A", parentId: "parent-A", sortOrder: "1" });
+    await service.createCategory({ name: "Sub B", parentId: "parent-B", sortOrder: "1" });
+
+    expect(findBySortOrder).toHaveBeenNthCalledWith(1, "1", "parent-A", undefined);
+    expect(findBySortOrder).toHaveBeenNthCalledWith(2, "1", "parent-B", undefined);
+  });
 });
 
 describe("CategoryAdminService.updateCategory", () => {
@@ -196,6 +255,62 @@ describe("CategoryAdminService.updateCategory", () => {
       type: "category.updated",
       category: reactivated,
     });
+  });
+
+  it("rejects an update whose sortOrder is already used by a sibling under the same parentId", async () => {
+    const repo = fakeRepo({
+      getById: vi.fn(async () => makeCategory({ parentId: "parent-1" })),
+      findBySortOrder: vi.fn(async () => ({ id: "other-cat", name: "Existing Subcategory" })),
+    });
+    const service = new CategoryAdminService(repo, fakeEventBus());
+
+    await expect(service.updateCategory({ id: "cat-1", sortOrder: "2" })).rejects.toBeInstanceOf(
+      CategoryValidationError,
+    );
+    expect(repo.update).not.toHaveBeenCalled();
+  });
+
+  it("scopes the duplicate check to the category's CURRENT parentId when parentId itself isn't changing", async () => {
+    const findBySortOrder = vi.fn(async () => null);
+    const repo = fakeRepo({
+      getById: vi.fn(async () => makeCategory({ id: "cat-1", parentId: "parent-1" })),
+      findBySortOrder,
+    });
+    const service = new CategoryAdminService(repo, fakeEventBus());
+
+    await service.updateCategory({ id: "cat-1", sortOrder: "3" });
+    expect(findBySortOrder).toHaveBeenCalledWith("3", "parent-1", "cat-1");
+  });
+
+  it("scopes the duplicate check to the NEW parentId when parentId is changing in the same update", async () => {
+    const findBySortOrder = vi.fn(async () => null);
+    const repo = fakeRepo({
+      getById: vi.fn(async () => makeCategory({ id: "cat-1", parentId: "old-parent" })),
+      findBySortOrder,
+    });
+    const service = new CategoryAdminService(repo, fakeEventBus());
+
+    await service.updateCategory({ id: "cat-1", parentId: "new-parent", sortOrder: "1" });
+    expect(findBySortOrder).toHaveBeenCalledWith("1", "new-parent", "cat-1");
+  });
+
+  it("excludes the category's own id from the duplicate check (keeping the same value is not a conflict with itself)", async () => {
+    const findBySortOrder = vi.fn(async () => null);
+    const repo = fakeRepo({ getById: vi.fn(async () => makeCategory()), findBySortOrder });
+    const service = new CategoryAdminService(repo, fakeEventBus());
+
+    await service.updateCategory({ id: "cat-1", sortOrder: "1" });
+    expect(findBySortOrder).toHaveBeenCalledWith("1", null, "cat-1");
+    expect(repo.update).toHaveBeenCalled();
+  });
+
+  it("skips the duplicate check when sortOrder is omitted", async () => {
+    const findBySortOrder = vi.fn(async () => null);
+    const repo = fakeRepo({ getById: vi.fn(async () => makeCategory()), findBySortOrder });
+    const service = new CategoryAdminService(repo, fakeEventBus());
+
+    await service.updateCategory({ id: "cat-1", name: "New Name" });
+    expect(findBySortOrder).not.toHaveBeenCalled();
   });
 });
 

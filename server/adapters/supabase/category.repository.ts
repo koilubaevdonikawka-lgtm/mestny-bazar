@@ -8,7 +8,7 @@ function mapCategory(row: {
   slug: string;
   description: string | null;
   image_url: string | null;
-  sort_order: number;
+  sort_order_text: string;
   name_kg: string | null;
   parent_id: string | null;
 }): CategoryDTO {
@@ -18,13 +18,18 @@ function mapCategory(row: {
     slug: row.slug,
     description: row.description,
     imageUrl: row.image_url,
-    sortOrder: row.sort_order,
+    sortOrder: row.sort_order_text,
     nameKg: row.name_kg,
     parentId: row.parent_id,
   };
 }
 
-const CATEGORY_SELECT = "id, name, slug, description, image_url, sort_order, name_kg, parent_id";
+// Задача №232 — selects sort_order_text (generated text mirror), never the
+// raw numeric sort_order column: PostgREST serializes a `text` column as a
+// JSON string, preserved verbatim by supabase-js's JSON.parse, whereas a
+// JSON number literal would be parsed into a lossy double first.
+const CATEGORY_SELECT =
+  "id, name, slug, description, image_url, sort_order_text, name_kg, parent_id";
 
 /** Supabase category repository — buyers see active categories only. */
 export class SupabaseCategoryRepository implements ICategoryRepository {

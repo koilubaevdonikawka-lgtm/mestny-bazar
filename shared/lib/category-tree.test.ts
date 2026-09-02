@@ -8,7 +8,7 @@ function fakeCategory(overrides: Partial<CategoryDTO> & { id: string }): Categor
     slug: overrides.id,
     description: null,
     imageUrl: null,
-    sortOrder: 0,
+    sortOrder: "0",
     nameKg: null,
     parentId: null,
     ...overrides,

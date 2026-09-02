@@ -79,7 +79,7 @@ function toEditForm(category: AdminCategoryDTO): EditForm {
     description: category.description ?? "",
     imageUrl: category.imageUrl ?? "",
     nameKg: category.nameKg ?? "",
-    sortOrder: String(category.sortOrder),
+    sortOrder: category.sortOrder,
   };
 }
 
@@ -145,6 +145,22 @@ export function parseSortOrder(raw: string): string | null | "invalid" {
   return trimmed;
 }
 
+/**
+ * Задача №232 — same decimal-string validation as parseSortOrder, but
+ * empty means "leave unchanged" (`undefined`), not "clear to null":
+ * unlike products.sort_order, categories.sort_order stays `NOT NULL
+ * DEFAULT 0` — there's no valid null state to clear it to. On create,
+ * `undefined` lets the server auto-assign current-max+1 among siblings of
+ * the same parentId; on update, `undefined` simply isn't sent, leaving the
+ * existing value untouched.
+ */
+export function parseCategorySortOrder(raw: string): string | undefined | "invalid" {
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  if (!DECIMAL_STRING_RE.test(trimmed)) return "invalid";
+  return trimmed;
+}
+
 export function toProductForm(product: SellerProductDTO): ProductFormState {
   return {
     name: product.name,
@@ -178,6 +194,10 @@ function AdminCatalogPage() {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  // Задача №232 — only rendered/used when creating a SUBCATEGORY
+  // (viewCategoryId !== null in handleSubmit); top-level category creation
+  // is untouched, still has no sort-order input at all, same as before.
+  const [createSortOrder, setCreateSortOrder] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
@@ -261,6 +281,15 @@ function AdminCatalogPage() {
     () => categories?.find((c) => c.id === viewSubcategoryId) ?? null,
     [categories, viewSubcategoryId],
   );
+  // Задача №232 — the edit dialog is a single shared instance decoupled
+  // from list context, so it needs its own lookup to know whether the
+  // category currently open for editing is a subcategory (parentId set) —
+  // only then does the sort-order field's label/hint mention "among this
+  // category's subcategories" scoping.
+  const categoryBeingEdited = useMemo(
+    () => categories?.find((c) => c.id === editingId) ?? null,
+    [categories, editingId],
+  );
 
   const drillIntoCategory = (id: string) => {
     setViewCategoryId(id);
@@ -296,6 +325,7 @@ function AdminCatalogPage() {
       toast.success(t("admin.catalog.categoryCreatedToast"));
       setName("");
       setImageUrl(null);
+      setCreateSortOrder("");
     },
     onError: (e) =>
       toast.error(e instanceof Error ? e.message : t("admin.catalog.categoryCreateError")),
@@ -411,7 +441,16 @@ function AdminCatalogPage() {
     // viewCategoryId — null на экране основных категорий (создаётся
     // категория верхнего уровня), либо id просматриваемой категории на
     // экране подкатегорий (создаётся подкатегория с этим parentId).
-    createMutation.mutate({ name: name.trim(), parentId: viewCategoryId, imageUrl });
+    // Задача №232 — sortOrder только для подкатегорий (createSortOrder
+    // остаётся пустой строкой на экране верхнеуровневых категорий, где
+    // поле не отображается, поэтому parseCategorySortOrder всегда даёт
+    // undefined там — сервер, как и раньше, сам присвоит номер).
+    const sortOrder = parseCategorySortOrder(createSortOrder);
+    if (sortOrder === "invalid") {
+      setFormError(t("admin.catalog.invalidSortOrderError"));
+      return;
+    }
+    createMutation.mutate({ name: name.trim(), parentId: viewCategoryId, imageUrl, sortOrder });
   };
 
   const startEdit = (category: AdminCategoryDTO) => {
@@ -425,14 +464,18 @@ function AdminCatalogPage() {
       toast.error(t("admin.catalog.nameMinLengthError"));
       return;
     }
-    const sortOrder = Number(editForm.sortOrder);
+    const sortOrder = parseCategorySortOrder(editForm.sortOrder);
+    if (sortOrder === "invalid") {
+      toast.error(t("admin.catalog.invalidSortOrderError"));
+      return;
+    }
     saveEditMutation.mutate({
       id,
       name: editForm.name.trim(),
       description: editForm.description.trim() || null,
       imageUrl: editForm.imageUrl.trim() || null,
       nameKg: editForm.nameKg.trim() || null,
-      sortOrder: Number.isFinite(sortOrder) ? sortOrder : undefined,
+      sortOrder,
     });
   };
 
@@ -830,6 +873,27 @@ function AdminCatalogPage() {
           </div>
         </div>
         <ImageUploadField value={imageUrl} onChange={setImageUrl} context="category" />
+        {/* Задача №232 — only for subcategories (viewCategoryId set): a
+            top-level category still has no sort-order input at creation,
+            unchanged from before — the server auto-assigns silently. */}
+        {viewCategoryId !== null && (
+          <div className="grid gap-2">
+            <Label htmlFor="subcategory-sort-order">
+              {t("admin.catalog.subcategorySortOrderLabel")}
+            </Label>
+            <Input
+              id="subcategory-sort-order"
+              type="text"
+              inputMode="decimal"
+              placeholder={t("admin.catalog.subcategorySortOrderPlaceholder")}
+              value={createSortOrder}
+              onChange={(e) => setCreateSortOrder(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t("admin.catalog.subcategorySortOrderHint")}
+            </p>
+          </div>
+        )}
         <Button
           type="submit"
           className="h-12 w-fit rounded-full"
@@ -1077,13 +1141,23 @@ function AdminCatalogPage() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="edit-sort">{t("admin.catalog.sortOrderLabel")}</Label>
+                  <Label htmlFor="edit-sort">
+                    {categoryBeingEdited?.parentId != null
+                      ? t("admin.catalog.subcategorySortOrderLabel")
+                      : t("admin.catalog.sortOrderLabel")}
+                  </Label>
                   <Input
                     id="edit-sort"
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     value={editForm.sortOrder}
                     onChange={(e) => setEditForm({ ...editForm, sortOrder: e.target.value })}
                   />
+                  {categoryBeingEdited?.parentId != null && (
+                    <p className="text-xs text-muted-foreground">
+                      {t("admin.catalog.subcategorySortOrderHint")}
+                    </p>
+                  )}
                 </div>
               </div>
               <DialogFooter>

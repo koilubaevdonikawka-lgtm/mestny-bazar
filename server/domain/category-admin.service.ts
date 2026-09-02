@@ -28,6 +28,13 @@ export class CategoryAdminService {
     if (data.parentId !== undefined) {
       await this.assertValidParent(data.parentId, undefined);
     }
+    // Задача №232 — scoped to siblings of the SAME parentId (variant Б):
+    // a category under a different parent may freely share this value.
+    // Omitted entirely is fine — the repository auto-assigns current-max+1
+    // among that same sibling group, which can't collide by construction.
+    if (data.sortOrder !== undefined) {
+      await this.assertSortOrderFree(data.sortOrder, data.parentId ?? null);
+    }
     const slug = await this.resolveUniqueSlug(data.slug?.trim() || slugify(data.name, "category"));
 
     const category = await this.categories.create({ ...data, slug });
@@ -42,6 +49,13 @@ export class CategoryAdminService {
     if (data.name !== undefined) this.validateName(data.name);
     if (data.parentId !== undefined) {
       await this.assertValidParent(data.parentId, data.id);
+    }
+    if (data.sortOrder !== undefined) {
+      // parentId may itself be changing in this same update — scope the
+      // duplicate check against whichever parent the category ends up
+      // under, not the one it's leaving.
+      const parentId = data.parentId !== undefined ? data.parentId : existing.parentId;
+      await this.assertSortOrderFree(data.sortOrder, parentId, data.id);
     }
 
     let patch = { ...data };
@@ -103,6 +117,27 @@ export class CategoryAdminService {
    * comment; buildCategoryTree/getCategoryAncestry handle that defensively
    * on read instead of paying for a full ancestry walk on every write.
    */
+  /**
+   * Задача №232 — soft (not DB-enforced) duplicate check, scoped to
+   * siblings of the same parentId — mirrors SellerProductService's
+   * assertSortOrderFree, but with the extra parentId scope: two
+   * categories under DIFFERENT parents sharing the same sort_order is
+   * normal (variant Б), not a conflict.
+   */
+  private async assertSortOrderFree(
+    sortOrder: string,
+    parentId: string | null,
+    exceptId?: string,
+  ): Promise<void> {
+    const conflict = await this.categories.findBySortOrder(sortOrder, parentId, exceptId);
+    if (conflict) {
+      throw new CategoryValidationError(
+        `Sort order ${sortOrder} is already used by "${conflict.name}" under the same parent category`,
+        "sortOrder",
+      );
+    }
+  }
+
   private async assertValidParent(
     parentId: string | null,
     selfId: string | undefined,

@@ -190,7 +190,7 @@ describe("subscribeAuditLog", () => {
       slug: "dairy",
       description: null,
       imageUrl: null,
-      sortOrder: 0,
+      sortOrder: "0",
       isActive: true,
       nameKg: null,
       parentId: null,

@@ -4,7 +4,8 @@ export interface CategoryDTO {
   slug: string;
   description: string | null;
   imageUrl: string | null;
-  sortOrder: number;
+  /** Задача №232 — decimal string, not `number` (see AdminCategoryDTO.sortOrder for why). Scoped per parent_id — meaningful only among siblings. */
+  sortOrder: string;
   /** design.md — admin-editable Kyrgyz name, replaces the frontend's hardcoded KG_NAME_BY_SLUG map when set. */
   nameKg: string | null;
   /** Stage 10 (subcategory architecture): null = top-level category — every

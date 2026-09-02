@@ -521,6 +521,10 @@ export const zh = {
       nameKgLabel: "名称（吉尔吉斯语）",
       descriptionLabel: "描述",
       sortOrderLabel: "排序顺序",
+      subcategorySortOrderLabel: "子分类排序编号",
+      subcategorySortOrderPlaceholder: "例如：1.1",
+      subcategorySortOrderHint:
+        "该编号仅在同一父分类的子分类之间有意义 — 不同父分类下的子分类使用相同编号不算冲突。小数值可以让子分类插入到现有子分类之间，而无需更改其他编号。创建时留空 — 系统会自动分配编号（该分类下子分类的当前最大值 + 1）。",
       editButton: "编辑",
       viewOnStorefrontButton: "在商店中查看",
       newCategoryHeading: "新建分类",

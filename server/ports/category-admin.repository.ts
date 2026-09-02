@@ -12,4 +12,10 @@ export interface IAdminCategoryRepository {
   update(data: UpdateCategoryRequest): Promise<AdminCategoryDTO>;
   delete(id: string): Promise<void>;
   slugExists(slug: string, exceptId?: string): Promise<boolean>;
+  /** Задача №232 — soft duplicate-sortOrder check scoped to siblings of the same parentId (NULL-safe); returns the conflicting category's id/name, if any. */
+  findBySortOrder(
+    sortOrder: string,
+    parentId: string | null,
+    exceptId?: string,
+  ): Promise<{ id: string; name: string } | null>;
 }
