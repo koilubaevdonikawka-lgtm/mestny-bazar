@@ -619,6 +619,8 @@ export const ru = {
       weightLabel: "Вес, кг (для расчёта доставки)",
       weightPlaceholder: "например, 0.5",
       productSortOrderLabel: "Порядковый номер товара",
+      /** Задача №234 — compact label on the product grid card (Каталог list), not the edit form. */
+      productSortOrderShort: "№{{value}}",
       productSortOrderPlaceholder: "Например: 1.1",
       productSortOrderHint:
         "Единый порядок для всего каталога (категории не учитываются). Дробные значения позволяют вставить товар между существующими без изменения других номеров — например: 1.1, чтобы показать товар сразу после товара №1. Оставьте поле пустым при создании — номер присвоится автоматически (максимум + 1).",

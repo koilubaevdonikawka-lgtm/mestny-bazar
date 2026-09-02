@@ -269,6 +269,24 @@ function AdminCatalogPage() {
     () => (categories ?? []).filter((c) => c.parentId === null),
     [categories],
   );
+  // Задача №234 — SellerProductDTO only carries categoryId, not the
+  // category's name (unlike the customer-facing ProductDTO's `category`
+  // embed) — but the full category list is already loaded on this page
+  // for the Categories -> Subcategories navigation tree, so this is a
+  // free client-side lookup, no new request. "Категория → Подкатегория"
+  // when the product's own category has a parent, otherwise just the
+  // category name (product filed directly under a top-level category).
+  const categoriesById = useMemo(
+    () => new Map((categories ?? []).map((c) => [c.id, c])),
+    [categories],
+  );
+  const categoryPathLabel = (categoryId: string | null): string => {
+    if (!categoryId) return "—";
+    const category = categoriesById.get(categoryId);
+    if (!category) return "—";
+    const parent = category.parentId ? categoriesById.get(category.parentId) : null;
+    return parent ? `${parent.name} → ${category.name}` : category.name;
+  };
   const viewCategory = useMemo(
     () => categories?.find((c) => c.id === viewCategoryId) ?? null,
     [categories, viewCategoryId],
@@ -773,6 +791,15 @@ function AdminCatalogPage() {
         <p className="truncate text-sm font-medium">{product.name}</p>
         <p className="text-sm font-semibold">
           {product.price.toFixed(2)} {product.currency}
+        </p>
+        {/* Задача №234 — admin-only (this "Каталог" list is never rendered
+            for a customer), compact: sort order + category/subcategory
+            path, one truncated line. sortOrder can be null right after a
+            reset (Задача №233) — shown as "—", not blank/broken. */}
+        <p className="truncate text-[11px] text-muted-foreground">
+          {t("admin.catalog.productSortOrderShort", { value: product.sortOrder ?? "—" })}
+          {" · "}
+          {categoryPathLabel(product.categoryId)}
         </p>
       </div>
       <div className="mt-auto flex flex-wrap items-center gap-0.5 border-t border-border/60 px-1 py-1">
