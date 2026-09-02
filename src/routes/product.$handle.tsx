@@ -12,6 +12,7 @@ import { useCartStore } from "@/stores/cartStore";
 import { BRAND } from "@/config/brand";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
+import { ImageLightbox } from "@/components/product/ImageLightbox";
 
 /** `from=admin` — set only by the admin catalog's own "view on storefront"
  * link (Этап №3); everywhere else this is simply absent, so the "return to
@@ -88,7 +89,13 @@ function ProductPage() {
   const navigate = Route.useNavigate();
   const { t, language } = useTranslation();
   const [selectedImage, setSelectedImage] = useState(0);
+  // Задача №244 — fullscreen pinch-zoom viewer, opened by tapping the main
+  // photo; shares selectedImage/setSelectedImage with the page itself so
+  // swiping to a different photo inside it keeps the thumbnail rail (and
+  // the page's own state) in sync, both while open and after closing.
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
 
   // Часть 3 задачи "СТРАНИЦА ТОВАРА" — количество, выбираемое ДО добавления
   // в корзину/покупки, независимо от того, что уже лежит в корзине (в
@@ -174,14 +181,39 @@ function ProductPage() {
   // on this page read it. Browsing other products in the category still
   // works, just via the subcategory's own product list, not a swipe here.
   const SWIPE_THRESHOLD_PX = 50;
+  // Задача №244 — a tap (negligible movement on both axes) opens the
+  // fullscreen lightbox; a horizontal swipe still switches this product's
+  // photos, exactly as before — same touch zone, disambiguated purely by
+  // how far the finger actually moved, so the two gestures never conflict.
+  const TAP_MOVEMENT_PX = 10;
   const handleImageTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0]?.clientX ?? null;
+    touchStartY.current = e.touches[0]?.clientY ?? null;
   };
   const handleImageTouchEnd = (e: React.TouchEvent) => {
     const startX = touchStartX.current;
+    const startY = touchStartY.current;
     touchStartX.current = null;
-    if (startX === null || images.length <= 1) return;
-    const deltaX = (e.changedTouches[0]?.clientX ?? startX) - startX;
+    touchStartY.current = null;
+    if (startX === null) return;
+    // Suppresses the browser's own delayed click-synthesis for this touch
+    // (standard mobile behavior — a `click` fires shortly after touchend at
+    // the same point) — without this, a tap that opens the lightbox could
+    // get its own follow-up synthetic click delivered to the lightbox
+    // AFTER it mounts and now covers that same point, bubbling to its
+    // backdrop's onClose and closing it again immediately. Doesn't affect
+    // the container's touch-pan-y native vertical scroll — that's governed
+    // by touchmove/touch-action, not a touchend preventDefault.
+    e.preventDefault();
+    const endTouch = e.changedTouches[0];
+    const deltaX = (endTouch?.clientX ?? startX) - startX;
+    const deltaY = (endTouch?.clientY ?? startY ?? 0) - (startY ?? 0);
+
+    if (Math.abs(deltaX) < TAP_MOVEMENT_PX && Math.abs(deltaY) < TAP_MOVEMENT_PX) {
+      if (activeImage) setLightboxOpen(true);
+      return;
+    }
+    if (images.length <= 1) return;
     if (deltaX <= -SWIPE_THRESHOLD_PX) {
       goToNextImage();
     } else if (deltaX >= SWIPE_THRESHOLD_PX) {
@@ -324,13 +356,18 @@ function ProductPage() {
               className="relative aspect-square touch-pan-y overflow-hidden rounded-2xl bg-secondary lg:rounded-[2rem]"
               onTouchStart={handleImageTouchStart}
               onTouchEnd={handleImageTouchEnd}
+              // Задача №244 — desktop has no touch events at all, so a tap
+              // there is a plain click on the photo itself (arrow buttons
+              // stop propagation below, so clicking them doesn't also
+              // trigger this).
+              onClick={() => activeImage && setLightboxOpen(true)}
             >
               {activeImage ? (
                 <img
                   src={activeImage.node.url}
                   alt={activeImage.node.altText || displayTitle}
                   fetchPriority="high"
-                  className={`w-full h-full object-cover ${!product.inStock ? "opacity-60 grayscale-[30%]" : ""}`}
+                  className={`h-full w-full object-cover cursor-zoom-in ${!product.inStock ? "opacity-60 grayscale-[30%]" : ""}`}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-muted-foreground">
@@ -351,7 +388,12 @@ function ProductPage() {
               {images.length > 1 && (
                 <button
                   type="button"
-                  onClick={goToPrevImage}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    goToPrevImage();
+                  }}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onTouchEnd={(e) => e.stopPropagation()}
                   aria-label={t("product.prevImage")}
                   className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/85 text-foreground shadow-md backdrop-blur-sm transition-transform hover:scale-105"
                 >
@@ -361,7 +403,12 @@ function ProductPage() {
               {images.length > 1 && (
                 <button
                   type="button"
-                  onClick={goToNextImage}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    goToNextImage();
+                  }}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onTouchEnd={(e) => e.stopPropagation()}
                   aria-label={t("product.nextImage")}
                   className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/85 text-foreground shadow-md backdrop-blur-sm transition-transform hover:scale-105"
                 >
@@ -468,6 +515,22 @@ function ProductPage() {
         </div>
         <div className="px-4 pb-3 pt-2">{purchaseControls}</div>
       </div>
+
+      {/* Задача №244 — fullscreen pinch-zoom viewer. Shares selectedImage
+          with the page's own thumbnail rail (onIndexChange), so swiping to
+          a different photo in here is reflected there too, both while open
+          and after closing. */}
+      {lightboxOpen && (
+        <ImageLightbox
+          images={images.map((image) => ({
+            url: image.node.url,
+            alt: image.node.altText || displayTitle,
+          }))}
+          index={selectedImage}
+          onIndexChange={setSelectedImage}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
     </div>
   );
 }
