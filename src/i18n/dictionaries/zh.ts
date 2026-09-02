@@ -577,6 +577,8 @@ export const zh = {
       productSortOrderPlaceholder: "例如：1.1",
       productSortOrderHint:
         "整个商品目录使用统一排序（与分类无关）。小数值可以让商品插入到现有商品之间，而无需更改其他编号 — 例如：1.1 表示紧跟在 №1 商品之后显示。创建时留空 — 系统会自动分配编号（当前最大值 + 1）。",
+      productSortOrderStatsHint: "已使用整数编号：{{count}} 个（最大值：{{max}}）",
+      productSortOrderStatsEmpty: "暂无整数编号 — 这将是第一个",
       publicationStatusLabel: "发布状态",
       productStatusDraft: "草稿",
       productStatusPublished: "已发布",

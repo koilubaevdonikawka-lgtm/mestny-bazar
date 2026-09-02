@@ -36,6 +36,7 @@ import {
 import {
   createAdminProduct,
   deleteAdminProduct,
+  getProductSortOrderStats,
   listAdminProducts,
   updateAdminProduct,
 } from "@/api/product-admin";
@@ -1296,6 +1297,15 @@ export function ProductFormFields({
     nameInputRef.current?.focus();
   }, []);
 
+  // Задача №237 — reference-only, справочная строка под полем "Порядковый
+  // номер товара"; отдельный лёгкий запрос (одна SQL-агрегация), а не часть
+  // основного listProducts. Форма (и создание, и редактирование) всегда
+  // монтируется заново при открытии — данные всегда свежие на момент показа.
+  const { data: sortOrderStats } = useQuery({
+    queryKey: ["admin", "products", "sortOrderStats"],
+    queryFn: getProductSortOrderStats,
+  });
+
   return (
     <div className="space-y-3">
       <div className="grid gap-2">
@@ -1407,6 +1417,16 @@ export function ProductFormFields({
             onChange={(e) => setForm({ ...form, sortOrder: e.target.value })}
           />
           <p className="text-xs text-muted-foreground">{t("admin.catalog.productSortOrderHint")}</p>
+          {sortOrderStats && (
+            <p className="text-xs text-muted-foreground">
+              {sortOrderStats.maxWhole === null
+                ? t("admin.catalog.productSortOrderStatsEmpty")
+                : t("admin.catalog.productSortOrderStatsHint", {
+                    count: String(sortOrderStats.distinctWholeCount),
+                    max: sortOrderStats.maxWhole,
+                  })}
+            </p>
+          )}
         </div>
       </div>
 

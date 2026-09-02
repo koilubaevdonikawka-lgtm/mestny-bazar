@@ -2036,6 +2036,11 @@ export type Database = {
       next_product_sort_order: { Args: never; Returns: string };
       /** Задача №232 — returns text (not numeric) on purpose, same JSON.parse precision reason as next_product_sort_order. p_parent_id: null correctly scopes to top-level categories (IS NOT DISTINCT FROM). */
       next_subcategory_sort_order: { Args: { p_parent_id: string | null }; Returns: string };
+      /** Задача №237 — reference-only aggregate for the product form's sort-order hint. max_whole returns text for the same JSON.parse precision reason as next_product_sort_order; distinct_whole_count is a plain small count, safe as a JSON number. Always exactly one row, even over zero matching products. */
+      product_sort_order_stats: {
+        Args: never;
+        Returns: { max_whole: string | null; distinct_whole_count: number }[];
+      };
       release_product_stock: { Args: { items: Json }; Returns: undefined };
       release_variant_stock: { Args: { items: Json }; Returns: undefined };
       reserve_product_stock: { Args: { items: Json }; Returns: undefined };

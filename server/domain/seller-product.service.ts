@@ -1,6 +1,7 @@
 import type {
   CreateSellerProductRequest,
   ProductPublicationStatus,
+  ProductSortOrderStatsDTO,
   SellerProductDTO,
   SellerProductListParams,
   SellerProductListResult,
@@ -42,6 +43,11 @@ export class SellerProductService {
   /** Admin-wide, paginated, cross-seller view (Промпт №103 — server-side pagination). */
   async listAllProducts(params: SellerProductListParams): Promise<SellerProductListResult> {
     return this.products.listAll(params);
+  }
+
+  /** Задача №237 — reference-only stats for the product form's sort-order hint. */
+  async getSortOrderStats(): Promise<ProductSortOrderStatsDTO> {
+    return this.products.getSortOrderStats();
   }
 
   async getProduct(id: string, sellerId: string): Promise<SellerProductDTO> {

@@ -1,6 +1,7 @@
 import type {
   CreateSellerProductRequest,
   ProductPublicationStatus,
+  ProductSortOrderStatsDTO,
   SellerProductDTO,
   SellerProductListParams,
   SellerProductListResult,
@@ -161,6 +162,20 @@ export class SupabaseSellerProductRepository implements ISellerProductRepository
     const { data, error } = await supabaseAdmin.rpc("next_product_sort_order");
     if (error) throw new Error(`Failed to compute next sort order: ${error.message}`);
     return data;
+  }
+
+  /**
+   * Задача №237 — reference-only stats for the product form's hint (never
+   * used in save/auto-assign logic). product_sort_order_stats() always
+   * returns exactly one row, even over zero numbered products (max_whole
+   * null, distinct_whole_count 0) — the `?? []`/fallback below only guards
+   * a genuinely empty RPC response, not the "no products numbered" case.
+   */
+  async getSortOrderStats(): Promise<ProductSortOrderStatsDTO> {
+    const { data, error } = await supabaseAdmin.rpc("product_sort_order_stats");
+    if (error) throw new Error(`Failed to compute sort order stats: ${error.message}`);
+    const row = (data ?? [])[0] ?? { max_whole: null, distinct_whole_count: 0 };
+    return { maxWhole: row.max_whole, distinctWholeCount: row.distinct_whole_count };
   }
 
   async create(

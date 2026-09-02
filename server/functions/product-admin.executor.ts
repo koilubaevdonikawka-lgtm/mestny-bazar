@@ -1,5 +1,6 @@
 import type {
   CreateSellerProductRequest,
+  ProductSortOrderStatsDTO,
   SellerProductDTO,
   SellerProductListParams,
   SellerProductListResult,
@@ -38,4 +39,10 @@ export async function executeUpdateAdminProduct(
 export async function executeDeleteAdminProduct(id: string): Promise<void> {
   await requireAdminFromRequest();
   return getServices().sellerProductService.deleteProduct(null, id);
+}
+
+/** Задача №237 — reference-only stats for the product form's sort-order hint (not the list/save path). */
+export async function executeGetProductSortOrderStats(): Promise<ProductSortOrderStatsDTO> {
+  await requireAdminFromRequest();
+  return getServices().sellerProductService.getSortOrderStats();
 }

@@ -1,5 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { SellerProductDTO, SellerProductListResult } from "@shared/contracts/seller-product";
+import type {
+  ProductSortOrderStatsDTO,
+  SellerProductDTO,
+  SellerProductListResult,
+} from "@shared/contracts/seller-product";
 import { updateSellerProductRequestSchema } from "@shared/validation/seller-product.schema";
 import {
   createAdminProductRequestSchema,
@@ -34,3 +38,12 @@ export const deleteAdminProductFn = createServerFn({ method: "POST" })
     const { executeDeleteAdminProduct } = await import("@server/functions/product-admin.executor");
     return executeDeleteAdminProduct(data.id);
   });
+
+/** Задача №237 — reference-only stats for the product form's sort-order hint. */
+export const getProductSortOrderStatsFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<ProductSortOrderStatsDTO> => {
+    const { executeGetProductSortOrderStats } =
+      await import("@server/functions/product-admin.executor");
+    return executeGetProductSortOrderStats();
+  },
+);

@@ -63,6 +63,7 @@ function fakeRepo(overrides: Partial<ISellerProductRepository> = {}): ISellerPro
     slugExists: vi.fn(async () => false),
     findBySortOrder: vi.fn(async () => null),
     getNextSortOrder: vi.fn(async () => "1"),
+    getSortOrderStats: vi.fn(async () => ({ maxWhole: null, distinctWholeCount: 0 })),
     ...overrides,
   };
 }
@@ -653,5 +654,27 @@ describe("SellerProductService publish/hide", () => {
 
     await expect(service.publishProduct("seller-1", "product-1")).rejects.toThrow("denied");
     expect(repo.setPublicationStatus).not.toHaveBeenCalled();
+  });
+});
+
+describe("SellerProductService.getSortOrderStats (Задача №237)", () => {
+  it("passes through the repository's SQL-computed stats unchanged", async () => {
+    const getSortOrderStats = vi.fn(async () => ({ maxWhole: "41", distinctWholeCount: 23 }));
+    const repo = fakeRepo({ getSortOrderStats });
+    const service = new SellerProductService(repo, fakeCategories(), fakePolicy(), fakeEventBus());
+
+    const result = await service.getSortOrderStats();
+
+    expect(getSortOrderStats).toHaveBeenCalled();
+    expect(result).toEqual({ maxWhole: "41", distinctWholeCount: 23 });
+  });
+
+  it("passes through the no-numbered-products case (maxWhole null, count 0) without substituting anything", async () => {
+    const repo = fakeRepo();
+    const service = new SellerProductService(repo, fakeCategories(), fakePolicy(), fakeEventBus());
+
+    const result = await service.getSortOrderStats();
+
+    expect(result).toEqual({ maxWhole: null, distinctWholeCount: 0 });
   });
 });

@@ -91,3 +91,17 @@ export interface SellerProductListParams {
   page?: number;
   pageSize?: number;
 }
+
+/**
+ * Задача №237 — reference-only stats for the product form's sort-order
+ * hint, never used in list/save logic. maxWhole is a decimal STRING for
+ * the same JSON.parse precision reason as SellerProductDTO.sortOrder —
+ * both are computed server-side (SQL FLOOR/COUNT DISTINCT), never JS
+ * Math.floor. distinctWholeCount is a plain count, safe as `number`.
+ * maxWhole: null / distinctWholeCount: 0 means no product has a sortOrder
+ * set yet (e.g. right after the Задача №233 reset).
+ */
+export interface ProductSortOrderStatsDTO {
+  maxWhole: string | null;
+  distinctWholeCount: number;
+}

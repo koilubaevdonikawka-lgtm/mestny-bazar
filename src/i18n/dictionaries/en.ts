@@ -594,6 +594,8 @@ export const en = {
       productSortOrderPlaceholder: "e.g.: 1.1",
       productSortOrderHint:
         "One shared order across the whole catalog (categories don't matter). Fractional values let you insert a product between existing ones without changing any other numbers — e.g.: 1.1 to show it right after product #1. Leave it empty when creating — a number is assigned automatically (current max + 1).",
+      productSortOrderStatsHint: "Whole numbers in use: {{count}} (highest: {{max}})",
+      productSortOrderStatsEmpty: "No whole numbers yet — this will be the first",
       publicationStatusLabel: "Publication status",
       productStatusDraft: "Draft",
       productStatusPublished: "Published",
