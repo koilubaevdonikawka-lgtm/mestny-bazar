@@ -1,9 +1,10 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadImage } from "@/api/media-upload";
+import { compressImageForUpload } from "@/lib/image-compression";
 import {
   MEDIA_UPLOAD_ALLOWED_MIME_TYPES,
   MEDIA_UPLOAD_MAX_BYTES,
@@ -33,6 +34,9 @@ export function ImageUploadField({
   disabled,
 }: ImageUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  // Задача №239 — separate from mutation.isPending: compression (Canvas,
+  // client-side) runs BEFORE the upload request even starts.
+  const [isCompressing, setIsCompressing] = useState(false);
 
   const mutation = useMutation({
     mutationFn: (file: File) => uploadImage(file, context),
@@ -41,7 +45,7 @@ export function ImageUploadField({
       toast.error(e instanceof Error ? e.message : "Не удалось загрузить изображение"),
   });
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
@@ -50,11 +54,33 @@ export function ImageUploadField({
       toast.error("Поддерживаются только изображения PNG, JPEG, WEBP или AVIF");
       return;
     }
-    if (file.size > MEDIA_UPLOAD_MAX_BYTES) {
-      toast.error("Размер файла не должен превышать 5 МБ");
+
+    // Задача №239 — resizes/re-encodes down toward the server limit before
+    // it ever leaves the browser; a no-op for a file already comfortably
+    // under it (see compressImageForUpload's own skip threshold).
+    let toUpload: File;
+    setIsCompressing(true);
+    try {
+      toUpload = await compressImageForUpload(file);
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Не удалось сжать фото до нужного размера, попробуйте другое изображение",
+      );
+      return;
+    } finally {
+      setIsCompressing(false);
+    }
+
+    // Belt-and-suspenders: compressImageForUpload targets a margin under
+    // MEDIA_UPLOAD_MAX_BYTES and throws on failure, so this should never
+    // trip — but a doomed request is never sent regardless.
+    if (toUpload.size > MEDIA_UPLOAD_MAX_BYTES) {
+      toast.error("Не удалось сжать фото до нужного размера, попробуйте другое изображение");
       return;
     }
-    mutation.mutate(file);
+    mutation.mutate(toUpload);
   };
 
   return (
@@ -79,15 +105,15 @@ export function ImageUploadField({
           type="button"
           variant="outline"
           size="sm"
-          disabled={disabled || mutation.isPending}
+          disabled={disabled || isCompressing || mutation.isPending}
           onClick={() => inputRef.current?.click()}
         >
-          {mutation.isPending ? (
+          {isCompressing || mutation.isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <ImagePlus className="h-4 w-4" />
           )}
-          {value ? "Заменить" : "Загрузить изображение"}
+          {isCompressing ? "Сжимаем фото..." : value ? "Заменить" : "Загрузить изображение"}
         </Button>
         <input
           ref={inputRef}

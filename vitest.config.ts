@@ -9,12 +9,21 @@ export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
     environment: "node",
-    // src/hooks/**/*.test.ts only — deliberately narrow, not all of src/.
-    // This project's frontend layer has no test coverage at all (no jsdom,
-    // no @testing-library/react); adding either is out of scope here, so
-    // useResetOnAppForeground.test.ts exercises the hook's setup/teardown
-    // logic directly (a plain exported function, no React rendering
-    // involved) rather than through renderHook.
-    include: ["server/**/*.test.ts", "shared/**/*.test.ts", "src/hooks/**/*.test.ts"],
+    // src/hooks/**/*.test.ts and src/lib/**/*.test.ts only — deliberately
+    // narrow, not all of src/. This project's frontend layer has no test
+    // coverage at all (no jsdom, no @testing-library/react); adding either
+    // is out of scope here, so useResetOnAppForeground.test.ts and
+    // image-compression.test.ts each exercise a plain exported function
+    // directly (no React rendering, no Canvas/createImageBitmap — Node has
+    // no browser Canvas implementation, so image-compression.test.ts only
+    // covers the size-based skip branch that runs before any Canvas call;
+    // the actual resize/re-encode path is verified in a real browser, see
+    // Задача №239's report).
+    include: [
+      "server/**/*.test.ts",
+      "shared/**/*.test.ts",
+      "src/hooks/**/*.test.ts",
+      "src/lib/**/*.test.ts",
+    ],
   },
 });
