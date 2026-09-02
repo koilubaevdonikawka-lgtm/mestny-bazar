@@ -82,9 +82,19 @@ export class SupabaseSellerProductRepository implements ISellerProductRepository
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
+    // Задача №236 — admin Каталог list now follows the same manual
+    // sort_order as the storefront (Задача №231): ascending, NULLs last so
+    // not-yet-numbered products (e.g. right after the Задача №233 reset)
+    // still show up, at the end, instead of vanishing or floating to the
+    // top. Ordered on the real numeric `sort_order` column, not the
+    // `sort_order_text` mirror PRODUCT_SELECT reads for display — a
+    // lexicographic ORDER BY on the text column would sort "10" before
+    // "2". Tiebreak on created_at desc (newest first) for a stable order
+    // among equal/absent sort_order values, mirroring product.repository.ts.
     const { data, error, count } = await supabaseAdmin
       .from("products")
       .select(PRODUCT_SELECT, { count: "exact" })
+      .order("sort_order", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false })
       .range(from, to);
 
