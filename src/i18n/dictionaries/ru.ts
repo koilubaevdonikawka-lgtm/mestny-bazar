@@ -570,6 +570,8 @@ export const ru = {
       subcategorySortOrderPlaceholder: "Например: 1.1",
       subcategorySortOrderHint:
         "Номер учитывается только среди подкатегорий этой же родительской категории — у подкатегорий других категорий тот же номер не считается конфликтом. Дробные значения позволяют вставить подкатегорию между существующими без изменения других номеров. Оставьте поле пустым при создании — номер присвоится автоматически (максимум + 1 среди подкатегорий этой категории).",
+      /** Задача №235 — compact label on the subcategory grid card (Каталог list), not the edit form. */
+      categorySortOrderShort: "№{{value}}",
       editButton: "Изменить",
       viewOnStorefrontButton: "Смотреть на витрине",
       newCategoryHeading: "Новая категория",

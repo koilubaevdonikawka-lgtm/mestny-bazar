@@ -702,6 +702,16 @@ function AdminCatalogPage() {
         {category.nameKg && (
           <p className="truncate text-[11px] text-muted-foreground">{category.nameKg}</p>
         )}
+        {/* Задача №235 — только у подкатегорий (parentId != null), как у
+            товаров в Задаче №234; у категорий верхнего уровня эта строка
+            не показывается — эта же карточка используется для обоих
+            уровней. sortOrder у категорий не бывает null (NOT NULL,
+            Задача №232) — "||" здесь чисто defensive, не ожидаемый путь. */}
+        {category.parentId != null && (
+          <p className="truncate text-[11px] text-muted-foreground">
+            {t("admin.catalog.categorySortOrderShort", { value: category.sortOrder || "—" })}
+          </p>
+        )}
       </div>
 
       {/* Низ — кнопки управления: Редактировать, Удалить,
@@ -789,6 +799,12 @@ function AdminCatalogPage() {
       </div>
       <div className="min-w-0 px-2 pt-1.5 pb-1">
         <p className="truncate text-sm font-medium">{product.name}</p>
+        {/* Задача №235 — admin-only, one truncated line, same pattern as
+            the settings page. Omitted entirely (no dash placeholder) when
+            the product has no description, per Doniar's instruction. */}
+        {product.description && (
+          <p className="truncate text-xs text-muted-foreground">{product.description}</p>
+        )}
         <p className="text-sm font-semibold">
           {product.price.toFixed(2)} {product.currency}
         </p>

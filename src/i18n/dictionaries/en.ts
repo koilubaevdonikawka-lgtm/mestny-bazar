@@ -541,6 +541,7 @@ export const en = {
       subcategorySortOrderPlaceholder: "e.g.: 1.1",
       subcategorySortOrderHint:
         "Only matters among subcategories of this same parent category — a subcategory under a different category can share the same number, that's not a conflict. Fractional values let you insert one between existing subcategories without changing any other numbers. Leave it empty when creating — a number is assigned automatically (current max + 1 among this category's subcategories).",
+      categorySortOrderShort: "#{{value}}",
       editButton: "Edit",
       viewOnStorefrontButton: "View on storefront",
       newCategoryHeading: "New category",
