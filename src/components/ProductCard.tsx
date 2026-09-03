@@ -24,12 +24,16 @@ import { formatDisplayPrice } from "@/lib/formatPrice";
  * before).
  *
  * Задача №253 — photo/info columns are grid-cols-[40%_60%], not an even
- * 50/50: object-contain (Задача №252, fixing crop) left visible beige
- * letterboxing on a 4:3/square box for a typical tall product photo
- * (a bottle) — a narrower 3:4 box shrinks that margin for most products,
- * and giving the info column more width than the photo (instead of the
- * old "never wider than the photo" cap) gives the description block room
- * to actually read as content next to it.
+ * 50/50 (still the case after Задача №254 below): the info column having
+ * more width than the photo (instead of the old "never wider than the
+ * photo" cap) gives the description block room to actually read as
+ * content next to it.
+ *
+ * Задача №254 — object-cover (reverted from Задача №252/253's
+ * object-contain, on THIS card only): zero beige margins beats zero
+ * cropping here, a conscious tradeoff. aspect-[3/4] stays — narrower than
+ * the old 4:3/square, so a typical tall bottle photo still loses less to
+ * cropping than a wider box would.
  */
 export function ProductCard({ product }: { product: CatalogProductNode }) {
   const { t, language } = useTranslation();
@@ -48,25 +52,26 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
       params={{ handle: p.handle }}
       className="group grid grid-cols-[40%_60%] gap-2 overflow-hidden rounded-2xl bg-white py-1 pr-1 transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)] sm:gap-4 sm:py-4 sm:pr-4"
     >
-      {/* Задача №253 — narrower/taller box (3:4, was 4:3/square) is closer
-          to a typical product photo's real proportions (a bottle, a jar) —
-          shrinks the beige object-contain letterboxing for most products,
-          and (with the grid columns below) narrows the whole photo column.
-          A small padding around the <img> itself (not the box) keeps a
-          minimum breathing room even for a photo that happens to match the
-          box exactly (zero letterboxing) — object-contain still fits it
-          within that padded area, so it never looks edge-to-edge/cramped.
-          Задача №252 — object-contain (not object-cover), same fix as the
-          admin catalog card (Задача №240): a fixed-ratio box with
-          object-cover crops any photo whose real aspect ratio doesn't
-          match (a tall narrow bottle loses its neck/base). */}
-      <div className="aspect-[3/4] w-full overflow-hidden rounded-xl bg-secondary p-1.5">
+      {/* Задача №254 — back to object-cover, deliberately reverting Задача
+          №252's object-contain on THIS card only (a conscious tradeoff,
+          per Doniar directly: zero beige margins matters more here than
+          zero cropping — the admin catalog card, Задача №240, keeps
+          object-contain, that decision is untouched). object-cover always
+          fills the box completely, so no padding around the <img> either —
+          any padding would itself show as a colored margin against
+          bg-secondary regardless of the photo's aspect ratio, which is
+          exactly what this is trying to eliminate.
+          aspect-[3/4] (still, unchanged since Задача №253) — a
+          narrower/taller box than the old 4:3/square keeps the amount
+          actually cropped off a typical tall bottle photo smaller than a
+          wider box would, without giving up the "no margins" goal. */}
+      <div className="aspect-[3/4] w-full overflow-hidden rounded-xl bg-secondary">
         {image ? (
           <img
             src={image.url}
             alt={image.altText || displayTitle}
             loading="lazy"
-            className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
