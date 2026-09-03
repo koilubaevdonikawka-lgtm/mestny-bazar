@@ -90,6 +90,15 @@ export interface SellerProductListResult {
 export interface SellerProductListParams {
   page?: number;
   pageSize?: number;
+  /**
+   * Задача №247 — filters at the SQL level, before pagination, same
+   * technique as the storefront's product.repository.ts (`.eq("category_id",
+   * ...)` ahead of `.range()`). Omitted = the unscoped, whole-catalog list.
+   * Admin Каталог's per-subcategory screen always passes this now, so one
+   * subcategory's products can no longer push another's out of a shared,
+   * catalog-wide page limit.
+   */
+  categoryId?: string;
 }
 
 /**

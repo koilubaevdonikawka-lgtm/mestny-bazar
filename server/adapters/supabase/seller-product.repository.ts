@@ -92,9 +92,18 @@ export class SupabaseSellerProductRepository implements ISellerProductRepository
     // lexicographic ORDER BY on the text column would sort "10" before
     // "2". Tiebreak on created_at desc (newest first) for a stable order
     // among equal/absent sort_order values, mirroring product.repository.ts.
-    const { data, error, count } = await supabaseAdmin
-      .from("products")
-      .select(PRODUCT_SELECT, { count: "exact" })
+    let query = supabaseAdmin.from("products").select(PRODUCT_SELECT, { count: "exact" });
+
+    // Задача №247 — same technique as the storefront's product.repository.ts:
+    // filter by category_id at the SQL level, BEFORE .range(), so one
+    // subcategory's products can never push another's out of a shared,
+    // catalog-wide page limit. Omitted params.categoryId keeps the old
+    // unscoped, whole-catalog behavior (still used where that's wanted).
+    if (params.categoryId) {
+      query = query.eq("category_id", params.categoryId);
+    }
+
+    const { data, error, count } = await query
       .order("sort_order", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false })
       .range(from, to);

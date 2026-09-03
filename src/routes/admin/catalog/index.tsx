@@ -208,7 +208,15 @@ function AdminCatalogPage() {
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editProductForm, setEditProductForm] = useState<ProductFormState | null>(null);
 
-  const [productsPage, setProductsPage] = useState(1);
+  // Задача №247 — one page-cursor and one hasMore/total pair PER
+  // subcategory (keyed by category id), not a single global page number —
+  // each subcategory's "Показать ещё" advances only its own listing.
+  const [subcategoryProductsPage, setSubcategoryProductsPage] = useState<Record<string, number>>(
+    {},
+  );
+  const [subcategoryProductsMeta, setSubcategoryProductsMeta] = useState<
+    Record<string, { total: number; hasMore: boolean }>
+  >({});
   const [products, setProducts] = useState<SellerProductDTO[]>([]);
   // Ref, not state — only read inside the mutation's onSuccess callback,
   // never in JSX, so it doesn't need to trigger a re-render when set.
@@ -236,24 +244,55 @@ function AdminCatalogPage() {
     retry: false,
   });
 
+  // Задача №247 — scoped to the subcategory currently open (category_id
+  // filtered server-side, before pagination — same technique as the
+  // storefront's product.repository.ts), not the whole catalog: one
+  // subcategory's products can no longer push another's out of a shared,
+  // catalog-wide page limit. No query at all outside a subcategory screen
+  // (Categories/Subcategories levels show only category tiles, no products).
+  const currentSubcategoryPage = viewSubcategoryId
+    ? (subcategoryProductsPage[viewSubcategoryId] ?? 1)
+    : 1;
   const { data: productsPageResult } = useQuery({
-    queryKey: ["admin", "products", "list", productsPage],
-    queryFn: () => listAdminProducts({ page: productsPage, pageSize: ADMIN_PRODUCTS_PAGE_SIZE }),
-    enabled: isAuthenticated === true,
+    queryKey: [
+      "admin",
+      "products",
+      "list",
+      "byCategory",
+      viewSubcategoryId,
+      currentSubcategoryPage,
+    ],
+    queryFn: () =>
+      listAdminProducts({
+        categoryId: viewSubcategoryId!,
+        page: currentSubcategoryPage,
+        pageSize: ADMIN_PRODUCTS_PAGE_SIZE,
+      }),
+    enabled: isAuthenticated === true && !!viewSubcategoryId,
     retry: false,
   });
 
-  // Server-paginated (Промпт №103) — pages accumulate into one list as the
-  // admin clicks "Показать ещё"; a create/update refetches the current page
-  // and upserts by id, so edited items always reflect the latest fetch.
+  // Pages accumulate into one list as the admin clicks "Показать ещё" for
+  // this subcategory; a create/update refetches the current page and
+  // upserts by id, so edited items always reflect the latest fetch.
+  // productsByCategory (below) naturally ends up holding exactly whatever
+  // subcategories have been visited so far — each one already correctly
+  // scoped by the query itself, nothing to additionally filter here.
   useEffect(() => {
-    if (!productsPageResult) return;
+    if (!productsPageResult || !viewSubcategoryId) return;
     setProducts((prev) => {
       const byId = new Map(prev.map((p) => [p.id, p]));
       for (const p of productsPageResult.items) byId.set(p.id, p);
       return Array.from(byId.values());
     });
-  }, [productsPageResult]);
+    setSubcategoryProductsMeta((prev) => ({
+      ...prev,
+      [viewSubcategoryId]: {
+        total: productsPageResult.total,
+        hasMore: productsPageResult.hasMore,
+      },
+    }));
+  }, [productsPageResult, viewSubcategoryId]);
 
   const productsByCategory = useMemo(() => {
     const map = new Map<string, SellerProductDTO[]>();
@@ -1078,6 +1117,30 @@ function AdminCatalogPage() {
                 </div>
               )}
             </section>
+
+            {/* Задача №247 — scoped to THIS subcategory's own page cursor/
+                total, not a catalog-wide one; advancing it only ever loads
+                more of this subcategory's products. */}
+            {subcategoryProductsMeta[viewSubcategory.id]?.hasMore && (
+              <div className="mt-4 flex justify-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() =>
+                    setSubcategoryProductsPage((prev) => ({
+                      ...prev,
+                      [viewSubcategory.id]: (prev[viewSubcategory.id] ?? 1) + 1,
+                    }))
+                  }
+                >
+                  {t("admin.catalog.showMoreProductsButton", {
+                    shown: String(productsByCategory.get(viewSubcategory.id)?.length ?? 0),
+                    total: String(subcategoryProductsMeta[viewSubcategory.id]?.total ?? 0),
+                  })}
+                </Button>
+              </div>
+            )}
           </>
         ) : viewCategory ? (
           /* Уровень 2: подкатегории выбранной основной категории. */
@@ -1123,22 +1186,6 @@ function AdminCatalogPage() {
                 </div>
               )}
             </section>
-
-            {productsPageResult?.hasMore && (
-              <div className="mt-4 flex justify-center">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-full"
-                  onClick={() => setProductsPage((p) => p + 1)}
-                >
-                  {t("admin.catalog.showMoreProductsButton", {
-                    shown: String(products.length),
-                    total: String(productsPageResult.total),
-                  })}
-                </Button>
-              </div>
-            )}
 
             {renderCreateCategoryForm(t("admin.catalog.newCategoryHeading"))}
           </>

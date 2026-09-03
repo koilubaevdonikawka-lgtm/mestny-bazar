@@ -18,5 +18,7 @@ export const listAdminProductsParamsSchema = z
   .object({
     page: pageSchema.optional(),
     pageSize: pageSizeSchema.optional(),
+    /** Задача №247 — scopes the list to one subcategory, filtered server-side before pagination. */
+    categoryId: z.string().uuid().optional(),
   })
   .optional();

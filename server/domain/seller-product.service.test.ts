@@ -142,6 +142,16 @@ describe("SellerProductService.listAllProducts / getProductAsAdmin", () => {
     expect(result).toBe(page);
   });
 
+  it("listAllProducts passes categoryId through unchanged (Задача №247 — admin Каталог's per-subcategory scoping)", async () => {
+    const page = { items: [makeProduct()], total: 1, page: 1, pageSize: 50, hasMore: false };
+    const repo = fakeRepo({ listAll: vi.fn(async () => page) });
+    const service = new SellerProductService(repo, fakeCategories(), fakePolicy(), fakeEventBus());
+
+    await service.listAllProducts({ page: 1, pageSize: 50, categoryId: "cat-1" });
+
+    expect(repo.listAll).toHaveBeenCalledWith({ page: 1, pageSize: 50, categoryId: "cat-1" });
+  });
+
   it("getProductAsAdmin reads with sellerId: null (no ownership scoping)", async () => {
     const repo = fakeRepo({ getById: vi.fn(async () => makeProduct()) });
     const service = new SellerProductService(repo, fakeCategories(), fakePolicy(), fakeEventBus());
