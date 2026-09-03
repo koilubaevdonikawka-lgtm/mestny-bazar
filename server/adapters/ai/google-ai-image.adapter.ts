@@ -24,14 +24,28 @@ const FETCH_TIMEOUT_MS = 30_000;
 // even margins," cutting off the top/bottom. Removed that instruction
 // outright and added an explicit "keep it exactly where/how it already is"
 // constraint instead — this is a background swap, not a recompose.
+//
+// Задача №255 — separate defect from the cropping one above: when the
+// original photo had other items behind/around the product (other bottles
+// on a shelf, boxes, packaging), Gemini would sometimes only partially
+// clear them, leaving dark smudges/shadows/partial silhouettes instead of
+// a fully uniform white background. Appended an explicit "remove every
+// other object completely, no residue" instruction — the anti-crop
+// constraint above is untouched, this only adds to it.
 const BACKGROUND_REMOVAL_PROMPT =
   "Edit this product photo: remove the existing background completely and replace it " +
   "with a solid, clean, pure white background (#FFFFFF). Do not crop, resize, reframe, " +
   "or reposition the product — keep it at exactly the same position, scale, and framing " +
   "as in the original photo. Keep the product itself completely unaltered — do not " +
   "change its shape, color, text, or details. Only replace the background pixels " +
-  "around it; nothing else in the composition should change. Return only the edited " +
-  "image.";
+  "around it; nothing else in the composition should change. The background must " +
+  "become a single uniform pure white (#FFFFFF), with absolutely no remnants, " +
+  "shadows, silhouettes, or color bleed from any other objects that were in the " +
+  "original photo (other bottles, boxes, packaging, etc. behind or around the " +
+  "product). If multiple items were visible in the original photo, keep ONLY the " +
+  "single main product in the foreground and remove everything else completely — " +
+  "no gray or black smudges, no partial second bottle or object visible anywhere " +
+  "in the frame. Return only the edited image.";
 
 export interface GoogleAiImageAdapterConfig {
   apiKey: string;
