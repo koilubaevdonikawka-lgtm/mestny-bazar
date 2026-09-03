@@ -42,13 +42,19 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
       params={{ handle: p.handle }}
       className="group grid grid-cols-2 gap-2 overflow-hidden rounded-2xl bg-white py-1 pr-1 transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)] sm:gap-4 sm:py-4 sm:pr-4"
     >
+      {/* Задача №252 — object-contain (not object-cover), same fix as the
+          admin catalog card (Задача №240): a fixed-ratio box with
+          object-cover crops any photo whose real aspect ratio doesn't
+          match (a tall narrow bottle loses its neck/base). object-contain
+          shows the whole photo, letterboxed on the existing bg-secondary
+          when needed — the box itself keeps its fixed ratio either way. */}
       <div className="aspect-[4/3] w-full overflow-hidden rounded-xl bg-secondary sm:aspect-square">
         {image ? (
           <img
             src={image.url}
             alt={image.altText || displayTitle}
             loading="lazy"
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
