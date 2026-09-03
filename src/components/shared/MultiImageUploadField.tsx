@@ -5,10 +5,11 @@ import { ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadImage } from "@/api/media-upload";
 import { compressImageForUpload } from "@/lib/image-compression";
+import { cn } from "@/lib/utils";
 import {
+  MediaUploadContext,
   MEDIA_UPLOAD_ALLOWED_MIME_TYPES,
   MEDIA_UPLOAD_MAX_BYTES,
-  type MediaUploadContext,
 } from "@shared/contracts/media-upload";
 
 interface MultiImageUploadFieldProps {
@@ -43,9 +44,17 @@ export function MultiImageUploadField({
   // Задача №239 — separate from mutation.isPending: compression (Canvas,
   // client-side) runs BEFORE the upload request even starts.
   const [isCompressing, setIsCompressing] = useState(false);
+  // Задача №250 — PRODUCT-only AI-background-processing toggle, defaulted
+  // on (matches uploadImage()'s own default when the flag is omitted).
+  // Plain component state, not persisted anywhere — remembers the choice
+  // for as long as this form stays mounted/open (so uploading several
+  // photos in a row doesn't need re-toggling each time), resets on next
+  // open, exactly as asked.
+  const [aiProcessingEnabled, setAiProcessingEnabled] = useState(true);
+  const isProduct = context === MediaUploadContext.PRODUCT;
 
   const mutation = useMutation({
-    mutationFn: (file: File) => uploadImage(file, context),
+    mutationFn: (file: File) => uploadImage(file, context, isProduct && !aiProcessingEnabled),
     onSuccess: (url) => onChange([...values, url]),
     onError: (e) =>
       toast.error(e instanceof Error ? e.message : "Не удалось загрузить изображение"),
@@ -120,20 +129,60 @@ export function MultiImageUploadField({
           </div>
         ))}
         {!atLimit && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={disabled || isCompressing || mutation.isPending}
-            onClick={() => inputRef.current?.click()}
-          >
-            {isCompressing || mutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <ImagePlus className="h-4 w-4" />
+          <>
+            {isProduct && (
+              <div
+                role="radiogroup"
+                aria-label="Режим загрузки фото"
+                className="flex items-center gap-0.5 rounded-full border border-border/60 bg-secondary/30 p-0.5 text-xs"
+              >
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={aiProcessingEnabled}
+                  disabled={disabled || isCompressing || mutation.isPending}
+                  onClick={() => setAiProcessingEnabled(true)}
+                  className={cn(
+                    "rounded-full px-2.5 py-1 transition-colors",
+                    aiProcessingEnabled
+                      ? "bg-background font-medium shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  С обработкой ИИ
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={!aiProcessingEnabled}
+                  disabled={disabled || isCompressing || mutation.isPending}
+                  onClick={() => setAiProcessingEnabled(false)}
+                  className={cn(
+                    "rounded-full px-2.5 py-1 transition-colors",
+                    !aiProcessingEnabled
+                      ? "bg-background font-medium shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  Без обработки ИИ
+                </button>
+              </div>
             )}
-            {isCompressing ? "Сжимаем фото..." : "Добавить фото"}
-          </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={disabled || isCompressing || mutation.isPending}
+              onClick={() => inputRef.current?.click()}
+            >
+              {isCompressing || mutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ImagePlus className="h-4 w-4" />
+              )}
+              {isCompressing ? "Сжимаем фото..." : "Добавить фото"}
+            </Button>
+          </>
         )}
         <input
           ref={inputRef}

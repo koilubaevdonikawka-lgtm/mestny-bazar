@@ -203,6 +203,48 @@ describe("MediaUploadService.uploadImage", () => {
     ).rejects.toBeInstanceOf(MediaUploadProcessingError);
     expect(mediaStorage.upload).not.toHaveBeenCalled();
   });
+
+  it("skipAiProcessing:true stores a product photo unprocessed, original contentType/extension kept (Задача №250)", async () => {
+    const categoryStorage = fakeStorage();
+    const mediaStorage = fakeStorage();
+    const aiImageProvider = fakeAiImageProvider();
+    const service = new MediaUploadService(categoryStorage, mediaStorage, aiImageProvider);
+    const file = fakeFile("raw-upload");
+
+    await service.uploadImage({
+      context: MediaUploadContext.PRODUCT,
+      contentType: "image/webp",
+      size: 1024,
+      data: file,
+      skipAiProcessing: true,
+    });
+
+    expect(aiImageProvider.removeBackground).not.toHaveBeenCalled();
+    const [path, uploadedData, uploadedContentType] = (
+      mediaStorage.upload as ReturnType<typeof vi.fn>
+    ).mock.calls[0];
+    expect(uploadedData).toBe(file);
+    expect(uploadedContentType).toBe("image/webp");
+    expect(path).toMatch(/^product\/.+\.webp$/);
+  });
+
+  it("skipAiProcessing is ignored for non-PRODUCT contexts — they were already unprocessed", async () => {
+    const categoryStorage = fakeStorage();
+    const mediaStorage = fakeStorage();
+    const aiImageProvider = fakeAiImageProvider();
+    const service = new MediaUploadService(categoryStorage, mediaStorage, aiImageProvider);
+
+    await service.uploadImage({
+      context: MediaUploadContext.BANNER,
+      contentType: "image/png",
+      size: 1024,
+      data: fakeFile(),
+      skipAiProcessing: false,
+    });
+
+    expect(aiImageProvider.removeBackground).not.toHaveBeenCalled();
+    expect(mediaStorage.upload).toHaveBeenCalledTimes(1);
+  });
 });
 
 // processProductPhoto() itself is exercised indirectly through uploadImage()

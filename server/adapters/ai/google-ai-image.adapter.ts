@@ -17,12 +17,21 @@ const GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image";
 const GEMINI_IMAGE_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_IMAGE_MODEL}:generateContent`;
 const FETCH_TIMEOUT_MS = 30_000;
 
+// Задача №250 — the earlier prompt's "Center the product neatly within the
+// frame with even margins on all sides" was an explicit recomposition
+// instruction: for a tall/narrow product (e.g. a bottle), the generative
+// model would re-crop/re-scale it to fit its own idea of "centered with
+// even margins," cutting off the top/bottom. Removed that instruction
+// outright and added an explicit "keep it exactly where/how it already is"
+// constraint instead — this is a background swap, not a recompose.
 const BACKGROUND_REMOVAL_PROMPT =
   "Edit this product photo: remove the existing background completely and replace it " +
-  "with a solid, clean, pure white background (#FFFFFF). Keep the product itself " +
-  "completely unaltered — do not change its shape, color, text, or details. Center " +
-  "the product neatly within the frame with even margins on all sides. Return only " +
-  "the edited image.";
+  "with a solid, clean, pure white background (#FFFFFF). Do not crop, resize, reframe, " +
+  "or reposition the product — keep it at exactly the same position, scale, and framing " +
+  "as in the original photo. Keep the product itself completely unaltered — do not " +
+  "change its shape, color, text, or details. Only replace the background pixels " +
+  "around it; nothing else in the composition should change. Return only the edited " +
+  "image.";
 
 export interface GoogleAiImageAdapterConfig {
   apiKey: string;

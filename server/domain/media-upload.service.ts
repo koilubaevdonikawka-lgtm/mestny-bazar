@@ -20,6 +20,14 @@ export interface UploadImageInput {
   contentType: string;
   size: number;
   data: Blob;
+  /**
+   * Задача №250 — PRODUCT-only opt-out of processProductPhoto() for this
+   * one upload (the admin already has a clean-background photo and wants
+   * it stored as-is). Ignored for every other context — they never ran
+   * through the AI provider to begin with. Default/undefined = processed,
+   * same as before this flag existed.
+   */
+  skipAiProcessing?: boolean;
 }
 
 const EXTENSION_BY_MIME_TYPE: Record<MediaUploadMimeType, string> = {
@@ -79,7 +87,7 @@ export class MediaUploadService {
     // shouldn't need to be; EXTENSION_BY_MIME_TYPE's lookup below already
     // has a defensive fallback for anything unexpected.
     let contentType: string = input.contentType;
-    if (input.context === MediaUploadContext.PRODUCT) {
+    if (input.context === MediaUploadContext.PRODUCT && !input.skipAiProcessing) {
       const processed = await this.processProductPhoto(input);
       data = processed.data;
       contentType = processed.contentType;

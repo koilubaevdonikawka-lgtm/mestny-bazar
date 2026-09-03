@@ -11,7 +11,13 @@ export const uploadImageFn = createServerFn({ method: "POST" })
     if (!(file instanceof File)) {
       throw new Error("Missing file");
     }
-    return { context: mediaUploadContextSchema.parse(data.get("context")), file };
+    return {
+      context: mediaUploadContextSchema.parse(data.get("context")),
+      file,
+      // Задача №250 — FormData values are always strings; present only
+      // when the caller explicitly opted out (see uploadImage() below).
+      skipAiProcessing: data.get("skipAiProcessing") === "true",
+    };
   })
   .handler(async ({ data }): Promise<UploadImageResponse> => {
     const { executeUploadImage } = await import("@server/functions/media-upload.executor");
@@ -20,5 +26,6 @@ export const uploadImageFn = createServerFn({ method: "POST" })
       contentType: data.file.type,
       size: data.file.size,
       data: data.file,
+      skipAiProcessing: data.skipAiProcessing,
     });
   });
