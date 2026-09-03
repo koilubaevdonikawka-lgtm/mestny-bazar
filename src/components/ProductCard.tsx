@@ -7,23 +7,29 @@ import { formatDisplayPrice } from "@/lib/formatPrice";
 
 /**
  * Задача №179 — vertical-list layout for the subcategory product list
- * (photo left, info column right, info column's width capped at the
- * photo's own width via the 2-column grid — never wider than the photo).
- * Each info element (name/price/quantity) is its own visual block, and the
- * same consumer-facing fields shown on the product detail page
- * (/product/$handle) are surfaced here too: unit, manufacturer, country of
- * origin, description. SKU/barcode/publicationStatus/the delivery-fee
- * weightKg field are never part of CatalogProductNode in the first place
- * (see product-adapter.ts) — nothing to explicitly exclude, they never
- * reach this component.
+ * (photo left, info column right). Each info element (name/price/quantity)
+ * is its own visual block, and the same consumer-facing fields shown on the
+ * product detail page (/product/$handle) are surfaced here too: unit,
+ * manufacturer, country of origin, description. SKU/barcode/
+ * publicationStatus/the delivery-fee weightKg field are never part of
+ * CatalogProductNode in the first place (see product-adapter.ts) — nothing
+ * to explicitly exclude, they never reach this component.
  *
  * Задача №180 — squeezed further so ~4-5 cards fit on a typical
- * ~700-800px-tall phone viewport: photo is a shorter 4:3 rectangle instead
- * of a square, every block's padding is down to the bare minimum that keeps
- * text legible, unit/manufacturer/country are folded onto shared lines
- * instead of their own, and the stepper — the one element the architect
- * explicitly wants "крупный, заметный" — is the only thing NOT shrunk
- * (still the same 48px "lg" CartQuantityControl used before).
+ * ~700-800px-tall phone viewport: every block's padding is down to the
+ * bare minimum that keeps text legible, unit/manufacturer/country are
+ * folded onto shared lines instead of their own, and the stepper — the one
+ * element the architect explicitly wants "крупный, заметный" — is the only
+ * thing NOT shrunk (still the same 48px "lg" CartQuantityControl used
+ * before).
+ *
+ * Задача №253 — photo/info columns are grid-cols-[40%_60%], not an even
+ * 50/50: object-contain (Задача №252, fixing crop) left visible beige
+ * letterboxing on a 4:3/square box for a typical tall product photo
+ * (a bottle) — a narrower 3:4 box shrinks that margin for most products,
+ * and giving the info column more width than the photo (instead of the
+ * old "never wider than the photo" cap) gives the description block room
+ * to actually read as content next to it.
  */
 export function ProductCard({ product }: { product: CatalogProductNode }) {
   const { t, language } = useTranslation();
@@ -40,15 +46,21 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
     <Link
       to="/product/$handle"
       params={{ handle: p.handle }}
-      className="group grid grid-cols-2 gap-2 overflow-hidden rounded-2xl bg-white py-1 pr-1 transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)] sm:gap-4 sm:py-4 sm:pr-4"
+      className="group grid grid-cols-[40%_60%] gap-2 overflow-hidden rounded-2xl bg-white py-1 pr-1 transition-all hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)] sm:gap-4 sm:py-4 sm:pr-4"
     >
-      {/* Задача №252 — object-contain (not object-cover), same fix as the
+      {/* Задача №253 — narrower/taller box (3:4, was 4:3/square) is closer
+          to a typical product photo's real proportions (a bottle, a jar) —
+          shrinks the beige object-contain letterboxing for most products,
+          and (with the grid columns below) narrows the whole photo column.
+          A small padding around the <img> itself (not the box) keeps a
+          minimum breathing room even for a photo that happens to match the
+          box exactly (zero letterboxing) — object-contain still fits it
+          within that padded area, so it never looks edge-to-edge/cramped.
+          Задача №252 — object-contain (not object-cover), same fix as the
           admin catalog card (Задача №240): a fixed-ratio box with
           object-cover crops any photo whose real aspect ratio doesn't
-          match (a tall narrow bottle loses its neck/base). object-contain
-          shows the whole photo, letterboxed on the existing bg-secondary
-          when needed — the box itself keeps its fixed ratio either way. */}
-      <div className="aspect-[4/3] w-full overflow-hidden rounded-xl bg-secondary sm:aspect-square">
+          match (a tall narrow bottle loses its neck/base). */}
+      <div className="aspect-[3/4] w-full overflow-hidden rounded-xl bg-secondary p-1.5">
         {image ? (
           <img
             src={image.url}
@@ -63,11 +75,10 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
         )}
       </div>
 
-      {/* Info column — same width as the photo (2-col grid), never wider.
-          Each field is its own background block, stacked. Задача №180 —
-          padding/gaps trimmed to the minimum that keeps text legible;
-          unit and manufacturer/country folded onto shared lines instead of
-          separate ones, to keep the whole column shorter than the photo. */}
+      {/* Info column — Задача №253: grid-cols-[40%_60%] (was an even
+          grid-cols-2) gives this column more room than the photo, mainly
+          so the description block below has space to actually read as
+          content rather than mostly empty space next to a narrow photo. */}
       <div className="flex min-w-0 flex-col gap-0.5 sm:gap-1">
         {/* Задача №202 — Задача №201 swapped bg-primary green for bg-secondary
             beige, which was itself still a colored plate — the actual ask was
