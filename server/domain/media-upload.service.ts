@@ -41,11 +41,13 @@ function isAllowedMimeType(value: string): value is MediaUploadMimeType {
  * prefix, so existing objects/URLs are unaffected); everything else goes into
  * the new marketplace-media bucket under a context-prefixed path.
  *
- * PRODUCT context (Промпт №101) used to also run the photo through the AI
- * image provider before storing (remove the background, replace it with
- * clean white, center the product) — temporarily disabled (Промпт №107,
- * see processProductPhoto()'s own comment); every context, including
- * PRODUCT, currently stores the uploaded file as-is.
+ * PRODUCT context (Промпт №101) also runs the photo through the AI image
+ * provider before storing — remove the background, replace it with clean
+ * white, center the product. Re-enabled (Задача №248) after being
+ * temporarily disabled (Промпт №107, over Gemini quota/reliability
+ * concerns on the free tier — resolved now that the account is on a paid
+ * plan). Every other context (category/banner/courier) is unaffected —
+ * out of scope, Промпт №101 was PRODUCT-only from the start.
  */
 export class MediaUploadService {
   constructor(
@@ -62,26 +64,41 @@ export class MediaUploadService {
       throw new MediaUploadValidationError(`File exceeds ${MEDIA_UPLOAD_MAX_BYTES} bytes`);
     }
 
-    const ext = EXTENSION_BY_MIME_TYPE[input.contentType];
     const isCategory = input.context === MediaUploadContext.CATEGORY;
-    const path = isCategory ? `${randomUUID()}.${ext}` : `${input.context}/${randomUUID()}.${ext}`;
     const storage = isCategory ? this.categoryStorage : this.mediaStorage;
 
-    // PRODUCT used to route through processProductPhoto() (AI background
-    // removal) here — temporarily disabled, see that method's own comment.
-    // Every context, PRODUCT included, now takes this same direct path.
-    const { url } = await storage.upload(path, input.data, input.contentType);
+    // PRODUCT routes through processProductPhoto() first — Gemini's output
+    // isn't guaranteed to keep the original file's mimeType (it commonly
+    // returns PNG regardless of input), so the extension/content-type used
+    // for storage must come from whatever was actually processed, not the
+    // original upload.
+    let data: Blob | Buffer = input.data;
+    // Widened to `string` (not the narrower MediaUploadMimeType TS would
+    // otherwise infer from the isAllowedMimeType guard above) — Gemini's
+    // returned mimeType isn't validated against that allowlist, and
+    // shouldn't need to be; EXTENSION_BY_MIME_TYPE's lookup below already
+    // has a defensive fallback for anything unexpected.
+    let contentType: string = input.contentType;
+    if (input.context === MediaUploadContext.PRODUCT) {
+      const processed = await this.processProductPhoto(input);
+      data = processed.data;
+      contentType = processed.contentType;
+    }
+
+    const ext = EXTENSION_BY_MIME_TYPE[contentType as MediaUploadMimeType] ?? "png";
+    const path = isCategory ? `${randomUUID()}.${ext}` : `${input.context}/${randomUUID()}.${ext}`;
+
+    const { url } = await storage.upload(path, data, contentType);
     return { url };
   }
 
   /**
-   * Temporarily disabled (Промпт №107) — решение владельца продукта:
-   * автоматическая очистка фона добавляла внешнюю зависимость от Gemini и
-   * была источником сбоев загрузки; вместо неё — ручная загрузка уже
-   * очищенных фото (см. подсказку в форме, MultiImageUploadField). Код
-   * сохранён для возможного возврата в будущем, не вызывается из
-   * uploadImage() — сам aiImageProvider остаётся в конструкторе именно
-   * ради этого метода.
+   * Задача №248 — re-enabled, called from uploadImage() for the PRODUCT
+   * context. Failure is never silent: a Gemini/network error is logged
+   * with detail and surfaces to the caller as MediaUploadProcessingError
+   * (a real upload failure, not a quiet fallback to the unprocessed
+   * photo) — the admin/seller sees the upload failed and can retry, rather
+   * than unknowingly publishing a photo with its original background.
    */
   private async processProductPhoto(
     input: UploadImageInput,

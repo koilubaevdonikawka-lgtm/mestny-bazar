@@ -610,7 +610,7 @@ export const ru = {
       newProductHeading: "Новый товар",
       productNameLabel: "Наименование товара",
       productPhotoBackgroundHint:
-        "Загружайте фото с уже чистым, ровным фоном — автоматическая обработка фона временно отключена.",
+        "Фон фото обрабатывается автоматически — можно грузить фото как есть.",
       productDescriptionLabel: "Описание товара",
       priceLabel: "Цена (KGS)",
       unitLabel: "Единица измерения",
@@ -643,6 +643,9 @@ export const ru = {
       invalidPriceError: "Укажите корректную цену",
       invalidWeightError: "Укажите корректный вес (неотрицательное число) или оставьте поле пустым",
       invalidSortOrderError: "Укажите корректный порядковый номер или оставьте поле пустым",
+      /** Задача №242 — client-side pre-check catches this before the save request, so the admin sees a clear reason instead of a silent-looking failure. */
+      sortOrderConflictError:
+        "Такой порядковый номер уже занят категорией «{{name}}» — выберите другой",
       productCreatedAndEditingToast: "Товар создан — открыт для редактирования",
       productCreatedToast: "Товар создан",
       productCreateError: "Не удалось создать товар",

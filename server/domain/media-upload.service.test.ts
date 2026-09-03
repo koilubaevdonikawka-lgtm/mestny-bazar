@@ -129,34 +129,88 @@ describe("MediaUploadService.uploadImage", () => {
     expect(result).toEqual({ url: "https://cdn/example.png" });
   });
 
-  it("uploads product photos to the media bucket unprocessed — AI background removal is temporarily disabled (Промпт №107)", async () => {
+  it("uploads product photos through the AI image provider (Задача №248 — re-enabled after Промпт №107)", async () => {
     const categoryStorage = fakeStorage();
     const mediaStorage = fakeStorage();
-    const aiImageProvider = fakeAiImageProvider();
+    const aiImageProvider = fakeAiImageProvider({
+      removeBackground: vi.fn(async () => ({
+        imageData: Buffer.from("white-background-version"),
+        mimeType: "image/png",
+      })),
+    });
     const service = new MediaUploadService(categoryStorage, mediaStorage, aiImageProvider);
     const file = fakeFile("raw-upload");
 
     await service.uploadImage({
       context: MediaUploadContext.PRODUCT,
-      contentType: "image/png",
+      contentType: "image/jpeg",
       size: 1024,
       data: file,
     });
 
-    expect(aiImageProvider.removeBackground).not.toHaveBeenCalled();
+    expect(aiImageProvider.removeBackground).toHaveBeenCalledTimes(1);
+    expect(aiImageProvider.removeBackground).toHaveBeenCalledWith({
+      imageData: Buffer.from("raw-upload"),
+      mimeType: "image/jpeg",
+    });
     const [, uploadedData, uploadedContentType] = (mediaStorage.upload as ReturnType<typeof vi.fn>)
       .mock.calls[0];
-    expect(uploadedData).toBe(file);
+    // The upload is the PROCESSED result, not the original file/type.
+    expect(uploadedData).not.toBe(file);
+    expect((uploadedData as Buffer).toString()).toBe("white-background-version");
     expect(uploadedContentType).toBe("image/png");
+  });
+
+  it("names the stored file by the PROCESSED photo's mimeType, not the original upload's — Gemini commonly returns PNG regardless of input", async () => {
+    const categoryStorage = fakeStorage();
+    const mediaStorage = fakeStorage();
+    const aiImageProvider = fakeAiImageProvider({
+      removeBackground: vi.fn(async () => ({
+        imageData: Buffer.from("processed"),
+        mimeType: "image/png",
+      })),
+    });
+    const service = new MediaUploadService(categoryStorage, mediaStorage, aiImageProvider);
+
+    await service.uploadImage({
+      context: MediaUploadContext.PRODUCT,
+      contentType: "image/jpeg",
+      size: 1024,
+      data: fakeFile(),
+    });
+
+    const [path] = (mediaStorage.upload as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(path).toMatch(/^product\/.+\.png$/);
+  });
+
+  it("fails the whole upload (not a silent fallback to the unprocessed photo) when background removal fails", async () => {
+    const categoryStorage = fakeStorage();
+    const mediaStorage = fakeStorage();
+    const aiImageProvider = fakeAiImageProvider({
+      removeBackground: vi.fn(async () => {
+        throw new Error("Google AI image request failed: HTTP 429 quota exceeded");
+      }),
+    });
+    const service = new MediaUploadService(categoryStorage, mediaStorage, aiImageProvider);
+
+    await expect(
+      service.uploadImage({
+        context: MediaUploadContext.PRODUCT,
+        contentType: "image/png",
+        size: 1024,
+        data: fakeFile(),
+      }),
+    ).rejects.toBeInstanceOf(MediaUploadProcessingError);
+    expect(mediaStorage.upload).not.toHaveBeenCalled();
   });
 });
 
-// processProductPhoto() itself is unchanged and still fully functional — only
-// uploadImage() no longer calls it (Промпт №107, see media-upload.service.ts's
-// own comment). Called directly here (bypassing the private-method boundary)
-// so these two tests keep proving the AI path still works if ever re-wired,
-// without needing uploadImage() to still route through it.
-describe("MediaUploadService.processProductPhoto (kept, not wired into uploadImage — Промпт №107)", () => {
+// processProductPhoto() itself is exercised indirectly through uploadImage()
+// above (Задача №248); these two tests call it directly (bypassing the
+// private-method boundary) to check its own contract in isolation — the
+// exact result/error shape it hands back — without the extra path-naming
+// logic uploadImage() layers on top.
+describe("MediaUploadService.processProductPhoto", () => {
   type UploadImageInput = Parameters<MediaUploadService["uploadImage"]>[0];
 
   function processProductPhoto(service: MediaUploadService, input: UploadImageInput) {

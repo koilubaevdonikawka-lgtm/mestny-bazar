@@ -583,7 +583,7 @@ export const ky = {
       newProductHeading: "Жаңы товар",
       productNameLabel: "Товардын аталышы",
       productPhotoBackgroundHint:
-        "Фотону тазаланган, бир түстүү фон менен жүктөңүз — фонду автоматтык иштетүү убактылуу өчүрүлгөн.",
+        "Фотонун фону автоматтык түрдө иштетилет — сүрөттү бар бойдон жүктөй берсеңиз болот.",
       productDescriptionLabel: "Товардын сүрөттөлүшү",
       priceLabel: "Баасы (KGS)",
       unitLabel: "Өлчөө бирдиги",
@@ -614,6 +614,7 @@ export const ky = {
       invalidPriceError: "Туура баа көрсөтүңүз",
       invalidWeightError: "Туура салмак көрсөтүңүз (терс эмес сан) же бош калтырыңыз",
       invalidSortOrderError: "Туура иреттик номерди көрсөтүңүз же бош калтырыңыз",
+      sortOrderConflictError: "Мындай номерди «{{name}}» категориясы колдонот — башкасын тандаңыз",
       productCreatedAndEditingToast: "Товар түзүлдү — түзөтүү үчүн ачылды",
       productCreatedToast: "Товар түзүлдү",
       productCreateError: "Товарды түзүү мүмкүн болбоду",

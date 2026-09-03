@@ -579,7 +579,7 @@ export const en = {
       newProductHeading: "New product",
       productNameLabel: "Product name",
       productPhotoBackgroundHint:
-        "Upload photos with an already clean, even background — automatic background processing is temporarily disabled.",
+        "The photo's background is processed automatically — you can upload it as-is.",
       productDescriptionLabel: "Product description",
       priceLabel: "Price (KGS)",
       unitLabel: "Unit",
@@ -610,6 +610,7 @@ export const en = {
       invalidPriceError: "Enter a valid price",
       invalidWeightError: "Enter a valid weight (non-negative number) or leave it empty",
       invalidSortOrderError: "Enter a valid sort order or leave it empty",
+      sortOrderConflictError: 'That sort order is already used by "{{name}}" — pick another',
       productCreatedAndEditingToast: "Product created — opened for editing",
       productCreatedToast: "Product created",
       productCreateError: "Failed to create the product",
