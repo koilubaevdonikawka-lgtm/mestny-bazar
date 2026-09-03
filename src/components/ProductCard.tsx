@@ -34,6 +34,12 @@ import { formatDisplayPrice } from "@/lib/formatPrice";
  * cropping here, a conscious tradeoff. aspect-[3/4] stays — narrower than
  * the old 4:3/square, so a typical tall bottle photo still loses less to
  * cropping than a wider box would.
+ *
+ * Задача №256 — overall card height (driven by the photo box, the taller
+ * of the grid row's two columns) trimmed by 6%: aspect-[3/4] (w:h ratio
+ * 0.75) -> aspect-[75/94] (w:h ratio 0.75/0.94 ≈ 0.7979), i.e. at a fixed
+ * column width the box is exactly 6% shorter than before. Photo box only,
+ * not text padding — keeps name/description/price fully readable.
  */
 export function ProductCard({ product }: { product: CatalogProductNode }) {
   const { t, language } = useTranslation();
@@ -61,11 +67,10 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
           any padding would itself show as a colored margin against
           bg-secondary regardless of the photo's aspect ratio, which is
           exactly what this is trying to eliminate.
-          aspect-[3/4] (still, unchanged since Задача №253) — a
-          narrower/taller box than the old 4:3/square keeps the amount
-          actually cropped off a typical tall bottle photo smaller than a
-          wider box would, without giving up the "no margins" goal. */}
-      <div className="aspect-[3/4] w-full overflow-hidden rounded-xl bg-secondary">
+          aspect-[3/4] -> aspect-[75/94] (Задача №256) — same shape, 6%
+          shorter at a fixed width; still narrower/taller than the old
+          4:3/square, so cropping stays minimal. */}
+      <div className="aspect-[75/94] w-full overflow-hidden rounded-xl bg-secondary">
         {image ? (
           <img
             src={image.url}

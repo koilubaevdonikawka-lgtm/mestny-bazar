@@ -276,8 +276,14 @@ export function ProductPage({ slug, search }: ProductPageProps) {
                   row), not a grid of tiles — architect's explicit layout
                   requirement for the subcategory product list specifically.
                   The subcategory tiles section above is untouched — this
-                  only affects the product cards themselves. */}
-              <div className="mx-auto flex max-w-2xl flex-col gap-2 sm:gap-3">
+                  only affects the product cards themselves.
+
+                  Задача №256 — dropped the gap-2/sm:gap-3 between cards:
+                  cards now sit flush against each other with zero space in
+                  between. Each card's own rounded-2xl corners/hover shadow
+                  still visually separate them — that's the card's own shape,
+                  not inter-card space, so it stays untouched. */}
+              <div className="mx-auto flex max-w-2xl flex-col">
                 {products.map((p) => (
                   <ProductCard key={p.node.id} product={p} />
                 ))}
