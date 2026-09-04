@@ -538,7 +538,6 @@ export const zh = {
       categoryDeletedToast: "分类已删除",
       categoryDeleteError: "删除分类失败",
       nameMinLengthError: "名称长度不能少于 2 个字符",
-      backButton: "返回",
       subcategoriesTitle: "子分类：{{name}}",
       productsTitle: "商品：{{name}}",
       editCategoryDialogTitle: "编辑分类",

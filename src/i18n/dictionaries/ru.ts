@@ -584,7 +584,6 @@ export const ru = {
       categoryDeletedToast: "Категория удалена",
       categoryDeleteError: "Не удалось удалить категорию",
       nameMinLengthError: "Название должно содержать минимум 2 символа",
-      backButton: "Назад",
       subcategoriesTitle: "Подкатегории: {{name}}",
       productsTitle: "Товары: {{name}}",
       editCategoryDialogTitle: "Редактировать категорию",

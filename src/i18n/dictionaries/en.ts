@@ -554,7 +554,6 @@ export const en = {
       categoryDeletedToast: "Category deleted",
       categoryDeleteError: "Failed to delete the category",
       nameMinLengthError: "Name must be at least 2 characters",
-      backButton: "Back",
       subcategoriesTitle: "Subcategories: {{name}}",
       productsTitle: "Products: {{name}}",
       editCategoryDialogTitle: "Edit category",

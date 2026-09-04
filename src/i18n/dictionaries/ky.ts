@@ -558,7 +558,6 @@ export const ky = {
       categoryDeletedToast: "Категория өчүрүлдү",
       categoryDeleteError: "Категорияны өчүрүү мүмкүн болбоду",
       nameMinLengthError: "Аталышы кеминде 2 белгиден турушу керек",
-      backButton: "Артка",
       subcategoriesTitle: "Чакан категориялар: {{name}}",
       productsTitle: "Товарлар: {{name}}",
       editCategoryDialogTitle: "Категорияны түзөтүү",

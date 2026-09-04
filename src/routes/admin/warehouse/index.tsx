@@ -21,7 +21,6 @@ import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import {
-  ArrowLeft,
   ChevronRight,
   ExternalLink,
   FileText,
@@ -543,26 +542,24 @@ function AdminWarehousePage() {
   };
 
   const enterCategory = (categoryId: string) => setCategoryPath((prev) => [...prev, categoryId]);
+  // Задача №259/260 — the only way up a level now is the breadcrumb trail
+  // below (clicking the root label or an ancestor); the page used to also
+  // render its own "← Назад" buttons at every level (Задача этапа №5),
+  // duplicating both the breadcrumbs and AdminLayout's shared header
+  // "Назад". Removed — cancelEditProduct() folded in here so leaving a
+  // product via a breadcrumb click still clears any open edit-product form,
+  // exactly like the removed closeProduct() used to.
   const goToBreadcrumbIndex = (index: number) => {
     // index -1 = root (Категории), 0..n = that position in the path.
     setCategoryPath((prev) => prev.slice(0, index + 1));
+    cancelEditProduct();
     setSelectedProductId(null);
   };
-  // Задача этапа №5 — явная кнопка «Назад» на уровнях
-  // Категория/Подкатегория, в дополнение к уже существующим
-  // хлебным крошкам. Тот же механизм (goToBreadcrumbIndex),
-  // просто вызванный с индексом на один уровень выше —
-  // никакой новой логики навигации.
-  const goBackOneLevel = () => goToBreadcrumbIndex(categoryPath.length - 2);
   const openProduct = (productId: string) => {
     setReceiptProductId(null);
     setReturnProductId(null);
     cancelEditProduct();
     setSelectedProductId(productId);
-  };
-  const closeProduct = () => {
-    cancelEditProduct();
-    setSelectedProductId(null);
   };
 
   if (isAuthenticated === null) {
@@ -1402,13 +1399,7 @@ function AdminWarehousePage() {
 
         <section className="mt-4 rounded-2xl border border-border/60 bg-card p-6">
           {selectedProduct && selectedStockItem ? (
-            <>
-              <Button variant="ghost" size="sm" className="mb-4 -ml-2" onClick={closeProduct}>
-                <ArrowLeft className="h-4 w-4 mr-1.5" />
-                {t("common.back")}
-              </Button>
-              {renderMovementCard(selectedStockItem, selectedProduct)}
-            </>
+            renderMovementCard(selectedStockItem, selectedProduct)
           ) : childCategories.length > 0 ? (
             // Категория / Подкатегория tiles — each one mirrors the customer
             // catalog's own subcategory tiles (Задача №3), plus a "➕
@@ -1416,12 +1407,6 @@ function AdminWarehousePage() {
             // №1). The parent is never a visible/editable field — it's fixed
             // to whichever tile's "+" was pressed.
             <>
-              {categoryPath.length > 0 && (
-                <Button variant="ghost" size="sm" className="mb-4 -ml-2" onClick={goBackOneLevel}>
-                  <ArrowLeft className="h-4 w-4 mr-1.5" />
-                  {t("common.back")}
-                </Button>
-              )}
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {childCategories.map((c) => (
                   <div
@@ -1525,16 +1510,7 @@ function AdminWarehousePage() {
               <p className="text-muted-foreground">{t("admin.warehouse.emptyState")}</p>
             </div>
           ) : (
-            <>
-              {/* Задача этапа №5 — явная «Назад» на листовом уровне
-                  (список товаров подкатегории), тем же goBackOneLevel. */}
-              <Button variant="ghost" size="sm" className="mb-4 -ml-2" onClick={goBackOneLevel}>
-                <ArrowLeft className="h-4 w-4 mr-1.5" />
-                {t("common.back")}
-              </Button>
-
-              {renderCategoryWorkspace(false)}
-            </>
+            renderCategoryWorkspace(false)
           )}
         </section>
       </div>

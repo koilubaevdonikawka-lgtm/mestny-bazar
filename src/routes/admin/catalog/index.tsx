@@ -1,7 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { findSortOrderConflict } from "@/lib/category-sort-order-conflict";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,7 +49,6 @@ import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import type { TranslationKey } from "@/i18n/t";
 import {
-  ArrowLeft,
   ChevronDown,
   Eye,
   EyeOff,
@@ -61,9 +61,21 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
+
+// Задача №259/260 — Категории/Подкатегории/Товары теперь real browser-history
+// levels (search params), not just local state: drilling in pushes a history
+// entry, so AdminLayout's shared "Назад" (real history.back()) steps back up
+// one level at a time instead of needing its own duplicate in-page back
+// button (removed — see AdminLayout.tsx for the one remaining Назад control).
+const catalogSearchSchema = z.object({
+  category: z.string().optional(),
+  subcategory: z.string().optional(),
+});
 
 export const Route = createFileRoute("/admin/catalog/")({
   component: AdminCatalogPage,
+  validateSearch: catalogSearchSchema,
 });
 
 interface EditForm {
@@ -193,6 +205,8 @@ function AdminCatalogPage() {
   const { isAuthenticated } = useSupabaseSession();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [name, setName] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   // Задача №232 — only rendered/used when creating a SUBCATEGORY
@@ -228,8 +242,13 @@ function AdminCatalogPage() {
   // товары этой подкатегории. Один и тот же экран/компонент для категорий и
   // подкатегорий — это одна и та же сущность (categories.parent_id), не две
   // параллельные системы.
-  const [viewCategoryId, setViewCategoryId] = useState<string | null>(null);
-  const [viewSubcategoryId, setViewSubcategoryId] = useState<string | null>(null);
+  //
+  // Задача №259/260 — driven by the URL (?category=&subcategory=), not local
+  // useState: drilling in must push a real browser-history entry so the
+  // shared AdminLayout "Назад" button (router.history.back()) can undo one
+  // level at a time, instead of needing its own duplicate back button here.
+  const viewCategoryId = search.category ?? null;
+  const viewSubcategoryId = search.subcategory ?? null;
 
   const {
     data: categories,
@@ -349,26 +368,18 @@ function AdminCatalogPage() {
     [categories, editingId],
   );
 
-  const drillIntoCategory = (id: string) => {
-    setViewCategoryId(id);
-    setViewSubcategoryId(null);
-  };
-  const drillIntoSubcategory = (id: string) => setViewSubcategoryId(id);
-  const goBackToCategories = () => {
-    setViewCategoryId(null);
-    setViewSubcategoryId(null);
-  };
-  const goBackToSubcategories = () => setViewSubcategoryId(null);
-
-  const navigate = useNavigate();
-  // Единая кнопка «Назад» фиксированной панели навигации — цель зависит от
-  // текущего уровня; на уровне категорий вести на главную (Часть 2 задачи
-  // явно допускает этот вариант вместо недоступной кнопки).
-  const handleFixedNavBack = () => {
-    if (viewSubcategoryId) goBackToSubcategories();
-    else if (viewCategoryId) goBackToCategories();
-    else void navigate({ to: "/admin" });
-  };
+  // Задача №259/260 — push (default, not replace): each drill-in is a real
+  // history entry the shared header's "Назад" can step back out of.
+  const drillIntoCategory = (id: string) =>
+    void navigate({ search: { category: id, subcategory: undefined } });
+  const drillIntoSubcategory = (id: string) =>
+    void navigate({ search: (prev) => ({ ...prev, subcategory: id }) });
+  // Corrective resets (e.g. the currently-viewed category/subcategory was
+  // just deleted) use replace — this isn't a user "go back" action, so it
+  // shouldn't leave a bogus extra entry in browser history.
+  const goBackToCategories = () => void navigate({ search: {}, replace: true });
+  const goBackToSubcategories = () =>
+    void navigate({ search: (prev) => ({ category: prev.category }), replace: true });
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ["admin", "categories", "list"] });
@@ -418,7 +429,7 @@ function AdminCatalogPage() {
       toast.success(t("admin.catalog.categoryDeletedToast"));
       // Если удалили именно то, что сейчас просматриваем — подняться на
       // уровень выше, а не остаться на экране только что удалённой записи.
-      if (deletedId === viewSubcategoryId) setViewSubcategoryId(null);
+      if (deletedId === viewSubcategoryId) goBackToSubcategories();
       else if (deletedId === viewCategoryId) goBackToCategories();
     },
     onError: (e) =>
@@ -526,6 +537,27 @@ function AdminCatalogPage() {
     if (sortOrder === "invalid") {
       toast.error(t("admin.catalog.invalidSortOrderError"));
       return;
+    }
+    // Задача №242 — real bug: the server-side soft duplicate check
+    // (CategoryAdminService.assertSortOrderFree, Задача №232) correctly
+    // rejects a sortOrder already used by a sibling under the same parent,
+    // but the rejection only ever surfaced as `e.message` — the server
+    // exception's raw, untranslated English text — in an otherwise fully
+    // Russian admin UI. The save silently (from the admin's point of view)
+    // didn't happen; the dialog stayed open with the typed value still
+    // showing, so it looked like nothing was wrong until the next reload
+    // revealed the real, unchanged DB value. This pre-check runs the exact
+    // same scoping the server uses (siblings sharing categoryBeingEdited's
+    // parentId, excluding self) against the already-loaded `categories`
+    // list — no extra request — and shows a clear Russian reason instead
+    // of ever reaching that confusing failure mode.
+    if (sortOrder !== undefined) {
+      const parentId = categoryBeingEdited?.parentId ?? null;
+      const conflict = findSortOrderConflict(categories ?? [], id, parentId, sortOrder);
+      if (conflict) {
+        toast.error(t("admin.catalog.sortOrderConflictError", { name: conflict.name }));
+        return;
+      }
     }
     saveEditMutation.mutate({
       id,
@@ -1070,24 +1102,7 @@ function AdminCatalogPage() {
 
   return (
     <AdminLayout>
-      {/* Фиксированная навигация — всегда видна в верхнем левом углу,
-          независимо от прокрутки (Часть 2 задачи). z-[45] — выше шапки
-          (z-40), но ниже fullscreen-модалок редактирования (z-50), которые
-          при открытии должны полностью перекрывать эту панель. */}
-      <div className="fixed left-3 top-20 z-[45] flex items-center gap-1 rounded-full border border-border/60 bg-background/95 p-1 shadow-[var(--shadow-card)] backdrop-blur-md">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 rounded-full px-2.5 text-xs"
-          onClick={handleFixedNavBack}
-        >
-          <ArrowLeft className="h-3.5 w-3.5 mr-1" />
-          {t("admin.catalog.backButton")}
-        </Button>
-      </div>
-
-      <div className="mx-auto max-w-6xl px-6 pt-28 pb-12">
+      <div className="mx-auto max-w-6xl px-6 py-12">
         <h1 className="font-serif text-4xl tracking-tight">{pageTitle}</h1>
 
         {/* Уровень 3: товары выбранной подкатегории (Каталог → Категории →
