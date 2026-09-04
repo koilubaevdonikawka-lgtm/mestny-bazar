@@ -108,10 +108,18 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
         {/* Задача №205 — reordered below the name: description/variant now
             comes before price (name → description → price → button), price
             moved down to sit right above the Add button. No style/class
-            changes on either block, order only. */}
+            changes on either block, order only.
+
+            Задача №257 — description only: truncate (single-line ellipsis)
+            -> line-clamp-2. A description that doesn't fit one line now
+            wraps instead of being cut off, capped at two lines so it can't
+            unpredictably grow the card past what Задача №256's height trim
+            assumed (manufacturerAndCountry below stays single-line
+            truncate — out of this task's scope, and it's usually short
+            enough that clamping was never the problem there). */}
         {(displayDescription || manufacturerAndCountry) && (
           <div className="rounded-xl bg-white px-2 py-0.5 text-[11px] text-muted-foreground sm:px-3 sm:py-1 sm:text-xs">
-            {displayDescription && <p className="truncate">{displayDescription}</p>}
+            {displayDescription && <p className="line-clamp-2">{displayDescription}</p>}
             {manufacturerAndCountry && <p className="truncate">{manufacturerAndCountry}</p>}
           </div>
         )}
