@@ -657,7 +657,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     userAdmin,
     marketplaceEvents,
   );
-  const rbacService = new RbacService(rbacRepository, marketplaceEvents);
+  const rbacService = new RbacService(rbacRepository, marketplaceEvents, userAdmin);
   const sellerProductService = new SellerProductService(
     sellerProducts,
     adminCategories,

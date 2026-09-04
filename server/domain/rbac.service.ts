@@ -1,4 +1,5 @@
 import type { IRbacRepository } from "@server/ports/rbac.repository";
+import type { IUserAdminRepository } from "@server/ports/user-admin.repository";
 import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
 import type {
   AssignRoleRequest,
@@ -23,17 +24,44 @@ import {
   SystemRoleImmutableError,
 } from "@server/domain/rbac.errors";
 
+// Задача №259 — the two system roles that mean "this person should have
+// the platform's base admin workspace access", not just a finer-grained
+// permission subset. Every requireModulePermission() call site (Couriers,
+// this module's own mutations) is preceded by requireAdminFromRequest() in
+// the same function — confirmed across every current call site — so no
+// OTHER rbac role (Менеджер/Оператор/Склад/Курьер/Поддержка) is ever a
+// standalone path to anything: they only narrow what an existing
+// user_roles-admin may do. Syncing those too would over-grant full /admin
+// login to someone meant to hold only a limited operational subset.
+// Matched by name, not id: both are is_system=true rows, and updateRole()
+// already refuses to rename a system role's `name` (SystemRoleImmutableError),
+// so this mapping can't silently drift out of sync with the seed data.
+const ADMIN_WORKSPACE_RBAC_ROLE_NAMES = new Set(["Администратор", "Суперадминистратор"]);
+
 /**
  * Industrial RBAC domain service (Промпт №068). Entirely additive and
  * parallel to the existing app_role enum / PermissionPolicyService — never
  * consulted by them, never consulting them. hasPermission() is the single
  * function requireModulePermission() calls; every other method backs the
  * "Права доступа" admin UI (role CRUD, permission CRUD, matrix, assignment).
+ *
+ * Задача №259 — assignRole() below is the one exception to "never
+ * consulted by them": when the role being assigned is "Администратор" or
+ * "Суперадминистратор", it also grants the legacy user_roles 'admin' row
+ * (via userAdmin, upsert/ignoreDuplicates — a no-op if already present).
+ * Root cause this fixes: /admin's own access barrier
+ * (RoleResolutionService) checks ONLY user_roles/platform_ownership, never
+ * rbac_user_roles — an admin granting "Администратор" here previously left
+ * the target still locked out of /admin entirely, despite the UI showing
+ * the role as assigned. See docs from the Задача №259 diagnostic session.
+ * revokeRole() deliberately does NOT mirror this in reverse — see its own
+ * doc comment.
  */
 export class RbacService {
   constructor(
     private readonly rbac: IRbacRepository,
     private readonly events: IMarketplaceEventBus,
+    private readonly userAdmin: IUserAdminRepository,
   ) {}
 
   async listRoles(): Promise<RbacRoleDTO[]> {
@@ -150,8 +178,35 @@ export class RbacService {
       userId: data.userId,
       roleId: data.roleId,
     });
+
+    // Задача №259 — see class doc comment. Idempotent (ignoreDuplicates in
+    // the repository's upsert), so re-assigning an already-held role, or a
+    // user who separately already has user_roles 'admin', is a harmless
+    // no-op either way.
+    if (ADMIN_WORKSPACE_RBAC_ROLE_NAMES.has(role.name)) {
+      await this.userAdmin.assignRole(data.userId, "admin");
+      await this.events.publish({ type: "role.assigned", userId: data.userId, role: "admin" });
+    }
   }
 
+  /**
+   * Задача №259 — deliberately does NOT auto-remove user_roles 'admin' when
+   * "Администратор"/"Суперадминистратор" is revoked here. user_roles is the
+   * platform's one and only /admin entry gate (RoleResolutionService,
+   * requireAdminFromRequest — used across virtually every admin executor,
+   * not just this RBAC layer), and it can hold 'admin' for reasons that
+   * have nothing to do with this specific RBAC role: granted directly via
+   * /admin/users before this RBAC role ever existed, or independently of
+   * it. Auto-*granting* it here is safe to get wrong in the safe direction
+   * (idempotent, additive, worst case someone keeps a permission label they
+   * already effectively had). Auto-*revoking* it is not symmetric: getting
+   * it wrong means silently and immediately locking a real admin out of the
+   * entire Workspace (admin.tsx's own barrier re-checks on every
+   * navigation) — the exact class of incident this task started from,
+   * just in the opposite direction. Removing a user's /admin access is a
+   * deliberate, explicit action, done from /admin/users, not an automatic
+   * side effect of revoking one differently-scoped label.
+   */
   async revokeRole(data: RevokeRoleRequest): Promise<void> {
     await this.rbac.revokeRole(data.userId, data.roleId);
     await this.events.publish({
