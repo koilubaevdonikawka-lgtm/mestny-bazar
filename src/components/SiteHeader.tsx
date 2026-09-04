@@ -163,7 +163,25 @@ export function SiteHeader({
             header's right-hand cluster: min-w-0 on the search wrapper lets
             it shrink below its own content width on narrow screens (a flex
             item won't shrink past that by default), while shrink-0 on the
-            switcher keeps it from ever getting squeezed out. */}
+            switcher keeps it from ever getting squeezed out.
+
+            Задача №258 — AccountMenu now renders in this same shrink-0
+            cluster, right next to LanguageSwitcher, on every caller that
+            already sets showLanguageSwitcher (today: only the home page
+            among customer routes; AdminLayout also sets the flag, but its
+            showSearch={false} means this whole branch — and thus this
+            cluster — never renders there, so admin/seller/courier headers
+            are byte-for-byte unaffected). Deliberately reusing
+            showLanguageSwitcher itself rather than a new prop: wherever
+            that flag reaches in the future, the account icon automatically
+            follows, without another call site to keep in sync. This is
+            visible at every viewport width, including mobile — no lg:-only
+            class here — which is the whole point: the old far-right
+            AccountMenu below is effectively unreachable on the pages that
+            use this cluster (they all pass showAccountMenu={false} for
+            it), leaving signed-out mobile visitors with no persistent
+            sign-in entry point once WelcomeGate's one-time prompt is
+            dismissed. */}
         <div className="flex flex-1 max-w-xl items-center gap-2">
           {showSearch ? (
             <>
@@ -171,8 +189,9 @@ export function SiteHeader({
                 <SearchBar />
               </div>
               {showLanguageSwitcher && (
-                <div className="shrink-0">
+                <div className="flex shrink-0 items-center gap-2">
                   <LanguageSwitcher />
+                  <AccountMenu hideSignInCta={hideSignInButton} />
                 </div>
               )}
             </>
@@ -191,7 +210,15 @@ export function SiteHeader({
             {t("header.deliveryLink")}
           </a>
         </nav>
-        {showAccountMenu && <AccountMenu hideSignInCta={hideSignInButton} />}
+        {/* Задача №258 — !showLanguageSwitcher guards against ever rendering
+            AccountMenu twice on a caller that sets both flags: the cluster
+            above already covers it in that case. No current caller does
+            (AdminLayout's showLanguageSwitcher never reaches this far —
+            see the comment above — and no customer page sets both), this
+            is just a correctness guard for whichever future caller does. */}
+        {showAccountMenu && !showLanguageSwitcher && (
+          <AccountMenu hideSignInCta={hideSignInButton} />
+        )}
         {/* Срочная проверка (мобильный вход) — restores a "Войти" entry
             point on web (mobile and desktop) for pages that hide the full
             AccountMenu; see the doc comment on showAccountMenu above. */}

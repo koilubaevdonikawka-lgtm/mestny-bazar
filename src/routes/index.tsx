@@ -154,12 +154,18 @@ function Home() {
       <WelcomeGate />
       {/* Задача №175 — no "← Назад" here: the home page is the root of
           navigation, so there is nothing to go back to. */}
+      {/* Задача №258 — showSignInFallback dropped here: AccountMenu now
+          renders in the showLanguageSwitcher cluster below (same "Войти"
+          CTA for guests, plus the profile dropdown once signed in), so the
+          separate fallback button would just be a second "Войти" next to
+          the first. Every other showSignInFallback caller doesn't set
+          showLanguageSwitcher, so they're unaffected — this is the only
+          page where the two ever combined. */}
       <SiteHeader
         safeAreaTop
         showAccountMenu={false}
         showCart={false}
         showBackButton={false}
-        showSignInFallback
         showLanguageSwitcher
       />
 
