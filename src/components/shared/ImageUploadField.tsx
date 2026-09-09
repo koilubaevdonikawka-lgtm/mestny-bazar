@@ -137,18 +137,21 @@ export function ImageUploadField({
         <input
           ref={inputRef}
           type="file"
-          // Задача №261 — extensions listed explicitly alongside the MIME
-          // types: some OS/browser combos (notably Windows/Chrome without a
-          // registered .heic association) don't recognize "image/heic" as
-          // a MIME type at all, so accept-by-MIME alone would silently
-          // filter these files back out of the picker.
-          accept={[
-            ...MEDIA_UPLOAD_ALLOWED_MIME_TYPES,
-            "image/heic",
-            "image/heif",
-            ".heic",
-            ".heif",
-          ].join(",")}
+          // Задача №262 — plain wildcard, not an enumerated MIME+extension
+          // list: iOS Safari doesn't support extension accept values at all
+          // (confirmed WebKit/iOS gap — mdn/browser-compat-data#26043) and
+          // has long-standing bugs with multi-type accept lists (a
+          // WebKit-tracked case where only the first of two listed MIME
+          // types actually applied), plus Safari 17+ has its own reported
+          // bug where explicitly listing "image/heic" triggers unwanted
+          // auto-conversion behavior. "image/*" is a MIME-class wildcard —
+          // it already matches image/heic (and every other type this app
+          // allows) without enumerating anything, so it's the one accept
+          // value documented to behave consistently across iOS Safari,
+          // Android Chrome, and desktop. The real gate is still
+          // isHeicFile()/MEDIA_UPLOAD_ALLOWED_MIME_TYPES below — this
+          // attribute only shapes which files the OS picker offers.
+          accept="image/*"
           className="hidden"
           onChange={handleFileChange}
           disabled={disabled}

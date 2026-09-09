@@ -212,13 +212,12 @@ export function MultiImageUploadField({
         <input
           ref={inputRef}
           type="file"
-          accept={[
-            ...MEDIA_UPLOAD_ALLOWED_MIME_TYPES,
-            "image/heic",
-            "image/heif",
-            ".heic",
-            ".heif",
-          ].join(",")}
+          // Задача №262 — plain wildcard, not an enumerated MIME+extension
+          // list: see ImageUploadField.tsx's accept attribute for why
+          // (iOS Safari has no support for extension accept values and
+          // documented bugs with multi-type/explicit-"image/heic" lists;
+          // "image/*" already covers HEIC/HEIF as a MIME-class wildcard).
+          accept="image/*"
           className="hidden"
           onChange={handleFileChange}
           disabled={disabled || atLimit}

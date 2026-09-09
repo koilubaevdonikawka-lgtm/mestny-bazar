@@ -19,10 +19,11 @@ const HEIC_MIME_TYPES = new Set([
   "image/heif-sequence",
 ]);
 
-/** Extension-only browsers/OSes (notably Windows/Chrome for an
- * unregistered .heic association) report `file.type` as `""` for a HEIC
- * file — the accept attribute still lets it through via extension
- * matching, so detection here has to fall back to the filename too. */
+/** Some OS/browser combos (notably Windows/Chrome without a registered
+ * .heic association) report `file.type` as `""` for a HEIC file picked via
+ * the "image/*" accept wildcard (Задача №262 — see the input's own accept
+ * attribute for why it's a plain wildcard, not an enumerated list) —
+ * detection here has to fall back to the filename too. */
 export function isHeicFile(file: File): boolean {
   if (HEIC_MIME_TYPES.has(file.type.toLowerCase())) return true;
   return /\.(heic|heif)$/i.test(file.name);
