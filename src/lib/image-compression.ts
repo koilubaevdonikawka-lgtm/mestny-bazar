@@ -27,6 +27,53 @@ const JPEG_QUALITY_STEPS = [0.85, 0.75, 0.65, 0.55, 0.45, 0.35];
 
 export class ImageCompressionError extends Error {}
 
+/**
+ * Standard-camera EXIF-orientation fallback for product photos uploaded
+ * with the AI-processing toggle OFF (MultiImageUploadField's "Без обработки
+ * ИИ" mode) — that mode intentionally never touches the photo via Gemini,
+ * so it gets only this simpler, purely mechanical correction instead of
+ * content-aware rotation. `sharp` (used elsewhere in this repo only for the
+ * one-off scripts/generate-pwa-icons.mjs build step) is a native addon and
+ * cannot run in the Cloudflare Workers production runtime (nitro's
+ * `cloudflare-module` preset — no Node native bindings), so this can't be
+ * done server-side the way that script does it. `createImageBitmap`'s
+ * `imageOrientation: "from-image"` is the standards-compliant browser
+ * equivalent — it reads the same EXIF orientation tag a camera writes and
+ * decodes the bitmap already rotated/flipped to upright, which a canvas
+ * redraw then bakes into plain pixels (the re-encoded output carries no
+ * orientation tag to lose). This is explicitly passed rather than relied on
+ * as an implicit default, since older WebView builds (Capacitor's Android
+ * System WebView) may not default to it. Only covers the standard 8 EXIF
+ * orientation values a camera can write — it has no idea what's actually
+ * printed on the product, so a photo with no EXIF tag (e.g. already
+ * re-saved by another tool) or one that's sideways for a reason other than
+ * camera rotation passes through unchanged. That gap is exactly what the
+ * AI-processing branch above covers instead.
+ */
+export async function normalizeExifOrientation(file: File): Promise<File> {
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+  } catch {
+    return file;
+  }
+
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0);
+
+    const blob = await canvasToBlob(canvas, 0.92);
+    if (!blob) return file;
+    return new File([blob], toJpegFileName(file.name), { type: "image/jpeg" });
+  } finally {
+    bitmap.close();
+  }
+}
+
 function toJpegFileName(originalName: string): string {
   const base = originalName.replace(/\.[^./\\]+$/, "");
   return `${base || "photo"}.jpg`;

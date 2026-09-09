@@ -5,6 +5,7 @@ import { ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadImage } from "@/api/media-upload";
 import { compressImageForUpload } from "@/lib/image-compression";
+import { convertHeicToJpeg, isHeicFile } from "@/lib/heic-conversion";
 import {
   MEDIA_UPLOAD_ALLOWED_MIME_TYPES,
   MEDIA_UPLOAD_MAX_BYTES,
@@ -35,8 +36,12 @@ export function ImageUploadField({
 }: ImageUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   // Задача №239 — separate from mutation.isPending: compression (Canvas,
-  // client-side) runs BEFORE the upload request even starts.
-  const [isCompressing, setIsCompressing] = useState(false);
+  // client-side) runs BEFORE the upload request even starts. Задача №261 —
+  // "converting" covers the HEIC→JPEG step (heic2any), which runs first
+  // and can take a few seconds on its own (WASM decode), hence the
+  // distinct label rather than lumping it into "Сжимаем фото...".
+  const [stage, setStage] = useState<"idle" | "converting" | "compressing">("idle");
+  const isBusy = stage !== "idle";
 
   const mutation = useMutation({
     mutationFn: (file: File) => uploadImage(file, context),
@@ -50,18 +55,26 @@ export function ImageUploadField({
     e.target.value = "";
     if (!file) return;
 
-    if (!(MEDIA_UPLOAD_ALLOWED_MIME_TYPES as readonly string[]).includes(file.type)) {
-      toast.error("Поддерживаются только изображения PNG, JPEG, WEBP или AVIF");
+    const isHeic = isHeicFile(file);
+    if (!isHeic && !(MEDIA_UPLOAD_ALLOWED_MIME_TYPES as readonly string[]).includes(file.type)) {
+      toast.error("Поддерживаются только изображения PNG, JPEG, WEBP, AVIF, HEIC или HEIF");
       return;
     }
 
     // Задача №239 — resizes/re-encodes down toward the server limit before
     // it ever leaves the browser; a no-op for a file already comfortably
-    // under it (see compressImageForUpload's own skip threshold).
+    // under it (see compressImageForUpload's own skip threshold). Задача
+    // №261 — HEIC/HEIF first converts to JPEG (heic2any) so the rest of
+    // the pipeline, and the server, only ever see a normal JPEG.
     let toUpload: File;
-    setIsCompressing(true);
     try {
-      toUpload = await compressImageForUpload(file);
+      let jpegSource = file;
+      if (isHeic) {
+        setStage("converting");
+        jpegSource = await convertHeicToJpeg(file);
+      }
+      setStage("compressing");
+      toUpload = await compressImageForUpload(jpegSource);
     } catch (err) {
       toast.error(
         err instanceof Error
@@ -70,7 +83,7 @@ export function ImageUploadField({
       );
       return;
     } finally {
-      setIsCompressing(false);
+      setStage("idle");
     }
 
     // Belt-and-suspenders: compressImageForUpload targets a margin under
@@ -105,20 +118,37 @@ export function ImageUploadField({
           type="button"
           variant="outline"
           size="sm"
-          disabled={disabled || isCompressing || mutation.isPending}
+          disabled={disabled || isBusy || mutation.isPending}
           onClick={() => inputRef.current?.click()}
         >
-          {isCompressing || mutation.isPending ? (
+          {isBusy || mutation.isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <ImagePlus className="h-4 w-4" />
           )}
-          {isCompressing ? "Сжимаем фото..." : value ? "Заменить" : "Загрузить изображение"}
+          {stage === "converting"
+            ? "Конвертируем HEIC..."
+            : stage === "compressing"
+              ? "Сжимаем фото..."
+              : value
+                ? "Заменить"
+                : "Загрузить изображение"}
         </Button>
         <input
           ref={inputRef}
           type="file"
-          accept={MEDIA_UPLOAD_ALLOWED_MIME_TYPES.join(",")}
+          // Задача №261 — extensions listed explicitly alongside the MIME
+          // types: some OS/browser combos (notably Windows/Chrome without a
+          // registered .heic association) don't recognize "image/heic" as
+          // a MIME type at all, so accept-by-MIME alone would silently
+          // filter these files back out of the picker.
+          accept={[
+            ...MEDIA_UPLOAD_ALLOWED_MIME_TYPES,
+            "image/heic",
+            "image/heif",
+            ".heic",
+            ".heif",
+          ].join(",")}
           className="hidden"
           onChange={handleFileChange}
           disabled={disabled}

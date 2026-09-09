@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadImage } from "@/api/media-upload";
-import { compressImageForUpload } from "@/lib/image-compression";
+import { compressImageForUpload, normalizeExifOrientation } from "@/lib/image-compression";
+import { convertHeicToJpeg, isHeicFile } from "@/lib/heic-conversion";
 import { cn } from "@/lib/utils";
 import {
   MediaUploadContext,
@@ -42,8 +43,12 @@ export function MultiImageUploadField({
   const inputRef = useRef<HTMLInputElement>(null);
   const atLimit = values.length >= maxImages;
   // Задача №239 — separate from mutation.isPending: compression (Canvas,
-  // client-side) runs BEFORE the upload request even starts.
-  const [isCompressing, setIsCompressing] = useState(false);
+  // client-side) runs BEFORE the upload request even starts. Задача №261 —
+  // "converting" covers the HEIC→JPEG step (heic2any), which runs first
+  // and can take a few seconds on its own (WASM decode), hence the
+  // distinct label rather than lumping it into "Сжимаем фото...".
+  const [stage, setStage] = useState<"idle" | "converting" | "compressing">("idle");
+  const isBusy = stage !== "idle";
   // Задача №250 — PRODUCT-only AI-background-processing toggle, defaulted
   // on (matches uploadImage()'s own default when the flag is omitted).
   // Plain component state, not persisted anywhere — remembers the choice
@@ -69,18 +74,34 @@ export function MultiImageUploadField({
       toast.error(`Максимум ${maxImages} фотографий`);
       return;
     }
-    if (!(MEDIA_UPLOAD_ALLOWED_MIME_TYPES as readonly string[]).includes(file.type)) {
-      toast.error("Поддерживаются только изображения PNG, JPEG, WEBP или AVIF");
+    const isHeic = isHeicFile(file);
+    if (!isHeic && !(MEDIA_UPLOAD_ALLOWED_MIME_TYPES as readonly string[]).includes(file.type)) {
+      toast.error("Поддерживаются только изображения PNG, JPEG, WEBP, AVIF, HEIC или HEIF");
       return;
     }
 
     // Задача №239 — resizes/re-encodes down toward the server limit before
     // it ever leaves the browser; a no-op for a file already comfortably
-    // under it (see compressImageForUpload's own skip threshold).
+    // under it (see compressImageForUpload's own skip threshold). Задача
+    // №261 — HEIC/HEIF first converts to JPEG (heic2any) so the rest of
+    // the pipeline (EXIF fallback, compression, upload) only ever sees a
+    // normal JPEG.
     let toUpload: File;
-    setIsCompressing(true);
     try {
-      toUpload = await compressImageForUpload(file);
+      let jpegSource = file;
+      if (isHeic) {
+        setStage("converting");
+        jpegSource = await convertHeicToJpeg(file);
+      }
+      // PRODUCT + "Без обработки ИИ": Gemini never sees this photo, so it
+      // gets the mechanical EXIF-orientation fallback instead (bakes any
+      // camera-rotation tag into upright pixels) before compression runs —
+      // see normalizeExifOrientation's own doc comment for why this can't
+      // just be done server-side like the AI branch's prompt fix.
+      const source =
+        isProduct && !aiProcessingEnabled ? await normalizeExifOrientation(jpegSource) : jpegSource;
+      setStage("compressing");
+      toUpload = await compressImageForUpload(source);
     } catch (err) {
       toast.error(
         err instanceof Error
@@ -89,7 +110,7 @@ export function MultiImageUploadField({
       );
       return;
     } finally {
-      setIsCompressing(false);
+      setStage("idle");
     }
 
     // Belt-and-suspenders: compressImageForUpload targets a margin under
@@ -140,7 +161,7 @@ export function MultiImageUploadField({
                   type="button"
                   role="radio"
                   aria-checked={aiProcessingEnabled}
-                  disabled={disabled || isCompressing || mutation.isPending}
+                  disabled={disabled || isBusy || mutation.isPending}
                   onClick={() => setAiProcessingEnabled(true)}
                   className={cn(
                     "rounded-full px-2.5 py-1 transition-colors",
@@ -155,7 +176,7 @@ export function MultiImageUploadField({
                   type="button"
                   role="radio"
                   aria-checked={!aiProcessingEnabled}
-                  disabled={disabled || isCompressing || mutation.isPending}
+                  disabled={disabled || isBusy || mutation.isPending}
                   onClick={() => setAiProcessingEnabled(false)}
                   className={cn(
                     "rounded-full px-2.5 py-1 transition-colors",
@@ -172,22 +193,32 @@ export function MultiImageUploadField({
               type="button"
               variant="outline"
               size="sm"
-              disabled={disabled || isCompressing || mutation.isPending}
+              disabled={disabled || isBusy || mutation.isPending}
               onClick={() => inputRef.current?.click()}
             >
-              {isCompressing || mutation.isPending ? (
+              {isBusy || mutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <ImagePlus className="h-4 w-4" />
               )}
-              {isCompressing ? "Сжимаем фото..." : "Добавить фото"}
+              {stage === "converting"
+                ? "Конвертируем HEIC..."
+                : stage === "compressing"
+                  ? "Сжимаем фото..."
+                  : "Добавить фото"}
             </Button>
           </>
         )}
         <input
           ref={inputRef}
           type="file"
-          accept={MEDIA_UPLOAD_ALLOWED_MIME_TYPES.join(",")}
+          accept={[
+            ...MEDIA_UPLOAD_ALLOWED_MIME_TYPES,
+            "image/heic",
+            "image/heif",
+            ".heic",
+            ".heif",
+          ].join(",")}
           className="hidden"
           onChange={handleFileChange}
           disabled={disabled || atLimit}
