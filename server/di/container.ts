@@ -56,6 +56,10 @@ import { SupplierService } from "@server/domain/supplier.service";
 import { SupplyService } from "@server/domain/supply.service";
 import { UserAdminService } from "@server/domain/user-admin.service";
 import { MediaUploadService } from "@server/domain/media-upload.service";
+import { TelegramBotService } from "@server/domain/telegram-bot.service";
+import type { ITelegramBotRepository } from "@server/ports/telegram-bot.repository";
+import { SupabaseTelegramBotRepository } from "@server/adapters/supabase/telegram-bot.repository";
+import { TelegramBotApiAdapter } from "@server/adapters/telegram/telegram-bot-api.adapter";
 import { CourierProfileService } from "@server/domain/courier-profile.service";
 import { RbacService } from "@server/domain/rbac.service";
 import { PlatformOwnershipService } from "@server/domain/platform-ownership.service";
@@ -273,6 +277,7 @@ export interface ServiceContainer {
   courierStatusService: CourierStatusService;
   customerStatus: ICustomerStatusRepository;
   sellerProductService: SellerProductService;
+  telegramBotService: TelegramBotService;
   sellerProfiles: ISellerProfileRepository;
   sellerProfileService: SellerProfileService;
   suppliers: ISupplierRepository;
@@ -741,6 +746,22 @@ export function createServices(env: ServerEnv): ServiceContainer {
   // registered yet; createAiProvider() always returns the safe stub today.
   const aiProvider: IAiTextProvider = createAiProvider(env);
   const aiTranslationService = new AiTranslationService(aiProvider);
+  // Задача №264 — Telegram bot for admin-driven draft product creation.
+  // Reuses mediaUploadService/sellerProductService/adminCategories/aiProvider
+  // as-is (same PRODUCT-context upload pipeline, same product lifecycle,
+  // same AI provider gate) — no parallel mechanism. Always constructible
+  // even with no bot token configured (TelegramBotApiAdapter just fails at
+  // call time then, same as every other optional-credential adapter here).
+  const telegramBotRepository: ITelegramBotRepository = new SupabaseTelegramBotRepository();
+  const telegramBotApi = new TelegramBotApiAdapter({ botToken: env.TELEGRAM_BOT_TOKEN ?? "" });
+  const telegramBotService = new TelegramBotService(
+    telegramBotRepository,
+    telegramBotApi,
+    adminCategories,
+    aiProvider,
+    mediaUploadService,
+    sellerProductService,
+  );
   // Persistent cache in front of aiTranslationService (Промпт №094) —
   // aiTranslationService itself is unmodified and still constructible/usable
   // on its own; this wraps it, it does not replace it in the container.
@@ -875,6 +896,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     courierStatusService,
     customerStatus,
     sellerProductService,
+    telegramBotService,
     addressService,
     deviceTokens,
     deviceTokenService,

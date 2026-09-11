@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 
 import "./lib/error-capture";
 
@@ -10,6 +10,13 @@ import { isDeclaredBodyTooLarge } from "@shared/http/request-limits";
 import { isH3SwallowedErrorBody } from "@shared/http/h3-swallowed-error";
 import { createRetryableLazy } from "@shared/lib/retryable-lazy";
 import { FINIK_WEBHOOK_PATH } from "@shared/contracts/payment";
+import { TELEGRAM_WEBHOOK_PATH } from "@shared/contracts/telegram-bot";
+
+// Inline `import(...)` type query, not a static `import type` declaration —
+// the no-restricted-imports lint rule (src/** must never import server/**)
+// matches any import statement regardless of type-only intent, but doesn't
+// see this TS-only, compile-time-erased construct.
+type TelegramUpdate = import("@server/adapters/telegram/telegram-update.types").TelegramUpdate;
 
 const REQUEST_ID_HEADER = "x-request-id";
 // TanStack Start's own router owns every other path in this app — API routes
@@ -25,6 +32,11 @@ const REQUEST_ID_HEADER = "x-request-id";
 // (Промпт №080, via @mancho.devs/authorizer's Signer).
 const FINIK_SIGNATURE_HEADER = "signature";
 const X_API_HEADER_PREFIX = "x-api-";
+
+// Задача №264 — same raw-fetch-interception mechanism as the Finik webhook
+// above, for the Telegram product-creation bot. Telegram's own header name,
+// verified against core.telegram.org/bots/api#setwebhook.
+const TELEGRAM_SECRET_HEADER = "x-telegram-bot-api-secret-token";
 
 // Cloudflare's own auto-generated technical domain for this Worker (confirmed
 // from real `wrangler deploy` output, not guessed — see wrangler.json's
@@ -107,6 +119,55 @@ async function handleFinikWebhookRequest(request: Request, requestId: string): P
   return response;
 }
 
+/** Constant-time compare, tolerant of a length mismatch (timingSafeEqual
+ * throws instead of returning false when the buffers differ in length). */
+function secretsMatch(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
+
+async function handleTelegramWebhookRequest(
+  request: Request,
+  requestId: string,
+): Promise<Response> {
+  let response: Response;
+  try {
+    // Dynamic imports, matching this file's existing getServerEntry()/
+    // handleFinikWebhookRequest idiom — see that function's own comment for
+    // why (this file has to stay structurally "src/**" despite being
+    // genuinely server-only).
+    const { getServerEnv } = await import("@server/config/env");
+    const configuredSecret = getServerEnv().TELEGRAM_WEBHOOK_SECRET;
+    const providedSecret = request.headers.get(TELEGRAM_SECRET_HEADER);
+
+    if (!configuredSecret || !providedSecret || !secretsMatch(configuredSecret, providedSecret)) {
+      logger.warn("telegram-bot:webhook-secret-mismatch");
+      response = new Response("Unauthorized", { status: 401 });
+    } else {
+      const update = (await request.json()) as TelegramUpdate;
+      const { getServices } = await import("@server/di/container");
+      await getServices().telegramBotService.handleUpdate(update);
+      response = new Response(JSON.stringify({ ok: true }), {
+        headers: { "content-type": "application/json" },
+      });
+    }
+  } catch (error) {
+    logger.error("telegram-bot:webhook-unhandled-error", { error });
+    // Still 200 — Telegram would otherwise retry-redeliver an update whose
+    // failure we've already logged and (best-effort) told the admin about
+    // inside TelegramBotService itself; the idempotency table means a
+    // retry wouldn't reprocess anyway, but there's no reason to invite one.
+    response = new Response(JSON.stringify({ ok: false }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }
+  response.headers.set(REQUEST_ID_HEADER, requestId);
+  return response;
+}
+
 export default {
   fetch(request: Request, env: unknown, ctx: unknown): Promise<Response> {
     const requestId = randomUUID();
@@ -123,6 +184,9 @@ export default {
       }
       if (request.method === "POST" && new URL(request.url).pathname === FINIK_WEBHOOK_PATH) {
         return handleFinikWebhookRequest(request, requestId);
+      }
+      if (request.method === "POST" && new URL(request.url).pathname === TELEGRAM_WEBHOOK_PATH) {
+        return handleTelegramWebhookRequest(request, requestId);
       }
       // Applies to every method — a POST/PUT hitting the technical domain
       // (only realistically a mistyped/bookmarked URL, never Finik: that

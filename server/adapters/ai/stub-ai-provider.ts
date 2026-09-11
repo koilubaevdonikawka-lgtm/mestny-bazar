@@ -1,5 +1,10 @@
 import type { IAiTextProvider } from "@server/ports/ai-provider.port";
-import type { TranslateTextRequest, TranslateTextResult } from "@shared/contracts/ai-provider";
+import type {
+  TranslateTextRequest,
+  TranslateTextResult,
+  ReadImageTextRequest,
+  ReadImageTextResult,
+} from "@shared/contracts/ai-provider";
 import type {
   IAiImageProvider,
   RemoveBackgroundRequest,
@@ -18,6 +23,11 @@ import { logger } from "@shared/observability/logger";
  */
 export class StubAiProvider implements IAiTextProvider {
   async translateText(_request: TranslateTextRequest): Promise<TranslateTextResult> {
+    logger.warn("ai:provider-not-configured");
+    throw new Error("No AI provider is configured");
+  }
+
+  async readTextFromImage(_request: ReadImageTextRequest): Promise<ReadImageTextResult> {
     logger.warn("ai:provider-not-configured");
     throw new Error("No AI provider is configured");
   }

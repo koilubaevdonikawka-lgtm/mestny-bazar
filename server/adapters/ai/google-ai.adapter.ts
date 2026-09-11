@@ -1,5 +1,10 @@
 import type { IAiTextProvider } from "@server/ports/ai-provider.port";
-import type { TranslateTextRequest, TranslateTextResult } from "@shared/contracts/ai-provider";
+import type {
+  TranslateTextRequest,
+  TranslateTextResult,
+  ReadImageTextRequest,
+  ReadImageTextResult,
+} from "@shared/contracts/ai-provider";
 
 /**
  * Official Google AI (Gemini API / AI Studio) generateContent endpoint and
@@ -66,6 +71,57 @@ export class GoogleAiAdapter implements IAiTextProvider {
       translatedText: text.trim(),
       detectedSourceLanguage: request.sourceLanguage ?? null,
     };
+  }
+
+  /**
+   * Задача №264 — same generateContent endpoint/model as translateText,
+   * with an inlineData image part added alongside the text instruction
+   * (standard Gemini multimodal request shape, exactly what
+   * google-ai-image.adapter.ts already sends for its own image input —
+   * the difference here is the output stays text, so this belongs on the
+   * text-provider adapter, not the image one). The instruction always ends
+   * with an explicit "reply with exactly NONE" escape hatch — never asking
+   * the model to invent a name it can't actually read.
+   */
+  async readTextFromImage(request: ReadImageTextRequest): Promise<ReadImageTextResult> {
+    const response = await fetch(GEMINI_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-goog-api-key": this.config.apiKey,
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: request.instruction },
+              {
+                inlineData: {
+                  mimeType: request.mimeType,
+                  data: request.imageData.toString("base64"),
+                },
+              },
+            ],
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(`Google AI request failed: HTTP ${response.status} ${body}`.trim());
+    }
+
+    const data = (await response.json()) as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    };
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+    if (!text || text.toUpperCase() === "NONE") {
+      return { text: null };
+    }
+    return { text };
   }
 
   private buildPrompt(request: TranslateTextRequest): string {

@@ -9,6 +9,7 @@ function makeProvider(overrides: Partial<IAiTextProvider> = {}): IAiTextProvider
       translatedText: "hello",
       detectedSourceLanguage: "ru",
     }),
+    readTextFromImage: vi.fn().mockResolvedValue({ text: null }),
     ...overrides,
   };
 }

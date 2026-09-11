@@ -1963,6 +1963,65 @@ export type Database = {
           },
         ];
       };
+      telegram_bot_admins: {
+        Row: {
+          created_at: string;
+          name: string;
+          telegram_user_id: number;
+        };
+        Insert: {
+          created_at?: string;
+          name: string;
+          telegram_user_id: number;
+        };
+        Update: {
+          created_at?: string;
+          name?: string;
+          telegram_user_id?: number;
+        };
+        Relationships: [];
+      };
+      telegram_bot_processed_updates: {
+        Row: {
+          processed_at: string;
+          update_id: number;
+        };
+        Insert: {
+          processed_at?: string;
+          update_id: number;
+        };
+        Update: {
+          processed_at?: string;
+          update_id?: number;
+        };
+        Relationships: [];
+      };
+      telegram_bot_sessions: {
+        Row: {
+          category_id: string | null;
+          telegram_chat_id: number;
+          updated_at: string;
+        };
+        Insert: {
+          category_id?: string | null;
+          telegram_chat_id: number;
+          updated_at?: string;
+        };
+        Update: {
+          category_id?: string | null;
+          telegram_chat_id?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "telegram_bot_sessions_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       translation_cache: {
         Row: {
           created_at: string;

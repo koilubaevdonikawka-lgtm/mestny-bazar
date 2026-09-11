@@ -33,6 +33,13 @@ export const serverEnvSchema = z.object({
   FEATURE_CUSTOMER_CANCELLATION: z.enum(["true", "false"]).optional(),
 
   TELEGRAM_BOT_TOKEN: z.string().optional(),
+  // Задача №264 — X-Telegram-Bot-Api-Secret-Token, set on the webhook via
+  // scripts/setup-telegram-webhook.mjs and compared on every incoming
+  // request (src/server.ts) — rejects any POST to the webhook path that
+  // didn't actually come from Telegram. Optional so the app still boots
+  // before this is configured; the webhook handler fails closed (401) on
+  // every request while it's unset, never open.
+  TELEGRAM_WEBHOOK_SECRET: z.string().optional(),
   TELEGRAM_ADMIN_CHAT_ID: z.string().optional(),
   TELEGRAM_WAREHOUSE_CHAT_ID: z.string().optional(),
   TELEGRAM_COURIER_CHAT_ID: z.string().optional(),
