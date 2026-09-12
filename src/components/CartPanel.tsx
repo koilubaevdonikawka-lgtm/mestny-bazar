@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
@@ -112,6 +113,8 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
     overrideZoneId,
     setAddressOverride,
     clearAddressOverride,
+    notes,
+    setNotes,
   } = useCheckoutStore();
   const [mapDialogOpen, setMapDialogOpen] = useState(false);
   // Задача №182 — the default saved Address (with its zone) is the single
@@ -418,9 +421,15 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                   // bottom = stepper + line total. Every row line-item shares
                   // this exact same two-row shape, so the list reads as
                   // uniform blocks instead of stacks of varying height.
+                  // Задача №274 — tightened padding/gaps and the stepper
+                  // itself dropped from size="lg" (48px) to "sm" (44px, this
+                  // codebase's own documented touch-target minimum — see
+                  // CartQuantityControl's size prop comment) to shrink each
+                  // row's height; the 32px delete button next to it is
+                  // untouched, not shrunk further.
                   <div
                     key={item.variantId}
-                    className="rounded-2xl border border-border/60 bg-card p-3 space-y-2"
+                    className="rounded-2xl border border-border/60 bg-card p-2.5 space-y-1.5"
                   >
                     <div className="flex items-start justify-between gap-2">
                       {/* 2-line clamp instead of a hard single-line
@@ -477,8 +486,8 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                         product page, so all three always agree on the
                         quantity. Line total sits opposite it, always the
                         up-to-date price × qty (recomputed every render). */}
-                    <div className="flex items-center justify-between gap-3">
-                      <CartQuantityControl product={item.product} size="lg" />
+                    <div className="flex items-center justify-between gap-2">
+                      <CartQuantityControl product={item.product} size="sm" />
                       <span className="shrink-0 font-serif text-base font-semibold whitespace-nowrap">
                         {formatDisplayPrice(lineTotal)} {t("product.currencyLabel")}
                       </span>
@@ -651,6 +660,24 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                 </span>
               </div>
             </div>
+
+            {/* Задача №274 — free-text order comment, optional. Backend
+                already accepts/persists `notes` (createOrderRequestSchema,
+                CheckoutService) — this is only the missing input. */}
+            <section className="mt-4 space-y-2">
+              <Label htmlFor="order-notes" className="text-sm font-medium">
+                {t("cart.orderNotesLabel")}
+              </Label>
+              <Textarea
+                id="order-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder={t("cart.orderNotesPlaceholder")}
+                maxLength={2000}
+                rows={3}
+                className="rounded-xl resize-none"
+              />
+            </section>
 
             {/* Задача №184 — choosing a method is now step 1 of checkout
                 itself, not an independent preference: picking one reveals

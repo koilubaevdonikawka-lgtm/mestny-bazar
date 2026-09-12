@@ -36,6 +36,8 @@ interface CheckoutStore {
    * fee still resolves correctly instead of coming back zone-less.
    */
   overrideZoneId: string | null;
+  /** Задача №274 — free-text order comment, entered in the cart before checkout. Persisted (a partially-typed comment should survive a reload) and cleared by reset() once an order is actually placed, same lifecycle as paymentMethod/override*. */
+  notes: string;
   setPaymentMethod: (method: PaymentMethod) => void;
   /** Returns the current attempt's key, minting one on first call so every retry of the same attempt (network failure, re-click) reuses it instead of getting a fresh one. */
   getOrCreateIdempotencyKey: () => string;
@@ -49,6 +51,7 @@ interface CheckoutStore {
   }) => void;
   /** Reverts to "use the profile's saved default address" — the map pick was only ever a one-off replacement, this un-does it. */
   clearAddressOverride: () => void;
+  setNotes: (notes: string) => void;
   reset: () => void;
 }
 
@@ -59,6 +62,7 @@ const initialState = {
   overrideLatitude: null as number | null,
   overrideLongitude: null as number | null,
   overrideZoneId: null as string | null,
+  notes: "",
 };
 
 export const useCheckoutStore = create<CheckoutStore>()(
@@ -88,6 +92,7 @@ export const useCheckoutStore = create<CheckoutStore>()(
           overrideLongitude: null,
           overrideZoneId: null,
         }),
+      setNotes: (notes) => set({ notes }),
       reset: () => set(initialState),
     }),
     {
@@ -99,6 +104,7 @@ export const useCheckoutStore = create<CheckoutStore>()(
         overrideLatitude: state.overrideLatitude,
         overrideLongitude: state.overrideLongitude,
         overrideZoneId: state.overrideZoneId,
+        notes: state.notes,
       }),
     },
   ),

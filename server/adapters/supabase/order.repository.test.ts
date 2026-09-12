@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   decodePaymentMethodNote,
   encodePaymentMethodNote,
+  extractUserNotes,
   mergeNotes,
 } from "@server/adapters/supabase/order.repository";
 
@@ -50,5 +51,33 @@ describe("payment method note encoding (order notes sideband channel)", () => {
   it("encodePaymentMethodNote produces the exact tag format decodePaymentMethodNote expects", () => {
     expect(encodePaymentMethodNote("ONLINE")).toBe("payment_method:ONLINE");
     expect(decodePaymentMethodNote(encodePaymentMethodNote("ONLINE"))).toBe("ONLINE");
+  });
+});
+
+// Задача №274 — extractUserNotes is the inverse of mergeNotes: strips the
+// tag back off so the customer's own comment (and only that) is what
+// reaches any UI (admin order detail).
+describe("extractUserNotes", () => {
+  it("strips the trailing payment_method tag, leaving only the user's real note", () => {
+    const merged = mergeNotes("Leave at the door, ring twice", "ONLINE");
+    expect(extractUserNotes(merged)).toBe("Leave at the door, ring twice");
+  });
+
+  it("returns null when the order has no user note at all (tag-only notes column)", () => {
+    const merged = mergeNotes(undefined, "CASH");
+    expect(extractUserNotes(merged)).toBeNull();
+  });
+
+  it("returns null for a null notes column", () => {
+    expect(extractUserNotes(null)).toBeNull();
+  });
+
+  it("passes a tag-less notes string through unchanged (pre-existing/edge-case data)", () => {
+    expect(extractUserNotes("just a plain customer note")).toBe("just a plain customer note");
+  });
+
+  it("preserves a user note that ends with its own payment_method-shaped line, since the real tag is always appended after it", () => {
+    const merged = mergeNotes("Some note\npayment_method:ONLINE", "CASH");
+    expect(extractUserNotes(merged)).toBe("Some note\npayment_method:ONLINE");
   });
 });

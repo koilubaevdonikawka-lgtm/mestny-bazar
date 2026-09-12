@@ -1,4 +1,8 @@
-import type { PlatformSettingDTO, UpdateSettingRequest } from "@shared/contracts/settings";
+import {
+  ADMIN_CONTACT_PHONE_SETTING_KEY,
+  type PlatformSettingDTO,
+  type UpdateSettingRequest,
+} from "@shared/contracts/settings";
 import { requireAdminFromRequest } from "@server/auth/resolve-user";
 import { getServices } from "@server/di/container";
 
@@ -22,4 +26,15 @@ export async function executeUpdateSetting(
   const { userId, roles } = await requireAdminFromRequest();
   getServices().permissionPolicy.assert({ actor: { id: userId, roles }, module: MODULE });
   return getServices().settingsService.update(userId, request);
+}
+
+/**
+ * Задача №274 — buyer-facing, anonymous, same trust model as
+ * executeListPublicDeliveryTariffs (delivery-tariff.executor.ts): exposes
+ * only this one setting's value, never the whole settings table, so an
+ * unauthenticated /info visit can't read any other admin-configured key.
+ */
+export async function executeGetPublicAdminContactPhone(): Promise<string | null> {
+  const setting = await getServices().settingsService.get(ADMIN_CONTACT_PHONE_SETTING_KEY);
+  return typeof setting?.value === "string" && setting.value.trim() ? setting.value : null;
 }

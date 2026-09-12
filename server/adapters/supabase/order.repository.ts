@@ -40,6 +40,23 @@ export function mergeNotes(
   return `${userNotes.trim()}\n${methodTag}`;
 }
 
+// The inverse of mergeNotes — strips the trailing payment_method tag line
+// back off before OrderDTO.notes reaches any UI (Задача №274: the customer's
+// order-comment field is the first thing to actually display this column;
+// without this it would render "Пожелания клиента\npayment_method:CASH"
+// verbatim). Same last-line-only anchoring as decodePaymentMethodNote, for
+// the same reason — a customer's own note text must never be able to alter
+// what gets stripped. A row with no tag at all (pre-existing/edge-case data)
+// passes through unchanged.
+export function extractUserNotes(notes: string | null): string | null {
+  if (!notes) return null;
+  const lines = notes.split("\n");
+  const lastLine = lines[lines.length - 1];
+  if (!/^payment_method:(ONLINE|CASH)$/.test(lastLine)) return notes;
+  const rest = lines.slice(0, -1).join("\n").trim();
+  return rest.length > 0 ? rest : null;
+}
+
 const ORDER_COLUMNS =
   "id, user_id, order_number, status, payment_status, subtotal, delivery_fee, discount_amount, coupon_code, total, currency, customer_name, customer_phone, address_snapshot, delivery_latitude, delivery_longitude, notes, finik_payment_url, paid_at, created_at, assigned_courier_id, zone_id, delivery_tariff_id, delivery_eta_min_minutes, delivery_eta_max_minutes";
 
@@ -129,7 +146,12 @@ export class SupabaseOrderRepository implements IOrderRepository {
 
     if (itemsError) throw new Error(`Failed to fetch order items: ${itemsError.message}`);
 
-    return mapOrderRowToDto(orderRow, items ?? [], decodePaymentMethodNote(orderRow.notes));
+    return mapOrderRowToDto(
+      orderRow,
+      items ?? [],
+      decodePaymentMethodNote(orderRow.notes),
+      extractUserNotes(orderRow.notes),
+    );
   }
 
   async getById(id: string, userId?: string): Promise<OrderDTO | null> {
@@ -152,7 +174,12 @@ export class SupabaseOrderRepository implements IOrderRepository {
 
     if (itemsError) throw new Error(`Failed to fetch order items: ${itemsError.message}`);
 
-    return mapOrderRowToDto(orderRow, items ?? [], decodePaymentMethodNote(orderRow.notes));
+    return mapOrderRowToDto(
+      orderRow,
+      items ?? [],
+      decodePaymentMethodNote(orderRow.notes),
+      extractUserNotes(orderRow.notes),
+    );
   }
 
   async listByUser(userId: string): Promise<OrderDTO[]> {
@@ -319,6 +346,7 @@ export class SupabaseOrderRepository implements IOrderRepository {
         order,
         (itemsByOrder.get(order.id) ?? []).map(({ order_id: _, ...rest }) => rest),
         decodePaymentMethodNote(order.notes),
+        extractUserNotes(order.notes),
       ),
     );
   }

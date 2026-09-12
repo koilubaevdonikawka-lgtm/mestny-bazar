@@ -243,6 +243,18 @@ function AdminOrderDetailPage() {
                 : t("admin.orders.paymentCash")}
             </p>
           </div>
+          {/* Задача №274 — order.notes is already stripped of the internal
+              payment_method sideband tag by extractUserNotes (order.mapper.ts) —
+              this only ever shows the customer's own comment text, or nothing
+              at all when there isn't one. */}
+          {order.notes && (
+            <div>
+              <h2 className="text-sm font-medium text-muted-foreground">
+                {t("admin.orders.customerNotesLabel")}
+              </h2>
+              <p className="mt-1 whitespace-pre-line">{order.notes}</p>
+            </div>
+          )}
         </section>
 
         <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">

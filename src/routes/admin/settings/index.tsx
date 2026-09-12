@@ -1,13 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { listSettings, updateSetting } from "@/api/settings";
-import type { SettingValue } from "@shared/contracts/settings";
+import {
+  ADMIN_CONTACT_PHONE_SETTING_CATEGORY,
+  ADMIN_CONTACT_PHONE_SETTING_KEY,
+  type SettingValue,
+} from "@shared/contracts/settings";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { useTranslation } from "@/i18n/LanguageProvider";
@@ -48,6 +53,31 @@ function AdminSettingsPage() {
       setKey("");
       setCategory("");
       setValueText("");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : t("admin.settings.saveError")),
+  });
+
+  // Задача №274 — dedicated, friendlier field for one specific key, on top
+  // of the same generic settings store the raw key/value form above already
+  // writes through (ADMIN_CONTACT_PHONE_SETTING_KEY) — kept as its own
+  // mutation/local state so saving it never resets the unrelated raw-form
+  // fields above (updateMutation's own onSuccess does that for ITS form).
+  const [contactPhone, setContactPhone] = useState("");
+  useEffect(() => {
+    const existing = settings?.find((s) => s.key === ADMIN_CONTACT_PHONE_SETTING_KEY)?.value;
+    setContactPhone(typeof existing === "string" ? existing : "");
+  }, [settings]);
+
+  const contactPhoneMutation = useMutation({
+    mutationFn: (value: string) =>
+      updateSetting({
+        key: ADMIN_CONTACT_PHONE_SETTING_KEY,
+        category: ADMIN_CONTACT_PHONE_SETTING_CATEGORY,
+        value,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "settings", "list"] });
+      toast.success(t("admin.settings.savedToast"));
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : t("admin.settings.saveError")),
   });
@@ -184,6 +214,38 @@ function AdminSettingsPage() {
               ))}
             </ul>
           )}
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">
+          <h2 className="font-serif text-2xl mb-2">{t("admin.settings.contactPhoneHeading")}</h2>
+          <p className="mb-4 text-sm text-muted-foreground">
+            {t("admin.settings.contactPhoneDescription")}
+          </p>
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="admin-contact-phone">{t("admin.settings.contactPhoneLabel")}</Label>
+              <Textarea
+                id="admin-contact-phone"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                placeholder={t("admin.settings.contactPhonePlaceholder")}
+                rows={3}
+                className="resize-none"
+              />
+            </div>
+            <Button
+              type="button"
+              className="h-12 w-full rounded-full sm:w-auto"
+              disabled={contactPhoneMutation.isPending}
+              onClick={() => contactPhoneMutation.mutate(contactPhone.trim())}
+            >
+              {contactPhoneMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                t("common.save")
+              )}
+            </Button>
+          </div>
         </section>
 
         <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">

@@ -152,6 +152,8 @@ export const ru = {
     itemsInCartOne: "{{count}} товар в корзине",
     itemsInCartMany: "{{count}} товаров в корзине",
     total: "Итого",
+    orderNotesLabel: "Комментарий к заказу",
+    orderNotesPlaceholder: "Пожелания, уточнения по заказу...",
     /** Задача №184 — confirm buttons that appear right under the payment-method choice, replacing a single always-visible "Оформить заказ" button. */
     confirmPayOnline: "Оплатить",
     confirmPayCash: "Оформить",
@@ -369,6 +371,7 @@ export const ru = {
       "Доставка: 60 сом за заказ до 40 кг, далее +2 сом за каждый дополнительный килограмм по городу Кант",
     deliveryHeading: "Доставка",
     deliveryPerZoneLine: "{{zoneName}} — {{price}} сом/кг",
+    contactPhoneHeading: "Телефон администратора",
     copyright: "© {{year}} {{brand}}. Все права защищены.",
   },
   account: {
@@ -461,6 +464,11 @@ export const ru = {
       categoryPlaceholder: "например: general",
       valueLabel: "Значение (JSON)",
       valuePlaceholder: '"Местный Базар" или 123 или true или {"a":1}',
+      contactPhoneHeading: "Телефон администратора",
+      contactPhoneDescription:
+        "Показывается покупателям на странице «Информация». Можно указать несколько номеров — каждый на отдельной строке. Оставьте пустым, чтобы не показывать этот блок.",
+      contactPhoneLabel: "Телефон(ы)",
+      contactPhonePlaceholder: "+996 555 123 456",
     },
     logs: {
       title: "Журналы событий",
@@ -679,6 +687,7 @@ export const ru = {
       recipientLabel: "Получатель",
       phoneLabel: "Телефон",
       paymentMethodLabel: "Способ оплаты",
+      customerNotesLabel: "Комментарий клиента",
       paymentOnline: "Онлайн",
       paymentCash: "Наличными",
       paymentOnlineBadge: "Оплата онлайн",

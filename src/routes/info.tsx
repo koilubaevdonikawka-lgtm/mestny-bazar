@@ -15,6 +15,7 @@ import { WELCOME_SEEN_KEY } from "@/components/WelcomeGate";
 import { BRAND } from "@/config/brand";
 import { CONTACT } from "@/config/contact";
 import { listPublicDeliveryTariffs } from "@/api/delivery-tariff";
+import { getPublicAdminContactPhone } from "@/api/settings";
 
 /**
  * Задача №178 — a real, full-screen, own-URL page for what used to be
@@ -79,6 +80,17 @@ function InfoPage() {
   });
   const tariffs = tariffsQuery.data ?? [];
 
+  // Задача №274 — same "absent unless the admin actually set something"
+  // convention as the tariffs block right below: `data ?? []`/no skeleton
+  // here becomes `data ?? null` — the whole block simply doesn't render
+  // when unset, never an empty section.
+  const contactPhoneQuery = useQuery({
+    queryKey: ["public", "admin-contact-phone"],
+    queryFn: getPublicAdminContactPhone,
+    staleTime: 60 * 1000,
+  });
+  const contactPhone = contactPhoneQuery.data ?? null;
+
   const zoneNames = tariffs.map((tariff) => tariff.zoneName);
   const translatedTexts = useTranslatedTexts([BRAND.name, ...zoneNames], language);
   const displayBrandName = translatedTexts[BRAND.name] ?? BRAND.name;
@@ -123,6 +135,12 @@ function InfoPage() {
                   </li>
                 ))}
               </ul>
+            </li>
+          )}
+          {contactPhone && (
+            <li>
+              <p className="text-foreground">{t("footer.contactPhoneHeading")}</p>
+              <p className="mt-1 whitespace-pre-line">{contactPhone}</p>
             </li>
           )}
           <li>

@@ -141,6 +141,8 @@ export const zh = {
     itemsInCartOne: "购物车中有 {{count}} 件商品",
     itemsInCartMany: "购物车中有 {{count}} 件商品",
     total: "合计",
+    orderNotesLabel: "订单备注",
+    orderNotesPlaceholder: "特殊要求、订单说明……",
     confirmPayOnline: "支付",
     confirmPayCash: "下单",
     remove: "移除",
@@ -330,6 +332,7 @@ export const zh = {
     deliveryPricingInfo: "配送费：40 公斤以内订单收取 60 索姆，坎特市内每超出 1 公斤加收 2 索姆",
     deliveryHeading: "配送",
     deliveryPerZoneLine: "{{zoneName}} — {{price}} 索姆/公斤",
+    contactPhoneHeading: "管理员联系电话",
     copyright: "© {{year}} {{brand}}。保留所有权利。",
   },
   account: {
@@ -418,6 +421,11 @@ export const zh = {
       categoryPlaceholder: "例如：general",
       valueLabel: "值（JSON）",
       valuePlaceholder: '"本地市场" 或 123 或 true 或 {"a":1}',
+      contactPhoneHeading: "管理员联系电话",
+      contactPhoneDescription:
+        "会显示在顾客端的「信息」页面。可以填写多个号码，每行一个。留空则不显示该区块。",
+      contactPhoneLabel: "电话号码",
+      contactPhonePlaceholder: "+996 555 123 456",
     },
     logs: {
       title: "事件日志",
@@ -627,6 +635,7 @@ export const zh = {
       recipientLabel: "收货人",
       phoneLabel: "电话",
       paymentMethodLabel: "付款方式",
+      customerNotesLabel: "客户备注",
       paymentOnline: "在线支付",
       paymentCash: "现金",
       paymentOnlineBadge: "在线支付",

@@ -42,8 +42,14 @@ export function useCreateOrder() {
     // quick-buy page's two payment buttons — each click both picks and
     // submits) always sees that fresh value, not a stale one captured at
     // this hook's last render.
-    const { paymentMethod, overrideAddress, overrideLatitude, overrideLongitude, overrideZoneId } =
-      useCheckoutStore.getState();
+    const {
+      paymentMethod,
+      overrideAddress,
+      overrideLatitude,
+      overrideLongitude,
+      overrideZoneId,
+      notes,
+    } = useCheckoutStore.getState();
     if (!paymentMethod) {
       toast.error(t("cart.missingPaymentMethodError"));
       return false;
@@ -55,6 +61,11 @@ export function useCreateOrder() {
         items,
         paymentMethod,
         idempotencyKey: useCheckoutStore.getState().getOrCreateIdempotencyKey(),
+        // Задача №274 — free-text order comment, entered in the cart.
+        // Backend already accepts/persists this (createOrderRequestSchema,
+        // CheckoutService) — omitted entirely when blank, same convention
+        // as every other optional field here.
+        ...(notes.trim() ? { notes: notes.trim() } : {}),
         // Задача №195 — "Отметить на карте" in the cart: a one-off address
         // for THIS order only, explicitly overriding the profile's saved
         // default address CheckoutService would otherwise resolve (never

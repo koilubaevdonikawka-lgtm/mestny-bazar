@@ -22,3 +22,11 @@ export const updateSettingFn = createServerFn({ method: "POST" })
     const { executeUpdateSetting } = await import("@server/functions/settings.executor");
     return executeUpdateSetting(data);
   });
+
+export const getPublicAdminContactPhoneFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<string | null> => {
+    const { executeGetPublicAdminContactPhone } =
+      await import("@server/functions/settings.executor");
+    return executeGetPublicAdminContactPhone();
+  },
+);

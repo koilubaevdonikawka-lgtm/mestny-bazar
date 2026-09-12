@@ -143,6 +143,8 @@ export const en = {
     itemsInCartOne: "{{count}} item in cart",
     itemsInCartMany: "{{count}} items in cart",
     total: "Total",
+    orderNotesLabel: "Comment for the order",
+    orderNotesPlaceholder: "Special requests, clarifications...",
     confirmPayOnline: "Pay",
     confirmPayCash: "Place order",
     remove: "Remove",
@@ -343,6 +345,7 @@ export const en = {
       "Delivery: 60 KGS for orders up to 40 kg, +2 KGS per extra kilogram in Kant",
     deliveryHeading: "Delivery",
     deliveryPerZoneLine: "{{zoneName}} — {{price}} som/kg",
+    contactPhoneHeading: "Admin contact phone",
     copyright: "© {{year}} {{brand}}. All rights reserved.",
   },
   account: {
@@ -433,6 +436,11 @@ export const en = {
       categoryPlaceholder: "e.g.: general",
       valueLabel: "Value (JSON)",
       valuePlaceholder: '"Mestny Bazar" or 123 or true or {"a":1}',
+      contactPhoneHeading: "Admin contact phone",
+      contactPhoneDescription:
+        "Shown to customers on the Info page. You can list several numbers, one per line. Leave empty to hide this block.",
+      contactPhoneLabel: "Phone(s)",
+      contactPhonePlaceholder: "+996 555 123 456",
     },
     logs: {
       title: "Event Logs",
@@ -644,6 +652,7 @@ export const en = {
       recipientLabel: "Recipient",
       phoneLabel: "Phone",
       paymentMethodLabel: "Payment method",
+      customerNotesLabel: "Customer comment",
       paymentOnline: "Online",
       paymentCash: "Cash",
       paymentOnlineBadge: "Online payment",

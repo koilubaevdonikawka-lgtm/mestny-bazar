@@ -90,6 +90,11 @@ export function mapOrderRowToDto(
   row: DbOrderRow,
   items: DbOrderItemRow[],
   paymentMethod: OrderDTO["paymentMethod"],
+  // Задача №274 — same reason paymentMethod is decoded outside and passed
+  // in rather than derived from row.notes here: order.repository.ts owns
+  // the sideband-encoding scheme (mergeNotes/decodePaymentMethodNote/
+  // extractUserNotes all live there), this mapper just assembles the DTO.
+  userNotes: string | null = row.notes,
 ): OrderDTO {
   return {
     id: row.id,
@@ -109,7 +114,7 @@ export function mapOrderRowToDto(
     addressSnapshot: row.address_snapshot,
     deliveryLatitude: row.delivery_latitude == null ? null : Number(row.delivery_latitude),
     deliveryLongitude: row.delivery_longitude == null ? null : Number(row.delivery_longitude),
-    notes: row.notes,
+    notes: userNotes,
     paymentUrl: row.finik_payment_url,
     items: items.map((item) => ({
       id: item.id,

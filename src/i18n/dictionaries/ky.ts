@@ -143,6 +143,8 @@ export const ky = {
     itemsInCartOne: "Себетте {{count}} товар",
     itemsInCartMany: "Себетте {{count}} товар",
     total: "Жыйынтык",
+    orderNotesLabel: "Буйрутмага комментарий",
+    orderNotesPlaceholder: "Каалоолор, буйрутма боюнча тактоолор...",
     confirmPayOnline: "Төлөө",
     confirmPayCash: "Тапшыруу",
     remove: "Алып салуу",
@@ -345,6 +347,7 @@ export const ky = {
       "Жеткирүү: 40 кг чейинки заказ үчүн 60 сом, Кант шаары боюнча ар бир кошумча килограмм үчүн +2 сом",
     deliveryHeading: "Жеткирүү",
     deliveryPerZoneLine: "{{zoneName}} — {{price}} сом/кг",
+    contactPhoneHeading: "Администратордун телефону",
     copyright: "© {{year}} {{brand}}. Бардык укуктар корголгон.",
   },
   account: {
@@ -436,6 +439,11 @@ export const ky = {
       categoryPlaceholder: "мисалы: general",
       valueLabel: "Мааниси (JSON)",
       valuePlaceholder: '"Местный Базар" же 123 же true же {"a":1}',
+      contactPhoneHeading: "Администратордун телефону",
+      contactPhoneDescription:
+        "Сатып алуучуларга «Маалымат» баракчасында көрсөтүлөт. Бир нече номерди көрсөтсө болот — ар бирин өзүнчө сапта. Бул блокту көрсөтпөө үчүн бош калтырыңыз.",
+      contactPhoneLabel: "Телефон(дор)",
+      contactPhonePlaceholder: "+996 555 123 456",
     },
     logs: {
       title: "Окуялар журналы",
@@ -648,6 +656,7 @@ export const ky = {
       recipientLabel: "Алуучу",
       phoneLabel: "Телефон",
       paymentMethodLabel: "Төлөө ыкмасы",
+      customerNotesLabel: "Кардардын комментарийи",
       paymentOnline: "Онлайн",
       paymentCash: "Накталай",
       paymentOnlineBadge: "Онлайн төлөм",
