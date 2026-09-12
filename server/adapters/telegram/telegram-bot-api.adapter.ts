@@ -59,11 +59,20 @@ export class TelegramBotApiAdapter implements ITelegramBotApi {
       throw new Error(`Telegram file download failed: HTTP ${fileResponse.status}`);
     }
 
-    // Telegram photos are always served as JPEG (Bot API re-encodes every
-    // uploaded "photo" server-side); falling back to that when the response
-    // omits content-type (some CDN edges do) rather than guessing from the
-    // file_path extension, which Telegram doesn't document as stable.
-    const contentType = fileResponse.headers.get("content-type") || "image/jpeg";
+    // Задача №268 — hardcoded, not read from the response header. Real
+    // production failure confirmed via wrangler tail: Telegram's file
+    // server returned a real, present "content-type: application/octet-stream"
+    // header for a downloaded photo — not omitted, just generic/wrong — so
+    // the previous `fileResponse.headers.get(...) || "image/jpeg"` fallback
+    // never triggered (the header WAS there) and the wrong MIME type
+    // reached MediaUploadService.uploadImage()'s allow-list check,
+    // throwing MediaUploadValidationError for every single photo sent.
+    // Telegram's Bot API re-encodes every uploaded "photo" to JPEG
+    // server-side (confirmed earlier, Задача №264 STEP 0) — that's a fact
+    // about Telegram's own behavior, not about what this one response
+    // happens to report, so it's used directly instead of trusting the
+    // response header at all.
+    const contentType = "image/jpeg";
     const data = Buffer.from(await fileResponse.arrayBuffer());
     return { data, contentType };
   }
