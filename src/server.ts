@@ -128,9 +128,19 @@ function secretsMatch(a: string, b: string): boolean {
   return timingSafeEqual(bufA, bufB);
 }
 
+/**
+ * Задача №270 — Cloudflare's own ExecutionContext, narrowed to the one
+ * method this file needs. Not imported from @cloudflare/workers-types (not
+ * a project dependency); the Worker runtime hands `fetch` a real
+ * ExecutionContext object regardless, so a minimal structural type is
+ * enough to call the method safely.
+ */
+type ExecutionContextLike = { waitUntil: (promise: Promise<unknown>) => void };
+
 async function handleTelegramWebhookRequest(
   request: Request,
   requestId: string,
+  ctx: ExecutionContextLike,
 ): Promise<Response> {
   let response: Response;
   try {
@@ -148,7 +158,26 @@ async function handleTelegramWebhookRequest(
     } else {
       const update = (await request.json()) as TelegramUpdate;
       const { getServices } = await import("@server/di/container");
-      await getServices().telegramBotService.handleUpdate(update);
+      const { telegramBotService } = getServices();
+      // Задача №270 — real album traffic showed Telegram delays delivering
+      // the next album-member update until THIS webhook call's HTTP
+      // response is received. handleUpdate's own work (photo download,
+      // Gemini background removal, product creation) routinely takes
+      // 15-20s+, so by the time sibling photos arrived, the prior one had
+      // already been fully processed and its album claim deleted — each
+      // photo ended up "claiming" an empty slot and becoming its own
+      // separate product. ctx.waitUntil() lets the ACK go back to Telegram
+      // immediately while the slow work continues in the background, so
+      // every member of a real album lands before any of them finishes
+      // processing. Errors can't be reported back to Telegram at this
+      // point (the response is already gone) — TelegramBotService already
+      // best-effort messages the admin on failure; this catch is just so
+      // an unhandled rejection doesn't surface as a bare Worker exception.
+      ctx.waitUntil(
+        telegramBotService.handleUpdate(update).catch((error: unknown) => {
+          logger.error("telegram-bot:background-handle-update-failed", { error });
+        }),
+      );
       response = new Response(JSON.stringify({ ok: true }), {
         headers: { "content-type": "application/json" },
       });
@@ -186,7 +215,7 @@ export default {
         return handleFinikWebhookRequest(request, requestId);
       }
       if (request.method === "POST" && new URL(request.url).pathname === TELEGRAM_WEBHOOK_PATH) {
-        return handleTelegramWebhookRequest(request, requestId);
+        return handleTelegramWebhookRequest(request, requestId, ctx as ExecutionContextLike);
       }
       // Applies to every method — a POST/PUT hitting the technical domain
       // (only realistically a mistyped/bookmarked URL, never Finik: that
