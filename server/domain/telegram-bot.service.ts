@@ -417,14 +417,17 @@ export class TelegramBotService {
       sortOrder: parsed?.sortOrder ?? undefined,
       categoryId,
       imageUrls,
-      publicationStatus: ProductPublicationStatus.DRAFT,
+      // Задача №271 — published immediately, no manual draft review step
+      // (product decision, reversing the earlier DRAFT-by-default choice
+      // from Задача №264).
+      publicationStatus: ProductPublicationStatus.PUBLISHED,
     });
 
     const all = await this.categories.listAll();
     const category = all.find((c) => c.id === categoryId);
     const categoryLabel = category ? categoryDisplayName(category, all) : "";
 
-    let reply = `Товар «${product.name}» создан как черновик${categoryLabel ? ` в разделе ${categoryLabel}` : ""}.`;
+    let reply = `Товар «${product.name}» опубликован${categoryLabel ? ` в разделе ${categoryLabel}` : ""}.`;
     if (usedFallbackName) {
       reply +=
         " Не удалось определить название по подписи или фото — дополните его вручную в админке.";

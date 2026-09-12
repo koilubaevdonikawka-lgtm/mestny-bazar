@@ -297,7 +297,7 @@ function makeService(
       id: "product-1",
       name: "Товар",
       slug: "tovar",
-      publicationStatus: "DRAFT",
+      publicationStatus: "PUBLISHED",
     }),
     findBySortOrder: vi.fn().mockResolvedValue(null),
     updateProduct: vi.fn().mockResolvedValue({ id: "product-1", name: "Товар" }),
@@ -568,11 +568,11 @@ describe("TelegramBotService.handleUpdate — photo (product creation)", () => {
       price: 1,
       categoryId: "cat-1",
       imageUrls: ["https://cdn.example.com/photo.jpg"],
-      publicationStatus: "DRAFT",
+      publicationStatus: "PUBLISHED",
     });
     expect(telegramApi.sendMessage).toHaveBeenCalledWith(
       999,
-      expect.stringContaining("создан как черновик"),
+      expect.stringContaining("опубликован"),
     );
   });
 
@@ -643,7 +643,7 @@ describe("TelegramBotService.handleUpdate — photo (product creation)", () => {
       sortOrder: "12",
       categoryId: "cat-1",
       imageUrls: ["https://cdn.example.com/photo.jpg"],
-      publicationStatus: "DRAFT",
+      publicationStatus: "PUBLISHED",
     });
   });
 });
@@ -698,12 +698,12 @@ describe("TelegramBotService.handleUpdate — album (media_group_id)", () => {
       sortOrder: undefined,
       categoryId: "cat-1",
       imageUrls: ["https://cdn.example.com/cover.jpg", "https://cdn.example.com/second.jpg"],
-      publicationStatus: "DRAFT",
+      publicationStatus: "PUBLISHED",
     });
     expect(mediaUploadService.uploadImage).toHaveBeenCalledTimes(2);
     expect(telegramApi.sendMessage).toHaveBeenCalledWith(
       999,
-      expect.stringContaining("создан как черновик"),
+      expect.stringContaining("опубликован"),
     );
   });
 

@@ -6,6 +6,7 @@ import {
   MediaUploadValidationError,
 } from "@server/domain/media-upload.errors";
 import { logger } from "@shared/observability/logger";
+import { trimProductPhotoBackground } from "@server/domain/product-photo-trim";
 import {
   MEDIA_UPLOAD_ALLOWED_MIME_TYPES,
   MEDIA_UPLOAD_MAX_BYTES,
@@ -117,7 +118,13 @@ export class MediaUploadService {
         imageData,
         mimeType: input.contentType,
       });
-      return { data: result.imageData, contentType: result.mimeType };
+      // Задача №271 — Gemini doesn't always frame the product close to the
+      // canvas edges the way a normal form-uploaded photo does; this trims
+      // back down to actual content + a small margin. Best-effort by its
+      // own design (never throws) — a trim failure silently keeps the
+      // untrimmed, still-perfectly-valid removeBackground() result.
+      const trimmed = trimProductPhotoBackground(result.imageData, result.mimeType);
+      return { data: trimmed.data, contentType: trimmed.mimeType };
     } catch (error) {
       logger.error("media-upload:background-removal-failed", { error });
       throw new MediaUploadProcessingError();
