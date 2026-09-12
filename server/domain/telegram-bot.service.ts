@@ -16,10 +16,18 @@ import { logger } from "@shared/observability/logger";
 const NO_ACCESS_MESSAGE = "У вас нет доступа";
 const NO_CATEGORY_MESSAGE = "Сначала укажите категорию/подкатегорию.";
 const UNSUPPORTED_MESSAGE_TYPE_MESSAGE =
-  "Я понимаю только текст с названием раздела (категории/подкатегории) и фото товара — к фото можно (не обязательно) приложить подпись: первая строка — название, остальное — описание.";
+  "Я понимаю только текст с названием раздела (категории/подкатегории), фото товара (или альбом из нескольких фото — это будет один товар) и команду изменения цены (Номер: X / Цена: Y). К фото можно (не обязательно) приложить подпись: первая строка — название, дальше — описание, затем любые строки вида «Цена: 200», «Страна: Россия», «Номер: 45».";
 const GENERIC_ERROR_MESSAGE =
   "Что-то пошло не так при обработке. Попробуйте ещё раз, или напишите админу платформы.";
 const MAX_CATEGORY_SUGGESTIONS = 5;
+/**
+ * Задача №266 — how long the album's "claiming" delivery waits for sibling
+ * photos (separate webhook deliveries for the same media_group_id) to land
+ * before gathering. Telegram typically delivers every member of an album
+ * within a few hundred ms of each other; this is a deliberately generous
+ * multiple of that, not a measured worst-case guarantee.
+ */
+const ALBUM_GATHER_DELAY_MS = 1500;
 
 /**
  * Задача №264 — instructs Gemini to act purely as OCR, never to invent a
@@ -35,11 +43,59 @@ const OCR_INSTRUCTION = [
   "If there is no clearly legible product name printed anywhere in the photo, reply with exactly: NONE",
 ].join(" ");
 
-export function parseCaption(caption: string): { name: string; description: string | null } {
+export interface ParsedCaption {
+  name: string;
+  description: string | null;
+  /** Null = not specified in the caption — caller defaults to 1. */
+  price: number | null;
+  /** Null = not specified. */
+  countryOfOrigin: string | null;
+  /** Decimal string, exactly as typed (see SellerProductDTO.sortOrder) — null = not specified, caller omits it so createProduct() auto-assigns via next_product_sort_order(), same as the regular admin form. */
+  sortOrder: string | null;
+}
+
+const CAPTION_LABEL_PATTERN = /^(Цена|Страна|Номер):\s*(.*)$/;
+
+/**
+ * Задача №266 — replaces the old "line 1 = name, everything else =
+ * description" parser. Line 1 is still always the name, unconditionally.
+ * Line 2 onward is description text UP TO the first recognized label line;
+ * from that point on, every line is treated as label territory — a
+ * subsequent line that isn't itself "Цена:"/"Страна:"/"Номер:" is silently
+ * ignored there (not appended back into description), matching the accepted
+ * spec ("любое количество строк вида 'Метка: значение', в любом порядке").
+ */
+export function parseCaption(caption: string): ParsedCaption {
   const lines = caption.split("\n");
   const name = lines[0]?.trim() ?? "";
-  const description = lines.slice(1).join("\n").trim() || null;
-  return { name, description };
+
+  const descriptionLines: string[] = [];
+  let price: number | null = null;
+  let countryOfOrigin: string | null = null;
+  let sortOrder: string | null = null;
+  let inLabelSection = false;
+
+  for (const line of lines.slice(1)) {
+    const match = line.match(CAPTION_LABEL_PATTERN);
+    if (match) {
+      inLabelSection = true;
+      const [, label, rawValue] = match;
+      const value = rawValue.trim();
+      if (label === "Цена" && value) {
+        const parsedPrice = Number(value.replace(",", "."));
+        if (Number.isFinite(parsedPrice)) price = parsedPrice;
+      } else if (label === "Страна" && value) {
+        countryOfOrigin = value;
+      } else if (label === "Номер" && value) {
+        sortOrder = value;
+      }
+      continue;
+    }
+    if (!inLabelSection) descriptionLines.push(line);
+  }
+
+  const description = descriptionLines.join("\n").trim() || null;
+  return { name, description, price, countryOfOrigin, sortOrder };
 }
 
 export function fallbackProductName(now: Date = new Date()): string {
@@ -232,53 +288,135 @@ export class TelegramBotService {
   }
 
   private async handlePhotoMessage(chatId: number, message: TelegramMessage): Promise<void> {
-    const categoryId = await this.repo.getSessionCategoryId(chatId);
-    if (!categoryId) {
-      await this.telegramApi.sendMessage(chatId, NO_CATEGORY_MESSAGE);
-      return;
-    }
-
     // Telegram sends every resolution it generated for this photo, smallest
     // first — the last entry is the largest/original-quality one.
     const photos = message.photo!;
-    const file = await this.telegramApi.downloadFile(photos[photos.length - 1].file_id);
+    const fileId = photos[photos.length - 1].file_id;
 
-    const caption = message.caption?.trim();
-    const parsedCaption = caption ? parseCaption(caption) : null;
-
-    let name: string;
-    let description: string | null = null;
-    let usedFallbackName = false;
-
-    if (parsedCaption?.name) {
-      name = parsedCaption.name;
-      description = parsedCaption.description;
-    } else {
-      const ocrText = await this.readNameFromPhoto(file.data, file.contentType);
-      if (ocrText) {
-        name = ocrText;
-      } else {
-        name = fallbackProductName();
-        usedFallbackName = true;
+    if (!message.media_group_id) {
+      const categoryId = await this.repo.getSessionCategoryId(chatId);
+      if (!categoryId) {
+        await this.telegramApi.sendMessage(chatId, NO_CATEGORY_MESSAGE);
+        return;
       }
+      await this.createProductFromPhotos(chatId, [fileId], message.caption ?? null, categoryId);
+      return;
     }
 
-    const upload = await this.mediaUploadService.uploadImage({
-      context: MediaUploadContext.PRODUCT,
-      contentType: file.contentType,
-      size: file.data.length,
-      // Buffer's declared type (ArrayBufferLike, which includes
-      // SharedArrayBuffer) doesn't satisfy BlobPart's stricter ArrayBuffer
-      // requirement — a fresh Uint8Array copy does.
-      data: new Blob([new Uint8Array(file.data)], { type: file.contentType }),
-    });
+    await this.handleAlbumPhotoMessage(
+      chatId,
+      message.media_group_id,
+      message.message_id,
+      fileId,
+      message.caption ?? null,
+    );
+  }
+
+  /**
+   * Задача №266 — one album (media_group_id) = one product. Each photo in
+   * an album arrives as its OWN separate webhook delivery, sharing a
+   * media_group_id but with no "this is the last one" signal from Telegram
+   * — this buffers every member as it arrives (repo.addAlbumMember) and
+   * uses an atomic claim (repo.claimAlbum, a PK-uniqueness race) to elect
+   * exactly one of those deliveries to wait briefly and then gather+create
+   * the product; every other delivery for the same group just records its
+   * member row and returns immediately.
+   */
+  private async handleAlbumPhotoMessage(
+    chatId: number,
+    mediaGroupId: string,
+    messageId: number,
+    fileId: string,
+    caption: string | null,
+  ): Promise<void> {
+    await this.repo.addAlbumMember({ mediaGroupId, messageId, chatId, fileId, caption });
+
+    const categoryId = await this.repo.getSessionCategoryId(chatId);
+    const claimed = await this.repo.claimAlbum(mediaGroupId, chatId, categoryId);
+    if (!claimed) return; // a sibling delivery for this same album already owns processing
+
+    if (!categoryId) {
+      await this.telegramApi.sendMessage(chatId, NO_CATEGORY_MESSAGE);
+      await this.repo.deleteAlbum(mediaGroupId);
+      return;
+    }
+
+    // Give sibling deliveries a short window to land in the members table
+    // before gathering. Deliberate trade-off, not an oversight: a
+    // genuinely very slow last photo arriving after this window closes
+    // is simply left out of the product's photos (its row is inserted
+    // but the gather query below never reads it, and deleteAlbum below
+    // removes it once this claim is done).
+    await new Promise((resolve) => setTimeout(resolve, ALBUM_GATHER_DELAY_MS));
+
+    const members = await this.repo.getAlbumMembers(mediaGroupId);
+    // Already ordered by message_id ascending (the repository's own
+    // query) — Telegram's real attachment order, independent of which
+    // member happened to carry the caption.
+    const fileIds = members.map((m) => m.fileId);
+    const captionSource = members.find((m) => m.caption)?.caption ?? null;
+
+    await this.createProductFromPhotos(chatId, fileIds, captionSource, categoryId);
+    await this.repo.deleteAlbum(mediaGroupId);
+  }
+
+  /**
+   * Shared by both the single-photo and album paths — fileIds is a single
+   * cover photo or a whole album, already in final display order (fileIds[0]
+   * becomes imageUrls[0], the product's cover).
+   */
+  private async createProductFromPhotos(
+    chatId: number,
+    fileIds: string[],
+    captionText: string | null,
+    categoryId: string,
+  ): Promise<void> {
+    const downloaded = [];
+    for (const fileId of fileIds) {
+      downloaded.push(await this.telegramApi.downloadFile(fileId));
+    }
+    const cover = downloaded[0];
+
+    const trimmedCaption = captionText?.trim();
+    const parsed = trimmedCaption ? parseCaption(trimmedCaption) : null;
+
+    let name: string;
+    let usedFallbackName = false;
+    if (parsed?.name) {
+      name = parsed.name;
+    } else {
+      // No caption at all, or a caption whose own first line was blank —
+      // either way, OCR the cover photo (extends the original "no caption"
+      // rule to also cover a present-but-nameless caption; the caption's
+      // other labels, if any, are still respected below regardless of
+      // where the name itself came from).
+      const ocrText = await this.readNameFromPhoto(cover.data, cover.contentType);
+      name = ocrText ?? fallbackProductName();
+      usedFallbackName = !ocrText;
+    }
+
+    const imageUrls: string[] = [];
+    for (const file of downloaded) {
+      const upload = await this.mediaUploadService.uploadImage({
+        context: MediaUploadContext.PRODUCT,
+        contentType: file.contentType,
+        size: file.data.length,
+        // Buffer's declared type (ArrayBufferLike, which includes
+        // SharedArrayBuffer) doesn't satisfy BlobPart's stricter ArrayBuffer
+        // requirement — a fresh Uint8Array copy does.
+        data: new Blob([new Uint8Array(file.data)], { type: file.contentType }),
+      });
+      imageUrls.push(upload.url);
+    }
 
     const product = await this.sellerProductService.createProduct(null, {
       name,
-      description: description ?? undefined,
-      price: 1,
+      description: parsed?.description ?? undefined,
+      price: parsed?.price ?? 1,
+      countryOfOrigin: parsed?.countryOfOrigin ?? undefined,
+      sortOrder: parsed?.sortOrder ?? undefined,
       categoryId,
-      imageUrls: [upload.url],
+      imageUrls,
       publicationStatus: ProductPublicationStatus.DRAFT,
     });
 

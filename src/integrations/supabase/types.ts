@@ -1981,6 +1981,62 @@ export type Database = {
         };
         Relationships: [];
       };
+      telegram_bot_album_claims: {
+        Row: {
+          category_id: string | null;
+          chat_id: number;
+          claimed_at: string;
+          media_group_id: string;
+        };
+        Insert: {
+          category_id?: string | null;
+          chat_id: number;
+          claimed_at?: string;
+          media_group_id: string;
+        };
+        Update: {
+          category_id?: string | null;
+          chat_id?: number;
+          claimed_at?: string;
+          media_group_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "telegram_bot_album_claims_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      telegram_bot_album_members: {
+        Row: {
+          caption: string | null;
+          chat_id: number;
+          file_id: string;
+          media_group_id: string;
+          message_id: number;
+          received_at: string;
+        };
+        Insert: {
+          caption?: string | null;
+          chat_id: number;
+          file_id: string;
+          media_group_id: string;
+          message_id: number;
+          received_at?: string;
+        };
+        Update: {
+          caption?: string | null;
+          chat_id?: number;
+          file_id?: string;
+          media_group_id?: string;
+          message_id?: number;
+          received_at?: string;
+        };
+        Relationships: [];
+      };
       telegram_bot_processed_updates: {
         Row: {
           processed_at: string;

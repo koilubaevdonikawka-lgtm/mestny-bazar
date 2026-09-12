@@ -33,10 +33,13 @@ function makeCategory(overrides: Partial<AdminCategoryDTO> = {}): AdminCategoryD
 }
 
 describe("parseCaption", () => {
-  it("splits the first line as name, the rest as description", () => {
+  it("splits the first line as name, the rest (before any label) as description", () => {
     expect(parseCaption("Молоко Лактель\nЖирность 3.2%\n1 литр")).toEqual({
       name: "Молоко Лактель",
       description: "Жирность 3.2%\n1 литр",
+      price: null,
+      countryOfOrigin: null,
+      sortOrder: null,
     });
   });
 
@@ -44,6 +47,9 @@ describe("parseCaption", () => {
     expect(parseCaption("Молоко Лактель")).toEqual({
       name: "Молоко Лактель",
       description: null,
+      price: null,
+      countryOfOrigin: null,
+      sortOrder: null,
     });
   });
 
@@ -51,6 +57,81 @@ describe("parseCaption", () => {
     expect(parseCaption("  Молоко  \n  Жирность 3.2%  ")).toEqual({
       name: "Молоко",
       description: "Жирность 3.2%",
+      price: null,
+      countryOfOrigin: null,
+      sortOrder: null,
+    });
+  });
+
+  it("parses all three labels regardless of order, after the description", () => {
+    expect(
+      parseCaption("Простоквашино 1л\nЖирность 3.2%\nНомер: 45\nЦена: 200\nСтрана: Россия"),
+    ).toEqual({
+      name: "Простоквашино 1л",
+      description: "Жирность 3.2%",
+      price: 200,
+      countryOfOrigin: "Россия",
+      sortOrder: "45",
+    });
+  });
+
+  it("parses labels in a different order just as well", () => {
+    expect(parseCaption("Молоко\nСтрана: Россия\nНомер: 12\nЦена: 99")).toEqual({
+      name: "Молоко",
+      description: null,
+      price: 99,
+      countryOfOrigin: "Россия",
+      sortOrder: "12",
+    });
+  });
+
+  it("keeps sortOrder as an exact decimal string, never a rounded JS number", () => {
+    expect(parseCaption("Молоко\nНомер: 1.15555555555")).toEqual({
+      name: "Молоко",
+      description: null,
+      price: null,
+      countryOfOrigin: null,
+      sortOrder: "1.15555555555",
+    });
+  });
+
+  it("accepts a comma decimal separator for price", () => {
+    expect(parseCaption("Молоко\nЦена: 199,99")).toEqual({
+      name: "Молоко",
+      description: null,
+      price: 199.99,
+      countryOfOrigin: null,
+      sortOrder: null,
+    });
+  });
+
+  it("defaults every label to null when none are present", () => {
+    expect(parseCaption("Просто название")).toEqual({
+      name: "Просто название",
+      description: null,
+      price: null,
+      countryOfOrigin: null,
+      sortOrder: null,
+    });
+  });
+
+  it("only takes description lines up to the first label, not after", () => {
+    expect(parseCaption("Молоко\nОписание строка 1\nЦена: 200\nОписание строка 2")).toEqual({
+      name: "Молоко",
+      description: "Описание строка 1",
+      price: 200,
+      countryOfOrigin: null,
+      sortOrder: null,
+    });
+  });
+
+  it("ignores an unrecognized label-shaped line inside the label section", () => {
+    expect(parseCaption("Молоко\nЦена: 200\nВкус: сливочный")).toEqual({
+      name: "Молоко",
+      description: null,
+      price: 200,
+      countryOfOrigin: null,
+      sortOrder: null,
     });
   });
 });
@@ -179,6 +260,10 @@ function makeService(
     getSessionCategoryId: vi.fn().mockResolvedValue(null),
     setSessionCategoryId: vi.fn().mockResolvedValue(undefined),
     markUpdateProcessed: vi.fn().mockResolvedValue(true),
+    addAlbumMember: vi.fn().mockResolvedValue(undefined),
+    claimAlbum: vi.fn().mockResolvedValue(true),
+    getAlbumMembers: vi.fn().mockResolvedValue([]),
+    deleteAlbum: vi.fn().mockResolvedValue(undefined),
     ...overrides.repo,
   };
   const telegramApi: ITelegramBotApi = {
@@ -534,6 +619,203 @@ describe("TelegramBotService.handleUpdate — photo (product creation)", () => {
       999,
       expect.stringContaining("Не удалось определить название"),
     );
+  });
+
+  it("parses the new label caption format (price/country/sortOrder) for a single photo", async () => {
+    const { service, sellerProductService } = makeService({
+      repo: { getSessionCategoryId: vi.fn().mockResolvedValue("cat-1") },
+    });
+    await service.handleUpdate(
+      makeUpdate({
+        message_id: 1,
+        from: { id: 7718528454 },
+        chat: { id: 999 },
+        photo: [{ file_id: "f1", width: 100, height: 100 }],
+        caption: "Простоквашино 1л\nЖирность 3.2%\nЦена: 85\nСтрана: Россия\nНомер: 12",
+      }),
+    );
+
+    expect(sellerProductService.createProduct).toHaveBeenCalledWith(null, {
+      name: "Простоквашино 1л",
+      description: "Жирность 3.2%",
+      price: 85,
+      countryOfOrigin: "Россия",
+      sortOrder: "12",
+      categoryId: "cat-1",
+      imageUrls: ["https://cdn.example.com/photo.jpg"],
+      publicationStatus: "DRAFT",
+    });
+  });
+});
+
+describe("TelegramBotService.handleUpdate — album (media_group_id)", () => {
+  async function handleWithFakeTimer(service: TelegramBotService, update: TelegramUpdate) {
+    vi.useFakeTimers();
+    try {
+      const promise = service.handleUpdate(update);
+      await vi.advanceTimersByTimeAsync(2000);
+      await promise;
+    } finally {
+      vi.useRealTimers();
+    }
+  }
+
+  it("creates one product from all album members, sorted by message_id, first photo as cover", async () => {
+    const { service, sellerProductService, mediaUploadService, telegramApi } = makeService({
+      repo: {
+        getSessionCategoryId: vi.fn().mockResolvedValue("cat-1"),
+        claimAlbum: vi.fn().mockResolvedValue(true),
+        getAlbumMembers: vi.fn().mockResolvedValue([
+          { messageId: 101, fileId: "cover-file", caption: "Простоквашино 1л\nЦена: 85" },
+          { messageId: 102, fileId: "second-file", caption: null },
+        ]),
+      },
+      mediaUploadService: {
+        uploadImage: vi
+          .fn()
+          .mockResolvedValueOnce({ url: "https://cdn.example.com/cover.jpg" })
+          .mockResolvedValueOnce({ url: "https://cdn.example.com/second.jpg" }),
+      },
+    });
+
+    await handleWithFakeTimer(
+      service,
+      makeUpdate({
+        message_id: 101,
+        from: { id: 7718528454 },
+        chat: { id: 999 },
+        photo: [{ file_id: "cover-file", width: 100, height: 100 }],
+        media_group_id: "album-1",
+        caption: "Простоквашино 1л\nЦена: 85",
+      }),
+    );
+
+    expect(sellerProductService.createProduct).toHaveBeenCalledWith(null, {
+      name: "Простоквашино 1л",
+      description: undefined,
+      price: 85,
+      countryOfOrigin: undefined,
+      sortOrder: undefined,
+      categoryId: "cat-1",
+      imageUrls: ["https://cdn.example.com/cover.jpg", "https://cdn.example.com/second.jpg"],
+      publicationStatus: "DRAFT",
+    });
+    expect(mediaUploadService.uploadImage).toHaveBeenCalledTimes(2);
+    expect(telegramApi.sendMessage).toHaveBeenCalledWith(
+      999,
+      expect.stringContaining("создан как черновик"),
+    );
+  });
+
+  it("uses the caption from whichever member carries it, not necessarily the first", async () => {
+    const { service, sellerProductService } = makeService({
+      repo: {
+        getSessionCategoryId: vi.fn().mockResolvedValue("cat-1"),
+        claimAlbum: vi.fn().mockResolvedValue(true),
+        getAlbumMembers: vi.fn().mockResolvedValue([
+          { messageId: 101, fileId: "cover-file", caption: null },
+          { messageId: 102, fileId: "second-file", caption: "Хлеб бородинский" },
+        ]),
+      },
+    });
+
+    await handleWithFakeTimer(
+      service,
+      makeUpdate({
+        message_id: 102,
+        from: { id: 7718528454 },
+        chat: { id: 999 },
+        photo: [{ file_id: "second-file", width: 100, height: 100 }],
+        media_group_id: "album-2",
+        caption: "Хлеб бородинский",
+      }),
+    );
+
+    expect(sellerProductService.createProduct).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({
+        name: "Хлеб бородинский",
+        imageUrls: ["https://cdn.example.com/photo.jpg", "https://cdn.example.com/photo.jpg"],
+      }),
+    );
+  });
+
+  it("a non-claiming delivery for the same album just records its member and does nothing else", async () => {
+    const { service, repo, sellerProductService, telegramApi } = makeService({
+      repo: { claimAlbum: vi.fn().mockResolvedValue(false) },
+    });
+
+    await service.handleUpdate(
+      makeUpdate({
+        message_id: 103,
+        from: { id: 7718528454 },
+        chat: { id: 999 },
+        photo: [{ file_id: "f3", width: 100, height: 100 }],
+        media_group_id: "album-3",
+      }),
+    );
+
+    expect(repo.addAlbumMember).toHaveBeenCalledWith({
+      mediaGroupId: "album-3",
+      messageId: 103,
+      chatId: 999,
+      fileId: "f3",
+      caption: null,
+    });
+    expect(sellerProductService.createProduct).not.toHaveBeenCalled();
+    expect(telegramApi.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("warns and cleans up (no product created) when no category is selected for the album", async () => {
+    const { service, repo, sellerProductService, telegramApi } = makeService({
+      repo: {
+        getSessionCategoryId: vi.fn().mockResolvedValue(null),
+        claimAlbum: vi.fn().mockResolvedValue(true),
+      },
+    });
+
+    await service.handleUpdate(
+      makeUpdate({
+        message_id: 104,
+        from: { id: 7718528454 },
+        chat: { id: 999 },
+        photo: [{ file_id: "f4", width: 100, height: 100 }],
+        media_group_id: "album-4",
+      }),
+    );
+
+    expect(telegramApi.sendMessage).toHaveBeenCalledWith(
+      999,
+      "Сначала укажите категорию/подкатегорию.",
+    );
+    expect(sellerProductService.createProduct).not.toHaveBeenCalled();
+    expect(repo.deleteAlbum).toHaveBeenCalledWith("album-4");
+  });
+
+  it("cleans up the album's buffered rows after successfully creating the product", async () => {
+    const { service, repo } = makeService({
+      repo: {
+        getSessionCategoryId: vi.fn().mockResolvedValue("cat-1"),
+        claimAlbum: vi.fn().mockResolvedValue(true),
+        getAlbumMembers: vi
+          .fn()
+          .mockResolvedValue([{ messageId: 105, fileId: "f5", caption: "Товар" }]),
+      },
+    });
+
+    await handleWithFakeTimer(
+      service,
+      makeUpdate({
+        message_id: 105,
+        from: { id: 7718528454 },
+        chat: { id: 999 },
+        photo: [{ file_id: "f5", width: 100, height: 100 }],
+        media_group_id: "album-5",
+        caption: "Товар",
+      }),
+    );
+
+    expect(repo.deleteAlbum).toHaveBeenCalledWith("album-5");
   });
 });
 

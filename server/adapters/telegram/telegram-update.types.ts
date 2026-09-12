@@ -12,6 +12,8 @@ export interface TelegramMessage {
   text?: string;
   caption?: string;
   photo?: TelegramPhotoSize[];
+  /** Задача №266 — present (and shared across every message) only when this photo was sent as part of a multi-photo album; Telegram documents it as a string, not a number. */
+  media_group_id?: string;
 }
 
 export interface TelegramUpdate {
