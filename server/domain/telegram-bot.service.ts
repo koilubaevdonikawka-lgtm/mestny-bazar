@@ -371,14 +371,37 @@ export class TelegramBotService {
     captionText: string | null,
     categoryId: string,
   ): Promise<void> {
-    const downloaded = [];
-    for (const fileId of fileIds) {
-      downloaded.push(await this.telegramApi.downloadFile(fileId));
-    }
+    // Задача №272 — was a sequential `for` loop (download, then a second
+    // sequential loop uploading through the AI background-removal step).
+    // Confirmed via wrangler tail: a real 3-photo album's total background
+    // work routinely exceeded Cloudflare's ~30s waitUntil grace period,
+    // getting killed mid-processing with no product ever created and no
+    // error surfaced (the task is cancelled, not rejected — nothing left
+    // to catch). Downloads and uploads within one product don't depend on
+    // each other, so both run concurrently — Promise.all preserves fileIds
+    // order regardless of individual resolution timing, so imageUrls[0]
+    // stays the cover photo.
+    const downloaded = await Promise.all(
+      fileIds.map((fileId) => this.telegramApi.downloadFile(fileId)),
+    );
     const cover = downloaded[0];
 
     const trimmedCaption = captionText?.trim();
     const parsed = trimmedCaption ? parseCaption(trimmedCaption) : null;
+
+    const uploadsPromise = Promise.all(
+      downloaded.map((file) =>
+        this.mediaUploadService.uploadImage({
+          context: MediaUploadContext.PRODUCT,
+          contentType: file.contentType,
+          size: file.data.length,
+          // Buffer's declared type (ArrayBufferLike, which includes
+          // SharedArrayBuffer) doesn't satisfy BlobPart's stricter
+          // ArrayBuffer requirement — a fresh Uint8Array copy does.
+          data: new Blob([new Uint8Array(file.data)], { type: file.contentType }),
+        }),
+      ),
+    );
 
     let name: string;
     let usedFallbackName = false;
@@ -389,25 +412,15 @@ export class TelegramBotService {
       // either way, OCR the cover photo (extends the original "no caption"
       // rule to also cover a present-but-nameless caption; the caption's
       // other labels, if any, are still respected below regardless of
-      // where the name itself came from).
+      // where the name itself came from). Runs concurrently with
+      // uploadsPromise above — independent Gemini calls, no shared state.
       const ocrText = await this.readNameFromPhoto(cover.data, cover.contentType);
       name = ocrText ?? fallbackProductName();
       usedFallbackName = !ocrText;
     }
 
-    const imageUrls: string[] = [];
-    for (const file of downloaded) {
-      const upload = await this.mediaUploadService.uploadImage({
-        context: MediaUploadContext.PRODUCT,
-        contentType: file.contentType,
-        size: file.data.length,
-        // Buffer's declared type (ArrayBufferLike, which includes
-        // SharedArrayBuffer) doesn't satisfy BlobPart's stricter ArrayBuffer
-        // requirement — a fresh Uint8Array copy does.
-        data: new Blob([new Uint8Array(file.data)], { type: file.contentType }),
-      });
-      imageUrls.push(upload.url);
-    }
+    const uploads = await uploadsPromise;
+    const imageUrls = uploads.map((upload) => upload.url);
 
     const product = await this.sellerProductService.createProduct(null, {
       name,
