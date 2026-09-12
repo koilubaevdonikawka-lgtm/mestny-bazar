@@ -48,6 +48,31 @@ export function fallbackProductName(now: Date = new Date()): string {
   return `Без названия ${stamp}`;
 }
 
+/** Задача №265 — price-change command prefix, checked before any category matching. */
+const PRICE_COMMAND_PREFIX = "Номер:";
+const PRICE_COMMAND_FORMAT_MESSAGE =
+  "Чтобы изменить цену товара, отправьте сообщение в формате:\nНомер: <порядковый номер товара>\nЦена: <новая цена>";
+
+export function isPriceCommand(text: string): boolean {
+  return text.trim().startsWith(PRICE_COMMAND_PREFIX);
+}
+
+export interface ParsedPriceCommand {
+  /** Decimal string, exactly as typed — never parsed into a JS number (see SellerProductDTO.sortOrder). */
+  sortOrder: string | null;
+  price: number | null;
+}
+
+export function parsePriceCommand(text: string): ParsedPriceCommand {
+  const numberMatch = text.match(/Номер:\s*(\S+)/);
+  const priceMatch = text.match(/Цена:\s*(\S+)/);
+  const sortOrder = numberMatch ? numberMatch[1].trim() : null;
+  const priceRaw = priceMatch ? priceMatch[1].trim().replace(",", ".") : null;
+  const parsedPrice = priceRaw !== null ? Number(priceRaw) : null;
+  const price = parsedPrice !== null && Number.isFinite(parsedPrice) ? parsedPrice : null;
+  return { sortOrder, price };
+}
+
 function normalize(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -138,6 +163,8 @@ export class TelegramBotService {
     try {
       if (message.photo && message.photo.length > 0) {
         await this.handlePhotoMessage(chatId, message);
+      } else if (message.text?.trim() && isPriceCommand(message.text)) {
+        await this.handlePriceCommand(chatId, message.text);
       } else if (message.text?.trim()) {
         await this.handleTextMessage(chatId, message.text);
       } else {
@@ -173,6 +200,35 @@ export class TelegramBotService {
       return;
     }
     await this.telegramApi.sendMessage(chatId, "Не нашёл такую категорию, попробуйте ещё раз.");
+  }
+
+  /**
+   * Задача №265 — "Номер: X / Цена: Y". Checked (in handleUpdate) before any
+   * category-name matching, since "Номер: 45" would otherwise just fail to
+   * match any category and get the generic not-found reply instead of
+   * being recognized as this command.
+   */
+  private async handlePriceCommand(chatId: number, text: string): Promise<void> {
+    const { sortOrder, price } = parsePriceCommand(text);
+    if (sortOrder === null || price === null) {
+      await this.telegramApi.sendMessage(chatId, PRICE_COMMAND_FORMAT_MESSAGE);
+      return;
+    }
+
+    const product = await this.sellerProductService.findBySortOrder(sortOrder);
+    if (!product) {
+      await this.telegramApi.sendMessage(
+        chatId,
+        `Товар с порядковым номером ${sortOrder} не найден.`,
+      );
+      return;
+    }
+
+    await this.sellerProductService.updateProduct(null, { id: product.id, price });
+    await this.telegramApi.sendMessage(
+      chatId,
+      `Цена товара №${sortOrder} изменена на ${price} сом.`,
+    );
   }
 
   private async handlePhotoMessage(chatId: number, message: TelegramMessage): Promise<void> {

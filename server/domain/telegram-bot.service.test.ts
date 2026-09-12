@@ -5,6 +5,8 @@ import {
   matchCategory,
   categoryDisplayName,
   fallbackProductName,
+  isPriceCommand,
+  parsePriceCommand,
 } from "@server/domain/telegram-bot.service";
 import type { ITelegramBotRepository } from "@server/ports/telegram-bot.repository";
 import type { ITelegramBotApi } from "@server/ports/telegram-bot-api.port";
@@ -62,7 +64,11 @@ describe("fallbackProductName", () => {
 
 describe("matchCategory", () => {
   const dairy = makeCategory({ id: "cat-1", name: "Молочные продукты" });
-  const bakery = makeCategory({ id: "cat-2", name: "Хлебобулочные изделия", nameKg: "Нан азыктары" });
+  const bakery = makeCategory({
+    id: "cat-2",
+    name: "Хлебобулочные изделия",
+    nameKg: "Нан азыктары",
+  });
   const dairyMilk = makeCategory({ id: "cat-3", name: "Молоко", parentId: "cat-1" });
   const all = [dairy, bakery, dairyMilk];
 
@@ -109,14 +115,65 @@ describe("categoryDisplayName", () => {
   });
 });
 
-function makeService(overrides: {
-  repo?: Partial<ITelegramBotRepository>;
-  telegramApi?: Partial<ITelegramBotApi>;
-  categories?: Partial<IAdminCategoryRepository>;
-  aiText?: Partial<IAiTextProvider>;
-  mediaUploadService?: Partial<MediaUploadService>;
-  sellerProductService?: Partial<SellerProductService>;
-} = {}) {
+describe("isPriceCommand", () => {
+  it("recognizes a message starting with 'Номер:'", () => {
+    expect(isPriceCommand("Номер: 45\nЦена: 200")).toBe(true);
+  });
+
+  it("does not treat a category name as a price command", () => {
+    expect(isPriceCommand("Молочные продукты")).toBe(false);
+  });
+
+  it("ignores leading whitespace", () => {
+    expect(isPriceCommand("  Номер: 45")).toBe(true);
+  });
+});
+
+describe("parsePriceCommand", () => {
+  it("parses sortOrder as a decimal string and price as a number", () => {
+    expect(parsePriceCommand("Номер: 45\nЦена: 200")).toEqual({ sortOrder: "45", price: 200 });
+  });
+
+  it("keeps a fractional sortOrder as an exact string, never a rounded JS number", () => {
+    expect(parsePriceCommand("Номер: 1.15555555555\nЦена: 50")).toEqual({
+      sortOrder: "1.15555555555",
+      price: 50,
+    });
+  });
+
+  it("accepts a comma decimal separator for price", () => {
+    expect(parsePriceCommand("Номер: 45\nЦена: 199,99")).toEqual({
+      sortOrder: "45",
+      price: 199.99,
+    });
+  });
+
+  it("returns a null price when 'Цена:' is absent", () => {
+    expect(parsePriceCommand("Номер: 45")).toEqual({ sortOrder: "45", price: null });
+  });
+
+  it("returns a null price when the price value isn't a valid number", () => {
+    expect(parsePriceCommand("Номер: 45\nЦена: бесплатно")).toEqual({
+      sortOrder: "45",
+      price: null,
+    });
+  });
+
+  it("returns a null sortOrder when 'Номер:' is absent", () => {
+    expect(parsePriceCommand("Цена: 200")).toEqual({ sortOrder: null, price: 200 });
+  });
+});
+
+function makeService(
+  overrides: {
+    repo?: Partial<ITelegramBotRepository>;
+    telegramApi?: Partial<ITelegramBotApi>;
+    categories?: Partial<IAdminCategoryRepository>;
+    aiText?: Partial<IAiTextProvider>;
+    mediaUploadService?: Partial<MediaUploadService>;
+    sellerProductService?: Partial<SellerProductService>;
+  } = {},
+) {
   const repo: ITelegramBotRepository = {
     findAdmin: vi.fn().mockResolvedValue({ telegramUserId: 7718528454, name: "Данияр" }),
     getSessionCategoryId: vi.fn().mockResolvedValue(null),
@@ -126,7 +183,9 @@ function makeService(overrides: {
   };
   const telegramApi: ITelegramBotApi = {
     sendMessage: vi.fn().mockResolvedValue(undefined),
-    downloadFile: vi.fn().mockResolvedValue({ data: Buffer.from("fake"), contentType: "image/jpeg" }),
+    downloadFile: vi
+      .fn()
+      .mockResolvedValue({ data: Buffer.from("fake"), contentType: "image/jpeg" }),
     ...overrides.telegramApi,
   };
   const categories: IAdminCategoryRepository = {
@@ -155,6 +214,8 @@ function makeService(overrides: {
       slug: "tovar",
       publicationStatus: "DRAFT",
     }),
+    findBySortOrder: vi.fn().mockResolvedValue(null),
+    updateProduct: vi.fn().mockResolvedValue({ id: "product-1", name: "Товар" }),
     ...overrides.sellerProductService,
   } as unknown as SellerProductService;
 
@@ -166,7 +227,15 @@ function makeService(overrides: {
     mediaUploadService,
     sellerProductService,
   );
-  return { service, repo, telegramApi, categories, aiText, mediaUploadService, sellerProductService };
+  return {
+    service,
+    repo,
+    telegramApi,
+    categories,
+    aiText,
+    mediaUploadService,
+    sellerProductService,
+  };
 }
 
 function makeUpdate(message: TelegramUpdate["message"], updateId = 1): TelegramUpdate {
@@ -178,7 +247,9 @@ describe("TelegramBotService.handleUpdate — access control", () => {
     const { service, repo, telegramApi } = makeService({
       repo: { findAdmin: vi.fn().mockResolvedValue(null) },
     });
-    await service.handleUpdate(makeUpdate({ message_id: 1, from: { id: 111 }, chat: { id: 999 }, text: "Молоко" }));
+    await service.handleUpdate(
+      makeUpdate({ message_id: 1, from: { id: 111 }, chat: { id: 999 }, text: "Молоко" }),
+    );
 
     expect(repo.findAdmin).toHaveBeenCalledWith(111);
     expect(telegramApi.sendMessage).toHaveBeenCalledWith(999, "У вас нет доступа");
@@ -187,7 +258,12 @@ describe("TelegramBotService.handleUpdate — access control", () => {
   it("proceeds when the telegram_user_id is a known admin", async () => {
     const { service, telegramApi } = makeService();
     await service.handleUpdate(
-      makeUpdate({ message_id: 1, from: { id: 7718528454 }, chat: { id: 999 }, text: "Молочные продукты" }),
+      makeUpdate({
+        message_id: 1,
+        from: { id: 7718528454 },
+        chat: { id: 999 },
+        text: "Молочные продукты",
+      }),
     );
 
     expect(telegramApi.sendMessage).not.toHaveBeenCalledWith(999, "У вас нет доступа");
@@ -200,7 +276,12 @@ describe("TelegramBotService.handleUpdate — idempotency", () => {
       repo: { markUpdateProcessed: vi.fn().mockResolvedValue(false) },
     });
     await service.handleUpdate(
-      makeUpdate({ message_id: 1, from: { id: 7718528454 }, chat: { id: 999 }, text: "Молочные продукты" }),
+      makeUpdate({
+        message_id: 1,
+        from: { id: 7718528454 },
+        chat: { id: 999 },
+        text: "Молочные продукты",
+      }),
     );
 
     expect(repo.findAdmin).not.toHaveBeenCalled();
@@ -211,10 +292,19 @@ describe("TelegramBotService.handleUpdate — idempotency", () => {
 describe("TelegramBotService.handleUpdate — text (category selection)", () => {
   it("selects a matching category and saves it to the session", async () => {
     const { service, repo, telegramApi } = makeService({
-      categories: { listAll: vi.fn().mockResolvedValue([makeCategory({ id: "cat-1", name: "Молочные продукты" })]) },
+      categories: {
+        listAll: vi
+          .fn()
+          .mockResolvedValue([makeCategory({ id: "cat-1", name: "Молочные продукты" })]),
+      },
     });
     await service.handleUpdate(
-      makeUpdate({ message_id: 1, from: { id: 7718528454 }, chat: { id: 999 }, text: "Молочные продукты" }),
+      makeUpdate({
+        message_id: 1,
+        from: { id: 7718528454 },
+        chat: { id: 999 },
+        text: "Молочные продукты",
+      }),
     );
 
     expect(repo.setSessionCategoryId).toHaveBeenCalledWith(999, "cat-1");
@@ -226,13 +316,129 @@ describe("TelegramBotService.handleUpdate — text (category selection)", () => 
 
   it("replies with a not-found message for an unmatched category name", async () => {
     const { service, telegramApi } = makeService({
-      categories: { listAll: vi.fn().mockResolvedValue([makeCategory({ name: "Молочные продукты" })]) },
+      categories: {
+        listAll: vi.fn().mockResolvedValue([makeCategory({ name: "Молочные продукты" })]),
+      },
     });
     await service.handleUpdate(
-      makeUpdate({ message_id: 1, from: { id: 7718528454 }, chat: { id: 999 }, text: "Электроника" }),
+      makeUpdate({
+        message_id: 1,
+        from: { id: 7718528454 },
+        chat: { id: 999 },
+        text: "Электроника",
+      }),
     );
 
-    expect(telegramApi.sendMessage).toHaveBeenCalledWith(999, "Не нашёл такую категорию, попробуйте ещё раз.");
+    expect(telegramApi.sendMessage).toHaveBeenCalledWith(
+      999,
+      "Не нашёл такую категорию, попробуйте ещё раз.",
+    );
+  });
+
+  it("treats a 'Номер:' message as a price command, never as a category name", async () => {
+    const { service, categories, sellerProductService, telegramApi } = makeService({
+      sellerProductService: {
+        findBySortOrder: vi.fn().mockResolvedValue({ id: "product-45", name: "Молоко" }),
+      },
+    });
+    await service.handleUpdate(
+      makeUpdate({
+        message_id: 1,
+        from: { id: 7718528454 },
+        chat: { id: 999 },
+        text: "Номер: 45\nЦена: 200",
+      }),
+    );
+
+    expect(categories.listAll).not.toHaveBeenCalled();
+    expect(sellerProductService.updateProduct).toHaveBeenCalledWith(null, {
+      id: "product-45",
+      price: 200,
+    });
+    expect(telegramApi.sendMessage).toHaveBeenCalledWith(
+      999,
+      "Цена товара №45 изменена на 200 сом.",
+    );
+  });
+});
+
+describe("TelegramBotService.handleUpdate — price-change command", () => {
+  it("finds the product by its exact decimal sortOrder and updates the price", async () => {
+    const { service, sellerProductService, telegramApi } = makeService({
+      sellerProductService: {
+        findBySortOrder: vi.fn().mockResolvedValue({ id: "product-45", name: "Молоко" }),
+      },
+    });
+    await service.handleUpdate(
+      makeUpdate({
+        message_id: 1,
+        from: { id: 7718528454 },
+        chat: { id: 999 },
+        text: "Номер: 45\nЦена: 200",
+      }),
+    );
+
+    expect(sellerProductService.findBySortOrder).toHaveBeenCalledWith("45");
+    expect(sellerProductService.updateProduct).toHaveBeenCalledWith(null, {
+      id: "product-45",
+      price: 200,
+    });
+    expect(telegramApi.sendMessage).toHaveBeenCalledWith(
+      999,
+      "Цена товара №45 изменена на 200 сом.",
+    );
+  });
+
+  it("replies 'not found' and changes nothing when the sortOrder doesn't match a product", async () => {
+    const { service, sellerProductService, telegramApi } = makeService({
+      sellerProductService: { findBySortOrder: vi.fn().mockResolvedValue(null) },
+    });
+    await service.handleUpdate(
+      makeUpdate({
+        message_id: 1,
+        from: { id: 7718528454 },
+        chat: { id: 999 },
+        text: "Номер: 999\nЦена: 200",
+      }),
+    );
+
+    expect(sellerProductService.updateProduct).not.toHaveBeenCalled();
+    expect(telegramApi.sendMessage).toHaveBeenCalledWith(
+      999,
+      "Товар с порядковым номером 999 не найден.",
+    );
+  });
+
+  it("explains the format and changes nothing when 'Цена:' is missing", async () => {
+    const { service, sellerProductService, telegramApi } = makeService();
+    await service.handleUpdate(
+      makeUpdate({ message_id: 1, from: { id: 7718528454 }, chat: { id: 999 }, text: "Номер: 45" }),
+    );
+
+    expect(sellerProductService.findBySortOrder).not.toHaveBeenCalled();
+    expect(sellerProductService.updateProduct).not.toHaveBeenCalled();
+    expect(telegramApi.sendMessage).toHaveBeenCalledWith(
+      999,
+      expect.stringContaining("Чтобы изменить цену"),
+    );
+  });
+
+  it("preserves a fractional sortOrder exactly, never rounding it through a JS number", async () => {
+    const { service, sellerProductService } = makeService({
+      sellerProductService: {
+        findBySortOrder: vi.fn().mockResolvedValue({ id: "product-x", name: "X" }),
+      },
+    });
+    await service.handleUpdate(
+      makeUpdate({
+        message_id: 1,
+        from: { id: 7718528454 },
+        chat: { id: 999 },
+        text: "Номер: 1.15555555555\nЦена: 50",
+      }),
+    );
+
+    expect(sellerProductService.findBySortOrder).toHaveBeenCalledWith("1.15555555555");
   });
 });
 
@@ -250,7 +456,10 @@ describe("TelegramBotService.handleUpdate — photo (product creation)", () => {
       }),
     );
 
-    expect(telegramApi.sendMessage).toHaveBeenCalledWith(999, "Сначала укажите категорию/подкатегорию.");
+    expect(telegramApi.sendMessage).toHaveBeenCalledWith(
+      999,
+      "Сначала укажите категорию/подкатегорию.",
+    );
     expect(sellerProductService.createProduct).not.toHaveBeenCalled();
   });
 
@@ -276,7 +485,10 @@ describe("TelegramBotService.handleUpdate — photo (product creation)", () => {
       imageUrls: ["https://cdn.example.com/photo.jpg"],
       publicationStatus: "DRAFT",
     });
-    expect(telegramApi.sendMessage).toHaveBeenCalledWith(999, expect.stringContaining("создан как черновик"));
+    expect(telegramApi.sendMessage).toHaveBeenCalledWith(
+      999,
+      expect.stringContaining("создан как черновик"),
+    );
   });
 
   it("falls back to OCR when there's no caption", async () => {
@@ -332,6 +544,9 @@ describe("TelegramBotService.handleUpdate — unsupported content", () => {
       makeUpdate({ message_id: 1, from: { id: 7718528454 }, chat: { id: 999 } }),
     );
 
-    expect(telegramApi.sendMessage).toHaveBeenCalledWith(999, expect.stringContaining("понимаю только текст"));
+    expect(telegramApi.sendMessage).toHaveBeenCalledWith(
+      999,
+      expect.stringContaining("понимаю только текст"),
+    );
   });
 });

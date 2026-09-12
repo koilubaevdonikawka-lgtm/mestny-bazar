@@ -215,6 +215,17 @@ export class SellerProductService {
     await this.events.publish({ type: "product.deleted", productId: id, name: existing.name });
   }
 
+  /**
+   * Задача №265 — Telegram bot's "Номер: X / Цена: Y" price-change command
+   * needs to resolve a product by its sortOrder alone. sortOrder is a
+   * decimal string end to end (see SellerProductDTO.sortOrder) — exact
+   * match happens in Postgres via findBySortOrder's own `.eq` against the
+   * real numeric column, never a JS number comparison.
+   */
+  async findBySortOrder(sortOrder: string): Promise<{ id: string; name: string } | null> {
+    return this.products.findBySortOrder(sortOrder);
+  }
+
   private async assertCategoryExists(categoryId: string): Promise<void> {
     const category = await this.categories.getById(categoryId);
     if (!category) {
