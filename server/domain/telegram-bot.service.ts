@@ -399,6 +399,14 @@ export class TelegramBotService {
           // SharedArrayBuffer) doesn't satisfy BlobPart's stricter
           // ArrayBuffer requirement — a fresh Uint8Array copy does.
           data: new Blob([new Uint8Array(file.data)], { type: file.contentType }),
+          // Задача №276 — bot photos skip AI background removal: it
+          // distorts text/ingredients/labels printed on packaging, which
+          // matters more for bot-submitted product shots than a clean
+          // background does. Same flag the admin web form's "без
+          // обработки ИИ" option sets (MultiImageUploadField.tsx); this
+          // path just has no toggle, it's always off. Applies to both the
+          // single-photo and album paths — this call is shared by both.
+          skipAiProcessing: true,
         }),
       ),
     );
