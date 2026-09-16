@@ -49,13 +49,13 @@ export function MultiImageUploadField({
   // distinct label rather than lumping it into "Сжимаем фото...".
   const [stage, setStage] = useState<"idle" | "converting" | "compressing">("idle");
   const isBusy = stage !== "idle";
-  // Задача №250 — PRODUCT-only AI-background-processing toggle, defaulted
-  // on (matches uploadImage()'s own default when the flag is omitted).
-  // Plain component state, not persisted anywhere — remembers the choice
-  // for as long as this form stays mounted/open (so uploading several
-  // photos in a row doesn't need re-toggling each time), resets on next
-  // open, exactly as asked.
-  const [aiProcessingEnabled, setAiProcessingEnabled] = useState(true);
+  // Задача №250 — PRODUCT-only AI-background-processing toggle. Задача
+  // №275 — default flipped to OFF ("без обработки ИИ" is now the primary
+  // path; AI processing is opt-in via explicit click). Plain component
+  // state, not persisted anywhere — remembers the choice for as long as
+  // this form stays mounted/open (so uploading several photos in a row
+  // doesn't need re-toggling each time), resets to OFF on next open.
+  const [aiProcessingEnabled, setAiProcessingEnabled] = useState(false);
   const isProduct = context === MediaUploadContext.PRODUCT;
 
   const mutation = useMutation({
@@ -157,6 +157,10 @@ export function MultiImageUploadField({
                 aria-label="Режим загрузки фото"
                 className="flex items-center gap-0.5 rounded-full border border-border/60 bg-secondary/30 p-0.5 text-xs"
               >
+                {/* Задача №275 — "с ИИ" stays a secondary/outline-weight option even
+                    when selected (no shadow/bold), so it never competes visually
+                    with the default "без ИИ" path; only its own selection state
+                    (aria-checked) changes, not the segmented-toggle mechanism. */}
                 <button
                   type="button"
                   role="radio"
@@ -166,7 +170,7 @@ export function MultiImageUploadField({
                   className={cn(
                     "rounded-full px-2.5 py-1 transition-colors",
                     aiProcessingEnabled
-                      ? "bg-background font-medium shadow-sm"
+                      ? "bg-secondary/70 text-foreground"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
