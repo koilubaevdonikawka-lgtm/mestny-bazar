@@ -47,6 +47,8 @@ export interface CatalogProductNode {
     stock: number;
     inStock: boolean;
     category: { id: string; name: string; slug: string } | null;
+    /** Задача №277 — see ProductDTO.sortOrder; null = not yet numbered. */
+    sortOrder: string | null;
   };
 }
 
@@ -89,6 +91,7 @@ export function toCatalogProductNode(product: ProductDTO): CatalogProductNode {
       stock: product.stock,
       inStock: product.inStock,
       category: product.category ?? null,
+      sortOrder: product.sortOrder,
     },
   };
 }

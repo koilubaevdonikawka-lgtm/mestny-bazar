@@ -70,7 +70,13 @@ export function ProductCard({ product }: { product: CatalogProductNode }) {
           aspect-[3/4] -> aspect-[75/94] (Задача №256) — same shape, 6%
           shorter at a fixed width; still narrower/taller than the old
           4:3/square, so cropping stays minimal. */}
-      <div className="aspect-[75/94] w-full overflow-hidden rounded-xl bg-secondary">
+      <div className="relative aspect-[75/94] w-full overflow-hidden rounded-xl bg-secondary">
+        {/* Временное отображение порядкового номера — см. Задача №277, может быть убрано позже */}
+        {p.sortOrder && (
+          <span className="absolute left-1 top-1 z-10 rounded-full bg-background/80 px-1.5 py-0.5 text-[10px] font-medium text-foreground shadow-sm">
+            {t("admin.catalog.productSortOrderShort", { value: p.sortOrder })}
+          </span>
+        )}
         {image ? (
           <img
             src={image.url}

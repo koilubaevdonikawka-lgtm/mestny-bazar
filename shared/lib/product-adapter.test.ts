@@ -23,6 +23,7 @@ function fakeProduct(overrides: Partial<ProductDTO> = {}): ProductDTO {
     manufacturer: null,
     countryOfOrigin: null,
     weightKg: null,
+    sortOrder: null,
     ...overrides,
   };
 }
@@ -134,5 +135,10 @@ describe("toCatalogProductNode", () => {
   it("maps a missing category to null rather than leaving it undefined", () => {
     const node = toCatalogProductNode(fakeProduct({ category: undefined }));
     expect(node.node.category).toBeNull();
+  });
+
+  it("passes sortOrder through as-is, including null for an unnumbered product (Задача №277)", () => {
+    expect(toCatalogProductNode(fakeProduct({ sortOrder: "45" })).node.sortOrder).toBe("45");
+    expect(toCatalogProductNode(fakeProduct({ sortOrder: null })).node.sortOrder).toBeNull();
   });
 });

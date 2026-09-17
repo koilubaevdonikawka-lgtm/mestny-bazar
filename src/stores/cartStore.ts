@@ -118,6 +118,7 @@ function fromCartItemDTO(dto: CartItemDTO): CartItem {
         stock: 0,
         inStock: true,
         category: null,
+        sortOrder: null,
       },
     },
     variantId,

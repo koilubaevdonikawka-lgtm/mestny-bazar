@@ -38,6 +38,15 @@ export interface ProductDTO {
   countryOfOrigin: string | null;
   /** Kilograms — used for the weight-based delivery fee formula (docs/delivery/delivery-pricing.md). Null counts as 0 kg. */
   weightKg: number | null;
+  /**
+   * Задача №277 — decimal string (see SellerProductDTO.sortOrder for why),
+   * null = not yet numbered. Reverses Задача №231's original "never expose
+   * this admin field publicly" stance: the storefront now displays it so
+   * Daniyar can see which numbers are free while creating products via the
+   * Telegram bot. Still never accepted as client input, and still only
+   * drives the default listing order server-side (see ProductSortBy below).
+   */
+  sortOrder: string | null;
   category?: Pick<CategoryDTO, "id" | "name" | "slug">;
 }
 
@@ -47,8 +56,9 @@ export interface ProductDTO {
  * the pre-existing explicit ordering (created_at desc) — kept for deep-link
  * compatibility. When `sortBy` is omitted entirely (every storefront
  * surface today), the repository orders by the admin-only sort_order
- * column instead (Задача №230/231) — that column is never exposed on
- * ProductDTO itself, it only drives this implicit default.
+ * column instead (Задача №230/231). Задача №277 additionally surfaces that
+ * column's value as ProductDTO.sortOrder for display, but it still isn't a
+ * `sortBy` option — client code can never request ordering by it directly.
  */
 export type ProductSortBy = "newest" | "popularity" | "price_asc" | "price_desc" | "name";
 

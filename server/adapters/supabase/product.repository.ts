@@ -63,6 +63,9 @@ interface ProductRow {
   manufacturer: string | null;
   country_of_origin: string | null;
   weight_kg: number | null;
+  /** Задача №277 — generated text mirror of the numeric sort_order column,
+   * same precision reasoning as seller-product.repository.ts's PRODUCT_SELECT. */
+  sort_order_text: string | null;
   /** Only present when fetched via PRODUCT_SELECT_WITH_CATEGORY (single-product reads). */
   categories?: CategoryEmbed | CategoryEmbed[] | null;
 }
@@ -86,10 +89,13 @@ function mapProduct(row: ProductRow): ProductDTO {
     manufacturer: row.manufacturer,
     countryOfOrigin: row.country_of_origin,
     weightKg: row.weight_kg == null ? null : Number(row.weight_kg),
-    // Задача №231 — sort_order is deliberately NEVER selected/mapped here:
-    // it's an admin-only field (SellerProductDTO), must never reach a
-    // customer-facing ProductDTO/API response. It still drives ORDER BY
-    // below (list()'s default branch), independent of what's selected.
+    // Задача №277 — reverses Задача №231's original stance (sort_order was
+    // deliberately never selected/mapped here, admin-only). Now selected as
+    // sort_order_text (the generated text mirror, never the raw numeric
+    // column — same JSON-precision reasoning as seller-product.repository.ts)
+    // and surfaced for display. It still independently drives ORDER BY below
+    // (list()'s default branch) regardless of what's selected.
+    sortOrder: row.sort_order_text,
     ...(categoryEmbed
       ? { category: { id: categoryEmbed.id, name: categoryEmbed.name, slug: categoryEmbed.slug } }
       : {}),
@@ -97,7 +103,7 @@ function mapProduct(row: ProductRow): ProductDTO {
 }
 
 const PRODUCT_SELECT =
-  "id, name, slug, description, price, currency, unit, image_url, image_urls, stock, category_id, manufacturer, country_of_origin, weight_kg";
+  "id, name, slug, description, price, currency, unit, image_url, image_urls, stock, category_id, manufacturer, country_of_origin, weight_kg, sort_order_text";
 
 /** Adds the category name/slug — used only by single-product reads (the
  * product detail page needs to display the category), never by the listing
