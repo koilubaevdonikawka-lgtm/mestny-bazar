@@ -63,6 +63,73 @@ const ORDER_COLUMNS =
 /** Postgres unique_violation — see https://www.postgresql.org/docs/current/errcodes-appendix.html */
 const UNIQUE_VIOLATION = "23505";
 
+interface AssemblyCategoryEmbed {
+  sort_order: number | null;
+}
+
+interface AssemblyProductEmbed {
+  category_id: string | null;
+  sort_order: number | null;
+  categories: AssemblyCategoryEmbed | AssemblyCategoryEmbed[] | null;
+}
+
+interface AssemblyItemRow {
+  id: string;
+  product_id: string | null;
+  variant_id: string | null;
+  product_name: string;
+  product_image_url: string | null;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  products: AssemblyProductEmbed | AssemblyProductEmbed[] | null;
+}
+
+const ASSEMBLY_ITEM_SELECT =
+  "id, product_id, variant_id, product_name, product_image_url, quantity, unit_price, line_total, products(category_id, sort_order, categories(sort_order))";
+
+/**
+ * Задача №278 — category display order first (categories.sort_order,
+ * matching category.repository.ts's own catalog ordering), then the
+ * product's own manual sort_order within that category (nulls last,
+ * mirroring product.repository.ts's `nullsFirst: false` convention). Items
+ * whose category can't be resolved — product_id nulled by order_items'
+ * ON DELETE SET NULL FK, or a product left without a category_id — sort
+ * after every resolvable item, in their original (cart) order among
+ * themselves; never dropped, never throws. Pure so it's independently
+ * testable without a live Supabase call.
+ */
+export function sortItemsForAssembly<T extends AssemblyItemRow>(items: T[]): T[] {
+  const decorated = items.map((item, index) => {
+    const product = Array.isArray(item.products) ? item.products[0] : item.products;
+    const category = product
+      ? Array.isArray(product.categories)
+        ? product.categories[0]
+        : product.categories
+      : null;
+    const categorySortOrder = category?.sort_order;
+    const resolved = product != null && product.category_id != null && categorySortOrder != null;
+    return {
+      item,
+      index,
+      resolved,
+      categorySortOrder: categorySortOrder ?? Number.POSITIVE_INFINITY,
+      productSortOrder: product?.sort_order ?? Number.POSITIVE_INFINITY,
+    };
+  });
+
+  decorated.sort((a, b) => {
+    if (a.resolved !== b.resolved) return a.resolved ? -1 : 1;
+    if (!a.resolved) return a.index - b.index;
+    if (a.categorySortOrder !== b.categorySortOrder)
+      return a.categorySortOrder - b.categorySortOrder;
+    if (a.productSortOrder !== b.productSortOrder) return a.productSortOrder - b.productSortOrder;
+    return a.index - b.index;
+  });
+
+  return decorated.map((d) => d.item);
+}
+
 export class SupabaseOrderRepository implements IOrderRepository {
   async create(data: CreateOrderData): Promise<OrderDTO> {
     // CheckoutService already checks getOrderByIdempotencyKey up front; this second
@@ -177,6 +244,34 @@ export class SupabaseOrderRepository implements IOrderRepository {
     return mapOrderRowToDto(
       orderRow,
       items ?? [],
+      decodePaymentMethodNote(orderRow.notes),
+      extractUserNotes(orderRow.notes),
+    );
+  }
+
+  /** Задача №278 — see IOrderRepository.getForAssembly's doc comment. */
+  async getForAssembly(id: string): Promise<OrderDTO | null> {
+    const { data: orderRow, error } = await supabaseAdmin
+      .from("orders")
+      .select(ORDER_COLUMNS)
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error) throw new Error(`Failed to fetch order: ${error.message}`);
+    if (!orderRow) return null;
+
+    const { data: items, error: itemsError } = await supabaseAdmin
+      .from("order_items")
+      .select(ASSEMBLY_ITEM_SELECT)
+      .eq("order_id", id);
+
+    if (itemsError) throw new Error(`Failed to fetch order items: ${itemsError.message}`);
+
+    const sortedItems = sortItemsForAssembly((items ?? []) as unknown as AssemblyItemRow[]);
+
+    return mapOrderRowToDto(
+      orderRow,
+      sortedItems,
       decodePaymentMethodNote(orderRow.notes),
       extractUserNotes(orderRow.notes),
     );

@@ -35,8 +35,9 @@ export class WarehouseOrderService {
     return this.orders.listByStatuses(ASSEMBLY_QUEUE_STATUSES);
   }
 
+  /** Задача №278 — items pre-sorted by category then product sort_order for the assembly screen; see IOrderRepository.getForAssembly. */
   async getOrder(id: string): Promise<OrderDTO> {
-    const order = await this.orders.getById(id);
+    const order = await this.orders.getForAssembly(id);
     if (!order) throw new OrderNotFoundError();
     return order;
   }

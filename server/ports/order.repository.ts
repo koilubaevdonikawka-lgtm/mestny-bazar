@@ -42,6 +42,19 @@ export interface CreateOrderData extends Omit<
 export interface IOrderRepository {
   create(data: CreateOrderData): Promise<OrderDTO>;
   getById(id: string, userId?: string): Promise<OrderDTO | null>;
+  /**
+   * Задача №278 — warehouse assembly screen only (WarehouseOrderService).
+   * Same order as getById, but items are joined to their product's category
+   * (order_items.product_id -> products.category_id -> categories.sort_order)
+   * and sorted: category display order first, then the product's own manual
+   * sort_order within that category — so the picker sees items grouped by
+   * category instead of cart-insertion order. An item whose category can't
+   * be resolved (product deleted, or left without a category) sorts after
+   * every resolvable item rather than breaking the sort. Every other caller
+   * (buyer order history/detail, courier, general admin) keeps using
+   * getById and sees items in their original order — unaffected by this.
+   */
+  getForAssembly(id: string): Promise<OrderDTO | null>;
   getByIdempotencyKey(idempotencyKey: string): Promise<OrderDTO | null>;
   listByUser(userId: string): Promise<OrderDTO[]>;
   listAll(params?: OrderListParams): Promise<OrderListResult>;

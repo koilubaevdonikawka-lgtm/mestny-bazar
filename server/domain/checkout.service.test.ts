@@ -118,6 +118,7 @@ function fakeOrderRepository(overrides: Partial<IOrderRepository> = {}): IOrderR
       }),
     ),
     getById: vi.fn(async () => null),
+    getForAssembly: vi.fn(async () => null),
     getByIdempotencyKey: vi.fn(async () => null),
     listByUser: vi.fn(async () => []),
     listAll: vi.fn(async () => ({ items: [], total: 0, page: 1, pageSize: 50, hasMore: false })),
