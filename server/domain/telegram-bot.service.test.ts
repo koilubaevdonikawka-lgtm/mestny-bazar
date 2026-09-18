@@ -7,6 +7,8 @@ import {
   fallbackProductName,
   isPriceCommand,
   parsePriceCommand,
+  isBulkPriceCommand,
+  parseBulkPriceCommand,
 } from "@server/domain/telegram-bot.service";
 import type { ITelegramBotRepository } from "@server/ports/telegram-bot.repository";
 import type { ITelegramBotApi } from "@server/ports/telegram-bot-api.port";
@@ -242,6 +244,57 @@ describe("parsePriceCommand", () => {
 
   it("returns a null sortOrder when 'Номер:' is absent", () => {
     expect(parsePriceCommand("Цена: 200")).toEqual({ sortOrder: null, price: 200 });
+  });
+});
+
+describe("isBulkPriceCommand", () => {
+  it("recognizes a single 'number:price' line", () => {
+    expect(isBulkPriceCommand("45:200")).toBe(true);
+  });
+
+  it("recognizes several lines, including a fractional sortOrder", () => {
+    expect(isBulkPriceCommand("45:200\n46:150\n45.5:180")).toBe(true);
+  });
+
+  it("ignores blank lines between valid ones", () => {
+    expect(isBulkPriceCommand("45:200\n\n46:150")).toBe(true);
+  });
+
+  it("rejects a plain category name", () => {
+    expect(isBulkPriceCommand("Молочные продукты")).toBe(false);
+  });
+
+  it("rejects the labeled 'Номер:'/'Цена:' single-price command", () => {
+    expect(isBulkPriceCommand("Номер: 45\nЦена: 200")).toBe(false);
+  });
+
+  it("rejects the whole message if even one line doesn't match", () => {
+    expect(isBulkPriceCommand("45:200\nне число")).toBe(false);
+  });
+
+  it("rejects an empty message", () => {
+    expect(isBulkPriceCommand("")).toBe(false);
+  });
+
+  it("rejects a comma decimal separator (dot only)", () => {
+    expect(isBulkPriceCommand("45,5:200")).toBe(false);
+  });
+});
+
+describe("parseBulkPriceCommand", () => {
+  it("parses each line's sortOrder as a string and price as a number", () => {
+    expect(parseBulkPriceCommand("45:200\n46:150\n45.5:180")).toEqual([
+      { sortOrder: "45", price: 200 },
+      { sortOrder: "46", price: 150 },
+      { sortOrder: "45.5", price: 180 },
+    ]);
+  });
+
+  it("skips blank lines", () => {
+    expect(parseBulkPriceCommand("45:200\n\n46:150")).toEqual([
+      { sortOrder: "45", price: 200 },
+      { sortOrder: "46", price: 150 },
+    ]);
   });
 });
 
@@ -524,6 +577,88 @@ describe("TelegramBotService.handleUpdate — price-change command", () => {
     );
 
     expect(sellerProductService.findBySortOrder).toHaveBeenCalledWith("1.15555555555");
+  });
+});
+
+describe("TelegramBotService.handleUpdate — bulk price-change command", () => {
+  it("updates every line and reports 'N из N' when all sortOrders are found", async () => {
+    const { service, sellerProductService, telegramApi } = makeService({
+      sellerProductService: {
+        findBySortOrder: vi
+          .fn()
+          .mockImplementation((sortOrder: string) =>
+            Promise.resolve({ id: `product-${sortOrder}`, name: sortOrder }),
+          ),
+      },
+    });
+    await service.handleUpdate(
+      makeUpdate({
+        message_id: 1,
+        from: { id: 7718528454 },
+        chat: { id: 999 },
+        text: "45:200\n46:150\n45.5:180",
+      }),
+    );
+
+    expect(sellerProductService.findBySortOrder).toHaveBeenCalledWith("45");
+    expect(sellerProductService.findBySortOrder).toHaveBeenCalledWith("46");
+    expect(sellerProductService.findBySortOrder).toHaveBeenCalledWith("45.5");
+    expect(sellerProductService.updateProduct).toHaveBeenCalledWith(null, {
+      id: "product-45",
+      price: 200,
+    });
+    expect(sellerProductService.updateProduct).toHaveBeenCalledWith(null, {
+      id: "product-46",
+      price: 150,
+    });
+    expect(sellerProductService.updateProduct).toHaveBeenCalledWith(null, {
+      id: "product-45.5",
+      price: 180,
+    });
+    expect(telegramApi.sendMessage).toHaveBeenCalledWith(999, "Обновлено цен: 3 из 3.");
+  });
+
+  it("updates the found lines and lists the missing sortOrder separately, without stopping", async () => {
+    const { service, sellerProductService, telegramApi } = makeService({
+      sellerProductService: {
+        findBySortOrder: vi
+          .fn()
+          .mockImplementation((sortOrder: string) =>
+            Promise.resolve(
+              sortOrder === "999" ? null : { id: `product-${sortOrder}`, name: sortOrder },
+            ),
+          ),
+      },
+    });
+    await service.handleUpdate(
+      makeUpdate({
+        message_id: 1,
+        from: { id: 7718528454 },
+        chat: { id: 999 },
+        text: "45:200\n999:150\n45.5:180",
+      }),
+    );
+
+    expect(sellerProductService.updateProduct).toHaveBeenCalledTimes(2);
+    expect(telegramApi.sendMessage).toHaveBeenCalledWith(
+      999,
+      "Обновлено цен: 2 из 3.\nНе удалось:\n№999 — товар не найден",
+    );
+  });
+
+  it("never treats a category name as a bulk price command", async () => {
+    const { service, categories, sellerProductService } = makeService();
+    await service.handleUpdate(
+      makeUpdate({
+        message_id: 1,
+        from: { id: 7718528454 },
+        chat: { id: 999 },
+        text: "Молочные продукты",
+      }),
+    );
+
+    expect(sellerProductService.findBySortOrder).not.toHaveBeenCalled();
+    expect(categories.listAll).toHaveBeenCalled();
   });
 });
 

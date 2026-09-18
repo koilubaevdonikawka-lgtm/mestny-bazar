@@ -16,7 +16,7 @@ import { logger } from "@shared/observability/logger";
 const NO_ACCESS_MESSAGE = "У вас нет доступа";
 const NO_CATEGORY_MESSAGE = "Сначала укажите категорию/подкатегорию.";
 const UNSUPPORTED_MESSAGE_TYPE_MESSAGE =
-  "Я понимаю только текст с названием раздела (категории/подкатегории), фото товара (или альбом из нескольких фото — это будет один товар) и команду изменения цены (Номер: X / Цена: Y). К фото можно (не обязательно) приложить подпись: первая строка — название, дальше — описание, затем любые строки вида «Цена: 200», «Страна: Россия», «Номер: 45».";
+  "Я понимаю только текст с названием раздела (категории/подкатегории), фото товара (или альбом из нескольких фото — это будет один товар), команду изменения цены (Номер: X / Цена: Y) и массовую смену цен (одна или несколько строк вида «45:200», по одной паре номер:цена в строке). К фото можно (не обязательно) приложить подпись: первая строка — название, дальше — описание, затем любые строки вида «Цена: 200», «Страна: Россия», «Номер: 45».";
 const GENERIC_ERROR_MESSAGE =
   "Что-то пошло не так при обработке. Попробуйте ещё раз, или напишите админу платформы.";
 const MAX_CATEGORY_SUGGESTIONS = 5;
@@ -129,6 +129,44 @@ export function parsePriceCommand(text: string): ParsedPriceCommand {
   return { sortOrder, price };
 }
 
+/**
+ * Задача №279 — bulk price-change command: every non-empty line is
+ * "<порядковый номер>:<цена>" (sortOrder may be fractional, "." only — same
+ * decimal-string convention as ParsedPriceCommand.sortOrder). Recognized as
+ * this command only when EVERY non-empty line matches; a single line that
+ * doesn't (a category name, the labeled "Номер:"/"Цена:" command, anything
+ * else) means the whole message falls through to the existing handlers
+ * instead — never a partial/mixed interpretation.
+ */
+const BULK_PRICE_LINE_PATTERN = /^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/;
+
+function nonEmptyLines(text: string): string[] {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+export function isBulkPriceCommand(text: string): boolean {
+  const lines = nonEmptyLines(text);
+  return lines.length > 0 && lines.every((line) => BULK_PRICE_LINE_PATTERN.test(line));
+}
+
+export interface BulkPriceLine {
+  /** Decimal string, exactly as typed — never parsed into a JS number (see SellerProductDTO.sortOrder). */
+  sortOrder: string;
+  price: number;
+}
+
+/** Only meaningful when isBulkPriceCommand(text) is true — every line is assumed to match. */
+export function parseBulkPriceCommand(text: string): BulkPriceLine[] {
+  return nonEmptyLines(text).map((line) => {
+    const match = line.match(BULK_PRICE_LINE_PATTERN);
+    const [, sortOrder, priceRaw] = match as RegExpMatchArray;
+    return { sortOrder, price: Number(priceRaw) };
+  });
+}
+
 function normalize(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -221,6 +259,8 @@ export class TelegramBotService {
         await this.handlePhotoMessage(chatId, message);
       } else if (message.text?.trim() && isPriceCommand(message.text)) {
         await this.handlePriceCommand(chatId, message.text);
+      } else if (message.text?.trim() && isBulkPriceCommand(message.text)) {
+        await this.handleBulkPriceCommand(chatId, message.text);
       } else if (message.text?.trim()) {
         await this.handleTextMessage(chatId, message.text);
       } else {
@@ -285,6 +325,41 @@ export class TelegramBotService {
       chatId,
       `Цена товара №${sortOrder} изменена на ${price} сом.`,
     );
+  }
+
+  /**
+   * Задача №279 — one or more "<номер>:<цена>" lines in a single message.
+   * Each line is resolved and updated independently (findBySortOrder +
+   * updateProduct — the exact same lookup/update path as handlePriceCommand
+   * above, just looped) so one bad/missing line never stops the rest of the
+   * message from applying.
+   */
+  private async handleBulkPriceCommand(chatId: number, text: string): Promise<void> {
+    const lines = parseBulkPriceCommand(text);
+    const failures: string[] = [];
+    let updatedCount = 0;
+
+    for (const { sortOrder, price } of lines) {
+      try {
+        const product = await this.sellerProductService.findBySortOrder(sortOrder);
+        if (!product) {
+          failures.push(`№${sortOrder} — товар не найден`);
+          continue;
+        }
+        await this.sellerProductService.updateProduct(null, { id: product.id, price });
+        updatedCount += 1;
+      } catch (error) {
+        logger.error("telegram-bot:bulk-price-line-failed", { error, sortOrder, price });
+        const reason = error instanceof Error ? error.message : "не удалось обновить";
+        failures.push(`№${sortOrder} — ${reason}`);
+      }
+    }
+
+    let reply = `Обновлено цен: ${updatedCount} из ${lines.length}.`;
+    if (failures.length > 0) {
+      reply += `\nНе удалось:\n${failures.join("\n")}`;
+    }
+    await this.telegramApi.sendMessage(chatId, reply);
   }
 
   private async handlePhotoMessage(chatId: number, message: TelegramMessage): Promise<void> {
