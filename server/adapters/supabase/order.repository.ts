@@ -70,6 +70,8 @@ interface AssemblyCategoryEmbed {
 interface AssemblyProductEmbed {
   category_id: string | null;
   sort_order: number | null;
+  /** Задача №281 — shown next to the item name on the assembly screen. */
+  description?: string | null;
   categories: AssemblyCategoryEmbed | AssemblyCategoryEmbed[] | null;
 }
 
@@ -86,7 +88,41 @@ interface AssemblyItemRow {
 }
 
 const ASSEMBLY_ITEM_SELECT =
-  "id, product_id, variant_id, product_name, product_image_url, quantity, unit_price, line_total, products(category_id, sort_order, categories(sort_order))";
+  "id, product_id, variant_id, product_name, product_image_url, quantity, unit_price, line_total, products(category_id, sort_order, description, categories(sort_order))";
+
+/** Задача №281 — admin "Заказы" detail needs only the description from products. */
+const ADMIN_ITEM_SELECT =
+  "id, product_id, variant_id, product_name, product_image_url, quantity, unit_price, line_total, products(description)";
+
+interface AdminItemRow {
+  id: string;
+  product_id: string | null;
+  variant_id: string | null;
+  product_name: string;
+  product_image_url: string | null;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  products: { description: string | null } | Array<{ description: string | null }> | null;
+}
+
+/**
+ * Задача №281 — flattens the embedded products row into a plain
+ * product_description column for the mapper. A missing embed (product
+ * deleted → order_items.product_id is NULL) and a product without a
+ * description both become null: the item is always kept, nothing throws.
+ * Pure, so independently testable.
+ */
+export function flattenProductDescription<
+  T extends {
+    products: { description?: string | null } | Array<{ description?: string | null }> | null;
+  },
+>(items: T[]): Array<Omit<T, "products"> & { product_description: string | null }> {
+  return items.map(({ products, ...rest }) => {
+    const product = Array.isArray(products) ? products[0] : products;
+    return { ...rest, product_description: product?.description ?? null };
+  });
+}
 
 /**
  * Задача №278 — category display order first (categories.sort_order,
@@ -271,7 +307,33 @@ export class SupabaseOrderRepository implements IOrderRepository {
 
     return mapOrderRowToDto(
       orderRow,
-      sortedItems,
+      flattenProductDescription(sortedItems),
+      decodePaymentMethodNote(orderRow.notes),
+      extractUserNotes(orderRow.notes),
+    );
+  }
+
+  /** Задача №281 — see IOrderRepository.getForAdmin's doc comment. */
+  async getForAdmin(id: string): Promise<OrderDTO | null> {
+    const { data: orderRow, error } = await supabaseAdmin
+      .from("orders")
+      .select(ORDER_COLUMNS)
+      .eq("id", id)
+      .maybeSingle();
+
+    if (error) throw new Error(`Failed to fetch order: ${error.message}`);
+    if (!orderRow) return null;
+
+    const { data: items, error: itemsError } = await supabaseAdmin
+      .from("order_items")
+      .select(ADMIN_ITEM_SELECT)
+      .eq("order_id", id);
+
+    if (itemsError) throw new Error(`Failed to fetch order items: ${itemsError.message}`);
+
+    return mapOrderRowToDto(
+      orderRow,
+      flattenProductDescription((items ?? []) as unknown as AdminItemRow[]),
       decodePaymentMethodNote(orderRow.notes),
       extractUserNotes(orderRow.notes),
     );

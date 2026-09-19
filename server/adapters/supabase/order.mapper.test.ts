@@ -153,6 +153,32 @@ describe("mapOrderRowToDto", () => {
     expect(dto.paidAt).toBe("2026-01-02T00:00:00.000Z");
   });
 
+  // Задача №281 — description is opt-in: only the admin/assembly reads pass it.
+  it("adds productDescription to an item only when the row carries product_description", () => {
+    const base = {
+      id: "i1",
+      product_id: "p1",
+      variant_id: null,
+      product_name: "Яблоки",
+      product_image_url: null,
+      quantity: 1,
+      unit_price: 10,
+      line_total: 10,
+    };
+    const dto = mapOrderRowToDto(
+      fakeRow(),
+      [
+        base,
+        { ...base, id: "i2", product_description: "Сочные" },
+        { ...base, id: "i3", product_description: null },
+      ],
+      "CASH",
+    );
+    expect(dto.items[0]).not.toHaveProperty("productDescription");
+    expect(dto.items[1]?.productDescription).toBe("Сочные");
+    expect(dto.items[2]?.productDescription).toBeNull();
+  });
+
   it("maps assigned_courier_id, including the not-yet-assigned null case", () => {
     expect(mapOrderRowToDto(fakeRow(), [], "CASH").assignedCourierId).toBeNull();
 

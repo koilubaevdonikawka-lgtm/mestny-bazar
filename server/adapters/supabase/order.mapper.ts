@@ -81,6 +81,8 @@ interface DbOrderItemRow {
   variant_id: string | null;
   product_name: string;
   product_image_url: string | null;
+  /** Задача №281 — set only by the admin/assembly reads that join products; omitted (not null) elsewhere so buyer-facing DTOs carry no description key. */
+  product_description?: string | null;
   quantity: number;
   unit_price: number;
   line_total: number;
@@ -122,6 +124,9 @@ export function mapOrderRowToDto(
       variantId: item.variant_id,
       productName: item.product_name,
       productImageUrl: item.product_image_url,
+      ...(item.product_description !== undefined && {
+        productDescription: item.product_description,
+      }),
       quantity: item.quantity,
       unitPrice: Number(item.unit_price),
       lineTotal: Number(item.line_total),

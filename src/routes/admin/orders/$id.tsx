@@ -274,6 +274,14 @@ function AdminOrderDetailPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{item.productName}</p>
+                  {item.productDescription && (
+                    <p
+                      className="text-sm text-muted-foreground line-clamp-2"
+                      title={item.productDescription}
+                    >
+                      {item.productDescription}
+                    </p>
+                  )}
                   <p className="text-sm text-muted-foreground">
                     {item.quantity} × {formatMoney(item.unitPrice, order.currency)}
                   </p>

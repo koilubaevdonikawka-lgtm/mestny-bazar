@@ -59,6 +59,7 @@ function fakeRepo(overrides: Partial<IOrderRepository> = {}): IOrderRepository {
     create: vi.fn(async () => makeOrder()),
     getById: vi.fn(async () => makeOrder()),
     getForAssembly: vi.fn(async () => makeOrder()),
+    getForAdmin: vi.fn(async () => makeOrder()),
     getByIdempotencyKey: vi.fn(async () => null),
     listByUser: vi.fn(async () => []),
     listAll: vi.fn(async () => ({ items: [], total: 0, page: 1, pageSize: 50, hasMore: false })),
@@ -246,7 +247,7 @@ function buildService(deps: {
 
 describe("AdminOrderService", () => {
   it("getOrder throws OrderNotFoundError when the repository returns null", async () => {
-    const repo = fakeRepo({ getById: vi.fn(async () => null) });
+    const repo = fakeRepo({ getForAdmin: vi.fn(async () => null) });
     const service = buildService({ repo });
 
     await expect(service.getOrder("missing")).rejects.toBeInstanceOf(OrderNotFoundError);
@@ -254,7 +255,7 @@ describe("AdminOrderService", () => {
 
   it("confirmOrder asserts admin_confirm -> CONFIRMED before updating status and publishes order.confirmed", async () => {
     const repo = fakeRepo({
-      getById: vi.fn(async () =>
+      getForAdmin: vi.fn(async () =>
         makeOrder({ status: OrderStatus.PAID, paymentMethod: "ONLINE", paymentStatus: "paid" }),
       ),
     });

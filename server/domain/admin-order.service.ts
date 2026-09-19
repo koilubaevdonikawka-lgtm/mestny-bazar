@@ -39,8 +39,9 @@ export class AdminOrderService {
     return result;
   }
 
+  /** Задача №281 — items carry productDescription for the admin "Заказы" detail; see IOrderRepository.getForAdmin. */
   async getOrder(id: string): Promise<OrderDTO> {
-    const order = await this.orders.getById(id);
+    const order = await this.orders.getForAdmin(id);
     if (!order) throw new OrderNotFoundError();
     await this.cascade.sweep([order]);
     return order;

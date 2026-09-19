@@ -55,6 +55,16 @@ export interface IOrderRepository {
    * getById and sees items in their original order — unaffected by this.
    */
   getForAssembly(id: string): Promise<OrderDTO | null>;
+  /**
+   * Задача №281 — admin "Заказы" detail only (AdminOrderService.getOrder).
+   * Same as getById, but each item also carries productDescription, joined
+   * from products.description by product_id. An item whose product was
+   * deleted (order_items.product_id nulled by ON DELETE SET NULL) or has no
+   * description gets productDescription: null — the line still renders from
+   * its own snapshotted name. Item order is untouched. Buyer/courier reads
+   * keep using getById and never see the description.
+   */
+  getForAdmin(id: string): Promise<OrderDTO | null>;
   getByIdempotencyKey(idempotencyKey: string): Promise<OrderDTO | null>;
   listByUser(userId: string): Promise<OrderDTO[]>;
   listAll(params?: OrderListParams): Promise<OrderListResult>;

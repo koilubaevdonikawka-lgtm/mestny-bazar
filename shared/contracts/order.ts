@@ -24,6 +24,14 @@ export interface OrderItemDTO {
   variantId: string | null;
   productName: string;
   productImageUrl: string | null;
+  /**
+   * Задача №281 — products.description, joined live (not snapshotted in
+   * order_items). Populated ONLY by the admin "Заказы" and warehouse "Сборка
+   * заказов" reads (IOrderRepository.getForAdmin / getForAssembly); absent on
+   * every buyer/courier read, so it never reaches the buyer UI. `null` when
+   * the product was deleted or has no description.
+   */
+  productDescription?: string | null;
   quantity: number;
   unitPrice: number;
   lineTotal: number;

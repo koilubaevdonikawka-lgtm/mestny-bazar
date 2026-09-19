@@ -3,6 +3,7 @@ import {
   decodePaymentMethodNote,
   encodePaymentMethodNote,
   extractUserNotes,
+  flattenProductDescription,
   mergeNotes,
   sortItemsForAssembly,
 } from "@server/adapters/supabase/order.repository";
@@ -19,6 +20,7 @@ interface FakeAssemblyItem {
   products: {
     category_id: string | null;
     sort_order: number | null;
+    description?: string | null;
     categories: { sort_order: number | null } | null;
   } | null;
 }
@@ -171,5 +173,50 @@ describe("sortItemsForAssembly", () => {
     ];
     expect(() => sortItemsForAssembly(items)).not.toThrow();
     expect(sortItemsForAssembly(items).map((i) => i.id)).toEqual(["x", "y"]);
+  });
+});
+
+// Задача №281 — admin "Заказы" and warehouse "Сборка заказов": the product
+// description is flattened out of the products embed for the mapper.
+describe("flattenProductDescription", () => {
+  it("lifts products.description into product_description and drops the embed", () => {
+    const [item] = flattenProductDescription([
+      fakeItem({ products: { ...withCategory(1, 1), description: "Свежий, местный" } }),
+    ]);
+    expect(item?.product_description).toBe("Свежий, местный");
+    expect(item).not.toHaveProperty("products");
+  });
+
+  it("accepts the embed as a one-element array (PostgREST shape)", () => {
+    const [item] = flattenProductDescription([
+      { id: "a", products: [{ description: "Из массива" }] },
+    ]);
+    expect(item?.product_description).toBe("Из массива");
+  });
+
+  it("yields null — and keeps the item — when the product was deleted", () => {
+    const items = flattenProductDescription([
+      fakeItem({ id: "gone", product_id: null, products: null }),
+    ]);
+    expect(items).toHaveLength(1);
+    expect(items[0]?.id).toBe("gone");
+    expect(items[0]?.product_description).toBeNull();
+  });
+
+  it("yields null when the product has no description", () => {
+    const [nullDesc, missingDesc] = flattenProductDescription([
+      { id: "a", products: { description: null } },
+      fakeItem({ id: "b" }),
+    ]);
+    expect(nullDesc?.product_description).toBeNull();
+    expect(missingDesc?.product_description).toBeNull();
+  });
+
+  it("does not change item order", () => {
+    const result = flattenProductDescription([
+      { id: "x", products: null },
+      { id: "y", products: { description: "d" } },
+    ]);
+    expect(result.map((i) => i.id)).toEqual(["x", "y"]);
   });
 });
