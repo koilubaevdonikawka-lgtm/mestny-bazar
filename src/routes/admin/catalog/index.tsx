@@ -151,8 +151,20 @@ export function parseWeightKg(raw: string): number | null | "invalid" {
  * decimalStringSchema (shared/validation/seller-product.schema.ts).
  */
 const DECIMAL_STRING_RE = /^-?\d+(\.\d+)?$/;
+
+/**
+ * Задача №280 — iOS Safari's decimal keypad shows a comma instead of a dot
+ * for many device locales (a keyboard-level choice the page can't override),
+ * so a fractional sortOrder typed on an iPhone often arrives as "45,5". The
+ * comma is swapped for a dot here, before DECIMAL_STRING_RE ever sees it —
+ * an integer with no comma passes through unchanged, same as before.
+ */
+function normalizeDecimalSeparator(value: string): string {
+  return value.replace(",", ".");
+}
+
 export function parseSortOrder(raw: string): string | null | "invalid" {
-  const trimmed = raw.trim();
+  const trimmed = normalizeDecimalSeparator(raw.trim());
   if (!trimmed) return null;
   if (!DECIMAL_STRING_RE.test(trimmed)) return "invalid";
   return trimmed;
