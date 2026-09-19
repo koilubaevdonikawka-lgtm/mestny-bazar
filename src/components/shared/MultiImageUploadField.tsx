@@ -1,5 +1,4 @@
-import { useRef, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -42,13 +41,16 @@ export function MultiImageUploadField({
 }: MultiImageUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const atLimit = values.length >= maxImages;
-  // Задача №239 — separate from mutation.isPending: compression (Canvas,
+  // Задача №239 — separate from the upload requests: compression (Canvas,
   // client-side) runs BEFORE the upload request even starts. Задача №261 —
   // "converting" covers the HEIC→JPEG step (heic2any), which runs first
   // and can take a few seconds on its own (WASM decode), hence the
   // distinct label rather than lumping it into "Сжимаем фото...".
   const [stage, setStage] = useState<"idle" | "converting" | "compressing">("idle");
-  const isBusy = stage !== "idle";
+  // Задача №284 — in-flight batch (null when idle); see handleFileChange.
+  const [progress, setProgress] = useState<{ total: number; finished: number } | null>(null);
+  const isUploading = progress !== null;
+  const isBusy = stage !== "idle" || isUploading;
   // Задача №250 — PRODUCT-only AI-background-processing toggle. Задача
   // №275 — default flipped to OFF ("без обработки ИИ" is now the primary
   // path; AI processing is opt-in via explicit click). Plain component
@@ -58,26 +60,24 @@ export function MultiImageUploadField({
   const [aiProcessingEnabled, setAiProcessingEnabled] = useState(false);
   const isProduct = context === MediaUploadContext.PRODUCT;
 
-  const mutation = useMutation({
-    mutationFn: (file: File) => uploadImage(file, context, isProduct && !aiProcessingEnabled),
-    onSuccess: (url) => onChange([...values, url]),
-    onError: (e) =>
-      toast.error(e instanceof Error ? e.message : "Не удалось загрузить изображение"),
-  });
+  // Задача №284 — one gallery pick can now carry several files. Files are
+  // prepared (HEIC→JPEG / EXIF / compression — CPU- and memory-heavy, so
+  // strictly one at a time) in selection order, but each upload starts the
+  // moment its file is ready and they overlap on the network. `progress`
+  // replaces the old single-request mutation.isPending so the spinner
+  // covers the whole batch.
+  // Latest `values`, read once the whole batch settles: the closure captured
+  // when the picker fired can be stale by then.
+  const valuesRef = useRef(values);
+  useEffect(() => {
+    valuesRef.current = values;
+  }, [values]);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-
-    if (atLimit) {
-      toast.error(`Максимум ${maxImages} фотографий`);
-      return;
-    }
+  /** Validates and prepares one file; throws an Error carrying the user-facing message. */
+  const prepareForUpload = async (file: File): Promise<File> => {
     const isHeic = isHeicFile(file);
     if (!isHeic && !(MEDIA_UPLOAD_ALLOWED_MIME_TYPES as readonly string[]).includes(file.type)) {
-      toast.error("Поддерживаются только изображения PNG, JPEG, WEBP, AVIF, HEIC или HEIF");
-      return;
+      throw new Error("Поддерживаются только изображения PNG, JPEG, WEBP, AVIF, HEIC или HEIF");
     }
 
     // Задача №239 — resizes/re-encodes down toward the server limit before
@@ -103,12 +103,11 @@ export function MultiImageUploadField({
       setStage("compressing");
       toUpload = await compressImageForUpload(source);
     } catch (err) {
-      toast.error(
+      throw new Error(
         err instanceof Error
           ? err.message
           : "Не удалось сжать фото до нужного размера, попробуйте другое изображение",
       );
-      return;
     } finally {
       setStage("idle");
     }
@@ -117,10 +116,60 @@ export function MultiImageUploadField({
     // MEDIA_UPLOAD_MAX_BYTES and throws on failure, so this should never
     // trip — but a doomed request is never sent regardless.
     if (toUpload.size > MEDIA_UPLOAD_MAX_BYTES) {
-      toast.error("Не удалось сжать фото до нужного размера, попробуйте другое изображение");
+      throw new Error("Не удалось сжать фото до нужного размера, попробуйте другое изображение");
+    }
+    return toUpload;
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (files.length === 0) return;
+
+    const slots = maxImages - valuesRef.current.length;
+    if (slots <= 0) {
+      toast.error(`Максимум ${maxImages} фотографий`);
       return;
     }
-    mutation.mutate(toUpload);
+    const batch = files.slice(0, slots);
+    if (files.length > slots) {
+      toast.error(`Максимум ${maxImages} фотографий — добавлено ${slots} из ${files.length}`);
+    }
+
+    const skipAi = isProduct && !aiProcessingEnabled;
+    // Only names a file when several were picked — a single pick keeps the
+    // exact toast text it always had.
+    const failed = (file: File, err: unknown) => {
+      const reason = err instanceof Error ? err.message : "Не удалось загрузить изображение";
+      toast.error(batch.length > 1 ? `«${file.name}»: ${reason}` : reason);
+    };
+    const markFinished = () => setProgress((p) => (p ? { ...p, finished: p.finished + 1 } : p));
+
+    setProgress({ total: batch.length, finished: 0 });
+    // One slot per picked file, in selection order — the result order comes
+    // from this array, never from which request happens to finish first.
+    const uploads: Promise<string | null>[] = [];
+    for (const file of batch) {
+      try {
+        const toUpload = await prepareForUpload(file);
+        uploads.push(
+          uploadImage(toUpload, context, skipAi)
+            .catch((err: unknown) => {
+              failed(file, err);
+              return null;
+            })
+            .finally(markFinished),
+        );
+      } catch (err) {
+        failed(file, err);
+        markFinished();
+        uploads.push(Promise.resolve(null));
+      }
+    }
+
+    const urls = (await Promise.all(uploads)).filter((url): url is string => url !== null);
+    setProgress(null);
+    if (urls.length > 0) onChange([...valuesRef.current, ...urls]);
   };
 
   const removeAt = (index: number) => {
@@ -141,7 +190,7 @@ export function MultiImageUploadField({
             <button
               type="button"
               onClick={() => removeAt(index)}
-              disabled={disabled || mutation.isPending}
+              disabled={disabled || isUploading}
               className="absolute right-0.5 top-0.5 rounded-full bg-background/90 p-0.5 text-muted-foreground hover:text-destructive"
               aria-label="Удалить изображение"
             >
@@ -165,7 +214,7 @@ export function MultiImageUploadField({
                   type="button"
                   role="radio"
                   aria-checked={aiProcessingEnabled}
-                  disabled={disabled || isBusy || mutation.isPending}
+                  disabled={disabled || isBusy}
                   onClick={() => setAiProcessingEnabled(true)}
                   className={cn(
                     "rounded-full px-2.5 py-1 transition-colors",
@@ -180,7 +229,7 @@ export function MultiImageUploadField({
                   type="button"
                   role="radio"
                   aria-checked={!aiProcessingEnabled}
-                  disabled={disabled || isBusy || mutation.isPending}
+                  disabled={disabled || isBusy}
                   onClick={() => setAiProcessingEnabled(false)}
                   className={cn(
                     "rounded-full px-2.5 py-1 transition-colors",
@@ -197,10 +246,10 @@ export function MultiImageUploadField({
               type="button"
               variant="outline"
               size="sm"
-              disabled={disabled || isBusy || mutation.isPending}
+              disabled={disabled || isBusy}
               onClick={() => inputRef.current?.click()}
             >
-              {isBusy || mutation.isPending ? (
+              {isBusy ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <ImagePlus className="h-4 w-4" />
@@ -209,7 +258,9 @@ export function MultiImageUploadField({
                 ? "Конвертируем HEIC..."
                 : stage === "compressing"
                   ? "Сжимаем фото..."
-                  : "Добавить фото"}
+                  : progress && progress.total > 1
+                    ? `Загружаем ${Math.min(progress.finished + 1, progress.total)} из ${progress.total}...`
+                    : "Добавить фото"}
             </Button>
           </>
         )}
@@ -222,6 +273,7 @@ export function MultiImageUploadField({
           // documented bugs with multi-type/explicit-"image/heic" lists;
           // "image/*" already covers HEIC/HEIF as a MIME-class wildcard).
           accept="image/*"
+          multiple
           className="hidden"
           onChange={handleFileChange}
           disabled={disabled || atLimit}
