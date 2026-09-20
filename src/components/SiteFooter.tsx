@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Store } from "lucide-react";
 import { BRAND } from "@/config/brand";
 import { CONTACT } from "@/config/contact";
@@ -39,6 +40,11 @@ export function SiteFooter() {
               <a href={`mailto:${CONTACT.email}`} className="hover:text-foreground">
                 {CONTACT.email}
               </a>
+            </li>
+            <li>
+              <Link to="/privacy" className="hover:text-foreground">
+                {t("privacy.linkLabel")}
+              </Link>
             </li>
           </ul>
         </div>
