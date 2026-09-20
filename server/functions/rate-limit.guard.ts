@@ -1,4 +1,4 @@
-import { getRequest, setResponseHeader, setResponseStatus } from "@tanstack/react-start/server";
+import { getRequest, setResponseStatus } from "@tanstack/react-start/server";
 import { getServices } from "@server/di/container";
 import { RateLimitedError } from "@server/domain/rate-limit.errors";
 import type { RateLimitPolicy } from "@server/domain/rate-limit.service";
@@ -19,9 +19,11 @@ export function extractClientIp(headers: Pick<Headers, "get"> | null | undefined
 
 /**
  * Задача №288 — call at the top of a sensitive server function, before the
- * real work. On rejection it sets the HTTP status to 429 (+ Retry-After) and
- * rethrows RateLimitedError, whose Russian message reaches the client the
- * same way every other server-function error message does.
+ * real work. On rejection it sets the HTTP status to 429 and rethrows
+ * RateLimitedError, whose Russian message reaches the client the same way
+ * every other server-function error message does. (A Retry-After header is
+ * deliberately not set: verified live, TanStack Start's server-function
+ * error path forwards only the status, never headers.)
  */
 export async function enforceRateLimit(
   policy: RateLimitPolicy,
@@ -35,7 +37,6 @@ export async function enforceRateLimit(
   } catch (error) {
     if (error instanceof RateLimitedError) {
       setResponseStatus(429);
-      setResponseHeader("Retry-After", String(error.retryAfterSeconds));
     }
     throw error;
   }

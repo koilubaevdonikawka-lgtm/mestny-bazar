@@ -1,18 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RateLimitedError } from "@server/domain/rate-limit.errors";
 
-const { getRequest, setResponseStatus, setResponseHeader, getServices } = vi.hoisted(() => ({
+const { getRequest, setResponseStatus, getServices } = vi.hoisted(() => ({
   getRequest: vi.fn(),
   setResponseStatus: vi.fn(),
-  setResponseHeader: vi.fn(),
   getServices: vi.fn(),
 }));
 
-vi.mock("@tanstack/react-start/server", () => ({
-  getRequest,
-  setResponseStatus,
-  setResponseHeader,
-}));
+vi.mock("@tanstack/react-start/server", () => ({ getRequest, setResponseStatus }));
 vi.mock("@server/di/container", () => ({ getServices }));
 
 const { enforceRateLimit, extractClientIp } = await import("@server/functions/rate-limit.guard");
@@ -60,7 +55,7 @@ describe("enforceRateLimit (Задача №288)", () => {
     expect(enforce).toHaveBeenCalledWith("CHECKOUT", { ip: null, userId: "u1" });
   });
 
-  it("on rejection sets HTTP 429 + Retry-After and rethrows the Russian-message error", async () => {
+  it("on rejection sets HTTP 429 and rethrows the Russian-message error", async () => {
     getRequest.mockReturnValue({ headers: headers({ "cf-connecting-ip": "1.2.3.4" }) });
     getServices.mockReturnValue({
       rateLimit: {
@@ -74,7 +69,6 @@ describe("enforceRateLimit (Задача №288)", () => {
 
     expect(failure).toBeInstanceOf(RateLimitedError);
     expect(setResponseStatus).toHaveBeenCalledWith(429);
-    expect(setResponseHeader).toHaveBeenCalledWith("Retry-After", "60");
   });
 
   it("does not turn an unrelated error into a 429", async () => {
