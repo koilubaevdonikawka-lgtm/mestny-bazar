@@ -10,10 +10,15 @@ describe("SecurityOverviewService.getOverview", () => {
     expect(overview.perimeter.every((item) => item.status === "IMPLEMENTED")).toBe(true);
   });
 
-  it("honestly lists rate limiting as a known, unimplemented gap", () => {
+  it("reports rate limiting as implemented (Задача №288), no longer a known gap", () => {
     const service = new SecurityOverviewService();
     const overview = service.getOverview();
 
-    expect(overview.gaps.some((gap) => gap.name === "Rate limiting")).toBe(true);
+    expect(overview.gaps.some((gap) => gap.name === "Rate limiting")).toBe(false);
+    expect(
+      overview.perimeter.some(
+        (item) => item.name === "Rate limiting" && item.status === "IMPLEMENTED",
+      ),
+    ).toBe(true);
   });
 });

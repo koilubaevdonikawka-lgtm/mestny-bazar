@@ -6,6 +6,8 @@ import type { IAiImageProvider } from "@server/ports/ai-image-provider.port";
 import { SupabaseTranslationCache } from "@server/adapters/supabase/translation-cache.repository";
 import { CachedTranslationService } from "@server/domain/cached-translation.service";
 import type { ITranslationCache } from "@server/ports/translation-cache.port";
+import { CloudflareRateLimiter } from "@server/adapters/cloudflare/cloudflare-rate-limiter.adapter";
+import { RateLimitService } from "@server/domain/rate-limit.service";
 import { CartService } from "@server/domain/cart.service";
 import { CatalogService } from "@server/domain/catalog.service";
 import { CategoryService } from "@server/domain/category.service";
@@ -344,6 +346,8 @@ export interface ServiceContainer {
   aiTranslationService: AiTranslationService;
   translationCache: ITranslationCache;
   cachedTranslationService: CachedTranslationService;
+  /** Задача №288 — edge rate limiting for sensitive actions; see server/functions/rate-limit.guard.ts. */
+  rateLimit: RateLimitService;
   aiImageProvider: IAiImageProvider;
   notifications: INotificationProvider;
   orderEvents: IOrderEventNotifier;
@@ -871,6 +875,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     aiTranslationService,
     translationCache,
     cachedTranslationService,
+    rateLimit: new RateLimitService(new CloudflareRateLimiter()),
     catalog: new CatalogService(catalogProducts, categoryRepository),
     categories: new CategoryService(categoryRepository),
     categoryAdminService,

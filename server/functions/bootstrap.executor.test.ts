@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { RateLimitedError } from "@server/domain/rate-limit.errors";
 
 /**
  * The first executor-level test in this project — every other executor is thin
@@ -10,13 +11,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
  * singleton boundaries (@server/auth/resolve-user, @server/di/container) rather
  * than hitting a real request context or a real Supabase-backed container.
  */
-const { requireUserIdFromRequest, getServices } = vi.hoisted(() => ({
+const { requireUserIdFromRequest, getServices, enforceRateLimit } = vi.hoisted(() => ({
   requireUserIdFromRequest: vi.fn(),
   getServices: vi.fn(),
+  // Задача №288 — the edge rate limit is covered by its own tests; here it just passes.
+  enforceRateLimit: vi.fn(async () => {}),
 }));
 
 vi.mock("@server/auth/resolve-user", () => ({ requireUserIdFromRequest }));
 vi.mock("@server/di/container", () => ({ getServices }));
+vi.mock("@server/functions/rate-limit.guard", () => ({ enforceRateLimit }));
 
 const { executeClaimBootstrap, executeGetBootstrapStatus } =
   await import("@server/functions/bootstrap.executor");
@@ -113,5 +117,18 @@ describe("bootstrap.executor", () => {
 
       await expect(executeClaimBootstrap()).rejects.toThrow("Bootstrap already completed");
     });
+  });
+});
+
+// Задача №288
+describe("executeClaimBootstrap rate limit", () => {
+  it("a rejected IP counter stops the claim before authentication or the domain service", async () => {
+    enforceRateLimit.mockRejectedValueOnce(new RateLimitedError());
+    const claim = vi.fn();
+    getServices.mockReturnValue({ bootstrapService: { claim } });
+
+    await expect(executeClaimBootstrap()).rejects.toBeInstanceOf(RateLimitedError);
+    expect(requireUserIdFromRequest).not.toHaveBeenCalled();
+    expect(claim).not.toHaveBeenCalled();
   });
 });

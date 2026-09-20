@@ -1,6 +1,8 @@
 import type { CreateOrderRequest, CreateOrderResponse } from "@shared/contracts/order";
 import { requireUserIdFromRequest } from "@server/auth/resolve-user";
 import { getServices } from "@server/di/container";
+import { RateLimitPolicy } from "@server/domain/rate-limit.service";
+import { enforceRateLimit } from "@server/functions/rate-limit.guard";
 import {
   CheckoutValidationError,
   InsufficientStockError,
@@ -14,7 +16,11 @@ export async function executeCreateOrder(
 ): Promise<CreateOrderResponse> {
   // Задача №182 — guest checkout removed entirely; order creation (including
   // ONLINE payment, previously guest-accessible) now requires an account.
+  // Задача №288 — IP counter first, before any Supabase auth call, so a
+  // flood is rejected at the edge; per-account counter once the caller is known.
+  await enforceRateLimit(RateLimitPolicy.CHECKOUT);
   const userId = await requireUserIdFromRequest();
+  await enforceRateLimit(RateLimitPolicy.CHECKOUT, { userId, countIp: false });
   try {
     return await getServices().checkout.checkout(userId, request);
   } catch (error) {

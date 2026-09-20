@@ -41,6 +41,12 @@ export class SecurityOverviewService {
           status: SecurityItemStatus.IMPLEMENTED,
         },
         {
+          name: "Rate limiting",
+          mechanism:
+            "Cloudflare Rate Limiting биндинги (по IP и по аккаунту): оформление заказа, загрузка изображений, публичный перевод, claim Bootstrap — HTTP 429; чтение каталога не ограничивается (Задача №288)",
+          status: SecurityItemStatus.IMPLEMENTED,
+        },
+        {
           name: "Границы импортов",
           mechanism:
             "ESLint no-restricted-imports — фронтенд не импортирует Supabase SDK/server напрямую",
@@ -48,10 +54,6 @@ export class SecurityOverviewService {
         },
       ],
       gaps: [
-        {
-          name: "Rate limiting",
-          note: "Не реализован — требует инфраструктуры уровня Cloudflare Rate Limiting Rules/KV",
-        },
         {
           name: "APM/трекинг ошибок",
           note: "Точка интеграции готова (shared/observability/logger.ts), внешний сервис не подключён",

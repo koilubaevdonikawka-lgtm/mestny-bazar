@@ -14,5 +14,9 @@ export const translatePublicTextFn = createServerFn({ method: "POST" })
   .validator((data: unknown) => translateTextRequestSchema.parse(data))
   .handler(async ({ data }): Promise<TranslateTextResult> => {
     const { getServices } = await import("@server/di/container");
+    // Задача №288 — public endpoint that reaches paid Gemini on a cache miss.
+    const { RateLimitPolicy } = await import("@server/domain/rate-limit.service");
+    const { enforceRateLimit } = await import("@server/functions/rate-limit.guard");
+    await enforceRateLimit(RateLimitPolicy.PUBLIC_TRANSLATION);
     return getServices().cachedTranslationService.translate(data);
   });

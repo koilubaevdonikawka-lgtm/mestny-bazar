@@ -5,6 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { nitro } from "nitro/vite";
+import { RATE_LIMIT_BINDINGS } from "./shared/security/rate-limit-bindings";
 
 export default defineConfig(({ mode, command }) => {
   // VITE_* vars need to land in import.meta.env for both dev and build (Vite
@@ -126,7 +127,21 @@ export default defineConfig(({ mode, command }) => {
                 "*/5 * * * *": "payment:sweep-expired",
                 "*/2 * * * *": "courier:sweep-unassigned",
               },
-              cloudflare: { deployConfig: true },
+              cloudflare: {
+                deployConfig: true,
+                // Задача №288 — native Cloudflare Rate Limiting bindings for
+                // sensitive server actions (checkout, image upload, public
+                // translation, bootstrap claim). Limits/names come from the
+                // same constant the runtime adapter reads, so build and
+                // runtime can't drift; no Supabase involvement.
+                wrangler: {
+                  ratelimits: Object.values(RATE_LIMIT_BINDINGS).map((binding) => ({
+                    name: binding.name,
+                    namespace_id: binding.namespaceId,
+                    simple: { limit: binding.limit, period: binding.periodSeconds },
+                  })),
+                },
+              },
             }),
           ]
         : []),

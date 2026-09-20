@@ -1,6 +1,8 @@
 import type { BootstrapStatusDTO } from "@shared/contracts/bootstrap";
 import { requireUserIdFromRequest } from "@server/auth/resolve-user";
 import { getServices } from "@server/di/container";
+import { RateLimitPolicy } from "@server/domain/rate-limit.service";
+import { enforceRateLimit } from "@server/functions/rate-limit.guard";
 
 /**
  * Public status check — deliberately requires NO authentication. Knowing whether
@@ -22,6 +24,8 @@ export async function executeGetBootstrapStatus(): Promise<BootstrapStatusDTO> {
  * is even meaningful before a Root Owner exists.
  */
 export async function executeClaimBootstrap(): Promise<BootstrapStatusDTO> {
+  // Задача №288 — the one server-side "attempt"-style auth action; IP counter before the auth call.
+  await enforceRateLimit(RateLimitPolicy.BOOTSTRAP_CLAIM);
   const userId = await requireUserIdFromRequest();
   await getServices().bootstrapService.claim(userId);
   const eligibility = await getServices().bootstrapService.getEligibility();

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ForbiddenError, UnauthorizedError } from "@server/domain/orders.errors";
+import { RateLimitedError } from "@server/domain/rate-limit.errors";
 
 const {
   requireAdminFromRequest,
@@ -7,18 +8,22 @@ const {
   requireModulePermission,
   assertMarketingAccess,
   getServices,
+  enforceRateLimit,
 } = vi.hoisted(() => ({
   requireAdminFromRequest: vi.fn(),
   requireSellerFromRequest: vi.fn(),
   requireModulePermission: vi.fn(),
   assertMarketingAccess: vi.fn(),
   getServices: vi.fn(),
+  // Задача №288 — the edge rate limit is asserted in its own describe below; elsewhere it just passes.
+  enforceRateLimit: vi.fn(async () => {}),
 }));
 
 vi.mock("@server/auth/resolve-user", () => ({ requireAdminFromRequest, requireSellerFromRequest }));
 vi.mock("@server/auth/require-module-permission", () => ({ requireModulePermission }));
 vi.mock("@server/auth/assert-marketing-access", () => ({ assertMarketingAccess }));
 vi.mock("@server/di/container", () => ({ getServices }));
+vi.mock("@server/functions/rate-limit.guard", () => ({ enforceRateLimit }));
 
 const { executeUploadImage } = await import("@server/functions/media-upload.executor");
 
@@ -145,5 +150,48 @@ describe("media-upload.executor", () => {
       "Permission denied",
     );
     expect(uploadImage).not.toHaveBeenCalled();
+  });
+  // Задача №288
+  describe("edge rate limit", () => {
+    it("counts the IP BEFORE auth, then the account (IP not recounted); AI cap only for a product upload that uses AI", async () => {
+      const order: string[] = [];
+      enforceRateLimit.mockImplementation(async (...args: unknown[]) => {
+        const [policy, options] = args as [string, { countIp?: boolean } | undefined];
+        order.push(`${policy}${options?.countIp === false ? ":user" : ":ip"}`);
+      });
+      requireAdminFromRequest.mockImplementation(async () => {
+        order.push("auth");
+        return { userId: "admin-1", roles: ["admin"] };
+      });
+      getServices.mockReturnValue({
+        mediaUploadService: { uploadImage: vi.fn(async () => ({ url: "u" })) },
+      });
+
+      await executeUploadImage({ ...fakeInput, context: "product", skipAiProcessing: false });
+      expect(order).toEqual([
+        "MEDIA_UPLOAD:ip",
+        "auth",
+        "MEDIA_UPLOAD:user",
+        "MEDIA_UPLOAD_AI:user",
+      ]);
+
+      order.length = 0;
+      await executeUploadImage({ ...fakeInput, context: "product", skipAiProcessing: true });
+      expect(order).toEqual(["MEDIA_UPLOAD:ip", "auth", "MEDIA_UPLOAD:user"]);
+      expect(enforceRateLimit).toHaveBeenLastCalledWith("MEDIA_UPLOAD", {
+        userId: "admin-1",
+        countIp: false,
+      });
+    });
+
+    it("a rejected IP counter stops the request before auth and before any upload", async () => {
+      enforceRateLimit.mockRejectedValueOnce(new RateLimitedError());
+      const uploadImage = vi.fn();
+      getServices.mockReturnValue({ mediaUploadService: { uploadImage } });
+
+      await expect(executeUploadImage(fakeInput)).rejects.toBeInstanceOf(RateLimitedError);
+      expect(requireAdminFromRequest).not.toHaveBeenCalled();
+      expect(uploadImage).not.toHaveBeenCalled();
+    });
   });
 });
