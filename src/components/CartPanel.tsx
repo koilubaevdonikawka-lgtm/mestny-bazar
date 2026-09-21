@@ -427,7 +427,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
       ) : (
         <>
           <div className="flex-1 overflow-y-auto pr-1 min-h-0">
-            <div className="space-y-2">
+            <div className="space-y-1">
               {items.map((item) => {
                 const warning = lineWarnings[item.product.node.handle];
                 const displayTitle =
@@ -458,20 +458,31 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                           instead of being cut down to a few characters;
                           still bounded so one item can't grow the row
                           unpredictably. */}
-                      {item.product.node.handle ? (
-                        <Link
-                          to="/product/$handle"
-                          params={{ handle: item.product.node.handle }}
-                          onClick={() => onNavigate?.()}
-                          className="line-clamp-2 min-w-0 flex-1 text-sm font-medium hover:underline"
-                        >
-                          {displayTitle}
-                        </Link>
-                      ) : (
-                        <h4 className="line-clamp-2 min-w-0 flex-1 text-sm font-medium">
-                          {displayTitle}
-                        </h4>
-                      )}
+                      {/* Задача №294 — title and description share one column, so the
+                          description reads as a caption directly under the name. As a
+                          separate row it sat below the whole 32px-tall top row (sized by
+                          the delete button), i.e. ~18px under a one-line title. */}
+                      <div className="min-w-0 flex-1">
+                        {item.product.node.handle ? (
+                          <Link
+                            to="/product/$handle"
+                            params={{ handle: item.product.node.handle }}
+                            onClick={() => onNavigate?.()}
+                            className="line-clamp-2 text-sm font-medium hover:underline"
+                          >
+                            {displayTitle}
+                          </Link>
+                        ) : (
+                          <h4 className="line-clamp-2 text-sm font-medium">{displayTitle}</h4>
+                        )}
+                        {description && (
+                          // Задача №291 — one truncated line; the line simply doesn't
+                          // exist for a product without a description.
+                          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                            {description}
+                          </p>
+                        )}
+                      </div>
                       <div className="flex shrink-0 items-center gap-1">
                         <span className="text-xs text-muted-foreground whitespace-nowrap">
                           {formatDisplayPrice(parseFloat(item.price.amount))}{" "}
@@ -491,11 +502,6 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                         </Button>
                       </div>
                     </div>
-                    {description && (
-                      // Задача №291 — one truncated line under the name; the
-                      // row simply doesn't exist for a product without a description.
-                      <p className="line-clamp-1 text-xs text-muted-foreground">{description}</p>
-                    )}
                     {item.selectedOptions.length > 0 && (
                       <p className="text-xs text-muted-foreground">
                         {item.selectedOptions.map((o) => o.value).join(" • ")}
