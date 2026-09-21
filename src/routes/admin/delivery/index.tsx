@@ -688,7 +688,7 @@ function AdminDeliveryPage() {
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-6 [&::-webkit-details-marker]:hidden">
                 <span className="font-serif text-2xl">Откуда доставляем</span>
                 <span className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
-                  <span className="truncate">
+                  <span className="min-w-0 text-right">
                     {simple.store ? `${simple.store.name} · ${simple.store.address}` : "не указано"}
                   </span>
                   <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
