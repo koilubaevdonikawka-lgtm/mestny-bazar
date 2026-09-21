@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
-import { Bell, LogIn, LogOut, Store } from "lucide-react";
+import { Bell, LogIn, LogOut, MessageCircle, Send, Store } from "lucide-react";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
@@ -16,7 +16,11 @@ import { BRAND } from "@/config/brand";
 import { CONTACT } from "@/config/contact";
 import { listPublicDeliveryTariffs } from "@/api/delivery-tariff";
 import { deliveryFeeRule } from "@/lib/delivery-admin-view";
-import { getPublicAdminContactPhone, getPublicDeliveryDescription } from "@/api/settings";
+import {
+  getPublicAdminContactPhone,
+  getPublicContactLinks,
+  getPublicDeliveryDescription,
+} from "@/api/settings";
 
 /**
  * Задача №178 — a real, full-screen, own-URL page for what used to be
@@ -101,6 +105,16 @@ function InfoPage() {
   });
   const deliveryDescription = deliveryDescriptionQuery.data ?? null;
 
+  // Задача №298 — Telegram / WhatsApp buttons, each independent: a blank link
+  // hides just its own button, both blank hides the whole row.
+  const contactLinksQuery = useQuery({
+    queryKey: ["public", "contact-links"],
+    queryFn: getPublicContactLinks,
+    staleTime: 60 * 1000,
+  });
+  const telegramLink = contactLinksQuery.data?.telegram ?? null;
+  const whatsappLink = contactLinksQuery.data?.whatsapp ?? null;
+
   const zoneNames = tariffs.map((tariff) => tariff.zoneName);
   const translatedTexts = useTranslatedTexts([BRAND.name, ...zoneNames], language);
   const displayBrandName = translatedTexts[BRAND.name] ?? BRAND.name;
@@ -184,6 +198,26 @@ function InfoPage() {
             <li>
               <p className="text-foreground">{t("footer.contactPhoneHeading")}</p>
               <p className="mt-1 whitespace-pre-line">{contactPhone}</p>
+            </li>
+          )}
+          {(telegramLink || whatsappLink) && (
+            <li className="flex flex-wrap gap-2" data-testid="contact-links">
+              {telegramLink && (
+                <Button asChild variant="outline" className="justify-start gap-2 rounded-xl">
+                  <a href={telegramLink} target="_blank" rel="noopener noreferrer">
+                    <Send className="h-4 w-4" />
+                    {t("footer.contactTelegramButton")}
+                  </a>
+                </Button>
+              )}
+              {whatsappLink && (
+                <Button asChild variant="outline" className="justify-start gap-2 rounded-xl">
+                  <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
+                    <MessageCircle className="h-4 w-4" />
+                    {t("footer.contactWhatsappButton")}
+                  </a>
+                </Button>
+              )}
             </li>
           )}
           <li>

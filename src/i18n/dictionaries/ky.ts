@@ -351,6 +351,8 @@ export const ky = {
       "{{kg}} кг чейинки заказ — {{price}} сом, ар бир кийинки килограмм үчүн — +{{extra}} сом",
     deliveryFeeRuleZoneLine: "{{zoneName}}: {{rule}}",
     contactPhoneHeading: "Администратордун телефону",
+    contactTelegramButton: "Telegram аркылуу жазуу",
+    contactWhatsappButton: "WhatsApp аркылуу жазуу",
     copyright: "© {{year}} {{brand}}. Бардык укуктар корголгон.",
   },
   account: {
@@ -447,6 +449,17 @@ export const ky = {
         "Сатып алуучуларга «Маалымат» баракчасында көрсөтүлөт. Бир нече номерди көрсөтсө болот — ар бирин өзүнчө сапта. Бул блокту көрсөтпөө үчүн бош калтырыңыз.",
       contactPhoneLabel: "Телефон(дор)",
       contactPhonePlaceholder: "+996 555 123 456",
+      contactLinksHeading: "Сатып алуучулар менен байланыш",
+      contactLinksDescription:
+        "«Маалымат» баракчасында email жанындагы баскычтар. Ар бири өзүнчө көрүнөт; баскычты жашыруу үчүн талааны бош калтырыңыз.",
+      contactTelegramLabel: "Сатып алуучулар менен байланышуу үчүн Telegram шилтемеси",
+      contactTelegramPlaceholder: "https://t.me/сиздин_аккаунт",
+      contactTelegramInvalid:
+        "Telegram шилтемесине окшобойт. Мисал: https://t.me/kantbazar же @kantbazar",
+      contactWhatsappLabel: "Сатып алуучулар менен байланышуу үчүн WhatsApp шилтемеси",
+      contactWhatsappPlaceholder: "https://wa.me/996555123456 же +996 555 123 456",
+      contactWhatsappInvalid:
+        "WhatsApp шилтемеси же номерине окшобойт. Номерди өлкө коду менен жазыңыз, мисалы +996 555 123 456",
     },
     logs: {
       title: "Окуялар журналы",

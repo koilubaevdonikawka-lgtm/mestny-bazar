@@ -35,3 +35,17 @@ export const ADMIN_CONTACT_PHONE_SETTING_CATEGORY = "contact";
  */
 export const DELIVERY_DESCRIPTION_SETTING_KEY = "delivery_description";
 export const DELIVERY_DESCRIPTION_SETTING_CATEGORY = "delivery";
+
+/**
+ * Задача №298 — customer-contact links shown on /info next to the email. Same
+ * pattern and category as ADMIN_CONTACT_PHONE_SETTING_KEY: a string per key,
+ * edited in admin «Настройки», read anonymously and key-scoped
+ * (executeGetPublicContactLinks), blank = that button is hidden.
+ */
+export const CONTACT_TELEGRAM_SETTING_KEY = "contact_telegram";
+export const CONTACT_WHATSAPP_SETTING_KEY = "contact_whatsapp";
+
+export interface PublicContactLinksDTO {
+  telegram: string | null;
+  whatsapp: string | null;
+}

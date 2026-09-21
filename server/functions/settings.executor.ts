@@ -1,9 +1,13 @@
 import {
   ADMIN_CONTACT_PHONE_SETTING_KEY,
+  CONTACT_TELEGRAM_SETTING_KEY,
+  CONTACT_WHATSAPP_SETTING_KEY,
   DELIVERY_DESCRIPTION_SETTING_KEY,
   type PlatformSettingDTO,
+  type PublicContactLinksDTO,
   type UpdateSettingRequest,
 } from "@shared/contracts/settings";
+import { normalizeTelegramLink, normalizeWhatsappLink } from "@shared/validation/contact-links";
 import { requireAdminFromRequest } from "@server/auth/resolve-user";
 import { getServices } from "@server/di/container";
 
@@ -48,4 +52,22 @@ export async function executeGetPublicAdminContactPhone(): Promise<string | null
 export async function executeGetPublicDeliveryDescription(): Promise<string | null> {
   const setting = await getServices().settingsService.get(DELIVERY_DESCRIPTION_SETTING_KEY);
   return typeof setting?.value === "string" && setting.value.trim() ? setting.value : null;
+}
+
+/**
+ * Задача №298 — same anonymous, key-scoped trust model as
+ * executeGetPublicAdminContactPhone above: only these two keys' values leave
+ * the settings table. Each value is normalized to an https URL (or null when
+ * blank/unrecognizable), so nothing but a well-formed https link can ever reach
+ * an href on the public page.
+ */
+export async function executeGetPublicContactLinks(): Promise<PublicContactLinksDTO> {
+  const [telegram, whatsapp] = await Promise.all([
+    getServices().settingsService.get(CONTACT_TELEGRAM_SETTING_KEY),
+    getServices().settingsService.get(CONTACT_WHATSAPP_SETTING_KEY),
+  ]);
+  return {
+    telegram: typeof telegram?.value === "string" ? normalizeTelegramLink(telegram.value) : null,
+    whatsapp: typeof whatsapp?.value === "string" ? normalizeWhatsappLink(whatsapp.value) : null,
+  };
 }

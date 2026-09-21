@@ -375,6 +375,8 @@ export const ru = {
       "Заказ весом до {{kg}} кг — {{price}} сом, за каждый следующий килограмм — +{{extra}} сом",
     deliveryFeeRuleZoneLine: "{{zoneName}}: {{rule}}",
     contactPhoneHeading: "Телефон администратора",
+    contactTelegramButton: "Написать в Telegram",
+    contactWhatsappButton: "Написать в WhatsApp",
     copyright: "© {{year}} {{brand}}. Все права защищены.",
   },
   account: {
@@ -472,6 +474,17 @@ export const ru = {
         "Показывается покупателям на странице «Информация». Можно указать несколько номеров — каждый на отдельной строке. Оставьте пустым, чтобы не показывать этот блок.",
       contactPhoneLabel: "Телефон(ы)",
       contactPhonePlaceholder: "+996 555 123 456",
+      contactLinksHeading: "Связь с покупателями",
+      contactLinksDescription:
+        "Кнопки на странице «Информация» рядом с email. Каждая показывается отдельно; оставьте поле пустым, чтобы скрыть кнопку.",
+      contactTelegramLabel: "Ссылка на Telegram для связи с покупателями",
+      contactTelegramPlaceholder: "https://t.me/ваш_аккаунт",
+      contactTelegramInvalid:
+        "Не похоже на ссылку Telegram. Пример: https://t.me/kantbazar или @kantbazar",
+      contactWhatsappLabel: "Ссылка на WhatsApp для связи с покупателями",
+      contactWhatsappPlaceholder: "https://wa.me/996555123456 или +996 555 123 456",
+      contactWhatsappInvalid:
+        "Не похоже на ссылку или номер WhatsApp. Номер укажите с кодом страны, например +996 555 123 456",
     },
     logs: {
       title: "Журналы событий",

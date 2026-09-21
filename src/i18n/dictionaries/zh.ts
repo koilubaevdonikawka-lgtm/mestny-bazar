@@ -335,6 +335,8 @@ export const zh = {
     deliveryFeeRuleLine: "{{kg}} 公斤以内订单 — {{price}} 索姆，每多 1 公斤 — 加收 {{extra}} 索姆",
     deliveryFeeRuleZoneLine: "{{zoneName}}: {{rule}}",
     contactPhoneHeading: "管理员联系电话",
+    contactTelegramButton: "通过 Telegram 联系",
+    contactWhatsappButton: "通过 WhatsApp 联系",
     copyright: "© {{year}} {{brand}}。保留所有权利。",
   },
   account: {
@@ -428,6 +430,16 @@ export const zh = {
         "会显示在顾客端的「信息」页面。可以填写多个号码，每行一个。留空则不显示该区块。",
       contactPhoneLabel: "电话号码",
       contactPhonePlaceholder: "+996 555 123 456",
+      contactLinksHeading: "买家联系方式",
+      contactLinksDescription:
+        "显示在“信息”页面邮箱旁边的按钮。每个按钮单独显示；留空即可隐藏对应按钮。",
+      contactTelegramLabel: "用于联系买家的 Telegram 链接",
+      contactTelegramPlaceholder: "https://t.me/你的账号",
+      contactTelegramInvalid: "这不像 Telegram 链接。示例：https://t.me/kantbazar 或 @kantbazar",
+      contactWhatsappLabel: "用于联系买家的 WhatsApp 链接",
+      contactWhatsappPlaceholder: "https://wa.me/996555123456 或 +996 555 123 456",
+      contactWhatsappInvalid:
+        "这不像 WhatsApp 链接或号码。请填写带国家区号的号码，例如 +996 555 123 456",
     },
     logs: {
       title: "事件日志",

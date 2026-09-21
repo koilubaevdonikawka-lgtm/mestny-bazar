@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { PlatformSettingDTO } from "@shared/contracts/settings";
+import type { PlatformSettingDTO, PublicContactLinksDTO } from "@shared/contracts/settings";
 import { settingKeySchema, updateSettingRequestSchema } from "@shared/validation/settings.schema";
 
 export const listSettingsFn = createServerFn({ method: "GET" }).handler(
@@ -36,5 +36,12 @@ export const getPublicDeliveryDescriptionFn = createServerFn({ method: "GET" }).
     const { executeGetPublicDeliveryDescription } =
       await import("@server/functions/settings.executor");
     return executeGetPublicDeliveryDescription();
+  },
+);
+
+export const getPublicContactLinksFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<PublicContactLinksDTO> => {
+    const { executeGetPublicContactLinks } = await import("@server/functions/settings.executor");
+    return executeGetPublicContactLinks();
   },
 );

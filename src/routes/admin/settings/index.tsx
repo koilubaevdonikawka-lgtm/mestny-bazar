@@ -11,8 +11,11 @@ import { listSettings, updateSetting } from "@/api/settings";
 import {
   ADMIN_CONTACT_PHONE_SETTING_CATEGORY,
   ADMIN_CONTACT_PHONE_SETTING_KEY,
+  CONTACT_TELEGRAM_SETTING_KEY,
+  CONTACT_WHATSAPP_SETTING_KEY,
   type SettingValue,
 } from "@shared/contracts/settings";
+import { normalizeTelegramLink, normalizeWhatsappLink } from "@shared/validation/contact-links";
 import { signInWithGoogle } from "@/lib/auth";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { useTranslation } from "@/i18n/LanguageProvider";
@@ -81,6 +84,59 @@ function AdminSettingsPage() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : t("admin.settings.saveError")),
   });
+
+  // Задача №298 — Telegram / WhatsApp links shown on /info, same generic store
+  // and category as the phone above. Blank clears the link; anything else must
+  // look like a link/number (normalize* returns null for junk) and is saved in
+  // its normalized https form, so the admin sees exactly what buyers will open.
+  const [telegramLink, setTelegramLink] = useState("");
+  const [whatsappLink, setWhatsappLink] = useState("");
+  useEffect(() => {
+    const read = (settingKey: string) => {
+      const existing = settings?.find((s) => s.key === settingKey)?.value;
+      return typeof existing === "string" ? existing : "";
+    };
+    setTelegramLink(read(CONTACT_TELEGRAM_SETTING_KEY));
+    setWhatsappLink(read(CONTACT_WHATSAPP_SETTING_KEY));
+  }, [settings]);
+
+  const contactLinksMutation = useMutation({
+    mutationFn: (values: { telegram: string; whatsapp: string }) =>
+      Promise.all([
+        updateSetting({
+          key: CONTACT_TELEGRAM_SETTING_KEY,
+          category: ADMIN_CONTACT_PHONE_SETTING_CATEGORY,
+          value: values.telegram,
+        }),
+        updateSetting({
+          key: CONTACT_WHATSAPP_SETTING_KEY,
+          category: ADMIN_CONTACT_PHONE_SETTING_CATEGORY,
+          value: values.whatsapp,
+        }),
+      ]),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "settings", "list"] });
+      queryClient.invalidateQueries({ queryKey: ["public", "contact-links"] });
+      toast.success(t("admin.settings.savedToast"));
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : t("admin.settings.saveError")),
+  });
+
+  const handleSaveContactLinks = () => {
+    const telegram = telegramLink.trim();
+    const whatsapp = whatsappLink.trim();
+    const telegramNormalized = telegram ? normalizeTelegramLink(telegram) : "";
+    const whatsappNormalized = whatsapp ? normalizeWhatsappLink(whatsapp) : "";
+    if (telegramNormalized === null) {
+      toast.error(t("admin.settings.contactTelegramInvalid"));
+      return;
+    }
+    if (whatsappNormalized === null) {
+      toast.error(t("admin.settings.contactWhatsappInvalid"));
+      return;
+    }
+    contactLinksMutation.mutate({ telegram: telegramNormalized, whatsapp: whatsappNormalized });
+  };
 
   const handleSignIn = async () => {
     await signInWithGoogle();
@@ -240,6 +296,47 @@ function AdminSettingsPage() {
               onClick={() => contactPhoneMutation.mutate(contactPhone.trim())}
             >
               {contactPhoneMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                t("common.save")
+              )}
+            </Button>
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">
+          <h2 className="font-serif text-2xl mb-2">{t("admin.settings.contactLinksHeading")}</h2>
+          <p className="mb-4 text-sm text-muted-foreground">
+            {t("admin.settings.contactLinksDescription")}
+          </p>
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="contact-telegram">{t("admin.settings.contactTelegramLabel")}</Label>
+              <Input
+                id="contact-telegram"
+                value={telegramLink}
+                onChange={(e) => setTelegramLink(e.target.value)}
+                placeholder={t("admin.settings.contactTelegramPlaceholder")}
+                maxLength={300}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="contact-whatsapp">{t("admin.settings.contactWhatsappLabel")}</Label>
+              <Input
+                id="contact-whatsapp"
+                value={whatsappLink}
+                onChange={(e) => setWhatsappLink(e.target.value)}
+                placeholder={t("admin.settings.contactWhatsappPlaceholder")}
+                maxLength={300}
+              />
+            </div>
+            <Button
+              type="button"
+              className="h-12 w-full rounded-full sm:w-auto"
+              disabled={contactLinksMutation.isPending}
+              onClick={handleSaveContactLinks}
+            >
+              {contactLinksMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 t("common.save")

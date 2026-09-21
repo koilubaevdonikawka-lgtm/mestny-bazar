@@ -349,6 +349,8 @@ export const en = {
       "Order up to {{kg}} kg — {{price}} som, each next kilogram — +{{extra}} som",
     deliveryFeeRuleZoneLine: "{{zoneName}}: {{rule}}",
     contactPhoneHeading: "Admin contact phone",
+    contactTelegramButton: "Message on Telegram",
+    contactWhatsappButton: "Message on WhatsApp",
     copyright: "© {{year}} {{brand}}. All rights reserved.",
   },
   account: {
@@ -444,6 +446,17 @@ export const en = {
         "Shown to customers on the Info page. You can list several numbers, one per line. Leave empty to hide this block.",
       contactPhoneLabel: "Phone(s)",
       contactPhonePlaceholder: "+996 555 123 456",
+      contactLinksHeading: "Customer contact links",
+      contactLinksDescription:
+        "Buttons on the Information page next to the email. Each is shown on its own; leave a field empty to hide its button.",
+      contactTelegramLabel: "Telegram link for contacting customers",
+      contactTelegramPlaceholder: "https://t.me/your_account",
+      contactTelegramInvalid:
+        "This does not look like a Telegram link. Example: https://t.me/kantbazar or @kantbazar",
+      contactWhatsappLabel: "WhatsApp link for contacting customers",
+      contactWhatsappPlaceholder: "https://wa.me/996555123456 or +996 555 123 456",
+      contactWhatsappInvalid:
+        "This does not look like a WhatsApp link or number. Enter the number with country code, e.g. +996 555 123 456",
     },
     logs: {
       title: "Event Logs",
