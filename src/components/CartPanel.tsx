@@ -427,7 +427,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
       ) : (
         <>
           <div className="flex-1 overflow-y-auto pr-1 min-h-0">
-            <div className="space-y-3">
+            <div className="space-y-2">
               {items.map((item) => {
                 const warning = lineWarnings[item.product.node.handle];
                 const displayTitle =
@@ -450,7 +450,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                   // untouched, not shrunk further.
                   <div
                     key={item.variantId}
-                    className="rounded-2xl border border-border/60 bg-card p-2.5 space-y-1.5"
+                    className="rounded-2xl border border-border/60 bg-card px-3 py-2 space-y-1.5"
                   >
                     <div className="flex items-start justify-between gap-2">
                       {/* 2-line clamp instead of a hard single-line
@@ -513,7 +513,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                         quantity. Line total sits opposite it, always the
                         up-to-date price × qty (recomputed every render). */}
                     <div className="flex items-center justify-between gap-2">
-                      <CartQuantityControl product={item.product} size="sm" />
+                      <CartQuantityControl product={item.product} size="compact" />
                       <span className="shrink-0 font-serif text-base font-semibold whitespace-nowrap">
                         {formatDisplayPrice(lineTotal)} {t("product.currencyLabel")}
                       </span>
@@ -536,9 +536,9 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                 just browsing the cart was redundant — this section simply
                 renders nothing until there's something real to show. */}
             {readiness.isAuthenticated !== true ? (
-              <section className="mt-4 space-y-2">
+              <section className="mt-3 space-y-1.5">
                 <Label className="text-sm font-medium">{t("checkout.address")}</Label>
-                <div className="rounded-xl border border-border/60 bg-card p-4 text-sm space-y-2">
+                <div className="rounded-xl border border-border/60 bg-card p-3 text-sm space-y-2">
                   <p className="text-muted-foreground">{t("profile.signInToOrderDescription")}</p>
                   <Button
                     type="button"
@@ -552,7 +552,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                 </div>
               </section>
             ) : readiness.isReady === null ? (
-              <section className="mt-4 space-y-2">
+              <section className="mt-3 space-y-1.5">
                 <Label className="text-sm font-medium">{t("checkout.address")}</Label>
                 <div className="flex justify-center py-3">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -560,9 +560,9 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
               </section>
             ) : readiness.isReady ? (
               <>
-                <section className="mt-4 space-y-2">
+                <section className="mt-3 space-y-1.5">
                   <Label className="text-sm font-medium">{t("checkout.address")}</Label>
-                  <div className="rounded-xl border border-border/60 bg-card p-4 text-sm space-y-1">
+                  <div className="rounded-xl border border-border/60 bg-card p-3 text-sm space-y-1">
                     <p className="font-medium">{readiness.profile?.fullName}</p>
                     <p className="text-muted-foreground">{readiness.profile?.phone}</p>
                     <p className="text-muted-foreground">{readiness.defaultAddress?.fullAddress}</p>
@@ -575,15 +575,33 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                         })}
                       </p>
                     )}
-                    {/* Задача №187 — compact green button (same accent as the
-                        active bottom-tab, variant="default" = bg-primary),
-                        left-aligned (natural block position, no centering) and
-                        half the width of a standard full-width button here. */}
-                    <Button asChild size="sm" className="mt-1 w-1/2 rounded-xl">
-                      <Link to="/profile" onClick={() => onNavigate?.()}>
-                        {t("cart.editAddressButton")}
-                      </Link>
-                    </Button>
+                    {/* Задача №187 — compact green "Изменить" (same accent as the
+                        active bottom-tab, variant="default" = bg-primary).
+                        Задача №293 — "Отметить на карте" now sits in the SAME
+                        row, to its right, as a quieter ghost button (it is the
+                        less common action); the ::before on each extends the tap
+                        area to 44px tall without growing the row. */}
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <Button
+                        asChild
+                        size="sm"
+                        className="relative rounded-xl before:absolute before:-inset-y-2 before:inset-x-0 before:content-['']"
+                      >
+                        <Link to="/profile" onClick={() => onNavigate?.()}>
+                          {t("cart.editAddressButton")}
+                        </Link>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="relative rounded-xl px-2 text-muted-foreground before:absolute before:-inset-y-2 before:inset-x-0 before:content-['']"
+                        onClick={() => setMapDialogOpen(true)}
+                      >
+                        <MapPin className="h-3.5 w-3.5" />
+                        {t("cart.markOnMapButton")}
+                      </Button>
+                    </div>
                   </div>
                 </section>
 
@@ -594,9 +612,9 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                     visually separate (its own card, explicit "not your saved
                     address" hint) specifically so it can't be mistaken for a
                     permanent profile change. */}
-                <section className="mt-4 space-y-2">
-                  {overrideAddress ? (
-                    <div className="rounded-xl border border-primary/40 bg-card p-4 text-sm space-y-1">
+                {overrideAddress && (
+                  <section className="mt-3">
+                    <div className="rounded-xl border border-primary/40 bg-card p-3 text-sm space-y-1">
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-medium">{t("cart.orderAddressOverrideLabel")}</p>
                         <button
@@ -612,30 +630,9 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                       <p className="text-xs text-muted-foreground">
                         {t("cart.orderAddressOverrideHint")}
                       </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="mt-1 w-1/2 rounded-xl"
-                        onClick={() => setMapDialogOpen(true)}
-                      >
-                        <MapPin className="h-3.5 w-3.5 mr-1" />
-                        {t("cart.markOnMapButton")}
-                      </Button>
                     </div>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="rounded-xl"
-                      onClick={() => setMapDialogOpen(true)}
-                    >
-                      <MapPin className="h-3.5 w-3.5 mr-1" />
-                      {t("cart.markOnMapButton")}
-                    </Button>
-                  )}
-                </section>
+                  </section>
+                )}
               </>
             ) : null}
 
@@ -646,7 +643,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                 summary above (address/zone naturally comes first, then
                 price, then payment method — matches a typical checkout
                 order). */}
-            <div className="mt-4 rounded-2xl border border-border/60 bg-card p-4 space-y-2">
+            <div className="mt-3 rounded-2xl border border-border/60 bg-card p-3 space-y-1.5">
               {zoneId && deliveryQuery.data && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -690,7 +687,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
             {/* Задача №274 — free-text order comment, optional. Backend
                 already accepts/persists `notes` (createOrderRequestSchema,
                 CheckoutService) — this is only the missing input. */}
-            <section className="mt-4 space-y-2">
+            <section className="mt-3 space-y-1.5">
               <Label htmlFor="order-notes" className="text-sm font-medium">
                 {t("cart.orderNotesLabel")}
               </Label>
@@ -713,7 +710,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                 "Оформить заказ" button. No more selection toast either —
                 the confirm button appearing right underneath already is
                 the feedback that the click registered. */}
-            <section className="mt-4 space-y-2">
+            <section className="mt-3 space-y-1.5">
               <Label className="text-sm font-medium">{t("checkout.paymentMethod")}</Label>
               <div className="grid grid-cols-2 gap-2">
                 <Button
@@ -741,7 +738,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
               page), this degrades gracefully to normal in-flow layout. Empty
               (renders nothing) until a payment method is actually chosen. */}
           {paymentMethod && (
-            <div className="flex-shrink-0 pt-4 pb-safe border-t bg-background">
+            <div className="flex-shrink-0 pt-3 pb-safe border-t bg-background">
               {/* The single most visually prominent control in the whole
                   panel: tallest, boldest text, shadow — so this unmistakably
                   reads as the primary, final action. */}

@@ -22,8 +22,10 @@ export function CartQuantityControl({
   unit = null,
 }: {
   product: CatalogProductNode;
-  /** "sm" = 44px (grid card constraints), "lg" = 52px (product page, more room). Both meet the ≥44px minimum. */
-  size?: "sm" | "lg";
+  /** "sm" = 44px (grid card constraints), "lg" = 52px (product page, more room). Both meet the ≥44px minimum.
+   * Задача №293 — "compact" (cart rows only): a 32px-tall visible stepper whose buttons keep a 44×44px
+   * tap area via an invisible extension (see hitAreaClass below), so the ≥44px minimum still holds. */
+  size?: "sm" | "lg" | "compact";
   className?: string;
   /**
    * Этап №8 — renders the "Add to cart" state as a full-width, text-labelled
@@ -67,8 +69,19 @@ export function CartQuantityControl({
 
   // 44px ("sm", grid-card constrained) / 48px ("lg", product page — more
   // room, uses the top of the "preferred" 48–56px range from the brief).
-  const buttonSizeClass = size === "lg" ? "h-12 w-12" : "h-11 w-11";
-  const barHeightClass = size === "lg" ? "h-12" : "h-11";
+  const compact = size === "compact";
+  const buttonSizeClass = size === "lg" ? "h-12 w-12" : compact ? "h-8 w-8" : "h-11 w-11";
+  const barHeightClass = size === "lg" ? "h-12" : compact ? "h-8" : "h-11";
+  // Задача №293 — compact keeps the documented ≥44×44px tap target while
+  // looking 32×32: the button's ::before extends 6px past every edge of the
+  // visible circle (32 + 2×6 = 44) and, being part of the button, receives
+  // the click. The 6px matches CartPanel's row gap (space-y-1.5) and stays
+  // inside the card's bottom padding, so it never overlaps a neighbouring
+  // control. Nothing else in the button changes.
+  const hitAreaClass = compact
+    ? "relative before:absolute before:-inset-1.5 before:content-['']"
+    : "";
+  const compactIconClass = compact ? "[&_svg]:size-3.5" : "";
 
   const handleAdd = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -143,7 +156,7 @@ export function CartQuantityControl({
               // before this change. Scoped to just this (showLabel) branch —
               // the icon-only branch below keeps noFillClass untouched.
               `${barHeightClass} w-full shrink-0 gap-2 rounded-full text-base font-semibold shadow-md ${noFillClass} font-bold text-primary ${className}`
-            : `${buttonSizeClass} shrink-0 rounded-full ${noFillClass} ${className}`
+            : `${buttonSizeClass} shrink-0 rounded-full ${noFillClass} ${hitAreaClass} ${compactIconClass} ${className}`
         }
         aria-label={addLabel ?? t("product.addToCart")}
       >
@@ -162,7 +175,7 @@ export function CartQuantityControl({
 
   return (
     <div
-      className={`flex ${barHeightClass} shrink-0 items-center justify-between gap-1 rounded-full bg-secondary ${className}`}
+      className={`flex ${barHeightClass} shrink-0 items-center ${compact ? "w-fit gap-0.5" : "justify-between gap-1"} rounded-full bg-secondary ${className}`}
     >
       <Button
         type="button"
@@ -170,13 +183,13 @@ export function CartQuantityControl({
         size="icon"
         onClick={(e) => handleStep(e, -1)}
         disabled={isLoading}
-        className={`${buttonSizeClass} shrink-0 rounded-full`}
+        className={`${buttonSizeClass} shrink-0 rounded-full ${hitAreaClass} ${compactIconClass}`}
         aria-label={t("product.decreaseQuantity")}
       >
         <Minus className="h-4 w-4" />
       </Button>
       <span
-        className="min-w-[1.5rem] flex-1 text-center text-sm font-medium tabular-nums"
+        className={`min-w-[1.5rem] text-center text-sm font-medium tabular-nums ${compact ? "px-0.5" : "flex-1"}`}
         aria-live="polite"
       >
         {quantity}
@@ -188,7 +201,7 @@ export function CartQuantityControl({
         size="icon"
         onClick={(e) => handleStep(e, 1)}
         disabled={isLoading}
-        className={`${buttonSizeClass} shrink-0 rounded-full`}
+        className={`${buttonSizeClass} shrink-0 rounded-full ${hitAreaClass} ${compactIconClass}`}
         aria-label={t("product.increaseQuantity")}
       >
         <Plus className="h-4 w-4" />
