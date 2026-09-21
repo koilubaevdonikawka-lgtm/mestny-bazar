@@ -1,6 +1,7 @@
 import type { PlatformSettingDTO, UpdateSettingRequest } from "@shared/contracts/settings";
 import {
   getPublicAdminContactPhoneFn,
+  getPublicDeliveryDescriptionFn,
   getSettingFn,
   listSettingsFn,
   updateSettingFn,
@@ -20,4 +21,8 @@ export async function updateSetting(request: UpdateSettingRequest): Promise<Plat
 
 export async function getPublicAdminContactPhone(): Promise<string | null> {
   return getPublicAdminContactPhoneFn();
+}
+
+export async function getPublicDeliveryDescription(): Promise<string | null> {
+  return getPublicDeliveryDescriptionFn();
 }

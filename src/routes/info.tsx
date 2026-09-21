@@ -15,7 +15,7 @@ import { WELCOME_SEEN_KEY } from "@/components/WelcomeGate";
 import { BRAND } from "@/config/brand";
 import { CONTACT } from "@/config/contact";
 import { listPublicDeliveryTariffs } from "@/api/delivery-tariff";
-import { getPublicAdminContactPhone } from "@/api/settings";
+import { getPublicAdminContactPhone, getPublicDeliveryDescription } from "@/api/settings";
 
 /**
  * Задача №178 — a real, full-screen, own-URL page for what used to be
@@ -91,6 +91,15 @@ function InfoPage() {
   });
   const contactPhone = contactPhoneQuery.data ?? null;
 
+  // Задача №296 — admin-written delivery description, same "absent unless the
+  // admin actually wrote something" convention as the phone block above.
+  const deliveryDescriptionQuery = useQuery({
+    queryKey: ["public", "delivery-description"],
+    queryFn: getPublicDeliveryDescription,
+    staleTime: 60 * 1000,
+  });
+  const deliveryDescription = deliveryDescriptionQuery.data ?? null;
+
   const zoneNames = tariffs.map((tariff) => tariff.zoneName);
   const translatedTexts = useTranslatedTexts([BRAND.name, ...zoneNames], language);
   const displayBrandName = translatedTexts[BRAND.name] ?? BRAND.name;
@@ -122,9 +131,12 @@ function InfoPage() {
 
         <ul className="mt-6 space-y-3 rounded-2xl border border-border/60 bg-card p-6 text-sm text-muted-foreground">
           <li>{t("footer.paymentInfo")}</li>
-          {tariffs.length > 0 && (
+          {(tariffs.length > 0 || deliveryDescription) && (
             <li>
               <p className="text-foreground">{t("footer.deliveryHeading")}</p>
+              {deliveryDescription && (
+                <p className="mt-1 whitespace-pre-line">{deliveryDescription}</p>
+              )}
               <ul className="mt-1 space-y-1">
                 {tariffs.map((tariff) => (
                   <li key={tariff.zoneId}>

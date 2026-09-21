@@ -32,7 +32,10 @@ import {
   DELIVERY_WEIGHT_RULE,
   deriveSimpleDeliverySetup,
   extraFeePerKg,
+  includedKgOf,
+  parseFeeInput,
 } from "@/lib/delivery-admin-view";
+import { DeliveryDescriptionCard } from "@/components/admin/DeliveryDescriptionCard";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import {
   Calculator,
@@ -105,7 +108,11 @@ function AdminDeliveryPage() {
   const [tariffZoneId, setTariffZoneId] = useState<string>("");
   const [tariffType, setTariffType] = useState<DeliveryTariffType>("STANDARD");
   const [tariffPricingModel, setTariffPricingModel] = useState<DeliveryPricingModel>("FIXED");
-  const [tariffBasePrice, setTariffBasePrice] = useState("");
+  const [tariffBasePrice, setTariffBasePrice] = useState(
+    String(DELIVERY_WEIGHT_RULE.defaultBaseFee),
+  );
+  const [tariffIncludedKg, setTariffIncludedKg] = useState("");
+  const [tariffExtraKgFee, setTariffExtraKgFee] = useState("");
   const [tariffFreeFrom, setTariffFreeFrom] = useState("");
   const [tariffEtaMin, setTariffEtaMin] = useState("");
   const [tariffEtaMax, setTariffEtaMax] = useState("");
@@ -115,6 +122,11 @@ function AdminDeliveryPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [zoneNameDraft, setZoneNameDraft] = useState<string | null>(null);
   const [etaDraft, setEtaDraft] = useState<{ min: string; max: string } | null>(null);
+  const [feeDraft, setFeeDraft] = useState<{
+    base: string;
+    includedKg: string;
+    extraKg: string;
+  } | null>(null);
   const [storeDraft, setStoreDraft] = useState<{
     name: string;
     address: string;
@@ -233,11 +245,14 @@ function AdminDeliveryPage() {
     setTariffZoneId("");
     setTariffType("STANDARD");
     setTariffPricingModel("FIXED");
-    setTariffBasePrice("");
+    setTariffBasePrice(String(DELIVERY_WEIGHT_RULE.defaultBaseFee));
+    setTariffIncludedKg("");
+    setTariffExtraKgFee("");
     setTariffFreeFrom("");
     setTariffEtaMin("");
     setTariffEtaMax("");
     setEtaDraft(null);
+    setFeeDraft(null);
   };
 
   const createTariffMutation = useMutation({
@@ -342,6 +357,10 @@ function AdminDeliveryPage() {
     setTariffType(tariff.tariffType);
     setTariffPricingModel(tariff.pricingModel);
     setTariffBasePrice(String(tariff.basePrice));
+    setTariffIncludedKg(tariff.weightIncludedKg != null ? String(tariff.weightIncludedKg) : "");
+    setTariffExtraKgFee(
+      tariff.weightExtraFeePerKg != null ? String(tariff.weightExtraFeePerKg) : "",
+    );
     setTariffFreeFrom(
       tariff.minOrderForFreeDelivery != null ? String(tariff.minOrderForFreeDelivery) : "",
     );
@@ -351,13 +370,19 @@ function AdminDeliveryPage() {
 
   const handleTariffSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const basePrice = Number(tariffBasePrice);
+    const basePrice = parseFeeInput(tariffBasePrice, false);
+    const weightIncludedKg = parseFeeInput(tariffIncludedKg, true);
+    const weightExtraFeePerKg = parseFeeInput(tariffExtraKgFee, true);
     if (!tariffName.trim() || tariffName.trim().length < 2) {
       toast.error("Название тарифа должно содержать минимум 2 символа");
       return;
     }
-    if (!Number.isFinite(basePrice) || basePrice < 0) {
-      toast.error("Укажите базовую стоимость");
+    if (basePrice == null) {
+      toast.error("Укажите базовую стоимость — число не меньше 0");
+      return;
+    }
+    if (weightIncludedKg === undefined || weightExtraFeePerKg === undefined) {
+      toast.error("Порог веса и доплата за кг — числа не меньше 0 (или оставьте поле пустым)");
       return;
     }
     const payload = {
@@ -366,6 +391,8 @@ function AdminDeliveryPage() {
       tariffType,
       pricingModel: tariffPricingModel,
       basePrice,
+      weightIncludedKg,
+      weightExtraFeePerKg,
       minOrderForFreeDelivery: tariffFreeFrom ? Number(tariffFreeFrom) : null,
       etaMinMinutes: tariffEtaMin ? Number(tariffEtaMin) : null,
       etaMaxMinutes: tariffEtaMax ? Number(tariffEtaMax) : null,
@@ -520,6 +547,32 @@ function AdminDeliveryPage() {
     });
   };
 
+  const simpleFee = simple
+    ? (feeDraft ?? {
+        base: String(simple.tariff.basePrice),
+        includedKg: String(includedKgOf(simple.tariff)),
+        extraKg: String(extraFeePerKg(simple.tariff)),
+      })
+    : { base: "", includedKg: "", extraKg: "" };
+
+  const handleSimpleFeeSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!simple) return;
+    const base = parseFeeInput(simpleFee.base, false);
+    const includedKg = parseFeeInput(simpleFee.includedKg, false);
+    const extraKg = parseFeeInput(simpleFee.extraKg, false);
+    if (base == null || includedKg == null || extraKg == null) {
+      toast.error("Заполните все три поля числами не меньше 0");
+      return;
+    }
+    updateTariffMutation.mutate({
+      id: simple.tariff.id,
+      basePrice: base,
+      weightIncludedKg: includedKg,
+      weightExtraFeePerKg: extraKg,
+    });
+  };
+
   const simpleStore = storeDraft ?? {
     name: simple?.store?.name ?? "",
     address: simple?.store?.address ?? "",
@@ -622,21 +675,67 @@ function AdminDeliveryPage() {
             {/* Стоимость доставки */}
             <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">
               <h2 className="font-serif text-2xl mb-3">Стоимость доставки</h2>
-              <ul className="space-y-1 text-sm">
-                <li>
-                  Заказ весом до {DELIVERY_WEIGHT_RULE.includedKg} кг —{" "}
-                  <strong>{DELIVERY_WEIGHT_RULE.baseFee} сом</strong>.
-                </li>
-                <li>
-                  За каждый следующий килограмм —{" "}
+              <form onSubmit={handleSimpleFeeSave}>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="simple-fee-base">Стоимость доставки, сом</Label>
+                    <Input
+                      id="simple-fee-base"
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step="any"
+                      value={simpleFee.base}
+                      onChange={(e) => setFeeDraft({ ...simpleFee, base: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="simple-fee-included-kg">Входит в цену, кг</Label>
+                    <Input
+                      id="simple-fee-included-kg"
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step="any"
+                      value={simpleFee.includedKg}
+                      onChange={(e) => setFeeDraft({ ...simpleFee, includedKg: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="simple-fee-extra-kg">Доплата за каждый лишний кг, сом</Label>
+                    <Input
+                      id="simple-fee-extra-kg"
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step="any"
+                      value={simpleFee.extraKg}
+                      onChange={(e) => setFeeDraft({ ...simpleFee, extraKg: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <p className="mt-3 text-sm">
+                  Сейчас: заказ весом до {includedKgOf(simple.tariff)} кг —{" "}
+                  <strong>{simple.tariff.basePrice} сом</strong>, за каждый следующий килограмм{" "}
                   <strong>+{extraFeePerKg(simple.tariff)} сом</strong>.
-                </li>
-              </ul>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Стоимость считается автоматически по весу товаров в заказе. Цифры{" "}
-                {DELIVERY_WEIGHT_RULE.baseFee} сом и {DELIVERY_WEIGHT_RULE.includedKg} кг заданы в
-                системе — чтобы их изменить, обратитесь к разработчику.
-              </p>
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Стоимость считается автоматически по весу товаров в заказе; неполный лишний
+                  килограмм считается как целый. Покупатель увидит новую цену сразу после
+                  сохранения.
+                </p>
+                <Button
+                  type="submit"
+                  className="mt-4 h-12 rounded-full"
+                  disabled={updateTariffMutation.isPending}
+                >
+                  {updateTariffMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Сохранить"
+                  )}
+                </Button>
+              </form>
 
               <form onSubmit={handleSimpleEtaSave} className="mt-5 border-t border-border/60 pt-5">
                 <Label htmlFor="simple-eta-min">Время доставки, минут</Label>
@@ -681,6 +780,8 @@ function AdminDeliveryPage() {
                 </p>
               </form>
             </section>
+
+            <DeliveryDescriptionCard />
 
             {/* Откуда доставляем — collapsed by default; the data is kept for
                 the future distance-based pricing. */}
@@ -811,8 +912,8 @@ function AdminDeliveryPage() {
                   </div>
                 )}
                 <p className="mt-3 text-xs text-muted-foreground">
-                  Показана стоимость для заказа до {DELIVERY_WEIGHT_RULE.includedKg} кг. Доплата за
-                  вес добавляется при оформлении заказа — по реальному весу товаров.
+                  Показана стоимость для заказа до {includedKgOf(simple.tariff)} кг. Доплата за вес
+                  добавляется при оформлении заказа — по реальному весу товаров.
                 </p>
               </div>
             </details>
@@ -1118,9 +1219,10 @@ function AdminDeliveryPage() {
             <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">
               <h2 className="font-serif text-2xl mb-2">Стоимость доставки (тарифы)</h2>
               <p className="text-sm text-muted-foreground mb-4">
-                Сейчас цена доставки считается по весу заказа. Поля «Базовая стоимость» и «Бесплатно
-                от» сохраняются, но в расчёте не участвуют; время доставки покупатель видит в
-                корзине.
+                Цена доставки считается по весу заказа: «Базовая стоимость» действует для заказа до
+                «Входит в цену, кг», за каждый следующий килограмм добавляется «Доплата за каждый
+                лишний кг». Поле «Бесплатно от» сохраняется, но в расчёте не участвует; время
+                доставки покупатель видит в корзине.
               </p>
               {tariffs.length === 0 ? (
                 <p className="text-muted-foreground py-4 text-center">Тарифов пока нет.</p>
@@ -1140,7 +1242,8 @@ function AdminDeliveryPage() {
                           </span>
                         </p>
                         <p className="text-xs text-muted-foreground truncate">
-                          {zoneName2(tariff.zoneId)} · базовая {tariff.basePrice} сом
+                          {zoneName2(tariff.zoneId)} · базовая {tariff.basePrice} сом до{" "}
+                          {includedKgOf(tariff)} кг, затем +{extraFeePerKg(tariff)} сом/кг
                           {tariff.minOrderForFreeDelivery != null &&
                             ` · бесплатно от ${tariff.minOrderForFreeDelivery}`}
                           {tariff.etaMinMinutes != null &&
@@ -1239,8 +1342,33 @@ function AdminDeliveryPage() {
                     id="tariff-base-price"
                     type="number"
                     min={0}
+                    step="any"
                     value={tariffBasePrice}
                     onChange={(e) => setTariffBasePrice(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="tariff-included-kg">Входит в цену, кг</Label>
+                  <Input
+                    id="tariff-included-kg"
+                    type="number"
+                    min={0}
+                    step="any"
+                    value={tariffIncludedKg}
+                    onChange={(e) => setTariffIncludedKg(e.target.value)}
+                    placeholder={`Пусто = ${DELIVERY_WEIGHT_RULE.defaultIncludedKg}`}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="tariff-extra-kg-fee">Доплата за каждый лишний кг, сом</Label>
+                  <Input
+                    id="tariff-extra-kg-fee"
+                    type="number"
+                    min={0}
+                    step="any"
+                    value={tariffExtraKgFee}
+                    onChange={(e) => setTariffExtraKgFee(e.target.value)}
+                    placeholder={`Пусто = ${DELIVERY_WEIGHT_RULE.defaultExtraPerKg}`}
                   />
                 </div>
                 <div className="grid gap-2">
@@ -1302,6 +1430,8 @@ function AdminDeliveryPage() {
               </form>
             </section>
 
+            <DeliveryDescriptionCard />
+
             {/* Rule Engine — read-only overview (Задача №295: worded for the owner) */}
             <section className="mt-6 rounded-2xl border border-border/60 bg-card p-6">
               <h2 className="font-serif text-2xl mb-2">Как выбирается доставка (справка)</h2>
@@ -1339,7 +1469,7 @@ function AdminDeliveryPage() {
                 <Calculator className="h-5 w-5" /> Проверить стоимость доставки
               </h2>
               <p className="text-sm text-muted-foreground mb-4">
-                Показана стоимость для заказа до {DELIVERY_WEIGHT_RULE.includedKg} кг. Доплата за
+                Показана стоимость для заказа в пределах веса, входящего в цену тарифа. Доплата за
                 вес добавляется при оформлении заказа — по реальному весу товаров.
               </p>
               <form onSubmit={handlePreview} className="grid gap-4 sm:grid-cols-4 sm:items-end">

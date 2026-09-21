@@ -9,6 +9,8 @@ import {
   DELIVERY_WEIGHT_RULE,
   deriveSimpleDeliverySetup,
   extraFeePerKg,
+  includedKgOf,
+  parseFeeInput,
 } from "@/lib/delivery-admin-view";
 
 const city = (id = "c1"): CityDTO => ({
@@ -38,6 +40,7 @@ const tariff = (id: string, zoneId: string | null, isActive = true): DeliveryTar
   minOrderForFreeDelivery: null,
   minOrderAmount: null,
   weightExtraFeePerKg: null,
+  weightIncludedKg: null,
   etaMinMinutes: null,
   etaMaxMinutes: null,
   validFrom: null,
@@ -163,32 +166,51 @@ describe("deriveSimpleDeliverySetup (Задача №295)", () => {
 describe("delivery fee wording matches the real calculator", () => {
   // Dynamic import, not a static one: src/** may not statically import server/**
   // (no-restricted-imports); this test deliberately reaches across to catch drift.
-  const fee = async (kg: number, extra: number | null) => {
+  const fee = async (kg: number, overrides: Partial<DeliveryTariffDTO>) => {
     const { DeliveryCalculator } = await import("@server/domain/delivery-calculator");
     return new DeliveryCalculator().calculate({
       zoneId: "z",
       zoneName: "Зона",
-      tariff: { ...tariff("t", "z"), weightExtraFeePerKg: extra },
+      tariff: { ...tariff("t", "z"), basePrice: DELIVERY_WEIGHT_RULE.defaultBaseFee, ...overrides },
       subtotal: 500,
       totalWeightKg: kg,
     }).fee;
   };
 
-  it("base fee covers the included weight, exactly as the admin text states", async () => {
-    expect(await fee(DELIVERY_WEIGHT_RULE.includedKg, null)).toBe(DELIVERY_WEIGHT_RULE.baseFee);
-    expect(await fee(1, null)).toBe(DELIVERY_WEIGHT_RULE.baseFee);
+  it("a tariff with empty weight fields charges the same as before the fields were editable", async () => {
+    const { defaultBaseFee, defaultIncludedKg, defaultExtraPerKg } = DELIVERY_WEIGHT_RULE;
+    expect(await fee(defaultIncludedKg, {})).toBe(defaultBaseFee);
+    expect(await fee(1, {})).toBe(defaultBaseFee);
+    expect(await fee(defaultIncludedKg + 1, {})).toBe(defaultBaseFee + defaultExtraPerKg);
   });
 
-  it("each extra kg adds the tariff's rate (default when unset)", async () => {
-    expect(await fee(DELIVERY_WEIGHT_RULE.includedKg + 1, null)).toBe(
-      DELIVERY_WEIGHT_RULE.baseFee + DELIVERY_WEIGHT_RULE.defaultExtraPerKg,
-    );
-    expect(await fee(DELIVERY_WEIGHT_RULE.includedKg + 3, 2)).toBe(
-      DELIVERY_WEIGHT_RULE.baseFee + 3 * 2,
-    );
+  it("the admin wording helpers give the numbers the calculator really uses", async () => {
+    const custom = { basePrice: 90, weightIncludedKg: 25, weightExtraFeePerKg: 3 };
+    expect(includedKgOf(custom)).toBe(25);
+    expect(extraFeePerKg(custom)).toBe(3);
+    expect(await fee(25, custom)).toBe(90);
+    expect(await fee(28, custom)).toBe(90 + 3 * 3);
+    expect(includedKgOf({ weightIncludedKg: null })).toBe(DELIVERY_WEIGHT_RULE.defaultIncludedKg);
     expect(extraFeePerKg({ weightExtraFeePerKg: null })).toBe(
       DELIVERY_WEIGHT_RULE.defaultExtraPerKg,
     );
-    expect(extraFeePerKg({ weightExtraFeePerKg: 2 })).toBe(2);
+  });
+});
+
+describe("parseFeeInput", () => {
+  it("accepts numbers >= 0, with a comma or a dot as the decimal separator", () => {
+    expect(parseFeeInput("60", false)).toBe(60);
+    expect(parseFeeInput("0", false)).toBe(0);
+    expect(parseFeeInput("2,5", true)).toBe(2.5);
+  });
+
+  it("treats an empty optional field as null (use the default) and an empty required field as invalid", () => {
+    expect(parseFeeInput("  ", true)).toBeNull();
+    expect(parseFeeInput("", false)).toBeUndefined();
+  });
+
+  it("rejects negatives and non-numbers", () => {
+    expect(parseFeeInput("-1", true)).toBeUndefined();
+    expect(parseFeeInput("abc", true)).toBeUndefined();
   });
 });

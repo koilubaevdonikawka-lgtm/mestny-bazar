@@ -30,3 +30,11 @@ export const getPublicAdminContactPhoneFn = createServerFn({ method: "GET" }).ha
     return executeGetPublicAdminContactPhone();
   },
 );
+
+export const getPublicDeliveryDescriptionFn = createServerFn({ method: "GET" }).handler(
+  async (): Promise<string | null> => {
+    const { executeGetPublicDeliveryDescription } =
+      await import("@server/functions/settings.executor");
+    return executeGetPublicDeliveryDescription();
+  },
+);

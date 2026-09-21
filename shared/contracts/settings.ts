@@ -26,3 +26,12 @@ export interface UpdateSettingRequest {
  */
 export const ADMIN_CONTACT_PHONE_SETTING_KEY = "admin_contact_phone";
 export const ADMIN_CONTACT_PHONE_SETTING_CATEGORY = "contact";
+
+/**
+ * Задача №296 — free-text delivery description shown to customers on /info,
+ * edited in the admin "Доставка" section. Same shape and trust model as
+ * ADMIN_CONTACT_PHONE_SETTING_KEY above (multi-line string; blank = section
+ * hidden), shared by the admin write path and the public read path.
+ */
+export const DELIVERY_DESCRIPTION_SETTING_KEY = "delivery_description";
+export const DELIVERY_DESCRIPTION_SETTING_CATEGORY = "delivery";

@@ -16,14 +16,16 @@ export interface DeliveryCalculatorInput {
   distanceKm?: number;
 }
 
-/** 60 сом покрывает заказ весом до 40 кг включительно; каждый следующий
- * (частичный — округляется вверх) килограмм добавляет доплату за кг — по
- * умолчанию 1 сом, если у резолвленного тарифа не задан свой
- * weightExtraFeePerKg (этап "весовая доставка по городу" — например, Кант:
- * 2 сом/кг). База (60 сом / порог 40 кг) остаётся глобальной и одинаковой
- * для всех тарифов/городов — не читается с tariff. */
-const WEIGHT_INCLUDED_KG = 40;
-const BASE_FEE = 60;
+/**
+ * Задача №296 — вся весовая формула читается с тарифа: basePrice (сом за заказ
+ * до порога включительно), weightIncludedKg (порог, кг) и weightExtraFeePerKg
+ * (доплата за каждый следующий, округлённый вверх, килограмм). Значения ниже —
+ * только запасные для пустых (null) полей тарифа; они совпадают с прежней
+ * зашитой формулой (порог 40 кг, +1 сом/кг), поэтому пустое поле не меняет цену.
+ * basePrice в БД NOT NULL, его "запасного" значения нет — 0 сом это законная
+ * цена; прежние 60 сом выставлены в самих тарифах данными (см. отчёт Задачи №296).
+ */
+const DEFAULT_WEIGHT_INCLUDED_KG = 40;
 const DEFAULT_PRICE_PER_EXTRA_KG = 1;
 
 /**
@@ -32,28 +34,24 @@ const DEFAULT_PRICE_PER_EXTRA_KG = 1;
  * — "Delivery Calculator".
  *
  * Этап "весовая доставка": fee is always the weight formula below —
- * tariff.basePrice/pricingModel/pricePerKm are deliberately not read here
- * anymore (still stored and admin-editable, simply unused by this
- * calculation for now — see the task report for the full rationale); the
- * one tariff field it does read is weightExtraFeePerKg (the per-extra-kg
- * rate — null falls back to the 1 som/kg default, so no existing tariff
- * needs backfilling). minOrderForFreeDelivery is likewise no longer
- * applied — isFree is always false and freeFrom always null in the
- * returned quote, so as not to advertise a threshold that no longer
- * zeroes the fee; the tariff's stored value itself is untouched, ready for
- * a future re-enable.
+ * tariff.pricingModel/pricePerKm are deliberately not read here (still stored
+ * and admin-editable, simply unused by this calculation for now). The tariff
+ * fields it does read are basePrice, weightIncludedKg and weightExtraFeePerKg.
+ * minOrderForFreeDelivery is likewise no longer applied — isFree is always
+ * false and freeFrom always null in the returned quote, so as not to advertise
+ * a threshold that no longer zeroes the fee; the tariff's stored value itself
+ * is untouched, ready for a future re-enable.
  */
 export class DeliveryCalculator {
   calculate(input: DeliveryCalculatorInput): DeliveryFeeQuote {
     const { tariff, subtotal, totalWeightKg } = input;
-    const pricePerExtraKg = tariff.weightExtraFeePerKg ?? DEFAULT_PRICE_PER_EXTRA_KG;
 
     return {
       zoneId: input.zoneId,
       zoneName: input.zoneName,
       tariffId: tariff.id,
       tariffName: tariff.name,
-      fee: this.calculateWeightBasedFee(totalWeightKg, pricePerExtraKg),
+      fee: this.calculateWeightBasedFee(totalWeightKg, tariff),
       freeFrom: null,
       subtotal,
       isFree: false,
@@ -61,10 +59,12 @@ export class DeliveryCalculator {
     };
   }
 
-  private calculateWeightBasedFee(totalWeightKg: number, pricePerExtraKg: number): number {
-    if (totalWeightKg <= WEIGHT_INCLUDED_KG) return BASE_FEE;
-    const extraKg = Math.ceil(totalWeightKg - WEIGHT_INCLUDED_KG);
-    return BASE_FEE + extraKg * pricePerExtraKg;
+  private calculateWeightBasedFee(totalWeightKg: number, tariff: DeliveryTariffDTO): number {
+    const includedKg = tariff.weightIncludedKg ?? DEFAULT_WEIGHT_INCLUDED_KG;
+    const pricePerExtraKg = tariff.weightExtraFeePerKg ?? DEFAULT_PRICE_PER_EXTRA_KG;
+    if (totalWeightKg <= includedKg) return tariff.basePrice;
+    const extraKg = Math.ceil(totalWeightKg - includedKg);
+    return tariff.basePrice + extraKg * pricePerExtraKg;
   }
 }
 

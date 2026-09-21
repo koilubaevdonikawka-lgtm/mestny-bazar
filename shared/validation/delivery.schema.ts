@@ -50,6 +50,7 @@ export const createDeliveryTariffRequestSchema = z.object({
   minOrderForFreeDelivery: z.number().min(0).nullable().optional(),
   minOrderAmount: z.number().min(0).nullable().optional(),
   weightExtraFeePerKg: z.number().min(0).nullable().optional(),
+  weightIncludedKg: z.number().min(0).nullable().optional(),
   etaMinMinutes: z.number().int().min(0).nullable().optional(),
   etaMaxMinutes: z.number().int().min(0).nullable().optional(),
   validFrom: z.string().nullable().optional(),

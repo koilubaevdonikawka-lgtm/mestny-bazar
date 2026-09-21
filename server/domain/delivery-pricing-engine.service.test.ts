@@ -38,6 +38,7 @@ function makeTariff(overrides: Partial<DeliveryTariffDTO> = {}): DeliveryTariffD
     minOrderForFreeDelivery: null,
     minOrderAmount: null,
     weightExtraFeePerKg: null,
+    weightIncludedKg: null,
     etaMinMinutes: 30,
     etaMaxMinutes: 60,
     validFrom: null,
@@ -133,7 +134,7 @@ describe("DeliveryPricingEngine", () => {
     );
   });
 
-  it("returns a full quote when zone exists, tariff resolves, and zone policy allows — fee follows totalWeightKg, not tariff.basePrice", async () => {
+  it("returns a full quote when zone exists, tariff resolves, and zone policy allows — fee is the tariff's weight formula (basePrice + extra kg beyond the 40 kg default threshold)", async () => {
     const tariff = makeTariff({ basePrice: 200 });
     const engine = new DeliveryPricingEngine(
       fakeZones(),
@@ -148,7 +149,7 @@ describe("DeliveryPricingEngine", () => {
       zoneId: "zone-1",
       zoneName: "Центр",
       tariffId: "tariff-1",
-      fee: 70,
+      fee: 210, // 200 + ceil(50 - 40) * 1
     });
   });
 

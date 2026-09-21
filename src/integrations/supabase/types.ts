@@ -674,6 +674,7 @@ export type Database = {
           valid_from: string | null;
           valid_to: string | null;
           weight_extra_fee_per_kg: number | null;
+          weight_included_kg: number | null;
           zone_id: string | null;
         };
         Insert: {
@@ -694,6 +695,7 @@ export type Database = {
           valid_from?: string | null;
           valid_to?: string | null;
           weight_extra_fee_per_kg?: number | null;
+          weight_included_kg?: number | null;
           zone_id?: string | null;
         };
         Update: {
@@ -714,6 +716,7 @@ export type Database = {
           valid_from?: string | null;
           valid_to?: string | null;
           weight_extra_fee_per_kg?: number | null;
+          weight_included_kg?: number | null;
           zone_id?: string | null;
         };
         Relationships: [

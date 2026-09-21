@@ -1,5 +1,6 @@
 import {
   ADMIN_CONTACT_PHONE_SETTING_KEY,
+  DELIVERY_DESCRIPTION_SETTING_KEY,
   type PlatformSettingDTO,
   type UpdateSettingRequest,
 } from "@shared/contracts/settings";
@@ -36,5 +37,15 @@ export async function executeUpdateSetting(
  */
 export async function executeGetPublicAdminContactPhone(): Promise<string | null> {
   const setting = await getServices().settingsService.get(ADMIN_CONTACT_PHONE_SETTING_KEY);
+  return typeof setting?.value === "string" && setting.value.trim() ? setting.value : null;
+}
+
+/**
+ * Задача №296 — same anonymous, single-key trust model as
+ * executeGetPublicAdminContactPhone above: only the delivery description's
+ * value leaves the settings table, blank/non-string → null (section hidden).
+ */
+export async function executeGetPublicDeliveryDescription(): Promise<string | null> {
+  const setting = await getServices().settingsService.get(DELIVERY_DESCRIPTION_SETTING_KEY);
   return typeof setting?.value === "string" && setting.value.trim() ? setting.value : null;
 }

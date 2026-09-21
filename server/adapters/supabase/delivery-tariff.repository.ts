@@ -19,6 +19,7 @@ interface TariffRow {
   min_order_for_free_delivery: number | null;
   min_order_amount: number | null;
   weight_extra_fee_per_kg: number | null;
+  weight_included_kg: number | null;
   eta_min_minutes: number | null;
   eta_max_minutes: number | null;
   valid_from: string | null;
@@ -41,6 +42,7 @@ function mapTariffRow(row: TariffRow): DeliveryTariffDTO {
     minOrderAmount: row.min_order_amount != null ? Number(row.min_order_amount) : null,
     weightExtraFeePerKg:
       row.weight_extra_fee_per_kg != null ? Number(row.weight_extra_fee_per_kg) : null,
+    weightIncludedKg: row.weight_included_kg != null ? Number(row.weight_included_kg) : null,
     etaMinMinutes: row.eta_min_minutes,
     etaMaxMinutes: row.eta_max_minutes,
     validFrom: row.valid_from,
@@ -51,7 +53,7 @@ function mapTariffRow(row: TariffRow): DeliveryTariffDTO {
 }
 
 const TARIFF_SELECT =
-  "id, zone_id, name, tariff_type, pricing_model, base_price, price_per_km, min_order_for_free_delivery, min_order_amount, weight_extra_fee_per_kg, eta_min_minutes, eta_max_minutes, valid_from, valid_to, priority, is_active";
+  "id, zone_id, name, tariff_type, pricing_model, base_price, price_per_km, min_order_for_free_delivery, min_order_amount, weight_extra_fee_per_kg, weight_included_kg, eta_min_minutes, eta_max_minutes, valid_from, valid_to, priority, is_active";
 
 export class SupabaseDeliveryTariffRepository implements IDeliveryTariffRepository {
   async listAll(): Promise<DeliveryTariffDTO[]> {
@@ -111,6 +113,7 @@ export class SupabaseDeliveryTariffRepository implements IDeliveryTariffReposito
         min_order_for_free_delivery: data.minOrderForFreeDelivery ?? null,
         min_order_amount: data.minOrderAmount ?? null,
         weight_extra_fee_per_kg: data.weightExtraFeePerKg ?? null,
+        weight_included_kg: data.weightIncludedKg ?? null,
         eta_min_minutes: data.etaMinMinutes ?? null,
         eta_max_minutes: data.etaMaxMinutes ?? null,
         valid_from: data.validFrom ?? null,
@@ -137,6 +140,7 @@ export class SupabaseDeliveryTariffRepository implements IDeliveryTariffReposito
       min_order_for_free_delivery?: number | null;
       min_order_amount?: number | null;
       weight_extra_fee_per_kg?: number | null;
+      weight_included_kg?: number | null;
       eta_min_minutes?: number | null;
       eta_max_minutes?: number | null;
       valid_from?: string | null;
@@ -155,6 +159,7 @@ export class SupabaseDeliveryTariffRepository implements IDeliveryTariffReposito
     if (data.minOrderAmount !== undefined) patch.min_order_amount = data.minOrderAmount;
     if (data.weightExtraFeePerKg !== undefined)
       patch.weight_extra_fee_per_kg = data.weightExtraFeePerKg;
+    if (data.weightIncludedKg !== undefined) patch.weight_included_kg = data.weightIncludedKg;
     if (data.etaMinMinutes !== undefined) patch.eta_min_minutes = data.etaMinMinutes;
     if (data.etaMaxMinutes !== undefined) patch.eta_max_minutes = data.etaMaxMinutes;
     if (data.validFrom !== undefined) patch.valid_from = data.validFrom;

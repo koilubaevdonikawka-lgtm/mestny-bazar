@@ -9,11 +9,12 @@ function makeTariff(overrides: Partial<DeliveryTariffDTO> = {}): DeliveryTariffD
     name: "Standard",
     tariffType: "STANDARD",
     pricingModel: "FIXED",
-    basePrice: 150,
+    basePrice: 60,
     pricePerKm: null,
     minOrderForFreeDelivery: null,
     minOrderAmount: null,
     weightExtraFeePerKg: null,
+    weightIncludedKg: null,
     etaMinMinutes: 30,
     etaMaxMinutes: 60,
     validFrom: null,
@@ -25,12 +26,10 @@ function makeTariff(overrides: Partial<DeliveryTariffDTO> = {}): DeliveryTariffD
 }
 
 /**
- * Этап "весовая доставка" — these tests replace the old FIXED/BY_DISTANCE/
- * minOrderForFreeDelivery suite: the calculator now always applies the
- * fixed weight formula (60 сом up to and including 40 kg, +1 сом per extra
- * kg rounded up), regardless of tariff.basePrice/pricingModel — see
- * delivery-calculator.ts's class doc comment and the task report for the
- * full rationale.
+ * Этап "весовая доставка" + Задача №296 — the fee is the weight formula
+ * (basePrice up to and including weightIncludedKg, then weightExtraFeePerKg per
+ * extra kg rounded up), read from the tariff. A tariff with basePrice 60 and
+ * the two weight fields null reproduces the old hardcoded 60 / 40 kg / +1 сом.
  */
 describe("DeliveryCalculator", () => {
   it("charges the base 60 for a weightless order (no weights set on any line)", () => {
@@ -78,11 +77,22 @@ describe("DeliveryCalculator", () => {
     expect(quote.fee).toBe(61);
   });
 
-  it("ignores tariff.basePrice entirely — the weight formula is fixed and global", () => {
+  it("charges the tariff's own basePrice — an admin-edited price reaches the buyer", () => {
     const quote = new DeliveryCalculator().calculate({
       zoneId: "zone-1",
       zoneName: "Центр",
-      tariff: makeTariff({ basePrice: 9999, pricingModel: "BY_DISTANCE", pricePerKm: 500 }),
+      tariff: makeTariff({ basePrice: 100 }),
+      subtotal: 500,
+      totalWeightKg: 10,
+    });
+    expect(quote.fee).toBe(100);
+  });
+
+  it("does not read pricingModel/pricePerKm — the weight formula applies to every model", () => {
+    const quote = new DeliveryCalculator().calculate({
+      zoneId: "zone-1",
+      zoneName: "Центр",
+      tariff: makeTariff({ pricingModel: "BY_DISTANCE", pricePerKm: 500 }),
       subtotal: 500,
       totalWeightKg: 0,
       distanceKm: 10,
@@ -134,6 +144,49 @@ describe("DeliveryCalculator", () => {
       totalWeightKg: 40,
     });
     expect(quote.fee).toBe(60);
+  });
+
+  it("uses the tariff's weightIncludedKg as the threshold (20 kg covered, +1 сом/kg after)", () => {
+    const tariff = makeTariff({ weightIncludedKg: 20 });
+    const calc = new DeliveryCalculator();
+    const feeAt = (totalWeightKg: number) =>
+      calc.calculate({ zoneId: "zone-1", zoneName: "Центр", tariff, subtotal: 500, totalWeightKg })
+        .fee;
+    expect(feeAt(20)).toBe(60);
+    expect(feeAt(21)).toBe(61);
+    expect(feeAt(40)).toBe(80);
+  });
+
+  it("falls back to the 40 kg threshold when weightIncludedKg is null", () => {
+    const tariff = makeTariff({ weightIncludedKg: null });
+    const calc = new DeliveryCalculator();
+    const feeAt = (totalWeightKg: number) =>
+      calc.calculate({ zoneId: "zone-1", zoneName: "Центр", tariff, subtotal: 500, totalWeightKg })
+        .fee;
+    expect(feeAt(40)).toBe(60);
+    expect(feeAt(41)).toBe(61);
+  });
+
+  it("combines all three admin-editable fields (base 80, 30 kg covered, +3 сом/kg)", () => {
+    const quote = new DeliveryCalculator().calculate({
+      zoneId: "zone-1",
+      zoneName: "Центр",
+      tariff: makeTariff({ basePrice: 80, weightIncludedKg: 30, weightExtraFeePerKg: 3 }),
+      subtotal: 500,
+      totalWeightKg: 34.2,
+    });
+    expect(quote.fee).toBe(95); // 80 + ceil(34.2 - 30) * 3
+  });
+
+  it("supports a 0 сом base price (free base delivery)", () => {
+    const quote = new DeliveryCalculator().calculate({
+      zoneId: "zone-1",
+      zoneName: "Центр",
+      tariff: makeTariff({ basePrice: 0 }),
+      subtotal: 500,
+      totalWeightKg: 10,
+    });
+    expect(quote.fee).toBe(0);
   });
 
   it("carries the tariff's ETA through to the quote", () => {

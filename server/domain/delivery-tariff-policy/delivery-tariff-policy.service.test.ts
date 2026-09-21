@@ -18,6 +18,7 @@ function makeTariff(overrides: Partial<DeliveryTariffDTO> = {}): DeliveryTariffD
     minOrderForFreeDelivery: null,
     minOrderAmount: null,
     weightExtraFeePerKg: null,
+    weightIncludedKg: null,
     etaMinMinutes: 30,
     etaMaxMinutes: 60,
     validFrom: null,

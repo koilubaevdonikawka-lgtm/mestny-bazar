@@ -61,17 +61,36 @@ export function deriveSimpleDeliverySetup(input: DeliverySetupInput): SimpleDeli
 }
 
 /**
- * What the buyer is actually charged, in words. Mirrors the constants in
- * server/domain/delivery-calculator.ts (client code may not import
- * server/**); delivery-admin-view.test.ts runs the real calculator against
+ * Задача №296 — the fee is read from the tariff itself (basePrice,
+ * weightIncludedKg, weightExtraFeePerKg — server/domain/delivery-calculator.ts).
+ * These are the values used when a field is left empty (weight threshold, per-kg
+ * rate) and the suggested starting price for a new tariff — the same numbers
+ * that were hardcoded before, mirrored here because client code may not import
+ * server/**; delivery-admin-view.test.ts runs the real calculator against
  * these so the two can't drift apart unnoticed.
  */
 export const DELIVERY_WEIGHT_RULE = {
-  baseFee: 60,
-  includedKg: 40,
+  defaultBaseFee: 60,
+  defaultIncludedKg: 40,
   defaultExtraPerKg: 1,
 } as const;
 
+export function includedKgOf(tariff: Pick<DeliveryTariffDTO, "weightIncludedKg">): number {
+  return tariff.weightIncludedKg ?? DELIVERY_WEIGHT_RULE.defaultIncludedKg;
+}
+
 export function extraFeePerKg(tariff: Pick<DeliveryTariffDTO, "weightExtraFeePerKg">): number {
   return tariff.weightExtraFeePerKg ?? DELIVERY_WEIGHT_RULE.defaultExtraPerKg;
+}
+
+/**
+ * Parses one of the three fee inputs. Empty is allowed only where the field is
+ * optional (`emptyAllowed` → null, meaning "use the default"); otherwise the
+ * value must be a finite number >= 0. Returns undefined when invalid.
+ */
+export function parseFeeInput(raw: string, emptyAllowed: boolean): number | null | undefined {
+  const text = raw.trim().replace(",", ".");
+  if (text === "") return emptyAllowed ? null : undefined;
+  const value = Number(text);
+  return Number.isFinite(value) && value >= 0 ? value : undefined;
 }

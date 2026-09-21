@@ -117,6 +117,13 @@ export interface DeliveryTariffDTO {
    * требует обязательного заполнения.
    */
   weightExtraFeePerKg: number | null;
+  /**
+   * Задача №296 — вес заказа (кг), покрываемый basePrice; каждый следующий
+   * (округляется вверх) килограмм добавляет weightExtraFeePerKg. null =
+   * дефолт 40 кг (DeliveryCalculator) — существующие тарифы не требуют
+   * заполнения.
+   */
+  weightIncludedKg: number | null;
   etaMinMinutes: number | null;
   etaMaxMinutes: number | null;
   validFrom: string | null;
@@ -147,6 +154,7 @@ export interface CreateDeliveryTariffRequest {
   minOrderForFreeDelivery?: number | null;
   minOrderAmount?: number | null;
   weightExtraFeePerKg?: number | null;
+  weightIncludedKg?: number | null;
   etaMinMinutes?: number | null;
   etaMaxMinutes?: number | null;
   validFrom?: string | null;
