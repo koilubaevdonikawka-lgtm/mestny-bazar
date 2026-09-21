@@ -842,8 +842,11 @@ function AdminDeliveryPage() {
                 className="rounded-full"
                 onClick={() => setShowAdvanced(true)}
               >
-                Расширенные настройки: несколько зон, тарифов, складов
+                Расширенные настройки
               </Button>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Если понадобится несколько зон, тарифов или складов
+              </p>
             </div>
           </>
         ) : (
@@ -866,7 +869,9 @@ function AdminDeliveryPage() {
               {stores.length === 0 ? (
                 <div className="py-6 text-center">
                   <StoreIcon className="h-6 w-6 text-primary mx-auto mb-3" />
-                  <p className="text-muted-foreground">Точка отправления пока не указана.</p>
+                  <p className="text-muted-foreground">
+                    Пока не указано, откуда вы отправляете заказы.
+                  </p>
                 </div>
               ) : (
                 <ul className="space-y-2">
