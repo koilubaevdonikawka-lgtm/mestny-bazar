@@ -97,6 +97,12 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
     [t],
   );
   const [lineWarnings, setLineWarnings] = useState<Record<string, string>>({});
+  // Задача №291 — product descriptions by line key (slug/id), learned from
+  // validateCart()'s authoritative ProductDTOs. A signed-in user's cart lines
+  // are rebuilt from the server snapshot (cart_items has no description
+  // column — cartStore's fromCartItemDTO leaves it ""), whereas a guest line
+  // still carries the description it was added with; see cartDescription().
+  const [lineDescriptions, setLineDescriptions] = useState<Record<string, string>>({});
   // Read only on the client, after mount — never during the initial
   // render — so this never disagrees with the server-rendered/hydration
   // pass (localStorage doesn't exist server-side).
@@ -130,6 +136,14 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
     items.map((i) => i.product.node.title),
     language,
   );
+  // Задача №291 — the validated description wins (fresh, and the only source
+  // for signed-in carts); the description a guest line was added with is the
+  // fallback. Blank stays "" so the row is simply not rendered. Translated
+  // through its own query so a description arriving after validation doesn't
+  // re-key (and re-fetch) the title translations above.
+  const cartDescription = (item: (typeof items)[number]): string =>
+    (lineDescriptions[item.product.node.handle] ?? item.product.node.description ?? "").trim();
+  const descriptionTranslations = useTranslatedTexts(items.map(cartDescription), language);
 
   // Same query as the home page's own address dialog (Промпт №1) — reused
   // as-is so both surfaces list the exact same zones.
@@ -180,12 +194,17 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
     void validateCart().then((result) => {
       if (!result) return;
       const warnings: Record<string, string> = {};
+      const descriptions: Record<string, string> = {};
       for (const line of result.lines) {
-        if (line.status === "ok") continue;
         const key = line.productSlug ?? line.productId ?? "";
+        // Recorded even when empty: a description the admin has since cleared
+        // must beat a stale one a guest line was added with.
+        if (line.product) descriptions[key] = line.product.description?.trim() ?? "";
+        if (line.status === "ok") continue;
         warnings[key] = VALIDATION_MESSAGE[line.status];
       }
       setLineWarnings(warnings);
+      setLineDescriptions((previous) => ({ ...previous, ...descriptions }));
     });
   }, [active, validateCart, VALIDATION_MESSAGE]);
 
@@ -413,6 +432,8 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                 const warning = lineWarnings[item.product.node.handle];
                 const displayTitle =
                   itemTranslations[item.product.node.title] ?? item.product.node.title;
+                const rawDescription = cartDescription(item);
+                const description = descriptionTranslations[rawDescription] ?? rawDescription;
                 const lineTotal = parseFloat(item.price.amount) * item.quantity;
                 return (
                   // Задача №184 — flattened to one column (no more photo
@@ -470,6 +491,11 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                         </Button>
                       </div>
                     </div>
+                    {description && (
+                      // Задача №291 — one truncated line under the name; the
+                      // row simply doesn't exist for a product without a description.
+                      <p className="line-clamp-1 text-xs text-muted-foreground">{description}</p>
+                    )}
                     {item.selectedOptions.length > 0 && (
                       <p className="text-xs text-muted-foreground">
                         {item.selectedOptions.map((o) => o.value).join(" • ")}
