@@ -16,8 +16,8 @@
 export const RATE_LIMIT_BINDINGS = {
   /** Order creation, per client IP. Shared NAT (carrier CGNAT, office, café) can put many real customers behind one IP, so this is looser than the per-user limit. */
   CHECKOUT_IP: { name: "RL_CHECKOUT_IP", namespaceId: "288001", limit: 30, periodSeconds: 60 },
-  /** Order creation, per authenticated account — catches "many IPs, one account". A person places at most a handful of orders a minute. */
-  CHECKOUT_USER: { name: "RL_CHECKOUT_USER", namespaceId: "288002", limit: 10, periodSeconds: 60 },
+  /** Order creation, per authenticated account — catches "many IPs, one account". A person rarely submits more than one or two orders a minute (every attempt counts, including a retry after a validation/stock error). */
+  CHECKOUT_USER: { name: "RL_CHECKOUT_USER", namespaceId: "288002", limit: 2, periodSeconds: 60 },
   /** Image upload (every context), per client IP. Uploads are staff-only (admin/seller); a 10-photo multi-select fires 10 requests at once. */
   MEDIA_IP: { name: "RL_MEDIA_IP", namespaceId: "288003", limit: 60, periodSeconds: 60 },
   /** Image upload (every context), per authenticated staff account. */
