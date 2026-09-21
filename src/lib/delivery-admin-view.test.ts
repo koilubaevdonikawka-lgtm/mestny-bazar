@@ -1,0 +1,194 @@
+import { describe, expect, it } from "vitest";
+import type {
+  CityDTO,
+  DeliveryTariffDTO,
+  DeliveryZoneDTO,
+  StoreDTO,
+} from "@shared/contracts/delivery";
+import {
+  DELIVERY_WEIGHT_RULE,
+  deriveSimpleDeliverySetup,
+  extraFeePerKg,
+} from "@/lib/delivery-admin-view";
+
+const city = (id = "c1"): CityDTO => ({
+  id,
+  name: "Бишкек",
+  slug: "bishkek",
+  timezone: "Asia/Bishkek",
+  sortOrder: 1,
+  isActive: true,
+});
+const zone = (id: string, isActive = true): DeliveryZoneDTO => ({
+  id,
+  cityId: "c1",
+  storeId: null,
+  name: `Зона ${id}`,
+  sortOrder: 1,
+  isActive,
+});
+const tariff = (id: string, zoneId: string | null, isActive = true): DeliveryTariffDTO => ({
+  id,
+  zoneId,
+  name: "Стандартный",
+  tariffType: "STANDARD",
+  pricingModel: "FIXED",
+  basePrice: 1,
+  pricePerKm: null,
+  minOrderForFreeDelivery: null,
+  minOrderAmount: null,
+  weightExtraFeePerKg: null,
+  etaMinMinutes: null,
+  etaMaxMinutes: null,
+  validFrom: null,
+  validTo: null,
+  priority: 90,
+  isActive,
+});
+const store = (id: string): StoreDTO => ({
+  id,
+  cityId: "c1",
+  name: "Склад",
+  address: "Кант, базар",
+  lat: null,
+  lng: null,
+  isActive: true,
+});
+
+describe("deriveSimpleDeliverySetup (Задача №295)", () => {
+  it("today's real data shape: 1 city, 1 active zone (+ switched-off ones), its tariff, NO store yet → simple", () => {
+    const setup = deriveSimpleDeliverySetup({
+      cities: [city()],
+      stores: [],
+      zones: [zone("center", false), zone("suburb", false), zone("kant", true)],
+      tariffs: [
+        tariff("t-center", "center", false),
+        tariff("t-suburb", "suburb", true),
+        tariff("t-kant", "kant", true),
+      ],
+    });
+    // t-suburb is active but bound to a switched-off zone → not applicable to "kant"
+    expect(setup?.zone.id).toBe("kant");
+    expect(setup?.tariff.id).toBe("t-kant");
+    expect(setup?.store).toBeNull();
+    expect(setup?.hiddenInactiveZones).toBe(2);
+    expect(setup?.hiddenOtherTariffs).toBe(2);
+  });
+
+  it("one dispatch point is still simple and is carried through", () => {
+    const setup = deriveSimpleDeliverySetup({
+      cities: [city()],
+      stores: [store("s1")],
+      zones: [zone("kant")],
+      tariffs: [tariff("t1", "kant")],
+    });
+    expect(setup?.store?.id).toBe("s1");
+  });
+
+  it("a platform-wide default tariff (zoneId null) counts as the zone's tariff", () => {
+    expect(
+      deriveSimpleDeliverySetup({
+        cities: [city()],
+        stores: [],
+        zones: [zone("kant")],
+        tariffs: [tariff("default", null)],
+      })?.tariff.id,
+    ).toBe("default");
+  });
+
+  it("a second ACTIVE zone switches back to the full interface", () => {
+    expect(
+      deriveSimpleDeliverySetup({
+        cities: [city()],
+        stores: [],
+        zones: [zone("kant"), zone("center")],
+        tariffs: [tariff("t1", "kant"), tariff("t2", "center")],
+      }),
+    ).toBeNull();
+  });
+
+  it("a second active tariff for the same zone switches to the full interface", () => {
+    expect(
+      deriveSimpleDeliverySetup({
+        cities: [city()],
+        stores: [],
+        zones: [zone("kant")],
+        tariffs: [tariff("t1", "kant"), tariff("t2", "kant")],
+      }),
+    ).toBeNull();
+  });
+
+  it("a default tariff PLUS a zone tariff is a real choice → full interface", () => {
+    expect(
+      deriveSimpleDeliverySetup({
+        cities: [city()],
+        stores: [],
+        zones: [zone("kant")],
+        tariffs: [tariff("t1", "kant"), tariff("default", null)],
+      }),
+    ).toBeNull();
+  });
+
+  it("a second city or a second dispatch point switches to the full interface", () => {
+    const base = { stores: [], zones: [zone("kant")], tariffs: [tariff("t1", "kant")] };
+    expect(deriveSimpleDeliverySetup({ ...base, cities: [city("c1"), city("c2")] })).toBeNull();
+    expect(
+      deriveSimpleDeliverySetup({ ...base, cities: [city()], stores: [store("a"), store("b")] }),
+    ).toBeNull();
+  });
+
+  it("nothing usable yet (no active zone, no tariff, no city) stays in the full interface so it can be set up", () => {
+    expect(
+      deriveSimpleDeliverySetup({ cities: [city()], stores: [], zones: [], tariffs: [] }),
+    ).toBeNull();
+    expect(
+      deriveSimpleDeliverySetup({
+        cities: [city()],
+        stores: [],
+        zones: [zone("kant")],
+        tariffs: [],
+      }),
+    ).toBeNull();
+    expect(
+      deriveSimpleDeliverySetup({
+        cities: [],
+        stores: [],
+        zones: [zone("kant")],
+        tariffs: [tariff("t", "kant")],
+      }),
+    ).toBeNull();
+  });
+});
+
+describe("delivery fee wording matches the real calculator", () => {
+  // Dynamic import, not a static one: src/** may not statically import server/**
+  // (no-restricted-imports); this test deliberately reaches across to catch drift.
+  const fee = async (kg: number, extra: number | null) => {
+    const { DeliveryCalculator } = await import("@server/domain/delivery-calculator");
+    return new DeliveryCalculator().calculate({
+      zoneId: "z",
+      zoneName: "Зона",
+      tariff: { ...tariff("t", "z"), weightExtraFeePerKg: extra },
+      subtotal: 500,
+      totalWeightKg: kg,
+    }).fee;
+  };
+
+  it("base fee covers the included weight, exactly as the admin text states", async () => {
+    expect(await fee(DELIVERY_WEIGHT_RULE.includedKg, null)).toBe(DELIVERY_WEIGHT_RULE.baseFee);
+    expect(await fee(1, null)).toBe(DELIVERY_WEIGHT_RULE.baseFee);
+  });
+
+  it("each extra kg adds the tariff's rate (default when unset)", async () => {
+    expect(await fee(DELIVERY_WEIGHT_RULE.includedKg + 1, null)).toBe(
+      DELIVERY_WEIGHT_RULE.baseFee + DELIVERY_WEIGHT_RULE.defaultExtraPerKg,
+    );
+    expect(await fee(DELIVERY_WEIGHT_RULE.includedKg + 3, 2)).toBe(
+      DELIVERY_WEIGHT_RULE.baseFee + 3 * 2,
+    );
+    expect(extraFeePerKg({ weightExtraFeePerKg: null })).toBe(
+      DELIVERY_WEIGHT_RULE.defaultExtraPerKg,
+    );
+    expect(extraFeePerKg({ weightExtraFeePerKg: 2 })).toBe(2);
+  });
+});
