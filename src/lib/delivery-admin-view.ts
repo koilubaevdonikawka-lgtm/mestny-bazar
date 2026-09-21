@@ -84,6 +84,28 @@ export function extraFeePerKg(tariff: Pick<DeliveryTariffDTO, "weightExtraFeePer
 }
 
 /**
+ * Задача №297 — the buyer-facing fee formula as three numbers, resolved with
+ * the same defaults the calculator uses. One place for the admin "Сейчас: …"
+ * summary and the automatic price line on /info, so the two can never word
+ * different numbers.
+ */
+export interface DeliveryFeeRule {
+  baseFee: number;
+  includedKg: number;
+  extraPerKg: number;
+}
+
+export function deliveryFeeRule(
+  tariff: Pick<DeliveryTariffDTO, "basePrice" | "weightIncludedKg" | "weightExtraFeePerKg">,
+): DeliveryFeeRule {
+  return {
+    baseFee: tariff.basePrice,
+    includedKg: includedKgOf(tariff),
+    extraPerKg: extraFeePerKg(tariff),
+  };
+}
+
+/**
  * Parses one of the three fee inputs. Empty is allowed only where the field is
  * optional (`emptyAllowed` → null, meaning "use the default"); otherwise the
  * value must be a finite number >= 0. Returns undefined when invalid.

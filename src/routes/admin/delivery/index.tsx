@@ -30,6 +30,7 @@ import type {
 import { signInWithGoogle } from "@/lib/auth";
 import {
   DELIVERY_WEIGHT_RULE,
+  deliveryFeeRule,
   deriveSimpleDeliverySetup,
   extraFeePerKg,
   includedKgOf,
@@ -547,6 +548,10 @@ function AdminDeliveryPage() {
     });
   };
 
+  const currentRule = simple
+    ? deliveryFeeRule(simple.tariff)
+    : { baseFee: 0, includedKg: 0, extraPerKg: 0 };
+
   const simpleFee = simple
     ? (feeDraft ?? {
         base: String(simple.tariff.basePrice),
@@ -715,9 +720,9 @@ function AdminDeliveryPage() {
                   </div>
                 </div>
                 <p className="mt-3 text-sm">
-                  Сейчас: заказ весом до {includedKgOf(simple.tariff)} кг —{" "}
-                  <strong>{simple.tariff.basePrice} сом</strong>, за каждый следующий килограмм{" "}
-                  <strong>+{extraFeePerKg(simple.tariff)} сом</strong>.
+                  Сейчас: заказ весом до {currentRule.includedKg} кг —{" "}
+                  <strong>{currentRule.baseFee} сом</strong>, за каждый следующий килограмм{" "}
+                  <strong>+{currentRule.extraPerKg} сом</strong>.
                 </p>
                 <p className="mt-2 text-xs text-muted-foreground">
                   Стоимость считается автоматически по весу товаров в заказе; неполный лишний

@@ -332,6 +332,8 @@ export const zh = {
     deliveryPricingInfo: "配送费：40 公斤以内订单收取 60 索姆，坎特市内每超出 1 公斤加收 2 索姆",
     deliveryHeading: "配送",
     deliveryPerZoneLine: "{{zoneName}} — {{price}} 索姆/公斤",
+    deliveryFeeRuleLine: "{{kg}} 公斤以内订单 — {{price}} 索姆，每多 1 公斤 — 加收 {{extra}} 索姆",
+    deliveryFeeRuleZoneLine: "{{zoneName}}: {{rule}}",
     contactPhoneHeading: "管理员联系电话",
     copyright: "© {{year}} {{brand}}。保留所有权利。",
   },

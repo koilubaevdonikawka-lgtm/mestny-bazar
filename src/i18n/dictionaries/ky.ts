@@ -347,6 +347,9 @@ export const ky = {
       "Жеткирүү: 40 кг чейинки заказ үчүн 60 сом, Кант шаары боюнча ар бир кошумча килограмм үчүн +2 сом",
     deliveryHeading: "Жеткирүү",
     deliveryPerZoneLine: "{{zoneName}} — {{price}} сом/кг",
+    deliveryFeeRuleLine:
+      "{{kg}} кг чейинки заказ — {{price}} сом, ар бир кийинки килограмм үчүн — +{{extra}} сом",
+    deliveryFeeRuleZoneLine: "{{zoneName}}: {{rule}}",
     contactPhoneHeading: "Администратордун телефону",
     copyright: "© {{year}} {{brand}}. Бардык укуктар корголгон.",
   },

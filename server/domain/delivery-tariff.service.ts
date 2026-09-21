@@ -1,8 +1,7 @@
 import type { PublicDeliveryTariffDTO } from "@shared/contracts/delivery";
 import type { IDeliveryTariffRepository } from "@server/ports/delivery-tariff.repository";
 import type { IDeliveryZoneRepository } from "@server/ports/delivery-zone.repository";
-
-const DEFAULT_PRICE_PER_EXTRA_KG = 1;
+import { DEFAULT_PRICE_PER_EXTRA_KG } from "@server/domain/delivery-calculator";
 
 /**
  * Buyer-facing (Задача №214, «Информация» screen) — mirrors DeliveryZoneService's
@@ -40,6 +39,8 @@ export class DeliveryTariffService {
       result.push({
         zoneId: tariff.zoneId,
         zoneName,
+        basePrice: tariff.basePrice,
+        weightIncludedKg: tariff.weightIncludedKg,
         pricePerExtraKg: tariff.weightExtraFeePerKg ?? DEFAULT_PRICE_PER_EXTRA_KG,
       });
     }

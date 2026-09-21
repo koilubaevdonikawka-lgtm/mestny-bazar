@@ -7,6 +7,7 @@ import type {
 } from "@shared/contracts/delivery";
 import {
   DELIVERY_WEIGHT_RULE,
+  deliveryFeeRule,
   deriveSimpleDeliverySetup,
   extraFeePerKg,
   includedKgOf,
@@ -212,5 +213,23 @@ describe("parseFeeInput", () => {
   it("rejects negatives and non-numbers", () => {
     expect(parseFeeInput("-1", true)).toBeUndefined();
     expect(parseFeeInput("abc", true)).toBeUndefined();
+  });
+});
+
+describe("deliveryFeeRule", () => {
+  it("returns the tariff's own numbers", () => {
+    expect(
+      deliveryFeeRule({ basePrice: 100, weightIncludedKg: 40, weightExtraFeePerKg: 3 }),
+    ).toEqual({ baseFee: 100, includedKg: 40, extraPerKg: 3 });
+  });
+
+  it("resolves an empty threshold and rate to the calculator defaults", () => {
+    expect(
+      deliveryFeeRule({ basePrice: 60, weightIncludedKg: null, weightExtraFeePerKg: null }),
+    ).toEqual({
+      baseFee: 60,
+      includedKg: DELIVERY_WEIGHT_RULE.defaultIncludedKg,
+      extraPerKg: DELIVERY_WEIGHT_RULE.defaultExtraPerKg,
+    });
   });
 });

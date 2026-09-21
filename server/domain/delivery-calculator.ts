@@ -25,8 +25,8 @@ export interface DeliveryCalculatorInput {
  * basePrice в БД NOT NULL, его "запасного" значения нет — 0 сом это законная
  * цена; прежние 60 сом выставлены в самих тарифах данными (см. отчёт Задачи №296).
  */
-const DEFAULT_WEIGHT_INCLUDED_KG = 40;
-const DEFAULT_PRICE_PER_EXTRA_KG = 1;
+export const DEFAULT_WEIGHT_INCLUDED_KG = 40;
+export const DEFAULT_PRICE_PER_EXTRA_KG = 1;
 
 /**
  * Pure, side-effect-free — no DB/network access, mirrors PricingService's

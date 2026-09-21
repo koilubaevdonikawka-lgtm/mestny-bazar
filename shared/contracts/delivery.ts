@@ -178,6 +178,9 @@ export interface UpdateDeliveryTariffRequest extends Partial<CreateDeliveryTarif
 export interface PublicDeliveryTariffDTO {
   zoneId: string;
   zoneName: string;
+  /** Задача №297 — the tariff's own base fee (сом) and weight threshold (null = default 40 kg), exactly what DeliveryCalculator charges by; shown on /info as an automatic price line. */
+  basePrice: number;
+  weightIncludedKg: number | null;
   /** DeliveryCalculator's per-extra-kg rate beyond the 40kg-included base — the one tariff field that actually drives the real checkout fee today. */
   pricePerExtraKg: number;
 }

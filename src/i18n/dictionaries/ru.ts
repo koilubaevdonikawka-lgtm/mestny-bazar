@@ -371,6 +371,9 @@ export const ru = {
       "Доставка: 60 сом за заказ до 40 кг, далее +2 сом за каждый дополнительный килограмм по городу Кант",
     deliveryHeading: "Доставка",
     deliveryPerZoneLine: "{{zoneName}} — {{price}} сом/кг",
+    deliveryFeeRuleLine:
+      "Заказ весом до {{kg}} кг — {{price}} сом, за каждый следующий килограмм — +{{extra}} сом",
+    deliveryFeeRuleZoneLine: "{{zoneName}}: {{rule}}",
     contactPhoneHeading: "Телефон администратора",
     copyright: "© {{year}} {{brand}}. Все права защищены.",
   },

@@ -15,6 +15,7 @@ import { WELCOME_SEEN_KEY } from "@/components/WelcomeGate";
 import { BRAND } from "@/config/brand";
 import { CONTACT } from "@/config/contact";
 import { listPublicDeliveryTariffs } from "@/api/delivery-tariff";
+import { deliveryFeeRule } from "@/lib/delivery-admin-view";
 import { getPublicAdminContactPhone, getPublicDeliveryDescription } from "@/api/settings";
 
 /**
@@ -136,6 +137,36 @@ function InfoPage() {
               <p className="text-foreground">{t("footer.deliveryHeading")}</p>
               {deliveryDescription && (
                 <p className="mt-1 whitespace-pre-line">{deliveryDescription}</p>
+              )}
+              {/* Задача №297 — the real price formula, built from the active tariff
+                  itself (same deliveryFeeRule as the admin "Сейчас: …" summary), so
+                  it can't drift from what checkout charges. Independent of the
+                  hand-written description above. */}
+              {tariffs.length > 0 && (
+                <ul className="mt-1 space-y-1" data-testid="delivery-fee-rule">
+                  {tariffs.map((tariff) => {
+                    const rule = deliveryFeeRule({
+                      basePrice: tariff.basePrice,
+                      weightIncludedKg: tariff.weightIncludedKg,
+                      weightExtraFeePerKg: tariff.pricePerExtraKg,
+                    });
+                    const line = t("footer.deliveryFeeRuleLine", {
+                      kg: rule.includedKg,
+                      price: rule.baseFee,
+                      extra: rule.extraPerKg,
+                    });
+                    return (
+                      <li key={tariff.zoneId}>
+                        {tariffs.length > 1
+                          ? t("footer.deliveryFeeRuleZoneLine", {
+                              zoneName: translatedTexts[tariff.zoneName] ?? tariff.zoneName,
+                              rule: line,
+                            })
+                          : line}
+                      </li>
+                    );
+                  })}
+                </ul>
               )}
               <ul className="mt-1 space-y-1">
                 {tariffs.map((tariff) => (
