@@ -236,7 +236,15 @@ export function SiteHeader({
             moved to its own full-screen route (/info), linked from
             BottomTabBar's "Информация" tab, instead of being duplicated in
             two places. */}
-        {showCart && <CartDrawer />}
+        {/* Задача №301 — icon-only (h-11 w-11 rounded-full), same footprint
+            as AccountMenu's own signed-in avatar button right above, not the
+            wider labelled pill CartDrawer defaults to. The `iconOnly` prop
+            itself already existed (added for an earlier product-page task)
+            but had no live caller — SiteHeader is the only place CartDrawer
+            is ever rendered (showCart is false on every other customer
+            page today), so this is the first place it actually takes
+            effect. */}
+        {showCart && <CartDrawer iconOnly />}
       </div>
     </header>
   );
