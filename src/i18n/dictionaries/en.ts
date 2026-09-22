@@ -166,6 +166,8 @@ export const en = {
       "Choose a payment method in the “Delivery, payment & status” section",
     missingPhoneError: "Enter a phone number in the order notifications section",
     cashRequiresAuthError: "Cash on delivery is only available to signed-in users",
+    pleaseRegister: "Please sign up",
+    registerButton: "Sign up",
     checkoutFailedError: "Failed to place the order",
     useMyLocationButton: "Use my location",
     locationCapturedToast: "Location captured",

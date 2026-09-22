@@ -175,6 +175,8 @@ export const ru = {
     missingPaymentMethodError: "Выберите способ оплаты в разделе «Доставка оплата и статус»",
     missingPhoneError: "Укажите номер телефона в разделе уведомлений о заказе",
     cashRequiresAuthError: "Оплата наличными доступна только авторизованным пользователям",
+    pleaseRegister: "Пожалуйста, зарегистрируйтесь",
+    registerButton: "Зарегистрироваться",
     checkoutFailedError: "Не удалось оформить заказ",
     useMyLocationButton: "Определить моё местоположение",
     locationCapturedToast: "Местоположение определено",

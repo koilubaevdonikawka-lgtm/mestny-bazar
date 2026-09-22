@@ -160,14 +160,19 @@ function Home() {
           separate fallback button would just be a second "Войти" next to
           the first. Every other showSignInFallback caller doesn't set
           showLanguageSwitcher, so they're unaffected — this is the only
-          page where the two ever combined. */}
-      <SiteHeader
-        safeAreaTop
-        showAccountMenu={false}
-        showCart={false}
-        showBackButton={false}
-        showLanguageSwitcher
-      />
+          page where the two ever combined.
+
+          Задача №300 — showCart is no longer false here. Задача №177 had
+          moved the cart entirely to BottomTabBar's "Корзина" tab, but that
+          tab bar only renders on native (isNativePlatform() gate in
+          __root.tsx) — on the web/PWA a first-time, signed-out visitor
+          landing on "/" had no persistent way to reach the cart at all
+          (only after adding an item, via CartPanel's own CTA, or by typing
+          /cart directly). This is the one customer page this task scopes
+          to; every other customer page still passes showCart={false} and
+          has the same gap, out of this task's stated scope — left as
+          found, not silently fixed everywhere. */}
+      <SiteHeader safeAreaTop showAccountMenu={false} showBackButton={false} showLanguageSwitcher />
 
       {/* Горизонтальная панель основных категорий, под шапкой. Клик по
           категории с подкатегориями ВЫБИРАЕТ её (кнопка, не ссылка — не

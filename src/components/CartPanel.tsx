@@ -25,6 +25,7 @@ import { listDeliveryZones } from "@/api/delivery-zone";
 import { cancelUnpaidOnlineOrder, getOrderStatus, retryPayment } from "@/api/orders";
 import { CartQuantityControl } from "@/components/CartQuantityControl";
 import { LocationPickerDialog } from "@/components/checkout/LocationPickerDialog";
+import { RegisterPromptDialog } from "@/components/RegisterPromptDialog";
 import { RetryPaymentButton } from "@/components/RetryPaymentButton";
 import { CancelUnpaidOnlineOrderButton } from "@/components/CancelUnpaidOnlineOrderButton";
 import { useTranslation } from "@/i18n/LanguageProvider";
@@ -123,6 +124,12 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
     setNotes,
   } = useCheckoutStore();
   const [mapDialogOpen, setMapDialogOpen] = useState(false);
+  // Задача №300 — one flag for both auth-wall triggers below (the
+  // client-side gate in handleCheckout and useCreateOrder's own
+  // onAuthRequired callback), so an unauthenticated checkout attempt always
+  // shows the exact same short RegisterPromptDialog, never two different
+  // messages depending on which one happened to fire.
+  const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
   // Задача №182 — the default saved Address (with its zone) is the single
   // source of truth for delivery now; nothing here is collected inline
   // anymore, only displayed (see the read-only "deliver to" summary below).
@@ -270,8 +277,15 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
     // Задача №182 — guest checkout removed entirely, and the cart no longer
     // collects address/phone/name itself; both gates redirect to where the
     // missing piece actually gets filled in, instead of failing at the API.
+    //
+    // Задача №300 — used to call handleSignIn() straight away here, silently
+    // launching the Google sign-in redirect with zero explanation the
+    // instant a signed-out visitor tapped "Оформить заказ". Now shows the
+    // short RegisterPromptDialog first — the buyer chooses to continue (its
+    // one button calls the same signInWithGoogle()) instead of being sent
+    // into an OAuth screen they didn't ask to open.
     if (readiness.isAuthenticated !== true) {
-      await handleSignIn();
+      setShowRegisterPrompt(true);
       return;
     }
     if (readiness.isReady === null) return;
@@ -292,14 +306,18 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
         imageUrl: item.product.node.images?.edges?.[0]?.node?.url ?? null,
       },
     }));
-    await submitOrder(orderItems, async (response) => {
-      localStorage.setItem(LAST_ORDER_ID_STORAGE_KEY, response.order.id);
-      setLastOrderId(response.order.id);
-      setOrderStatusDismissed(false);
-      await clearCart();
-      useCheckoutStore.getState().reset();
-      onOrderPlaced?.();
-    });
+    await submitOrder(
+      orderItems,
+      async (response) => {
+        localStorage.setItem(LAST_ORDER_ID_STORAGE_KEY, response.order.id);
+        setLastOrderId(response.order.id);
+        setOrderStatusDismissed(false);
+        await clearCart();
+        useCheckoutStore.getState().reset();
+        onOrderPlaced?.();
+      },
+      () => setShowRegisterPrompt(true),
+    );
   };
 
   const checkoutBusy = isLoading || isSubmitting;
@@ -784,6 +802,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
           })
         }
       />
+      <RegisterPromptDialog open={showRegisterPrompt} onOpenChange={setShowRegisterPrompt} />
     </div>
   );
 }

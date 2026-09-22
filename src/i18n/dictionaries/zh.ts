@@ -162,6 +162,8 @@ export const zh = {
     missingPaymentMethodError: "请在「配送、付款与状态」中选择付款方式",
     missingPhoneError: "请在订单通知部分填写手机号码",
     cashRequiresAuthError: "货到付款仅对已登录用户开放",
+    pleaseRegister: "请注册",
+    registerButton: "注册",
     checkoutFailedError: "下单失败",
     useMyLocationButton: "定位我的位置",
     locationCapturedToast: "已获取位置",

@@ -165,6 +165,8 @@ export const ky = {
     missingPaymentMethodError: "«Жеткирүү, төлөм жана статус» бөлүмүндө төлөм ыкмасын тандаңыз",
     missingPhoneError: "Буйрутма билдирүүлөрү бөлүмүндө телефон номерин көрсөтүңүз",
     cashRequiresAuthError: "Накталай төлөм каттоодон өткөн колдонуучулар үчүн гана жеткиликтүү",
+    pleaseRegister: "Сураныч, катталыңыз",
+    registerButton: "Катталуу",
     checkoutFailedError: "Буйрутманы тариздөө мүмкүн болбоду",
     useMyLocationButton: "Менин жайгашкан жеримди аныктоо",
     locationCapturedToast: "Жайгашкан жер аныкталды",

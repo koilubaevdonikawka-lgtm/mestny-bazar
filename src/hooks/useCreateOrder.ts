@@ -35,6 +35,17 @@ export function useCreateOrder() {
   const submitOrder = async (
     items: CreateOrderItemRequest[],
     onCreated?: (response: CreateOrderResponse) => void | Promise<void>,
+    /**
+     * Задача №300 — called instead of the old cart.cashRequiresAuthError
+     * toast when the server rejects a CASH order for lacking a session
+     * (RegisterPromptDialog, the same short message CartPanel's own
+     * client-side auth gate already shows before ever reaching this point —
+     * this server-side rejection should now be effectively unreachable in
+     * practice, kept as defense in depth). Optional and falls back to the
+     * old toast when omitted, so checkout.quick-buy.tsx (out of this
+     * task's scope) keeps its exact current behavior unchanged.
+     */
+    onAuthRequired?: () => void,
   ): Promise<boolean> => {
     // Reads via useCheckoutStore.getState() rather than the reactive hook,
     // so a caller that does useCheckoutStore.getState().setPaymentMethod(...)
@@ -111,7 +122,11 @@ export function useCreateOrder() {
           error.message.includes("Cash payment requires authentication") ||
           error.message.includes("Оплата наличными"))
       ) {
-        toast.error(t("cart.cashRequiresAuthError"));
+        if (onAuthRequired) {
+          onAuthRequired();
+        } else {
+          toast.error(t("cart.cashRequiresAuthError"));
+        }
         return false;
       }
       const message = error instanceof Error ? error.message : t("cart.checkoutFailedError");
