@@ -8,8 +8,6 @@ import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/ProductCard";
 import { fetchCatalogCategory, fetchCatalogProducts } from "@/lib/catalog";
 import { listCategories } from "@/api/category";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { useSearchStore } from "@/stores/searchStore";
 import { DEFAULT_LANGUAGE } from "@/i18n/languages";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
@@ -114,10 +112,21 @@ export function ProductPage({ slug, search }: ProductPageProps) {
     [allCategories, category?.id],
   );
 
-  // Единая поисковая строка приложения (та же, что в SiteHeader) — вторая,
-  // локальная для этой страницы, была удалена как дублирующая (Часть 3).
-  const globalSearch = useSearchStore((s) => s.search);
-  const debouncedSearchTerm = useDebouncedValue(globalSearch.trim(), 300);
+  // Задача №299 — Часть Б: this page used to also apply the global header
+  // search box's text (useSearchStore) as a server-side filter here, on
+  // top of the category itself. But SearchBar's onFocus always navigates
+  // to /search the instant that input is focused (see SearchBar.tsx) —
+  // there is no way to actually type into it while staying on THIS page,
+  // so that filter could only ever be non-empty as stale leftover text
+  // from a previous visit to /search (typed there, never cleared, router
+  // back or Home/category navigation lands here with the store untouched).
+  // The category then silently filtered its real products by that
+  // unrelated leftover text and showed the empty state ("Каталог скоро
+  // наполнится") even though the category has products — confirmed live.
+  // Fix: this page simply stops reading useSearchStore — the global search
+  // box's text now affects only /search's own results, exactly where a
+  // buyer can actually type it in. searchStore.ts itself is untouched, so
+  // /search still shows a buyer's last query when they return to it.
 
   // useInfiniteQuery keys on category slug + every filter/sort value, so
   // changing any of them starts a fresh query from page one (same mechanism
@@ -134,7 +143,6 @@ export function ProductPage({ slug, search }: ProductPageProps) {
       "products",
       "category",
       slug,
-      debouncedSearchTerm,
       search.sortBy,
       search.inStockOnly,
       search.minPrice,
@@ -146,7 +154,6 @@ export function ProductPage({ slug, search }: ProductPageProps) {
       fetchCatalogProducts({
         categorySlug: slug,
         cursor: pageParam,
-        search: debouncedSearchTerm || undefined,
         sortBy: search.sortBy,
         inStockOnly: search.inStockOnly,
         minPrice: search.minPrice,

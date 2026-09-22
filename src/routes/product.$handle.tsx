@@ -13,6 +13,8 @@ import { BRAND } from "@/config/brand";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
 import { ImageLightbox } from "@/components/product/ImageLightbox";
+import { isNativePlatform } from "@/lib/capabilities/platform";
+import { BOTTOM_TAB_BAR_HEIGHT_REM } from "@/components/BottomTabBar";
 
 /** `from=admin` — set only by the admin catalog's own "view on storefront"
  * link (Этап №3); everywhere else this is simply absent, so the "return to
@@ -107,6 +109,23 @@ function ProductPage() {
   useEffect(() => {
     setQuantity(1);
   }, [handle]);
+
+  // Задача №299 — Часть А: on the native app, __root.tsx mounts a
+  // GLOBAL fixed bottom nav bar (BottomTabBar, z-40) on every route. This
+  // page's own sticky one-handed purchase bar below is also fixed to the
+  // very bottom of the viewport (same as before this fix); with both
+  // pinned to `bottom: 0`, the nav bar sat on top and completely covered
+  // the Купить/В корзину button row underneath — confirmed live via
+  // elementFromPoint at the button's own screen position, which resolved
+  // to the nav bar, not the button. Reproduces on every product page in
+  // the app, regardless of how the buyer got there (catalog, search, a
+  // direct link) — not specific to search. Same start-`false`-then-flip
+  // pattern as __root.tsx's own useShowBottomTabBar, for the same reason
+  // (matches SSR's always-`false` output, no hydration mismatch).
+  const [showBottomTabBar, setShowBottomTabBar] = useState(false);
+  useEffect(() => {
+    setShowBottomTabBar(isNativePlatform());
+  }, []);
 
   const {
     data: product,
@@ -502,8 +521,28 @@ function ProductPage() {
       {/* Sticky one-handed purchase bar — mobile only (Этап №3, п.7);
           desktop keeps the inline controls above instead of a second,
           redundant one. Price stacked above the same [-] qty [+] + two
-          buttons block as the desktop column (Часть 2-4 задачи). */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/95 backdrop-blur-md pb-safe lg:hidden">
+          buttons block as the desktop column (Часть 2-4 задачи).
+
+          Задача №299 — on the native app this bar sits `showBottomTabBar
+          rem above the viewport bottom (the exact height __root.tsx
+          already reserves for BottomTabBar, so the two line up flush with
+          no gap and no overlap) instead of at `bottom: 0`, so the global
+          nav bar (z-40) can no longer cover the Купить/В корзину buttons.
+          `pb-safe` is dropped in that case: the offset above already
+          clears the safe-area inset (BottomTabBar reserves its own), so
+          keeping it too would just add empty space under the buttons. On
+          web (showBottomTabBar false) nothing changes — bottom: 0, pb-safe
+          kept for iOS PWA's own home-indicator inset. */}
+      <div
+        className={`fixed inset-x-0 z-30 border-t border-border/60 bg-background/95 backdrop-blur-md lg:hidden ${
+          showBottomTabBar ? "" : "pb-safe"
+        }`}
+        style={{
+          bottom: showBottomTabBar
+            ? `calc(${BOTTOM_TAB_BAR_HEIGHT_REM}rem + env(safe-area-inset-bottom))`
+            : 0,
+        }}
+      >
         <div className="px-4 pt-2">
           <p className="truncate text-xs text-muted-foreground">{displayTitle}</p>
           <p className="font-serif text-2xl font-bold text-primary">
