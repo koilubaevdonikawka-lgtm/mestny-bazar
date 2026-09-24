@@ -480,4 +480,48 @@ describe("subscribeAuditLog", () => {
       payload: { roleId: "role-1" },
     });
   });
+
+  // Задача №306 — distinct audit action names from role.assigned/role.revoked,
+  // so a future audit (or RbacService.revokeRole()'s own cleanup logic) can
+  // tell "the RBAC sync did this" apart from "a human did this via /admin/users".
+  it("appends a role.assigned_via_rbac_sync record", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+
+    await bus.publish({
+      type: "role.assigned_via_rbac_sync",
+      userId: "user-1",
+      role: "admin",
+      sourceRoleId: "role-1",
+    });
+
+    expect(auditLog.records).toHaveLength(1);
+    expect(auditLog.records[0]).toMatchObject({
+      action: "role.assigned_via_rbac_sync",
+      entityType: "user",
+      entityId: "user-1",
+      payload: { role: "admin", sourceRoleId: "role-1" },
+    });
+  });
+
+  it("appends a role.revoked_via_rbac_sync_cleanup record", async () => {
+    const bus = new MarketplaceEventsService();
+    const auditLog = fakeAuditLog();
+    subscribeAuditLog(bus, auditLog);
+
+    await bus.publish({
+      type: "role.revoked_via_rbac_sync_cleanup",
+      userId: "user-1",
+      role: "admin",
+    });
+
+    expect(auditLog.records).toHaveLength(1);
+    expect(auditLog.records[0]).toMatchObject({
+      action: "role.revoked_via_rbac_sync_cleanup",
+      entityType: "user",
+      entityId: "user-1",
+      payload: { role: "admin" },
+    });
+  });
 });

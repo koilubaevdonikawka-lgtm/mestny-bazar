@@ -371,6 +371,36 @@ export function subscribeAuditLog(bus: IMarketplaceEventBus, auditLog: IAuditLog
     });
   });
 
+  // Задача №306 — see marketplace-events.port.ts's doc comment: distinct
+  // audit action names from role.assigned/role.revoked above, specifically
+  // so RbacService.revokeRole() can later tell "this legacy row exists
+  // because of the RBAC sync" apart from "a human granted/revoked it
+  // directly via /admin/users" — the exact ambiguity that let the Задача
+  // №259 incident go unnoticed.
+  bus.subscribe("role.assigned_via_rbac_sync", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "role.assigned_via_rbac_sync",
+      occurredAt: new Date().toISOString(),
+      entityType: "user",
+      entityId: event.userId,
+      actorId: null,
+      payload: { role: event.role, sourceRoleId: event.sourceRoleId },
+    });
+  });
+
+  bus.subscribe("role.revoked_via_rbac_sync_cleanup", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "role.revoked_via_rbac_sync_cleanup",
+      occurredAt: new Date().toISOString(),
+      entityType: "user",
+      entityId: event.userId,
+      actorId: null,
+      payload: { role: event.role },
+    });
+  });
+
   bus.subscribe("coupon.created", async (event) => {
     await auditLog.append({
       id: randomUUID(),

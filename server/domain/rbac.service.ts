@@ -1,6 +1,7 @@
 import type { IRbacRepository } from "@server/ports/rbac.repository";
 import type { IUserAdminRepository } from "@server/ports/user-admin.repository";
 import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
+import type { IAuditLog } from "@server/ports/audit-log.port";
 import type {
   AssignRoleRequest,
   CreatePermissionRequest,
@@ -62,6 +63,7 @@ export class RbacService {
     private readonly rbac: IRbacRepository,
     private readonly events: IMarketplaceEventBus,
     private readonly userAdmin: IUserAdminRepository,
+    private readonly auditLog: IAuditLog,
   ) {}
 
   async listRoles(): Promise<RbacRoleDTO[]> {
@@ -183,37 +185,107 @@ export class RbacService {
     // the repository's upsert), so re-assigning an already-held role, or a
     // user who separately already has user_roles 'admin', is a harmless
     // no-op either way.
+    //
+    // Задача №306 — publishes role.assigned_via_rbac_sync, not the plain
+    // role.assigned a direct /admin/users grant uses: revokeRole() below
+    // needs to tell the two apart to safely auto-clean up after itself
+    // without ever touching a legacy role a human granted on purpose.
     if (ADMIN_WORKSPACE_RBAC_ROLE_NAMES.has(role.name)) {
       await this.userAdmin.assignRole(data.userId, "admin");
-      await this.events.publish({ type: "role.assigned", userId: data.userId, role: "admin" });
+      await this.events.publish({
+        type: "role.assigned_via_rbac_sync",
+        userId: data.userId,
+        role: "admin",
+        sourceRoleId: data.roleId,
+      });
     }
   }
 
   /**
-   * Задача №259 — deliberately does NOT auto-remove user_roles 'admin' when
-   * "Администратор"/"Суперадминистратор" is revoked here. user_roles is the
-   * platform's one and only /admin entry gate (RoleResolutionService,
-   * requireAdminFromRequest — used across virtually every admin executor,
-   * not just this RBAC layer), and it can hold 'admin' for reasons that
-   * have nothing to do with this specific RBAC role: granted directly via
-   * /admin/users before this RBAC role ever existed, or independently of
-   * it. Auto-*granting* it here is safe to get wrong in the safe direction
-   * (idempotent, additive, worst case someone keeps a permission label they
-   * already effectively had). Auto-*revoking* it is not symmetric: getting
-   * it wrong means silently and immediately locking a real admin out of the
-   * entire Workspace (admin.tsx's own barrier re-checks on every
-   * navigation) — the exact class of incident this task started from,
-   * just in the opposite direction. Removing a user's /admin access is a
-   * deliberate, explicit action, done from /admin/users, not an automatic
-   * side effect of revoking one differently-scoped label.
+   * Задача №259 (original) reasoned that auto-removing user_roles 'admin'
+   * here was too dangerous to ever do automatically — it can hold 'admin'
+   * for reasons that have nothing to do with this specific RBAC role
+   * (granted directly via /admin/users, before this RBAC role ever
+   * existed, or independently of it), and getting a removal wrong means
+   * silently locking a real admin out of the entire Workspace.
+   *
+   * Задача №306 — that caution was right in spirit but wrong in practice:
+   * with no cleanup at all, four confirmed people (sydykovjanybek0@,
+   * nurlanovnurdan2@, doolatbekmahmudov@, adinabaktybekkyzy3@) kept full
+   * /admin access — "Заказы", and the "Склады" page shell — for days after
+   * an admin explicitly revoked their "Администратор" RBAC role, simply
+   * because nothing ever removed the legacy row the sync had granted.
+   *
+   * Fixed with a conservative, explicit auto-cleanup instead of "never":
+   * removes the legacy user_roles 'admin' row ONLY when ALL of the
+   * following hold —
+   *   1. the role just revoked is "Администратор"/"Суперадминистратор"
+   *      (ADMIN_WORKSPACE_RBAC_ROLE_NAMES, same set assignRole() checks);
+   *   2. the user holds no OTHER currently-assigned RBAC role from that
+   *      same set (isAdminWorkspaceRbacRole below) — losing one of two
+   *      still-held admin-workspace roles must not touch their access;
+   *   3. the most recent legacy-admin-affecting audit record for this
+   *      user (role.assigned / role.revoked / role.assigned_via_rbac_sync
+   *      / role.revoked_via_rbac_sync_cleanup — see
+   *      wasLegacyAdminRowGrantedBySyncAndUntouchedSince below) is this
+   *      service's own role.assigned_via_rbac_sync, meaning no human has
+   *      granted or revoked the legacy role directly (via /admin/users)
+   *      since the sync created it. A row that predates audit logging, or
+   *      that a human explicitly (re-)touched afterward, is left exactly
+   *      alone — that is still a deliberate, human decision this service
+   *      does not override.
+   * The removal itself publishes role.revoked_via_rbac_sync_cleanup, its
+   * own clearly-labeled audit action (never the plain role.revoked a
+   * manual /admin/users revoke uses) — so a future audit sees at a glance
+   * that this was this exact automated cleanup, not an unexplained
+   * standalone role removal.
    */
   async revokeRole(data: RevokeRoleRequest): Promise<void> {
+    const role = await this.rbac.getRole(data.roleId);
+
     await this.rbac.revokeRole(data.userId, data.roleId);
     await this.events.publish({
       type: "rbac.role.revoked",
       userId: data.userId,
       roleId: data.roleId,
     });
+
+    if (!role || !ADMIN_WORKSPACE_RBAC_ROLE_NAMES.has(role.name)) return;
+
+    const remaining = await this.rbac.listUserRoleAssignments(data.userId);
+    const stillHasAdminWorkspaceRole = remaining.some((assignment) =>
+      ADMIN_WORKSPACE_RBAC_ROLE_NAMES.has(assignment.roleName),
+    );
+    if (stillHasAdminWorkspaceRole) return;
+
+    if (await this.wasLegacyAdminRowGrantedBySyncAndUntouchedSince(data.userId)) {
+      await this.userAdmin.revokeRole(data.userId, "admin");
+      await this.events.publish({
+        type: "role.revoked_via_rbac_sync_cleanup",
+        userId: data.userId,
+        role: "admin",
+      });
+    }
+  }
+
+  /**
+   * Задача №306 — the four legacy-admin-affecting audit actions, most
+   * recent first (IAuditLog.list already orders by occurred_at descending).
+   * True only when the very latest one is this service's own sync grant —
+   * see revokeRole()'s doc comment for the full reasoning. A short page is
+   * enough: these events are rare per user, and only their relative order
+   * matters, not the full history.
+   */
+  private async wasLegacyAdminRowGrantedBySyncAndUntouchedSince(userId: string): Promise<boolean> {
+    const LEGACY_ADMIN_ACTIONS = new Set([
+      "role.assigned",
+      "role.revoked",
+      "role.assigned_via_rbac_sync",
+      "role.revoked_via_rbac_sync_cleanup",
+    ]);
+    const { items } = await this.auditLog.list({ entityId: userId, pageSize: 25 });
+    const mostRecent = items.find((record) => LEGACY_ADMIN_ACTIONS.has(record.action));
+    return mostRecent?.action === "role.assigned_via_rbac_sync";
   }
 
   async hasPermission(

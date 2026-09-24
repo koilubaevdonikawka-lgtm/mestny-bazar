@@ -62,6 +62,10 @@ export type AuditAction =
   | "rbac.permission.deleted"
   | "rbac.role.assigned"
   | "rbac.role.revoked"
+  // Задача №306 — see marketplace-events.port.ts's own doc comment on
+  // these two event types for why they're distinct from role.assigned/role.revoked.
+  | "role.assigned_via_rbac_sync"
+  | "role.revoked_via_rbac_sync_cleanup"
   | "order.paid"
   | "payment.initiated"
   | "payment.confirmed"

@@ -8,7 +8,12 @@ import {
 import type { IRbacRepository } from "@server/ports/rbac.repository";
 import type { IUserAdminRepository } from "@server/ports/user-admin.repository";
 import type { IMarketplaceEventBus, MarketplaceEvent } from "@server/ports/marketplace-events.port";
-import type { RbacPermissionDTO, RoleWithPermissionsDTO } from "@shared/contracts/rbac";
+import type { AuditRecord, IAuditLog } from "@server/ports/audit-log.port";
+import type {
+  RbacPermissionDTO,
+  RoleWithPermissionsDTO,
+  UserRoleAssignmentDTO,
+} from "@shared/contracts/rbac";
 
 function makeRole(overrides: Partial<RoleWithPermissionsDTO> = {}): RoleWithPermissionsDTO {
   return {
@@ -64,6 +69,33 @@ function fakeEventBus(overrides: Partial<IMarketplaceEventBus> = {}): IMarketpla
   };
 }
 
+/** Задача №306 — .list() ordered most-recent-first, matching SupabaseAuditLog's real contract (see that file's own `.order("occurred_at", { ascending: false })`), since revokeRole()'s cleanup logic depends on that order. */
+function fakeAuditLog(records: AuditRecord[] = []): IAuditLog {
+  return {
+    append: vi.fn(async () => {}),
+    list: vi.fn(async () => ({
+      items: records,
+      total: records.length,
+      page: 1,
+      pageSize: 25,
+      hasMore: false,
+    })),
+  };
+}
+
+function makeAuditRecord(overrides: Partial<AuditRecord> = {}): AuditRecord {
+  return {
+    id: "record-1",
+    action: "role.assigned_via_rbac_sync",
+    occurredAt: new Date().toISOString(),
+    entityType: "user",
+    entityId: "user-1",
+    actorId: null,
+    payload: {},
+    ...overrides,
+  };
+}
+
 function fakeUserAdminRepo(overrides: Partial<IUserAdminRepository> = {}): IUserAdminRepository {
   return {
     listUsers: vi.fn(async () => []),
@@ -80,7 +112,7 @@ function fakeUserAdminRepo(overrides: Partial<IUserAdminRepository> = {}): IUser
 describe("RbacService role CRUD", () => {
   it("createRole rejects a name shorter than 2 characters", async () => {
     const rbac = fakeRbacRepo();
-    const service = new RbacService(rbac, fakeEventBus(), fakeUserAdminRepo());
+    const service = new RbacService(rbac, fakeEventBus(), fakeUserAdminRepo(), fakeAuditLog());
 
     await expect(service.createRole({ name: "A" })).rejects.toThrow();
     expect(rbac.createRole).not.toHaveBeenCalled();
@@ -89,7 +121,7 @@ describe("RbacService role CRUD", () => {
   it("createRole publishes rbac.role.created", async () => {
     const rbac = fakeRbacRepo({ createRole: vi.fn(async () => makeRole({ id: "role-2" })) });
     const events = fakeEventBus();
-    const service = new RbacService(rbac, events, fakeUserAdminRepo());
+    const service = new RbacService(rbac, events, fakeUserAdminRepo(), fakeAuditLog());
 
     await service.createRole({ name: "Оператор" });
 
@@ -104,7 +136,7 @@ describe("RbacService role CRUD", () => {
     const rbac = fakeRbacRepo({
       getRole: vi.fn(async () => makeRole({ isSystem: true, name: "Суперадминистратор" })),
     });
-    const service = new RbacService(rbac, fakeEventBus(), fakeUserAdminRepo());
+    const service = new RbacService(rbac, fakeEventBus(), fakeUserAdminRepo(), fakeAuditLog());
 
     await expect(service.updateRole({ id: "role-1", name: "Другое имя" })).rejects.toBeInstanceOf(
       SystemRoleImmutableError,
@@ -116,7 +148,7 @@ describe("RbacService role CRUD", () => {
     const rbac = fakeRbacRepo({
       getRole: vi.fn(async () => makeRole({ isSystem: true, name: "Администратор" })),
     });
-    const service = new RbacService(rbac, fakeEventBus(), fakeUserAdminRepo());
+    const service = new RbacService(rbac, fakeEventBus(), fakeUserAdminRepo(), fakeAuditLog());
 
     await service.updateRole({ id: "role-1", description: "Новое описание" });
 
@@ -125,7 +157,7 @@ describe("RbacService role CRUD", () => {
 
   it("deleteRole throws SystemRoleImmutableError for a system role", async () => {
     const rbac = fakeRbacRepo({ getRole: vi.fn(async () => makeRole({ isSystem: true })) });
-    const service = new RbacService(rbac, fakeEventBus(), fakeUserAdminRepo());
+    const service = new RbacService(rbac, fakeEventBus(), fakeUserAdminRepo(), fakeAuditLog());
 
     await expect(service.deleteRole("role-1")).rejects.toBeInstanceOf(SystemRoleImmutableError);
     expect(rbac.deleteRole).not.toHaveBeenCalled();
@@ -134,7 +166,7 @@ describe("RbacService role CRUD", () => {
   it("deleteRole succeeds and publishes rbac.role.deleted for a non-system role", async () => {
     const rbac = fakeRbacRepo({ getRole: vi.fn(async () => makeRole({ isSystem: false })) });
     const events = fakeEventBus();
-    const service = new RbacService(rbac, events, fakeUserAdminRepo());
+    const service = new RbacService(rbac, events, fakeUserAdminRepo(), fakeAuditLog());
 
     await service.deleteRole("role-1");
 
@@ -148,7 +180,7 @@ describe("RbacService role CRUD", () => {
 
   it("getRole throws RbacRoleNotFoundError when missing", async () => {
     const rbac = fakeRbacRepo({ getRole: vi.fn(async () => null) });
-    const service = new RbacService(rbac, fakeEventBus(), fakeUserAdminRepo());
+    const service = new RbacService(rbac, fakeEventBus(), fakeUserAdminRepo(), fakeAuditLog());
 
     await expect(service.getRole("missing")).rejects.toBeInstanceOf(RbacRoleNotFoundError);
   });
@@ -159,7 +191,7 @@ describe("RbacService permission CRUD", () => {
     const rbac = fakeRbacRepo({
       getPermission: vi.fn(async () => makePermission({ isSystem: true })),
     });
-    const service = new RbacService(rbac, fakeEventBus(), fakeUserAdminRepo());
+    const service = new RbacService(rbac, fakeEventBus(), fakeUserAdminRepo(), fakeAuditLog());
 
     await expect(service.deletePermission("perm-1")).rejects.toBeInstanceOf(
       SystemPermissionImmutableError,
@@ -172,7 +204,7 @@ describe("RbacService permission CRUD", () => {
       getPermission: vi.fn(async () => makePermission({ isSystem: false })),
     });
     const events = fakeEventBus();
-    const service = new RbacService(rbac, events, fakeUserAdminRepo());
+    const service = new RbacService(rbac, events, fakeUserAdminRepo(), fakeAuditLog());
 
     await service.deletePermission("perm-1");
 
@@ -189,7 +221,7 @@ describe("RbacService permission CRUD", () => {
 describe("RbacService.hasPermission", () => {
   it("delegates straight to the repository", async () => {
     const rbac = fakeRbacRepo({ hasPermission: vi.fn(async () => true) });
-    const service = new RbacService(rbac, fakeEventBus(), fakeUserAdminRepo());
+    const service = new RbacService(rbac, fakeEventBus(), fakeUserAdminRepo(), fakeAuditLog());
 
     const result = await service.hasPermission("user-1", "couriers", "view");
 
@@ -201,7 +233,7 @@ describe("RbacService.hasPermission", () => {
 describe("RbacService.assignRole / revokeRole", () => {
   it("assignRole rejects when the role does not exist", async () => {
     const rbac = fakeRbacRepo({ getRole: vi.fn(async () => null) });
-    const service = new RbacService(rbac, fakeEventBus(), fakeUserAdminRepo());
+    const service = new RbacService(rbac, fakeEventBus(), fakeUserAdminRepo(), fakeAuditLog());
 
     await expect(
       service.assignRole({ userId: "user-1", roleId: "missing" }, "admin-1"),
@@ -213,7 +245,7 @@ describe("RbacService.assignRole / revokeRole", () => {
     const rbac = fakeRbacRepo();
     const events = fakeEventBus();
     const userAdmin = fakeUserAdminRepo();
-    const service = new RbacService(rbac, events, userAdmin);
+    const service = new RbacService(rbac, events, userAdmin, fakeAuditLog());
 
     await service.assignRole({ userId: "user-1", roleId: "role-1" }, "admin-1");
 
@@ -231,7 +263,7 @@ describe("RbacService.assignRole / revokeRole", () => {
   it("revokeRole publishes rbac.role.revoked", async () => {
     const rbac = fakeRbacRepo();
     const events = fakeEventBus();
-    const service = new RbacService(rbac, events, fakeUserAdminRepo());
+    const service = new RbacService(rbac, events, fakeUserAdminRepo(), fakeAuditLog());
 
     await service.revokeRole({ userId: "user-1", roleId: "role-1" });
 
@@ -254,15 +286,19 @@ describe("RbacService.assignRole — user_roles admin sync (Задача №259)
     const rbac = fakeRbacRepo({ getRole: vi.fn(async () => makeRole({ name: "Администратор" })) });
     const events = fakeEventBus();
     const userAdmin = fakeUserAdminRepo();
-    const service = new RbacService(rbac, events, userAdmin);
+    const service = new RbacService(rbac, events, userAdmin, fakeAuditLog());
 
     await service.assignRole({ userId: "user-1", roleId: "role-1" }, "admin-1");
 
     expect(userAdmin.assignRole).toHaveBeenCalledWith("user-1", "admin");
+    // Задача №306 — role.assigned_via_rbac_sync, not the plain role.assigned
+    // a direct /admin/users grant publishes: see that event's own doc
+    // comment (marketplace-events.port.ts) for why the two must stay distinct.
     expect(events.publish).toHaveBeenCalledWith({
-      type: "role.assigned",
+      type: "role.assigned_via_rbac_sync",
       userId: "user-1",
       role: "admin",
+      sourceRoleId: "role-1",
     });
   });
 
@@ -271,7 +307,7 @@ describe("RbacService.assignRole — user_roles admin sync (Задача №259)
       getRole: vi.fn(async () => makeRole({ name: "Суперадминистратор" })),
     });
     const userAdmin = fakeUserAdminRepo();
-    const service = new RbacService(rbac, fakeEventBus(), userAdmin);
+    const service = new RbacService(rbac, fakeEventBus(), userAdmin, fakeAuditLog());
 
     await service.assignRole({ userId: "user-1", roleId: "role-1" }, "admin-1");
 
@@ -283,7 +319,7 @@ describe("RbacService.assignRole — user_roles admin sync (Задача №259)
     async (roleName) => {
       const rbac = fakeRbacRepo({ getRole: vi.fn(async () => makeRole({ name: roleName })) });
       const userAdmin = fakeUserAdminRepo();
-      const service = new RbacService(rbac, fakeEventBus(), userAdmin);
+      const service = new RbacService(rbac, fakeEventBus(), userAdmin, fakeAuditLog());
 
       await service.assignRole({ userId: "user-1", roleId: "role-1" }, "admin-1");
 
@@ -291,16 +327,119 @@ describe("RbacService.assignRole — user_roles admin sync (Задача №259)
     },
   );
 
-  it("revokeRole never touches user_roles — losing the RBAC role does not silently strip /admin access", async () => {
-    const rbac = fakeRbacRepo({
-      getRole: vi.fn(async () => makeRole({ name: "Суперадминистратор" })),
-    });
+  it("revokeRole does not touch user_roles for an operational role (Оператор etc.) — irrelevant to legacy admin either way", async () => {
+    const rbac = fakeRbacRepo({ getRole: vi.fn(async () => makeRole({ name: "Оператор" })) });
     const userAdmin = fakeUserAdminRepo();
-    const service = new RbacService(rbac, fakeEventBus(), userAdmin);
+    const service = new RbacService(rbac, fakeEventBus(), userAdmin, fakeAuditLog());
 
     await service.revokeRole({ userId: "user-1", roleId: "role-1" });
 
     expect(userAdmin.revokeRole).not.toHaveBeenCalled();
-    expect(userAdmin.assignRole).not.toHaveBeenCalled();
+  });
+});
+
+// Задача №306 — regression coverage for the incident this fixes: revoking
+// "Администратор"/"Суперадминистратор" must now clean up the legacy
+// user_roles 'admin' row the sync itself created, but ONLY when nothing
+// else could plausibly justify keeping it — see revokeRole()'s own doc
+// comment for the exact three conditions.
+describe("RbacService.revokeRole — user_roles admin cleanup (Задача №306)", () => {
+  it("removes the legacy admin row when the sync granted it and nothing has touched it since", async () => {
+    const rbac = fakeRbacRepo({
+      getRole: vi.fn(async () => makeRole({ name: "Администратор" })),
+      listUserRoleAssignments: vi.fn(async () => []),
+    });
+    const events = fakeEventBus();
+    const userAdmin = fakeUserAdminRepo();
+    const auditLog = fakeAuditLog([
+      makeAuditRecord({
+        action: "role.assigned_via_rbac_sync",
+        occurredAt: "2026-09-05T04:33:55Z",
+      }),
+    ]);
+    const service = new RbacService(rbac, events, userAdmin, auditLog);
+
+    await service.revokeRole({ userId: "user-1", roleId: "role-1" });
+
+    expect(userAdmin.revokeRole).toHaveBeenCalledWith("user-1", "admin");
+    expect(events.publish).toHaveBeenCalledWith({
+      type: "role.revoked_via_rbac_sync_cleanup",
+      userId: "user-1",
+      role: "admin",
+    });
+  });
+
+  it("leaves the legacy admin row alone when a human granted it directly via /admin/users AFTER the sync", async () => {
+    const rbac = fakeRbacRepo({
+      getRole: vi.fn(async () => makeRole({ name: "Администратор" })),
+      listUserRoleAssignments: vi.fn(async () => []),
+    });
+    const userAdmin = fakeUserAdminRepo();
+    // Most-recent-first: the direct /admin/users grant (plain "role.assigned")
+    // is newer than the sync's own record — a human's later, explicit
+    // decision always wins.
+    const auditLog = fakeAuditLog([
+      makeAuditRecord({ action: "role.assigned", occurredAt: "2026-09-06T00:00:00Z" }),
+      makeAuditRecord({
+        action: "role.assigned_via_rbac_sync",
+        occurredAt: "2026-09-05T04:33:55Z",
+      }),
+    ]);
+    const service = new RbacService(rbac, fakeEventBus(), userAdmin, auditLog);
+
+    await service.revokeRole({ userId: "user-1", roleId: "role-1" });
+
+    expect(userAdmin.revokeRole).not.toHaveBeenCalled();
+  });
+
+  it("leaves a pre-existing legacy admin row alone when there is no audit history for it at all", async () => {
+    const rbac = fakeRbacRepo({
+      getRole: vi.fn(async () => makeRole({ name: "Администратор" })),
+      listUserRoleAssignments: vi.fn(async () => []),
+    });
+    const userAdmin = fakeUserAdminRepo();
+    const service = new RbacService(rbac, fakeEventBus(), userAdmin, fakeAuditLog([]));
+
+    await service.revokeRole({ userId: "user-1", roleId: "role-1" });
+
+    expect(userAdmin.revokeRole).not.toHaveBeenCalled();
+  });
+
+  it("leaves the legacy admin row alone when the user still holds another admin-workspace RBAC role", async () => {
+    const rbac = fakeRbacRepo({
+      getRole: vi.fn(async () => makeRole({ name: "Администратор" })),
+      listUserRoleAssignments: vi.fn(async (): Promise<UserRoleAssignmentDTO[]> => [
+        {
+          userId: "user-1",
+          roleId: "role-2",
+          roleName: "Суперадминистратор",
+          assignedAt: "2026-09-01T00:00:00Z",
+        },
+      ]),
+    });
+    const userAdmin = fakeUserAdminRepo();
+    const auditLog = fakeAuditLog([makeAuditRecord({ action: "role.assigned_via_rbac_sync" })]);
+    const service = new RbacService(rbac, fakeEventBus(), userAdmin, auditLog);
+
+    await service.revokeRole({ userId: "user-1", roleId: "role-1" });
+
+    expect(userAdmin.revokeRole).not.toHaveBeenCalled();
+  });
+
+  it("leaves the legacy admin row alone when the most recent record is already a previous cleanup (nothing to redo)", async () => {
+    const rbac = fakeRbacRepo({
+      getRole: vi.fn(async () => makeRole({ name: "Администратор" })),
+      listUserRoleAssignments: vi.fn(async () => []),
+    });
+    const userAdmin = fakeUserAdminRepo();
+    const auditLog = fakeAuditLog([
+      makeAuditRecord({ action: "role.revoked_via_rbac_sync_cleanup" }),
+      makeAuditRecord({ action: "role.assigned_via_rbac_sync" }),
+    ]);
+    const service = new RbacService(rbac, fakeEventBus(), userAdmin, auditLog);
+
+    await service.revokeRole({ userId: "user-1", roleId: "role-1" });
+
+    expect(userAdmin.revokeRole).not.toHaveBeenCalled();
   });
 });

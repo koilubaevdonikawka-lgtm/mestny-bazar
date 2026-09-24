@@ -147,7 +147,24 @@ export type MarketplaceEvent =
   | { type: "rbac.permission.updated"; permissionId: string; module: string; action: string }
   | { type: "rbac.permission.deleted"; permissionId: string; module: string; action: string }
   | { type: "rbac.role.assigned"; userId: string; roleId: string }
-  | { type: "rbac.role.revoked"; userId: string; roleId: string };
+  | { type: "rbac.role.revoked"; userId: string; roleId: string }
+  /**
+   * Задача №306 — distinct from the plain "role.assigned"/"role.revoked"
+   * pair above specifically so the two can never be confused again: those
+   * fire identically for a deliberate grant via /admin/users AND for this
+   * RBAC→legacy sync (Задача №259), which made it impossible to tell them
+   * apart later from the audit log alone — exactly how sydykovjanybek0@,
+   * nurlanovnurdan2@, doolatbekmahmudov@ and adinabaktybekkyzy3@ kept
+   * `user_roles.admin` after their "Администратор" RBAC role was revoked
+   * (revokeRole() had no reliable way to know the row was its own doing).
+   * RbacService.revokeRole() below only ever auto-removes the legacy row
+   * when THIS event is the most recent legacy-admin-affecting record for
+   * that user — never when a real "role.assigned"/"role.revoked" (a human,
+   * via /admin/users) is more recent, so a separately/legitimately granted
+   * legacy role is never touched.
+   */
+  | { type: "role.assigned_via_rbac_sync"; userId: string; role: string; sourceRoleId: string }
+  | { type: "role.revoked_via_rbac_sync_cleanup"; userId: string; role: string };
 
 export type MarketplaceEventType = MarketplaceEvent["type"];
 
