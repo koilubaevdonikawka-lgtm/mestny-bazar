@@ -5,10 +5,24 @@ import { useTranslation } from "@/i18n/LanguageProvider";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { SignInMethodsList } from "@/components/auth/SignInMethodsList";
 import { BRAND } from "@/config/brand";
-import { CUSTOMER_VISIBLE_LANGUAGES, LANGUAGE_LABELS } from "@/i18n/languages";
+import { LANGUAGE_LABELS, type Language } from "@/i18n/languages";
 
 /** Exported so AccountMenu's sign-out can clear it — the next person on a shared device sees WelcomeGate again. */
 export const WELCOME_SEEN_KEY = "mestny-bazar-welcome-seen";
+
+/**
+ * Welcome-screen-only language order (Кыргызча, Русский, English, 中文) —
+ * deliberately a separate list from CUSTOMER_VISIBLE_LANGUAGES rather than
+ * reordering that shared source, because LanguageSwitcher (the header's own
+ * language menu, src/components/shared/LanguageSwitcher.tsx) maps over that
+ * same array too; reordering it here would have silently reordered the
+ * header menu as well, which was explicitly out of scope for this change.
+ * `satisfies readonly Language[]` only guarantees each code is a valid
+ * language, not that this stays a permutation of CUSTOMER_VISIBLE_LANGUAGES —
+ * if that shared list ever gains/drops a customer-facing language, this
+ * welcome-screen order needs a matching manual update.
+ */
+const WELCOME_LANGUAGE_ORDER = ["ky", "ru", "en", "zh"] as const satisfies readonly Language[];
 
 /**
  * Задача №309 — every route prefix that has its own separate sign-in and
@@ -119,7 +133,7 @@ export function WelcomeGate() {
         <p className="mt-2 text-muted-foreground">{t("home.tagline")}</p>
 
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          {CUSTOMER_VISIBLE_LANGUAGES.map((code) => (
+          {WELCOME_LANGUAGE_ORDER.map((code) => (
             <Button
               key={code}
               type="button"
