@@ -133,6 +133,36 @@ export async function signInWithGoogle(): Promise<void> {
 }
 
 /**
+ * Задача №304 — a real, reported failure: a user confirmed in Telegram,
+ * returned to the site, and the UI just sat there unauthenticated — no
+ * toast, no redirect, no error in the console. Root cause found by reading
+ * the whole chain, not reproduced live (it's a race, not a deterministic
+ * bug): telegramLogin() (the createServerFn round trip below) had no
+ * client-side timeout at all. supabase-js's own fetch already times out at
+ * 8s (SUPABASE_FETCH_TIMEOUT_MS, src/integrations/supabase/client.ts) and
+ * the server's own outbound call to Supabase Admin is capped the same way
+ * (client.server.ts) — but the one hop between THIS browser and OUR
+ * Cloudflare Worker had nothing bounding it. A mobile network hiccup
+ * exactly while the OS was switching the user from the Telegram app back to
+ * the browser (the moment this whole flow depends on) is a completely
+ * ordinary way for a fetch to stall without ever erroring — and a stalled
+ * promise never reaches either `catch` block below, so neither the toast
+ * nor `console.error` ever fired. AbortSignal.timeout() below guarantees
+ * this always settles.
+ */
+const TELEGRAM_LOGIN_TIMEOUT_MS = 15_000;
+
+function logTelegramLoginStep(step: string, detail?: unknown): void {
+  // Задача №304 — deliberately temporary, structured diagnostic logging
+  // (not a permanent app-wide logger) for the next time this chain fails:
+  // if it happens again, `wrangler tail`/the browser console will show
+  // exactly which step it got stuck on or errored at, instead of nothing.
+  // Safe to remove once the flow has proven stable across a few more
+  // real logins.
+  console.info(`[telegram-auth] ${step}`, detail ?? "");
+}
+
+/**
  * Задача №302 — customer-only Telegram Login Widget sign-in (see
  * TelegramLoginButton.tsx for the widget itself). Unlike Google, this never
  * leaves the page: the widget's own callback hands back a signed payload in
@@ -147,19 +177,34 @@ export async function signInWithGoogle(): Promise<void> {
  * the plain in-app "/workspace" path on both platforms — unlike
  * getAuthRedirectUrl()'s native branch, which is only meaningful for
  * re-entering the app via a deep link after actually having left it.
+ *
+ * Задача №304 — every exit path below shows the same toast AND logs via
+ * console.error (audited: there was previously exactly one code path —
+ * an unbounded hang — that could exit neither way; fixed by the timeout
+ * above, not by adding a new catch branch here).
  */
 export async function signInWithTelegram(payload: TelegramLoginPayload): Promise<void> {
+  logTelegramLoginStep("widget callback received", { telegramId: payload.id });
   try {
-    const { tokenHash, verificationType } = await telegramLogin(payload);
+    const { tokenHash, verificationType } = await telegramLogin(payload, {
+      signal: AbortSignal.timeout(TELEGRAM_LOGIN_TIMEOUT_MS),
+    });
+    logTelegramLoginStep("server verified payload, session token issued");
+
     const { error } = await supabase.auth.verifyOtp({
       token_hash: tokenHash,
       type: verificationType as "magiclink",
     });
     if (error) {
+      logTelegramLoginStep("verifyOtp returned an error", error);
+      console.error("[telegram-auth] verifyOtp failed", error);
       toast.error("Не удалось войти через Telegram. Попробуйте ещё раз.");
       return;
     }
-  } catch {
+    logTelegramLoginStep("verifyOtp succeeded, session established");
+  } catch (error) {
+    logTelegramLoginStep("threw (network/timeout/server error)", error);
+    console.error("[telegram-auth] sign-in chain failed", error);
     toast.error("Не удалось войти через Telegram. Попробуйте ещё раз.");
     return;
   }

@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { LogIn } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { LogIn, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TelegramLoginButton } from "@/components/TelegramLoginButton";
 import { useTranslation } from "@/i18n/LanguageProvider";
@@ -69,6 +69,16 @@ export interface SignInMethodsListProps {
 
 export function SignInMethodsList({ onActionSelected, className }: SignInMethodsListProps) {
   const { t } = useTranslation();
+  // Задача №304 — a real, reported failure: a buyer confirmed in Telegram,
+  // came back, and the UI just sat there unchanged with no indication
+  // anything had happened. This list now replaces itself with an
+  // unmistakable "Входим…" state the instant the widget's callback fires
+  // (not a small spinner easy to miss on the widget alone), for every
+  // caller — the header popover, addresses.tsx, RegisterPromptDialog —
+  // since they all render this one component. Google's own onSelect is a
+  // full-page OAuth redirect with no comparable in-page waiting period, so
+  // only the Telegram widget reports into this state.
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   const methods: SignInMethod[] = [
     {
@@ -80,9 +90,20 @@ export function SignInMethodsList({ onActionSelected, className }: SignInMethods
     {
       kind: "widget",
       id: "telegram",
-      content: <TelegramLoginButton />,
+      content: <TelegramLoginButton onSigningInChange={setIsSigningIn} />,
     },
   ];
+
+  if (isSigningIn) {
+    return (
+      <div className={className ?? "flex flex-col items-stretch gap-2"}>
+        <div className="flex items-center justify-center gap-2 rounded-full border border-border/60 px-4 py-3 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          {t("auth.signingIn")}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={className ?? "flex flex-col items-stretch gap-2"}>

@@ -356,6 +356,7 @@ export const zh = {
     signInWithGoogle: "使用 Google 登录",
     signInWithTelegram: "使用 Telegram 登录",
     chooseMethod: "登录方式",
+    signingIn: "正在登录…",
   },
   errors: {
     notFoundTitle: "页面未找到",

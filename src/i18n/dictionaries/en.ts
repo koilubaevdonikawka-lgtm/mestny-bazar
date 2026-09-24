@@ -370,6 +370,7 @@ export const en = {
     signInWithGoogle: "Sign in with Google",
     signInWithTelegram: "Sign in with Telegram",
     chooseMethod: "Sign-in method",
+    signingIn: "Signing in…",
   },
   errors: {
     notFoundTitle: "Page not found",

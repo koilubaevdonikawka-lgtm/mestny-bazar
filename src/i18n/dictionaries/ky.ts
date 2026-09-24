@@ -372,6 +372,7 @@ export const ky = {
     signInWithGoogle: "Google аркылуу кирүү",
     signInWithTelegram: "Telegram аркылуу кирүү",
     chooseMethod: "Кирүү ыкмасы",
+    signingIn: "Кирүүдөбүз…",
   },
   errors: {
     notFoundTitle: "Бет табылган жок",

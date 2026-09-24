@@ -1,5 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useEffect, useId, useRef } from "react";
 import { signInWithTelegram } from "@/lib/auth";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import type { TelegramLoginPayload } from "@shared/contracts/telegram-login";
@@ -7,6 +6,17 @@ import type { TelegramLoginPayload } from "@shared/contracts/telegram-login";
 /** Public bot username (no "@") — safe to ship in client code; the bot's own secret token never leaves the server (verified in server/functions/telegram-login.executor.ts). */
 const TELEGRAM_BOT_USERNAME = "MestnyBazar_Bot";
 const WIDGET_SCRIPT_SRC = "https://telegram.org/js/telegram-widget.js?22";
+
+export interface TelegramLoginButtonProps {
+  /**
+   * Задача №304 — reports this instance's own signing-in state upward so
+   * the caller (SignInMethodsList) can show one clear, hard-to-miss
+   * "Входим…" state across the whole list, not a small spinner easy to miss
+   * on the widget alone (the previous, harder-to-notice design this
+   * replaces).
+   */
+  onSigningInChange?: (signingIn: boolean) => void;
+}
 
 /**
  * Задача №302 — the official Telegram Login Widget (callback mode, not
@@ -26,18 +36,42 @@ const WIDGET_SCRIPT_SRC = "https://telegram.org/js/telegram-widget.js?22";
  * Owns the whole sign-in flow itself (widget → signInWithTelegram()) so
  * every call site just renders this with zero extra wiring, same as
  * dropping in the Google sign-in button.
+ *
+ * Задача №304 — `inFlightRef` ignores a second callback invocation while
+ * one is already being processed. Telegram's widget is documented to fire
+ * `data-onauth` exactly once per confirmation, but this app has no way to
+ * verify that never regresses (a widget-side bug, or the buyer somehow
+ * triggering the flow twice) — without this guard, two concurrent
+ * signInWithTelegram() calls with the same payload would each call
+ * generateLink() server-side, and the second one silently invalidates the
+ * first's token (a real Supabase GoTrue behavior: only the most recently
+ * generated link/token stays valid for a given identity), so whichever
+ * call's verifyOtp() happened to be holding the now-stale first token would
+ * fail — a spurious, confusing error even though the sign-in itself was
+ * never actually broken. Ignoring the duplicate outright removes that race
+ * entirely instead of trying to make it survive it.
  */
-export function TelegramLoginButton() {
+export function TelegramLoginButton({ onSigningInChange }: TelegramLoginButtonProps = {}) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const reactId = useId().replace(/[^a-zA-Z0-9]/g, "");
-  const [isSigningIn, setIsSigningIn] = useState(false);
+  const inFlightRef = useRef(false);
 
   useEffect(() => {
     const globalName = `__telegramLoginCallback_${reactId}`;
     (window as unknown as Record<string, unknown>)[globalName] = (user: TelegramLoginPayload) => {
-      setIsSigningIn(true);
-      void signInWithTelegram(user).finally(() => setIsSigningIn(false));
+      if (inFlightRef.current) {
+        console.info(
+          "[telegram-auth] duplicate widget callback ignored — a sign-in is already in flight",
+        );
+        return;
+      }
+      inFlightRef.current = true;
+      onSigningInChange?.(true);
+      void signInWithTelegram(user).finally(() => {
+        inFlightRef.current = false;
+        onSigningInChange?.(false);
+      });
     };
 
     const script = document.createElement("script");
@@ -53,15 +87,13 @@ export function TelegramLoginButton() {
       delete (window as unknown as Record<string, unknown>)[globalName];
       if (containerRef.current) containerRef.current.innerHTML = "";
     };
-  }, [reactId]);
+  }, [reactId, onSigningInChange]);
 
   return (
     <div
-      className="relative inline-flex items-center justify-center"
+      ref={containerRef}
+      className="inline-flex items-center justify-center"
       aria-label={t("auth.signInWithTelegram")}
-    >
-      <div ref={containerRef} className={isSigningIn ? "opacity-40" : undefined} />
-      {isSigningIn && <Loader2 className="absolute h-4 w-4 animate-spin text-muted-foreground" />}
-    </div>
+    />
   );
 }
