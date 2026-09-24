@@ -127,6 +127,7 @@ function read(p) {
     "FINIK_RSA_PRIVATE_KEY",
     "FINIK_WEBHOOK_PUBLIC_KEY",
     "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_LOGIN_BOT_TOKEN",
     "GOOGLE_AI_API_KEY",
   ];
   const srcFiles = walk(join(ROOT, "src")).filter((f) => !f.endsWith(".server.ts"));

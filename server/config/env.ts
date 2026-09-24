@@ -32,7 +32,30 @@ export const serverEnvSchema = z.object({
   // means disabled (self-cancellation off by default).
   FEATURE_CUSTOMER_CANCELLATION: z.enum(["true", "false"]).optional(),
 
+  /**
+   * The SELLER PRODUCT-INTAKE bot's own token — 86.Don.kg_bot, per the
+   * project owner directly (Задача №302B). Read by
+   * server/di/container.ts's TelegramBotApiAdapter (sendMessage/webhook
+   * replies for the Telegram-based seller product bot) and by
+   * scripts/setup-telegram-webhook.mjs to (re)register that bot's webhook.
+   * NEVER used for verifying the customer-facing Telegram Login Widget —
+   * that is a different bot (@MestnyBazar_Bot) with its own separate
+   * TELEGRAM_LOGIN_BOT_TOKEN below. The two were briefly conflated in
+   * Задача №302 (which mistakenly read this one for the Login Widget too,
+   * before this variable existed) — kept as two distinct names specifically
+   * so that mistake can't silently repeat.
+   */
   TELEGRAM_BOT_TOKEN: z.string().optional(),
+  /**
+   * Задача №302B — @MestnyBazar_Bot's own token, used ONLY by
+   * server/domain/telegram-login/verify-telegram-login-payload.ts to verify
+   * the customer-facing Telegram Login Widget's HMAC signature
+   * (TelegramLoginButton.tsx). Deliberately a separate secret from
+   * TELEGRAM_BOT_TOKEN above (the unrelated seller product-intake bot,
+   * 86.Don.kg_bot) — the two must never be interchanged, even if they
+   * happen to hold the same value at some point.
+   */
+  TELEGRAM_LOGIN_BOT_TOKEN: z.string().optional(),
   // Задача №264 — X-Telegram-Bot-Api-Secret-Token, set on the webhook via
   // scripts/setup-telegram-webhook.mjs and compared on every incoming
   // request (src/server.ts) — rejects any POST to the webhook path that

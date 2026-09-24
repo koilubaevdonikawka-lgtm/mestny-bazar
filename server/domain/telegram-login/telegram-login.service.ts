@@ -12,6 +12,11 @@ import { verifyTelegramLoginPayload } from "@server/domain/telegram-login/verify
  * and issue it a real session. The bot token itself is a caller-supplied
  * argument, not read from getServerEnv() in here, so this stays testable
  * with a fake token and never needs to know the env-var name it came from.
+ *
+ * Задача №302B — the caller (telegram-login.executor.ts) must always pass
+ * env.TELEGRAM_LOGIN_BOT_TOKEN (@MestnyBazar_Bot) here, never
+ * env.TELEGRAM_BOT_TOKEN (the unrelated seller product-intake bot,
+ * 86.Don.kg_bot) — see server/config/env.ts's doc comments on both.
  */
 export class TelegramLoginService {
   constructor(private readonly identities: ITelegramIdentityRepository) {}

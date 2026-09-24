@@ -14,6 +14,15 @@ import {
  * via the platform Web Crypto API (`crypto.subtle`) so it runs identically
  * on the Cloudflare Workers runtime this app deploys to (no Node-only
  * `crypto` module).
+ *
+ * `botToken` here must always be @MestnyBazar_Bot's own token
+ * (env.TELEGRAM_LOGIN_BOT_TOKEN, read by telegram-login.executor.ts) —
+ * never the unrelated seller product-intake bot's token
+ * (env.TELEGRAM_BOT_TOKEN, 86.Don.kg_bot per the project owner directly).
+ * This function takes the token as a plain argument specifically so it
+ * never reads either env var itself and can't silently pick up the wrong
+ * one — see server/config/env.ts's own doc comments on both variables
+ * (Задача №302B, after the two were briefly conflated in Задача №302).
  */
 
 /** Replay-protection window (Задача №302's own spec) — rejects a payload whose auth_date is older than this. */

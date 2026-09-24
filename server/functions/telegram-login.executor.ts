@@ -14,13 +14,18 @@ import { TelegramLoginNotConfiguredError } from "@server/domain/telegram-login/t
  * server function, Supabase's client SDK handles that entirely in the
  * browser). Rate-limited the same way executeClaimBootstrap() is: the one
  * other server-side "attempt"-style auth action in this codebase.
+ *
+ * Задача №302B — reads TELEGRAM_LOGIN_BOT_TOKEN (@MestnyBazar_Bot),
+ * never TELEGRAM_BOT_TOKEN (the unrelated seller product-intake bot,
+ * 86.Don.kg_bot, per the project owner directly) — see env.ts's own doc
+ * comment on both variables for the full rationale.
  */
 export async function executeTelegramLogin(
   payload: TelegramLoginPayload,
 ): Promise<TelegramLoginSessionDTO> {
   await enforceRateLimit(RateLimitPolicy.TELEGRAM_LOGIN);
 
-  const botToken = getServerEnv().TELEGRAM_BOT_TOKEN;
+  const botToken = getServerEnv().TELEGRAM_LOGIN_BOT_TOKEN;
   if (!botToken) {
     throw new TelegramLoginNotConfiguredError();
   }
