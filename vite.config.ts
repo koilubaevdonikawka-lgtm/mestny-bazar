@@ -122,17 +122,10 @@ export default defineConfig(({ mode, command }) => {
                     new URL("./tasks/courier/sweep-unassigned.ts", import.meta.url),
                   ),
                 },
-                // Proactive operational-cascade trigger (staff/Telegram new-order
-                // notifications); see server/functions/order-cascade-sweep.executor.ts.
-                "order:sweep-cascade": {
-                  handler: fileURLToPath(
-                    new URL("./tasks/order/sweep-cascade.ts", import.meta.url),
-                  ),
-                },
               },
               scheduledTasks: {
                 "*/5 * * * *": "payment:sweep-expired",
-                "*/2 * * * *": ["courier:sweep-unassigned", "order:sweep-cascade"],
+                "*/2 * * * *": "courier:sweep-unassigned",
               },
               cloudflare: {
                 deployConfig: true,

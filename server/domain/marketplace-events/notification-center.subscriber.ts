@@ -4,18 +4,22 @@ import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port
 /**
  * Registers Notification Center as a marketplace event subscriber.
  *
- * Subscribes to order.operational_cascade_started, not order.created: per
- * docs/admin-platform/ADMIN_PLATFORM_MASTER_SPEC.md §9.5 and
- * platform-lifecycle.md §3, staff notification must wait for the 2-minute
- * cancellation buffer to expire — order.created still fires immediately
- * (Audit Log/Dashboard need it right away), but this subscriber must not
- * react to it directly.
+ * Задача №312 — subscribes to order.created, not
+ * order.operational_cascade_started: the owner explicitly chose instant
+ * staff notification at the moment an order is placed, even though the
+ * buyer can still cancel it within the 2-minute buffer (a deliberate
+ * departure from ADMIN_PLATFORM_MASTER_SPEC.md §9.5 / platform-lifecycle.md
+ * §3, which gated notification on that buffer). For an ONLINE order this
+ * also means before payment is confirmed. The cascade event itself is
+ * unchanged and still fires for Audit Log. Exactly-once per order comes from
+ * CheckoutService publishing order.created only for the request that
+ * actually inserted the order (IOrderRepository.create's `created` flag).
  */
 export function subscribeNotificationCenter(
   bus: IMarketplaceEventBus,
   center: INotificationCenter,
 ): void {
-  bus.subscribe("order.operational_cascade_started", async (event) => {
+  bus.subscribe("order.created", async (event) => {
     await center.dispatch({ type: "order.created", order: event.order });
   });
 }

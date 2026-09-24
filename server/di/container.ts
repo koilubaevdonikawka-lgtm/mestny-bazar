@@ -453,7 +453,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
   // Admin new-order notifications go to Telegram (every telegram_bot_admins
   // row) only when the bot token is configured, else the logging stub.
   const adminNotifications: INotificationProvider = env.TELEGRAM_BOT_TOKEN
-    ? new TelegramNotificationAdapter(telegramBotRepository, telegramBotApi)
+    ? new TelegramNotificationAdapter(telegramBotRepository, telegramBotApi, orders)
     : notifications;
   const orderEvents = new OrderEventNotifier(adminNotifications, notifications);
   // checkoutPayment/paymentService are constructed further below, once

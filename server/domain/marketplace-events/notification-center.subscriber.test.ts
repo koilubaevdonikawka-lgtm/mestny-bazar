@@ -52,23 +52,23 @@ function fakeNotificationCenter(): INotificationCenter & { dispatched: Notificat
 }
 
 describe("subscribeNotificationCenter", () => {
-  it("dispatches order.created to the Notification Center when order.operational_cascade_started fires", async () => {
+  it("dispatches order.created to the Notification Center the moment order.created fires (Задача №312 — no buffer)", async () => {
     const bus = new MarketplaceEventsService();
     const center = fakeNotificationCenter();
     subscribeNotificationCenter(bus, center);
     const order = makeOrder();
 
-    await bus.publish({ type: "order.operational_cascade_started", order });
+    await bus.publish({ type: "order.created", order });
 
     expect(center.dispatched).toEqual([{ type: "order.created", order }]);
   });
 
-  it("does NOT dispatch on the immediate order.created bus event — staff notification must wait for the buffer (ADMIN_PLATFORM_MASTER_SPEC.md §9.5)", async () => {
+  it("does NOT dispatch again on order.operational_cascade_started — that would notify staff twice per order", async () => {
     const bus = new MarketplaceEventsService();
     const center = fakeNotificationCenter();
     subscribeNotificationCenter(bus, center);
 
-    await bus.publish({ type: "order.created", order: makeOrder() });
+    await bus.publish({ type: "order.operational_cascade_started", order: makeOrder() });
 
     expect(center.dispatched).toHaveLength(0);
   });

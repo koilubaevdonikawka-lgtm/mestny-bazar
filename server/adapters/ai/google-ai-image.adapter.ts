@@ -32,6 +32,19 @@ const FETCH_TIMEOUT_MS = 30_000;
 // a fully uniform white background. Appended an explicit "remove every
 // other object completely, no residue" instruction — the anti-crop
 // constraint above is untouched, this only adds to it.
+//
+// Orientation-correction instruction attempted and reverted: real testing
+// against Gemini (multiple prompt variants, including one combined into this
+// same prompt and several isolated single-purpose rotation-only calls) found
+// it unreliable — it silently skipped 90°-rotation fixes, and at least one
+// variant produced a false-positive rotation of an already-correct photo.
+// Chasing a fix moved to a deterministic executor (Gemini classifies the
+// needed rotation, a separate step applies it exactly), which was also
+// abandoned after the one available Workers-compatible rotation library
+// (@cf-wasm/photon) proved to corrupt colors on rotate(). No orientation
+// instruction ships here; see normalizeExifOrientation (src/lib/
+// image-compression.ts) for the fallback that does ship — camera-EXIF-based
+// correction on the "без обработки ИИ" upload path.
 const BACKGROUND_REMOVAL_PROMPT =
   "Edit this product photo: remove the existing background completely and replace it " +
   "with a solid, clean, pure white background (#FFFFFF). Do not crop, resize, reframe, " +

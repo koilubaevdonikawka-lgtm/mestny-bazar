@@ -6,6 +6,7 @@ import {
 } from "@server/adapters/notifications/telegram-order-message";
 import type { ITelegramBotApi } from "@server/ports/telegram-bot-api.port";
 import type { ITelegramBotRepository } from "@server/ports/telegram-bot.repository";
+import type { IOrderRepository } from "@server/ports/order.repository";
 import type { OrderDTO } from "@shared/contracts/order";
 
 function makeOrder(overrides: Partial<OrderDTO> = {}): OrderDTO {
@@ -99,6 +100,33 @@ describe("formatTelegramOrderMessage", () => {
     expect(text).toContain("Итого: 400.00 KGS");
   });
 
+  it("prints a description under its item, flattened to one line, and nothing for a blank one", () => {
+    const [apples, milk] = makeOrder().items;
+    const text = formatTelegramOrderMessage(
+      makeOrder({
+        items: [
+          { ...apples, productDescription: "Сладкие\n\nкрасные  яблоки" },
+          { ...milk, productDescription: "   " },
+        ],
+      }),
+      "h",
+    );
+
+    expect(text).toContain("= 200.00 KGS\n    Сладкие красные яблоки\n2. Молоко");
+    expect(text).toContain("2. Молоко — 1 × 150.00 KGS = 150.00 KGS\n\n");
+    expect(text).not.toMatch(/нет описания/i);
+  });
+
+  it("caps a very long description so it can't crowd out the totals", () => {
+    const [apples] = makeOrder().items;
+    const text = formatTelegramOrderMessage(
+      makeOrder({ items: [{ ...apples, productDescription: "а".repeat(1000) }] }),
+      "h",
+    );
+    expect(text).toContain(`${"а".repeat(199)}…`);
+    expect(text).not.toContain("а".repeat(200));
+  });
+
   it("never exceeds Telegram's message length limit", () => {
     const items = Array.from({ length: 200 }, (_, index) => ({
       ...makeOrder().items[0],
@@ -120,13 +148,53 @@ describe("TelegramNotificationAdapter.sendOrderUpdate", () => {
     vi.restoreAllMocks();
   });
 
-  function makeAdapter(adminIds: number[], sendMessage: ITelegramBotApi["sendMessage"]) {
+  function makeAdapter(
+    adminIds: number[],
+    sendMessage: ITelegramBotApi["sendMessage"],
+    getForAdmin: IOrderRepository["getForAdmin"] = vi.fn().mockResolvedValue(null),
+  ) {
     const repo = {
       listAdminIds: vi.fn().mockResolvedValue(adminIds),
     } as unknown as ITelegramBotRepository;
     const api: ITelegramBotApi = { sendMessage, downloadFile: vi.fn() };
-    return new TelegramNotificationAdapter(repo, api);
+    const orders = { getForAdmin } as unknown as IOrderRepository;
+    return new TelegramNotificationAdapter(repo, api, orders);
   }
+
+  it("joins product descriptions from the admin read into the sent message", async () => {
+    const sendMessage = vi.fn().mockResolvedValue(undefined);
+    const order = makeOrder({ paymentMethod: "ONLINE", paymentStatus: "awaiting" });
+    const adminOrder = makeOrder({
+      items: order.items.map((item) =>
+        item.id === "i1" ? { ...item, productDescription: "Сладкие, урожай 2026" } : item,
+      ),
+    });
+
+    await makeAdapter([111], sendMessage, vi.fn().mockResolvedValue(adminOrder)).sendOrderUpdate(
+      order,
+      "h",
+    );
+
+    const text = sendMessage.mock.calls[0][1] as string;
+    expect(text).toContain(
+      "1. Яблоки — 2 × 100.00 KGS = 200.00 KGS\n    Сладкие, урожай 2026\n2. Молоко",
+    );
+    // Payment state stays from the event's own order, not the re-read.
+    expect(text).toContain("Оплата: Онлайн (Ожидает оплаты)");
+  });
+
+  it("still sends, without descriptions, when the description lookup fails", async () => {
+    const sendMessage = vi.fn().mockResolvedValue(undefined);
+    const order = makeOrder();
+
+    await makeAdapter(
+      [111],
+      sendMessage,
+      vi.fn().mockRejectedValue(new Error("db down")),
+    ).sendOrderUpdate(order, "h");
+
+    expect(sendMessage).toHaveBeenCalledWith(111, formatTelegramOrderMessage(order, "h"));
+  });
 
   it("sends the formatted order message to every allow-listed admin", async () => {
     const sendMessage = vi.fn().mockResolvedValue(undefined);

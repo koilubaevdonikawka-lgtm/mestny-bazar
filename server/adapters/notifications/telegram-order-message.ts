@@ -12,10 +12,30 @@ const ORDER_TIME_ZONE = "Asia/Bishkek";
 /** Telegram Bot API sendMessage hard limit on `text` length. */
 export const TELEGRAM_MESSAGE_MAX_LENGTH = 4096;
 
+/**
+ * One description is capped so a single long product text can't push the
+ * message past TELEGRAM_MESSAGE_MAX_LENGTH and get the totals/address cut off
+ * by the final truncation below.
+ */
+const DESCRIPTION_MAX_LENGTH = 200;
+
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   ONLINE: "Онлайн",
   CASH: "Наличными при получении",
 };
+
+/**
+ * products.description (the same text shown on the product card), flattened
+ * to one line so it stays visually attached to its item. Missing/blank gives
+ * null — the line is simply omitted, never a "нет описания" placeholder.
+ */
+function formatDescription(description: string | null | undefined): string | null {
+  const flat = description?.replace(/\s+/g, " ").trim();
+  if (!flat) return null;
+  return flat.length > DESCRIPTION_MAX_LENGTH
+    ? `${flat.slice(0, DESCRIPTION_MAX_LENGTH - 1)}…`
+    : flat;
+}
 
 /**
  * Plain-text (no parse_mode) new-order summary for Telegram — plain text so
@@ -27,10 +47,11 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 export function formatTelegramOrderMessage(order: OrderDTO, headline: string): string {
   const money = (amount: number) => formatMoney(amount, order.currency);
 
-  const itemLines = order.items.map(
-    (item, index) =>
-      `${index + 1}. ${item.productName} — ${item.quantity} × ${money(item.unitPrice)} = ${money(item.lineTotal)}`,
-  );
+  const itemLines = order.items.flatMap((item, index) => {
+    const line = `${index + 1}. ${item.productName} — ${item.quantity} × ${money(item.unitPrice)} = ${money(item.lineTotal)}`;
+    const description = formatDescription(item.productDescription);
+    return description ? [line, `    ${description}`] : [line];
+  });
 
   const totals = [`Товары: ${money(order.subtotal)}`, `Доставка: ${money(order.deliveryFee)}`];
   if (order.discountAmount > 0) {

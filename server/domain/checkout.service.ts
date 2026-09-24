@@ -4,7 +4,7 @@ import type {
   CreateOrderResponse,
   OrderStatus,
 } from "@shared/contracts/order";
-import { OrderStatus as OrderStatusEnum } from "@shared/contracts/order";
+import { OrderStatus as OrderStatusEnum, type OrderDTO } from "@shared/contracts/order";
 import type { AddressDTO } from "@shared/contracts/delivery";
 import type { IAddressRepository } from "@server/ports/address.repository";
 import type { ICheckoutPaymentHandler } from "@server/ports/checkout-payment.port";
@@ -131,7 +131,8 @@ export class CheckoutService {
     // reservation is spent against it: releasing stock after that point would
     // desync products.stock from what's actually been sold, for an order that
     // still exists. Only the pre-creation phase is wrapped for release-on-error.
-    let order: Awaited<ReturnType<OrderService["createOrder"]>>;
+    let order: OrderDTO;
+    let created: boolean;
     try {
       const subtotal = this.pricing.calculateSubtotal(
         lineItems.map((item) => ({ price: item.unitPrice, quantity: item.quantity })),
@@ -194,7 +195,7 @@ export class CheckoutService {
         currency,
       };
 
-      order = await this.orderService.createOrder(orderData);
+      ({ order, created } = await this.orderService.createOrder(orderData));
 
       // Only burn a use once an order actually exists — an aborted checkout
       // (a later failure below, or a client that never submits) must not
@@ -250,7 +251,14 @@ export class CheckoutService {
       paymentUrl: payment.paymentUrl,
     };
 
-    await this.events.publish({ type: "order.created", order: finalOrder });
+    // Only the request that actually inserted the order announces it: a
+    // concurrent duplicate (same idempotencyKey, lost the race inside
+    // create()) gets the same order back but must not re-publish — every
+    // order.created subscriber (NotificationCenter's Telegram message to the
+    // admins included) would otherwise fire twice for one order.
+    if (created) {
+      await this.events.publish({ type: "order.created", order: finalOrder });
+    }
 
     return {
       order: finalOrder,

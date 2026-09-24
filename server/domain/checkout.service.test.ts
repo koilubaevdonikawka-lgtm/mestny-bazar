@@ -107,8 +107,8 @@ function makeRequest(overrides: Partial<CreateOrderRequest> = {}): CreateOrderRe
 
 function fakeOrderRepository(overrides: Partial<IOrderRepository> = {}): IOrderRepository {
   return {
-    create: vi.fn(async (data: CreateOrderData) =>
-      makeOrderDTO({
+    create: vi.fn(async (data: CreateOrderData) => ({
+      order: makeOrderDTO({
         status: data.status,
         paymentStatus: data.paymentStatus,
         subtotal: data.subtotal,
@@ -116,7 +116,8 @@ function fakeOrderRepository(overrides: Partial<IOrderRepository> = {}): IOrderR
         total: data.total,
         currency: data.currency,
       }),
-    ),
+      created: true,
+    })),
     getById: vi.fn(async () => null),
     getForAssembly: vi.fn(async () => null),
     getForAdmin: vi.fn(async () => null),
@@ -480,6 +481,21 @@ describe("CheckoutService.checkout", () => {
     );
     expect(result.paymentUrl).toBe("https://pay.example/abc");
     expect(productRepo.releaseStock).not.toHaveBeenCalled();
+  });
+
+  it("does not publish order.created again for a concurrent duplicate that lost the create() race", async () => {
+    const eventBus = fakeEventBus();
+    const orderRepo = fakeOrderRepository({
+      create: vi.fn(async () => ({ order: makeOrderDTO(), created: false })),
+    });
+    const { checkout } = buildCheckoutService({ eventBus, orderRepo });
+
+    const result = await checkout.checkout(null, makeRequest());
+
+    expect(result.order.id).toBe(makeOrderDTO().id);
+    expect(eventBus.publish).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: "order.created" }),
+    );
   });
 
   it("applies a valid coupon: reduces the total, persists the discount, and redeems it after order creation", async () => {

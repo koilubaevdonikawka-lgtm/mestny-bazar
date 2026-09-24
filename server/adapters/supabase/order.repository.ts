@@ -6,7 +6,11 @@ import type {
   PaymentStatus,
 } from "@shared/contracts/order";
 import { OrderStatus as OrderStatusEnum } from "@shared/contracts/order";
-import type { CreateOrderData, IOrderRepository } from "@server/ports/order.repository";
+import type {
+  CreateOrderData,
+  CreateOrderResult,
+  IOrderRepository,
+} from "@server/ports/order.repository";
 import { supabaseAdmin } from "@server/adapters/supabase/client";
 import { mapOrderRowToDto, toDbOrderStatus } from "@server/adapters/supabase/order.mapper";
 import { isUuid } from "@server/domain/shared/uuid";
@@ -167,12 +171,12 @@ export function sortItemsForAssembly<T extends AssemblyItemRow>(items: T[]): T[]
 }
 
 export class SupabaseOrderRepository implements IOrderRepository {
-  async create(data: CreateOrderData): Promise<OrderDTO> {
+  async create(data: CreateOrderData): Promise<CreateOrderResult> {
     // CheckoutService already checks getOrderByIdempotencyKey up front; this second
     // check is the defense-in-depth layer for two requests racing concurrently past
     // that first check (see the unique_violation recovery below for the other half).
     const existing = await this.getByIdempotencyKey(data.idempotencyKey);
-    if (existing) return existing;
+    if (existing) return { order: existing, created: false };
 
     const paymentMethod = data.paymentMethod;
     const notes = mergeNotes(data.notes, paymentMethod);
@@ -219,14 +223,14 @@ export class SupabaseOrderRepository implements IOrderRepository {
       if (error?.code === UNIQUE_VIOLATION) {
         // Lost the race to a concurrent request with the same idempotency key.
         const raceWinner = await this.getByIdempotencyKey(data.idempotencyKey);
-        if (raceWinner) return raceWinner;
+        if (raceWinner) return { order: raceWinner, created: false };
       }
       throw new Error(`Failed to create order: ${error?.message ?? "unknown error"}`);
     }
 
     const order = await this.getById(newOrderId);
     if (!order) throw new Error(`Order ${newOrderId} not found immediately after creation`);
-    return order;
+    return { order, created: true };
   }
 
   /** Idempotent checkout: a repeat submission with the same key returns the original order. */

@@ -58,7 +58,7 @@ function makeOrder(overrides: Partial<OrderDTO> = {}): OrderDTO {
 
 function fakeRepo(overrides: Partial<IOrderRepository> = {}): IOrderRepository {
   return {
-    create: vi.fn(async () => makeOrder()),
+    create: vi.fn(async () => ({ order: makeOrder(), created: true })),
     getById: vi.fn(async () => makeOrder()),
     getForAssembly: vi.fn(async () => makeOrder()),
     getForAdmin: vi.fn(async () => makeOrder()),

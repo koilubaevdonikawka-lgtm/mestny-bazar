@@ -39,8 +39,19 @@ export interface CreateOrderData extends Omit<
   currency: string;
 }
 
+/**
+ * `created` is false when create() returned an already-existing order for
+ * this idempotency key instead of inserting one (a concurrent duplicate
+ * request that lost the race) — the caller uses it to fire once-per-order
+ * side effects (order.created) only for the request that actually created it.
+ */
+export interface CreateOrderResult {
+  order: OrderDTO;
+  created: boolean;
+}
+
 export interface IOrderRepository {
-  create(data: CreateOrderData): Promise<OrderDTO>;
+  create(data: CreateOrderData): Promise<CreateOrderResult>;
   getById(id: string, userId?: string): Promise<OrderDTO | null>;
   /**
    * Задача №278 — warehouse assembly screen only (WarehouseOrderService).

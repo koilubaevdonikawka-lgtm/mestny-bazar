@@ -5,6 +5,7 @@ import type {
 } from "@server/ports/notification.provider";
 import type { ITelegramBotApi } from "@server/ports/telegram-bot-api.port";
 import type { ITelegramBotRepository } from "@server/ports/telegram-bot.repository";
+import type { IOrderRepository } from "@server/ports/order.repository";
 import { formatTelegramOrderMessage } from "@server/adapters/notifications/telegram-order-message";
 import { logger } from "@shared/observability/logger";
 
@@ -20,6 +21,7 @@ export class TelegramNotificationAdapter implements INotificationProvider {
   constructor(
     private readonly admins: ITelegramBotRepository,
     private readonly telegramApi: ITelegramBotApi,
+    private readonly orders: IOrderRepository,
   ) {}
 
   /**
@@ -29,13 +31,16 @@ export class TelegramNotificationAdapter implements INotificationProvider {
    * the order, not part of it.
    */
   async sendOrderUpdate(order: OrderDTO, message: string): Promise<void> {
-    const chatIds = await this.admins.listAdminIds();
+    const [chatIds, orderWithDescriptions] = await Promise.all([
+      this.admins.listAdminIds(),
+      this.withProductDescriptions(order),
+    ]);
     if (chatIds.length === 0) {
       logger.warn("notification:telegram no recipients", { orderId: order.id });
       return;
     }
 
-    const text = formatTelegramOrderMessage(order, message);
+    const text = formatTelegramOrderMessage(orderWithDescriptions, message);
     const results = await Promise.allSettled(
       chatIds.map((chatId) => this.telegramApi.sendMessage(chatId, text)),
     );
@@ -49,6 +54,34 @@ export class TelegramNotificationAdapter implements INotificationProvider {
         });
       }
     });
+  }
+
+  /**
+   * The order.created payload comes from a buyer-facing read, which never
+   * carries productDescription (IOrderRepository.getForAdmin's doc comment) —
+   * descriptions are joined in from the admin read, matched by order line id.
+   * Everything else stays from the event's own order (it already has the
+   * payment status/URL checkout just prepared). If that extra read fails,
+   * the notification still goes out, just without descriptions.
+   */
+  private async withProductDescriptions(order: OrderDTO): Promise<OrderDTO> {
+    try {
+      const adminOrder = await this.orders.getForAdmin(order.id);
+      if (!adminOrder) return order;
+      const descriptions = new Map(
+        adminOrder.items.map((item) => [item.id, item.productDescription ?? null]),
+      );
+      return {
+        ...order,
+        items: order.items.map((item) => ({
+          ...item,
+          productDescription: descriptions.get(item.id) ?? item.productDescription ?? null,
+        })),
+      };
+    } catch (error) {
+      logger.warn("notification:telegram description lookup failed", { orderId: order.id, error });
+      return order;
+    }
   }
 
   /**

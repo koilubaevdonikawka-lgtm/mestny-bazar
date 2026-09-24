@@ -1,4 +1,8 @@
-import type { CreateOrderData, IOrderRepository } from "@server/ports/order.repository";
+import type {
+  CreateOrderData,
+  CreateOrderResult,
+  IOrderRepository,
+} from "@server/ports/order.repository";
 import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
 import type { IMarketplaceEventBus } from "@server/ports/marketplace-events.port";
 import type { OrderDTO } from "@shared/contracts/order";
@@ -15,7 +19,7 @@ export class OrderService {
     private readonly events: IMarketplaceEventBus,
   ) {}
 
-  async createOrder(data: CreateOrderData): Promise<OrderDTO> {
+  async createOrder(data: CreateOrderData): Promise<CreateOrderResult> {
     return this.orders.create(data);
   }
 
