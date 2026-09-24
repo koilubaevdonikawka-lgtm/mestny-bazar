@@ -371,6 +371,8 @@ export const ky = {
   auth: {
     signInPrompt: "Улантуу үчүн кириңиз",
     signInWithGoogle: "Google аркылуу кирүү",
+    orDivider: "же",
+    signInWithTelegram: "Telegram аркылуу кирүү",
   },
   errors: {
     notFoundTitle: "Бет табылган жок",

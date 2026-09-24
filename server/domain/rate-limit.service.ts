@@ -17,6 +17,7 @@ export const RateLimitPolicy = {
   MEDIA_UPLOAD_AI: "MEDIA_UPLOAD_AI",
   PUBLIC_TRANSLATION: "PUBLIC_TRANSLATION",
   BOOTSTRAP_CLAIM: "BOOTSTRAP_CLAIM",
+  TELEGRAM_LOGIN: "TELEGRAM_LOGIN",
 } as const;
 
 export type RateLimitPolicy = (typeof RateLimitPolicy)[keyof typeof RateLimitPolicy];
@@ -32,6 +33,7 @@ const POLICY_BINDINGS: Record<RateLimitPolicy, PolicyBindings> = {
   MEDIA_UPLOAD_AI: { user: "MEDIA_AI_USER" },
   PUBLIC_TRANSLATION: { ip: "TRANSLATE_IP" },
   BOOTSTRAP_CLAIM: { ip: "BOOTSTRAP_IP" },
+  TELEGRAM_LOGIN: { ip: "TELEGRAM_LOGIN_IP" },
 };
 
 export interface RateLimitIdentity {

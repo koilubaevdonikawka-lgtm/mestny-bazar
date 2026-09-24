@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { signInWithGoogle } from "@/lib/auth";
+import { TelegramLoginButton } from "@/components/TelegramLoginButton";
 import { supabase } from "@/integrations/supabase/client";
 import { WELCOME_SEEN_KEY } from "@/components/WelcomeGate";
 import { LogOut, MapPin, Package, User } from "lucide-react";
@@ -54,13 +55,17 @@ export function AccountMenu({ hideSignInCta = false }: AccountMenuProps = {}) {
   if (!isAuthenticated) {
     if (hideSignInCta) return null;
     return (
-      <Button
-        variant="outline"
-        className="h-11 rounded-full px-4"
-        onClick={() => void handleSignIn()}
-      >
-        {t("common.signIn")}
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          className="h-11 rounded-full px-4"
+          onClick={() => void handleSignIn()}
+        >
+          {t("common.signIn")}
+        </Button>
+        {/* Задача №302 — Telegram Login Widget, customer-only sign-in method next to Google's. */}
+        <TelegramLoginButton />
+      </div>
     );
   }
 

@@ -2,6 +2,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { isNativePlatform } from "@/lib/capabilities/platform";
 import { getDeepLinkCapability } from "@/lib/capabilities";
+import { telegramLogin } from "@/api/telegram-auth";
+import type { TelegramLoginPayload } from "@shared/contracts/telegram-login";
 
 /**
  * Reverse-DNS custom URL scheme derived from capacitor.config.ts's own
@@ -128,4 +130,39 @@ export async function signInWithGoogle(): Promise<void> {
   if (error) {
     toast.error("Не удалось войти. Попробуйте ещё раз.");
   }
+}
+
+/**
+ * Задача №302 — customer-only Telegram Login Widget sign-in (see
+ * TelegramLoginButton.tsx for the widget itself). Unlike Google, this never
+ * leaves the page: the widget's own callback hands back a signed payload in
+ * plain JS, which telegramLogin() (src/api/telegram-auth.ts) sends to the
+ * one new server function to verify and exchange for a real session's
+ * `token_hash` — the client then finishes that exchange itself via
+ * verifyOtp(), same as any other Supabase magic-link flow.
+ *
+ * No native deep-link dance like signInWithGoogle's: nothing here ever
+ * hands off to the system browser (the WebView already IS the page the
+ * whole time, per capacitor.config.ts's server.url), so this redirects to
+ * the plain in-app "/workspace" path on both platforms — unlike
+ * getAuthRedirectUrl()'s native branch, which is only meaningful for
+ * re-entering the app via a deep link after actually having left it.
+ */
+export async function signInWithTelegram(payload: TelegramLoginPayload): Promise<void> {
+  try {
+    const { tokenHash, verificationType } = await telegramLogin(payload);
+    const { error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: verificationType as "magiclink",
+    });
+    if (error) {
+      toast.error("Не удалось войти через Telegram. Попробуйте ещё раз.");
+      return;
+    }
+  } catch {
+    toast.error("Не удалось войти через Telegram. Попробуйте ещё раз.");
+    return;
+  }
+
+  window.location.href = "/workspace";
 }

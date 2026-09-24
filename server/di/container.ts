@@ -51,6 +51,7 @@ import { PromotionalTariffRule } from "@server/domain/delivery-tariff-policy/rul
 import { StandardTariffFallbackRule } from "@server/domain/delivery-tariff-policy/rules/standard-tariff-fallback.rule";
 import { SellerProfileService } from "@server/domain/seller-profile.service";
 import { SettingsService } from "@server/domain/settings.service";
+import { TelegramLoginService } from "@server/domain/telegram-login/telegram-login.service";
 import { StockAdminService } from "@server/domain/stock-admin.service";
 import { StockPolicyService } from "@server/domain/stock-policy/stock-policy.service";
 import { LowStockThresholdRule } from "@server/domain/stock-policy/rules/low-stock-threshold.rule";
@@ -133,6 +134,7 @@ import { SupabaseProductRepository } from "@server/adapters/supabase/product.rep
 import { SupabaseSellerProductRepository } from "@server/adapters/supabase/seller-product.repository";
 import { SupabaseSellerProfileRepository } from "@server/adapters/supabase/seller-profile.repository";
 import { SupabaseSettingsRepository } from "@server/adapters/supabase/settings.repository";
+import { SupabaseTelegramIdentityRepository } from "@server/adapters/supabase/telegram-identity.repository";
 import { SupabaseStockRepository } from "@server/adapters/supabase/stock.repository";
 import { SupabaseSupplierRepository } from "@server/adapters/supabase/supplier.repository";
 import { SupabaseSupplyRepository } from "@server/adapters/supabase/supply.repository";
@@ -166,6 +168,7 @@ import type { IPermissionPolicy } from "@server/ports/permission-policy.port";
 import type { IPaymentProvider } from "@server/ports/payment.provider";
 import type { ISellerProfileRepository } from "@server/ports/seller-profile.repository";
 import type { ISettingsRepository } from "@server/ports/settings.repository";
+import type { ITelegramIdentityRepository } from "@server/ports/telegram-identity.repository";
 import type { IStockRepository } from "@server/ports/stock.repository";
 import type { IStockPolicy } from "@server/ports/stock-policy.port";
 import type { ISupplierRepository } from "@server/ports/supplier.repository";
@@ -354,6 +357,8 @@ export interface ServiceContainer {
   permissionPolicy: IPermissionPolicy;
   settings: ISettingsRepository;
   settingsService: SettingsService;
+  telegramIdentities: ITelegramIdentityRepository;
+  telegramLoginService: TelegramLoginService;
   analyticsService: AnalyticsService;
   commissionPolicy: ICommissionPolicy;
   payouts: IPayoutRepository;
@@ -415,6 +420,8 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const deviceTokens = new SupabaseDeviceTokenRepository();
   const carts = new SupabaseCartRepository();
   const settings: ISettingsRepository = new SupabaseSettingsRepository();
+  const telegramIdentities: ITelegramIdentityRepository = new SupabaseTelegramIdentityRepository();
+  const telegramLoginService = new TelegramLoginService(telegramIdentities);
   const cities: ICityRepository = new SupabaseCityRepository();
   const stores: IStoreRepository = new SupabaseStoreRepository();
   const zones = new SupabaseDeliveryZoneRepository();
@@ -852,6 +859,8 @@ export function createServices(env: ServerEnv): ServiceContainer {
     permissionPolicy,
     settings,
     settingsService,
+    telegramIdentities,
+    telegramLoginService,
     analyticsService,
     commissionPolicy,
     payouts,

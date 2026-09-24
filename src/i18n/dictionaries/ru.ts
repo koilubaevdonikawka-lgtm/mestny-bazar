@@ -395,6 +395,8 @@ export const ru = {
   auth: {
     signInPrompt: "Войдите, чтобы продолжить",
     signInWithGoogle: "Войти через Google",
+    orDivider: "или",
+    signInWithTelegram: "Войти через Telegram",
   },
   errors: {
     notFoundTitle: "Страница не найдена",

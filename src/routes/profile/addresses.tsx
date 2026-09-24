@@ -3,6 +3,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { Button } from "@/components/ui/button";
 import { AddressesPanel } from "@/components/AddressesPanel";
 import { signInWithGoogle } from "@/lib/auth";
+import { TelegramLoginButton } from "@/components/TelegramLoginButton";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { Loader2, LogIn } from "lucide-react";
 import { useTranslation } from "@/i18n/LanguageProvider";
@@ -38,9 +39,13 @@ function ProfileAddressesPage() {
           </div>
           <h1 className="font-serif text-3xl tracking-tight">{t("addresses.title")}</h1>
           <p className="mt-3 text-muted-foreground">{t("addresses.signInPrompt")}</p>
-          <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
-            {t("common.signIn")}
-          </Button>
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <Button size="lg" className="h-12 rounded-full" onClick={() => void handleSignIn()}>
+              {t("common.signIn")}
+            </Button>
+            {/* Задача №302 — Telegram Login Widget, customer-only sign-in method next to Google's. */}
+            <TelegramLoginButton />
+          </div>
         </div>
       </PageShell>
     );

@@ -369,6 +369,8 @@ export const en = {
   auth: {
     signInPrompt: "Sign in to continue",
     signInWithGoogle: "Sign in with Google",
+    orDivider: "or",
+    signInWithTelegram: "Sign in with Telegram",
   },
   errors: {
     notFoundTitle: "Page not found",

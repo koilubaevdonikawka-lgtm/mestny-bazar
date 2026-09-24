@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useCloseOnBackButton } from "@/hooks/useCloseOnBackButton";
 import { signInWithGoogle } from "@/lib/auth";
+import { TelegramLoginButton } from "@/components/TelegramLoginButton";
 
 interface RegisterPromptDialogProps {
   open: boolean;
@@ -20,19 +21,22 @@ interface RegisterPromptDialogProps {
  * (cart.missingAddressError / cart.cashRequiresAuthError were two separate,
  * longer, more technical strings). Guest checkout was removed entirely in
  * Задача №182 — there is no separate registration form anywhere in this
- * app, so the one button reuses the exact same signInWithGoogle() every
+ * app, so the Google button reuses the exact same signInWithGoogle() every
  * other "Войти" entry point already calls (it creates the account on first
  * use, same as a sign-up).
+ *
+ * Задача №302 — TelegramLoginButton added next to it, same choice: no
+ * separate registration form, Telegram sign-in creates the account on first
+ * use too (see server/adapters/supabase/telegram-identity.repository.ts).
+ * No "Отмена" — Dialog's own built-in X close (top-right) plus
+ * outside-click/Escape already let the buyer back out without a dedicated
+ * Cancel button.
  *
  * A Dialog, not a toast: this app has no existing precedent for a toast
  * with an action button (checked — every toast site is plain
  * success/error text), while a modal confirmation before launching an
  * external OAuth redirect is the established pattern here (see
- * CancelOrderButton/CancelUnpaidOnlineOrderButton's AlertDialog). Plain
- * Dialog rather than AlertDialog specifically because the task wants ONE
- * button and no "Отмена" — Dialog's own built-in X close (top-right) plus
- * outside-click/Escape already let the buyer back out without a dedicated
- * Cancel button, which AlertDialog does not offer out of the box.
+ * CancelOrderButton/CancelUnpaidOnlineOrderButton's AlertDialog).
  */
 export function RegisterPromptDialog({ open, onOpenChange }: RegisterPromptDialogProps) {
   const { t } = useTranslation();
@@ -56,6 +60,14 @@ export function RegisterPromptDialog({ open, onOpenChange }: RegisterPromptDialo
         >
           {t("cart.registerButton")}
         </Button>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="h-px flex-1 bg-border" />
+          {t("auth.orDivider")}
+          <div className="h-px flex-1 bg-border" />
+        </div>
+        <div className="flex justify-center">
+          <TelegramLoginButton />
+        </div>
       </DialogContent>
     </Dialog>
   );

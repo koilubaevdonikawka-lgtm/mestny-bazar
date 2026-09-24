@@ -104,8 +104,9 @@ describe("applySecurityHeaders", () => {
     }
     expect(scriptSrc).toContain("'unsafe-eval'");
     expect(styleSrc).toContain("blob:");
-    expect(frameSrc).toBe("frame-src 'self' https://api-maps.yandex.ru");
-    expect(childSrc).toBe("child-src 'self' https://api-maps.yandex.ru");
+    // Задача №302 appended oauth.telegram.org to both — see that test below.
+    expect(frameSrc).toBe("frame-src 'self' https://api-maps.yandex.ru https://oauth.telegram.org");
+    expect(childSrc).toBe("child-src 'self' https://api-maps.yandex.ru https://oauth.telegram.org");
   });
 
   it("Задача №158 — allows 2GIS MapGL's empirically-determined domains in script-src/connect-src, and its blob: worker in worker-src", () => {
@@ -135,6 +136,22 @@ describe("applySecurityHeaders", () => {
 
     const csp = headers.get("Content-Security-Policy") ?? "";
     expect(csp).toContain("https://nominatim.openstreetmap.org");
+  });
+
+  it("Задача №302 — allows the Telegram Login Widget's two official hosts (telegram.org script, oauth.telegram.org iframe)", () => {
+    process.env.NODE_ENV = "production";
+    const headers = new Headers();
+
+    applySecurityHeaders(headers);
+
+    const csp = headers.get("Content-Security-Policy") ?? "";
+    const [, scriptSrc, , , , connectSrc, frameSrc, childSrc] = csp
+      .split("; ")
+      .map((directive) => directive);
+    expect(scriptSrc).toContain("https://telegram.org");
+    expect(connectSrc).toContain("https://oauth.telegram.org");
+    expect(frameSrc).toContain("https://oauth.telegram.org");
+    expect(childSrc).toContain("https://oauth.telegram.org");
   });
 
   it("does not allow Shopify hosts in connect-src — Supabase is the sole catalog source (ADR-002)", () => {

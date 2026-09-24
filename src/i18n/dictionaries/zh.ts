@@ -355,6 +355,8 @@ export const zh = {
   auth: {
     signInPrompt: "请登录以继续",
     signInWithGoogle: "使用 Google 登录",
+    orDivider: "或",
+    signInWithTelegram: "使用 Telegram 登录",
   },
   errors: {
     notFoundTitle: "页面未找到",

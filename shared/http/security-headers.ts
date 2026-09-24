@@ -64,6 +64,18 @@ const TWOGIS_MAPGL_SRC =
 /** Задача №151/153 — client-side reverse geocoding for the map picker (src/lib/reverseGeocode.ts). */
 const NOMINATIM_CONNECT_SRC = "https://nominatim.openstreetmap.org";
 
+/**
+ * Задача №302 — the Telegram Login Widget (src/components/TelegramLoginButton.tsx)
+ * loads its script from telegram.org and renders the actual login UI in an
+ * iframe served from oauth.telegram.org (per Telegram's own widget
+ * architecture, https://core.telegram.org/widgets/login) — the two official
+ * hosts the embed needs, nothing wider. Confirmed live: without telegram.org
+ * on script-src, Chrome's own CSP report blocked the widget script outright
+ * before this was added ("violates ... script-src ... blocked").
+ */
+const TELEGRAM_WIDGET_SCRIPT_SRC = "https://telegram.org";
+const TELEGRAM_WIDGET_FRAME_SRC = "https://oauth.telegram.org";
+
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   // Задача №158 — 'unsafe-eval' is Yandex's own documented requirement
@@ -72,7 +84,7 @@ const CONTENT_SECURITY_POLICY = [
   // permitted above run eval()/new Function(), a real widening of what a
   // successful XSS could do. Accepted deliberately for Yandex Maps
   // specifically; revisit if Yandex ever drops the requirement.
-  `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${CLOUDFLARE_INSIGHTS_SRC} ${YANDEX_MAPS_SRC} https://mapgl.2gis.com`,
+  `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${CLOUDFLARE_INSIGHTS_SRC} ${YANDEX_MAPS_SRC} https://mapgl.2gis.com ${TELEGRAM_WIDGET_SCRIPT_SRC}`,
   // blob: — Yandex's own documented style-src requirement (their JS API
   // constructs stylesheets from blob: URLs internally).
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com blob:",
@@ -85,15 +97,17 @@ const CONTENT_SECURITY_POLICY = [
   // specific hosts would be no-op duplicates of a strictly broader rule
   // already in place.
   "img-src 'self' data: https:",
-  `connect-src 'self' ${SUPABASE_CONNECT_SRC} ${CLOUDFLARE_INSIGHTS_SRC} ${YANDEX_MAPS_SRC} ${TWOGIS_MAPGL_SRC} ${NOMINATIM_CONNECT_SRC}`,
+  `connect-src 'self' ${SUPABASE_CONNECT_SRC} ${CLOUDFLARE_INSIGHTS_SRC} ${YANDEX_MAPS_SRC} ${TWOGIS_MAPGL_SRC} ${NOMINATIM_CONNECT_SRC} ${TELEGRAM_WIDGET_FRAME_SRC}`,
   // Задача №158 — new directive. Yandex's docs call for frame-src (and
   // child-src for older-browser compatibility) to allow
   // api-maps.yandex.ru; 'self' is kept so this doesn't silently remove the
   // default-src 'self' fallback this app relied on before either directive
   // existed (no same-origin iframe use exists today, but nothing should
   // regress if one is ever added).
-  "frame-src 'self' https://api-maps.yandex.ru",
-  "child-src 'self' https://api-maps.yandex.ru",
+  // Задача №302 — oauth.telegram.org added the same way, for the Login
+  // Widget's own login iframe.
+  `frame-src 'self' https://api-maps.yandex.ru ${TELEGRAM_WIDGET_FRAME_SRC}`,
+  `child-src 'self' https://api-maps.yandex.ru ${TELEGRAM_WIDGET_FRAME_SRC}`,
   // Задача №158 — new directive, found empirically (not in Yandex's docs):
   // 2GIS MapGL's actual script creates Web Workers from blob: URLs
   // (`new Worker(URL.createObjectURL(new Blob([...], {type:"text/javascript"})))`)

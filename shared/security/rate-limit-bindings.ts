@@ -28,6 +28,13 @@ export const RATE_LIMIT_BINDINGS = {
   TRANSLATE_IP: { name: "RL_TRANSLATE_IP", namespaceId: "288006", limit: 900, periodSeconds: 60 },
   /** Bootstrap (first-owner) claim attempts, per client IP — the one server-side "attempt"-style auth action; sign-in itself is Google OAuth handled by Supabase in the browser. */
   BOOTSTRAP_IP: { name: "RL_BOOTSTRAP_IP", namespaceId: "288007", limit: 10, periodSeconds: 60 },
+  /** Задача №302 — Telegram Login Widget sign-in attempts, per client IP. Unlike Google OAuth (handled entirely by Supabase in the browser), this one IS a server-side "attempt"-style auth action — the endpoint that verifies the widget's HMAC and calls Supabase Admin's generateLink(), so it gets the same kind of guard as BOOTSTRAP_IP above. */
+  TELEGRAM_LOGIN_IP: {
+    name: "RL_TELEGRAM_LOGIN_IP",
+    namespaceId: "288008",
+    limit: 10,
+    periodSeconds: 60,
+  },
 } as const;
 
 export type RateLimitBindingKey = keyof typeof RATE_LIMIT_BINDINGS;
