@@ -683,9 +683,6 @@ export const en = {
       totalLabel: "Total",
     },
   },
-  welcome: {
-    signUpButton: "Sign up",
-  },
   privacy: {
     linkLabel: "Privacy Policy",
     title: "Privacy Policy",

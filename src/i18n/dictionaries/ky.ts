@@ -687,9 +687,6 @@ export const ky = {
       totalLabel: "Жалпы сумма",
     },
   },
-  welcome: {
-    signUpButton: "Катталуу",
-  },
   privacy: {
     linkLabel: "Купуялык саясаты",
     title: "Купуялык саясаты",

@@ -76,21 +76,25 @@ function isStaffOrSystemRoute(pathname: string): boolean {
  * выставляется/снимается только реактивно, вместе с isAuthenticated —
  * никогда по одному лишь клику.
  *
- * Задача №305 — "Войти" и "Зарегистрироваться" both expand, in place of
- * themselves, into SignInMethodsList (src/components/auth/SignInMethodsList.tsx)
- * — the same shared list AccountMenu/addresses.tsx/RegisterPromptDialog
- * already use (Google OAuth + the Telegram Login Widget). No separate
- * email/password form exists anywhere in this app, and both methods create
- * the account on first use, so the two buttons genuinely are the same
- * action — kept as two labels because a first-time visitor doesn't yet know
- * that, not because they lead anywhere different.
+ * Задача №310 — SignInMethodsList (src/components/auth/SignInMethodsList.tsx,
+ * the same shared list AccountMenu/addresses.tsx/RegisterPromptDialog use)
+ * renders immediately under a "Войдите, чтобы продолжить" heading — no
+ * intermediate "Войти"/"Зарегистрироваться" click first (Задача №305's
+ * expand-in-place step). Those two buttons were removed rather than kept
+ * as decoration: sign-in is the ONLY action this screen offers (Задача
+ * №308), both methods create the account on first use, and both buttons
+ * already led to the identical list — with the methods themselves visible,
+ * they'd just be two more same-looking buttons stacked above the real
+ * ones. Only this screen changed; the other three call sites keep their
+ * click-to-expand. The list is a vertical stack (its own default layout),
+ * inside this overlay's overflow-y-auto container, so a future third
+ * method (WhatsApp) adds one more row here with no layout change.
  */
 export function WelcomeGate() {
   const { t, language, setLanguage } = useTranslation();
   const { isAuthenticated } = useSupabaseSession();
   const location = useLocation();
   const [open, setOpen] = useState(false);
-  const [showSignInMethods, setShowSignInMethods] = useState(false);
 
   // Optimistic initial guess from the flag, purely so a never-signed-in
   // visitor (or one who just signed out — AccountMenu's handleSignOut
@@ -147,28 +151,9 @@ export function WelcomeGate() {
           ))}
         </div>
 
-        <div className="mt-8 grid gap-3">
-          {showSignInMethods ? (
-            <SignInMethodsList />
-          ) : (
-            <>
-              <Button
-                size="lg"
-                className="h-12 rounded-full"
-                onClick={() => setShowSignInMethods(true)}
-              >
-                {t("common.signIn")}
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-12 rounded-full"
-                onClick={() => setShowSignInMethods(true)}
-              >
-                {t("welcome.signUpButton")}
-              </Button>
-            </>
-          )}
+        <div className="mt-8">
+          <h2 className="text-lg font-medium">{t("auth.signInPrompt")}</h2>
+          <SignInMethodsList className="mt-4 flex flex-col items-stretch gap-3" />
         </div>
       </div>
     </div>

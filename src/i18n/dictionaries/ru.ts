@@ -718,9 +718,6 @@ export const ru = {
       totalLabel: "Итого",
     },
   },
-  welcome: {
-    signUpButton: "Зарегистрироваться",
-  },
   privacy: {
     linkLabel: "Политика конфиденциальности",
     title: "Политика конфиденциальности",

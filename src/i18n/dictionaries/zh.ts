@@ -664,9 +664,6 @@ export const zh = {
       totalLabel: "合计",
     },
   },
-  welcome: {
-    signUpButton: "注册",
-  },
   privacy: {
     linkLabel: "隐私政策",
     title: "隐私政策",
