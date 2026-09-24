@@ -83,6 +83,7 @@ function fakeAuditLog(records: AuditRecord[] = []): IAuditLog {
   };
 }
 
+/** Defaults payload to { role: "admin" } — every pre-existing (Задача №306) test targets the admin sync; warehouse-specific tests (Задача №307) override it explicitly. */
 function makeAuditRecord(overrides: Partial<AuditRecord> = {}): AuditRecord {
   return {
     id: "record-1",
@@ -91,7 +92,7 @@ function makeAuditRecord(overrides: Partial<AuditRecord> = {}): AuditRecord {
     entityType: "user",
     entityId: "user-1",
     actorId: null,
-    payload: {},
+    payload: { role: "admin" },
     ...overrides,
   };
 }
@@ -314,8 +315,11 @@ describe("RbacService.assignRole — user_roles admin sync (Задача №259)
     expect(userAdmin.assignRole).toHaveBeenCalledWith("user-1", "admin");
   });
 
-  it.each(["Менеджер", "Оператор", "Склад", "Курьер", "Поддержка"])(
-    'does NOT touch user_roles for the operational role "%s" — it never grants standalone /admin access',
+  // "Склад" is deliberately excluded here since Задача №307 — it now syncs
+  // to legacy 'warehouse', covered in its own describe block below, not
+  // "no legacy role at all" like the four genuinely-operational-only ones.
+  it.each(["Менеджер", "Оператор", "Курьер", "Поддержка"])(
+    'does NOT touch user_roles for the operational role "%s" — it never grants standalone /admin OR /warehouse access',
     async (roleName) => {
       const rbac = fakeRbacRepo({ getRole: vi.fn(async () => makeRole({ name: roleName })) });
       const userAdmin = fakeUserAdminRepo();
@@ -435,6 +439,144 @@ describe("RbacService.revokeRole — user_roles admin cleanup (Задача №3
     const auditLog = fakeAuditLog([
       makeAuditRecord({ action: "role.revoked_via_rbac_sync_cleanup" }),
       makeAuditRecord({ action: "role.assigned_via_rbac_sync" }),
+    ]);
+    const service = new RbacService(rbac, fakeEventBus(), userAdmin, auditLog);
+
+    await service.revokeRole({ userId: "user-1", roleId: "role-1" });
+
+    expect(userAdmin.revokeRole).not.toHaveBeenCalled();
+  });
+});
+
+// Задача №307 — "Склад" (the real rbac_roles.name — the UI may gloss it as
+// "Складской работник") previously had NO connection to legacy
+// user_roles 'warehouse' at all: assigning it in "Право доступа" did
+// nothing, unlike admin's case (Задача №259) where a sync existed but
+// wasn't symmetric (Задача №306). Same LEGACY_ROLE_SYNCS mechanism,
+// exercised here for the warehouse branch specifically — mirrors the admin
+// describe blocks above test-for-test.
+describe("RbacService.assignRole — user_roles warehouse sync (Задача №307)", () => {
+  it("grants legacy user_roles 'warehouse' when the RBAC role is \"Склад\"", async () => {
+    const rbac = fakeRbacRepo({ getRole: vi.fn(async () => makeRole({ name: "Склад" })) });
+    const events = fakeEventBus();
+    const userAdmin = fakeUserAdminRepo();
+    const service = new RbacService(rbac, events, userAdmin, fakeAuditLog());
+
+    await service.assignRole({ userId: "user-1", roleId: "role-1" }, "admin-1");
+
+    expect(userAdmin.assignRole).toHaveBeenCalledWith("user-1", "warehouse");
+    expect(events.publish).toHaveBeenCalledWith({
+      type: "role.assigned_via_rbac_sync",
+      userId: "user-1",
+      role: "warehouse",
+      sourceRoleId: "role-1",
+    });
+  });
+
+  it("assigning \"Склад\" never touches legacy 'admin' — the two workspaces stay independent", async () => {
+    const rbac = fakeRbacRepo({ getRole: vi.fn(async () => makeRole({ name: "Склад" })) });
+    const userAdmin = fakeUserAdminRepo();
+    const service = new RbacService(rbac, fakeEventBus(), userAdmin, fakeAuditLog());
+
+    await service.assignRole({ userId: "user-1", roleId: "role-1" }, "admin-1");
+
+    expect(userAdmin.assignRole).toHaveBeenCalledTimes(1);
+    expect(userAdmin.assignRole).not.toHaveBeenCalledWith("user-1", "admin");
+  });
+});
+
+describe("RbacService.revokeRole — user_roles warehouse cleanup (Задача №307)", () => {
+  it("removes the legacy warehouse row when the sync granted it and nothing has touched it since", async () => {
+    const rbac = fakeRbacRepo({
+      getRole: vi.fn(async () => makeRole({ name: "Склад" })),
+      listUserRoleAssignments: vi.fn(async () => []),
+    });
+    const events = fakeEventBus();
+    const userAdmin = fakeUserAdminRepo();
+    const auditLog = fakeAuditLog([
+      makeAuditRecord({ action: "role.assigned_via_rbac_sync", payload: { role: "warehouse" } }),
+    ]);
+    const service = new RbacService(rbac, events, userAdmin, auditLog);
+
+    await service.revokeRole({ userId: "user-1", roleId: "role-1" });
+
+    expect(userAdmin.revokeRole).toHaveBeenCalledWith("user-1", "warehouse");
+    expect(events.publish).toHaveBeenCalledWith({
+      type: "role.revoked_via_rbac_sync_cleanup",
+      userId: "user-1",
+      role: "warehouse",
+    });
+  });
+
+  it("leaves the legacy warehouse row alone when a human granted it directly via /admin/users AFTER the sync", async () => {
+    const rbac = fakeRbacRepo({
+      getRole: vi.fn(async () => makeRole({ name: "Склад" })),
+      listUserRoleAssignments: vi.fn(async () => []),
+    });
+    const userAdmin = fakeUserAdminRepo();
+    const auditLog = fakeAuditLog([
+      makeAuditRecord({
+        action: "role.assigned",
+        payload: { role: "warehouse" },
+        occurredAt: "2026-09-06T00:00:00Z",
+      }),
+      makeAuditRecord({
+        action: "role.assigned_via_rbac_sync",
+        payload: { role: "warehouse" },
+        occurredAt: "2026-09-05T00:00:00Z",
+      }),
+    ]);
+    const service = new RbacService(rbac, fakeEventBus(), userAdmin, auditLog);
+
+    await service.revokeRole({ userId: "user-1", roleId: "role-1" });
+
+    expect(userAdmin.revokeRole).not.toHaveBeenCalled();
+  });
+
+  it("leaves a pre-existing legacy warehouse row alone when there is no audit history for it at all", async () => {
+    const rbac = fakeRbacRepo({
+      getRole: vi.fn(async () => makeRole({ name: "Склад" })),
+      listUserRoleAssignments: vi.fn(async () => []),
+    });
+    const userAdmin = fakeUserAdminRepo();
+    const service = new RbacService(rbac, fakeEventBus(), userAdmin, fakeAuditLog([]));
+
+    await service.revokeRole({ userId: "user-1", roleId: "role-1" });
+
+    expect(userAdmin.revokeRole).not.toHaveBeenCalled();
+  });
+
+  it("leaves the legacy warehouse row alone when the most recent record is already a previous cleanup", async () => {
+    const rbac = fakeRbacRepo({
+      getRole: vi.fn(async () => makeRole({ name: "Склад" })),
+      listUserRoleAssignments: vi.fn(async () => []),
+    });
+    const userAdmin = fakeUserAdminRepo();
+    const auditLog = fakeAuditLog([
+      makeAuditRecord({
+        action: "role.revoked_via_rbac_sync_cleanup",
+        payload: { role: "warehouse" },
+      }),
+      makeAuditRecord({ action: "role.assigned_via_rbac_sync", payload: { role: "warehouse" } }),
+    ]);
+    const service = new RbacService(rbac, fakeEventBus(), userAdmin, auditLog);
+
+    await service.revokeRole({ userId: "user-1", roleId: "role-1" });
+
+    expect(userAdmin.revokeRole).not.toHaveBeenCalled();
+  });
+
+  it("does not remove legacy warehouse for a user's OTHER sync history — 'admin' events for the same user never justify touching 'warehouse'", async () => {
+    const rbac = fakeRbacRepo({
+      getRole: vi.fn(async () => makeRole({ name: "Склад" })),
+      listUserRoleAssignments: vi.fn(async () => []),
+    });
+    const userAdmin = fakeUserAdminRepo();
+    // This user's most recent record is an ADMIN sync grant — irrelevant to
+    // the warehouse row being revoked here. No warehouse-specific history
+    // at all means "leave it alone", exactly like the no-history case above.
+    const auditLog = fakeAuditLog([
+      makeAuditRecord({ action: "role.assigned_via_rbac_sync", payload: { role: "admin" } }),
     ]);
     const service = new RbacService(rbac, fakeEventBus(), userAdmin, auditLog);
 

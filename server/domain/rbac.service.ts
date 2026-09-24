@@ -39,6 +39,37 @@ import {
 // so this mapping can't silently drift out of sync with the seed data.
 const ADMIN_WORKSPACE_RBAC_ROLE_NAMES = new Set(["Администратор", "Суперадминистратор"]);
 
+// Задача №307 — same reasoning, for the Warehouse workspace: assigning
+// this RBAC role in "Право доступа" previously did nothing at all — it
+// never touched user_roles, so /warehouse's own access barrier
+// (requireWarehouseFromRequest) never granted anything, unlike admin's
+// case (Задача №259) where the sync existed but wasn't symmetric. "Склад"
+// is the role's real name in rbac_roles (confirmed live against
+// production — the UI may gloss it as "Складской работник", but the row
+// itself, is_system=true, is named "Склад").
+const WAREHOUSE_WORKSPACE_RBAC_ROLE_NAMES = new Set(["Склад"]);
+
+/**
+ * Задача №307 — one entry per legacy workspace role this service keeps in
+ * sync with an RBAC role of the same meaning. Generalizes Задача №259's
+ * original admin-only sync (and №306's symmetric revoke) instead of
+ * duplicating that logic a second time for "Склад" → legacy 'warehouse' —
+ * assignRole()/revokeRole() below both just loop over this table. Adding a
+ * third legacy role later (e.g. 'courier') is one more entry here, not a
+ * third parallel implementation.
+ */
+interface LegacyRoleSync {
+  /** The user_roles value this RBAC role set maps to. */
+  legacyRole: "admin" | "warehouse";
+  /** RBAC role names (rbac_roles.name) that grant it — see each set's own doc comment above. */
+  rbacRoleNames: ReadonlySet<string>;
+}
+
+const LEGACY_ROLE_SYNCS: readonly LegacyRoleSync[] = [
+  { legacyRole: "admin", rbacRoleNames: ADMIN_WORKSPACE_RBAC_ROLE_NAMES },
+  { legacyRole: "warehouse", rbacRoleNames: WAREHOUSE_WORKSPACE_RBAC_ROLE_NAMES },
+];
+
 /**
  * Industrial RBAC domain service (Промпт №068). Entirely additive and
  * parallel to the existing app_role enum / PermissionPolicyService — never
@@ -181,21 +212,22 @@ export class RbacService {
       roleId: data.roleId,
     });
 
-    // Задача №259 — see class doc comment. Idempotent (ignoreDuplicates in
-    // the repository's upsert), so re-assigning an already-held role, or a
-    // user who separately already has user_roles 'admin', is a harmless
-    // no-op either way.
+    // Задача №259/№307 — see LEGACY_ROLE_SYNCS' own doc comment. Idempotent
+    // (ignoreDuplicates in the repository's upsert), so re-assigning an
+    // already-held role, or a user who separately already has the legacy
+    // row, is a harmless no-op either way.
     //
     // Задача №306 — publishes role.assigned_via_rbac_sync, not the plain
     // role.assigned a direct /admin/users grant uses: revokeRole() below
     // needs to tell the two apart to safely auto-clean up after itself
     // without ever touching a legacy role a human granted on purpose.
-    if (ADMIN_WORKSPACE_RBAC_ROLE_NAMES.has(role.name)) {
-      await this.userAdmin.assignRole(data.userId, "admin");
+    const sync = LEGACY_ROLE_SYNCS.find((s) => s.rbacRoleNames.has(role.name));
+    if (sync) {
+      await this.userAdmin.assignRole(data.userId, sync.legacyRole);
       await this.events.publish({
         type: "role.assigned_via_rbac_sync",
         userId: data.userId,
-        role: "admin",
+        role: sync.legacyRole,
         sourceRoleId: data.roleId,
       });
     }
@@ -217,19 +249,19 @@ export class RbacService {
    * because nothing ever removed the legacy row the sync had granted.
    *
    * Fixed with a conservative, explicit auto-cleanup instead of "never":
-   * removes the legacy user_roles 'admin' row ONLY when ALL of the
-   * following hold —
-   *   1. the role just revoked is "Администратор"/"Суперадминистратор"
-   *      (ADMIN_WORKSPACE_RBAC_ROLE_NAMES, same set assignRole() checks);
+   * removes the matching legacy user_roles row (LEGACY_ROLE_SYNCS above —
+   * 'admin' for Администратор/Суперадминистратор, 'warehouse' for Склад,
+   * Задача №307) ONLY when ALL of the following hold —
+   *   1. the role just revoked is one LEGACY_ROLE_SYNCS actually maps;
    *   2. the user holds no OTHER currently-assigned RBAC role from that
-   *      same set (isAdminWorkspaceRbacRole below) — losing one of two
-   *      still-held admin-workspace roles must not touch their access;
-   *   3. the most recent legacy-admin-affecting audit record for this
-   *      user (role.assigned / role.revoked / role.assigned_via_rbac_sync
-   *      / role.revoked_via_rbac_sync_cleanup — see
-   *      wasLegacyAdminRowGrantedBySyncAndUntouchedSince below) is this
+   *      same mapped set — losing one of two still-held roles for the same
+   *      workspace must not touch their access;
+   *   3. the most recent legacy-role-affecting audit record for this user
+   *      AND this specific legacy role (role.assigned / role.revoked /
+   *      role.assigned_via_rbac_sync / role.revoked_via_rbac_sync_cleanup
+   *      — see wasLegacyRoleGrantedBySyncAndUntouchedSince below) is this
    *      service's own role.assigned_via_rbac_sync, meaning no human has
-   *      granted or revoked the legacy role directly (via /admin/users)
+   *      granted or revoked that legacy role directly (via /admin/users)
    *      since the sync created it. A row that predates audit logging, or
    *      that a human explicitly (re-)touched afterward, is left exactly
    *      alone — that is still a deliberate, human decision this service
@@ -250,41 +282,52 @@ export class RbacService {
       roleId: data.roleId,
     });
 
-    if (!role || !ADMIN_WORKSPACE_RBAC_ROLE_NAMES.has(role.name)) return;
+    const sync = role ? LEGACY_ROLE_SYNCS.find((s) => s.rbacRoleNames.has(role.name)) : undefined;
+    if (!sync) return;
 
     const remaining = await this.rbac.listUserRoleAssignments(data.userId);
-    const stillHasAdminWorkspaceRole = remaining.some((assignment) =>
-      ADMIN_WORKSPACE_RBAC_ROLE_NAMES.has(assignment.roleName),
+    const stillHasSameWorkspaceRole = remaining.some((assignment) =>
+      sync.rbacRoleNames.has(assignment.roleName),
     );
-    if (stillHasAdminWorkspaceRole) return;
+    if (stillHasSameWorkspaceRole) return;
 
-    if (await this.wasLegacyAdminRowGrantedBySyncAndUntouchedSince(data.userId)) {
-      await this.userAdmin.revokeRole(data.userId, "admin");
+    if (await this.wasLegacyRoleGrantedBySyncAndUntouchedSince(data.userId, sync.legacyRole)) {
+      await this.userAdmin.revokeRole(data.userId, sync.legacyRole);
       await this.events.publish({
         type: "role.revoked_via_rbac_sync_cleanup",
         userId: data.userId,
-        role: "admin",
+        role: sync.legacyRole,
       });
     }
   }
 
   /**
-   * Задача №306 — the four legacy-admin-affecting audit actions, most
-   * recent first (IAuditLog.list already orders by occurred_at descending).
-   * True only when the very latest one is this service's own sync grant —
-   * see revokeRole()'s doc comment for the full reasoning. A short page is
-   * enough: these events are rare per user, and only their relative order
-   * matters, not the full history.
+   * Задача №306/№307 — the four legacy-role-affecting audit actions for
+   * THIS specific legacy role (payload.role), most recent first
+   * (IAuditLog.list already orders by occurred_at descending). True only
+   * when the very latest one is this service's own sync grant for that
+   * role — see revokeRole()'s doc comment for the full reasoning. Filtering
+   * by payload.role, not just action, matters once a single user could in
+   * principle have been synced into both 'admin' and 'warehouse'
+   * independently — an 'admin' grant must never be read as justification
+   * for touching (or not touching) their unrelated 'warehouse' row, and
+   * vice versa. A short page is enough: these events are rare per user, and
+   * only their relative order matters, not the full history.
    */
-  private async wasLegacyAdminRowGrantedBySyncAndUntouchedSince(userId: string): Promise<boolean> {
-    const LEGACY_ADMIN_ACTIONS = new Set([
+  private async wasLegacyRoleGrantedBySyncAndUntouchedSince(
+    userId: string,
+    legacyRole: "admin" | "warehouse",
+  ): Promise<boolean> {
+    const LEGACY_ROLE_ACTIONS = new Set([
       "role.assigned",
       "role.revoked",
       "role.assigned_via_rbac_sync",
       "role.revoked_via_rbac_sync_cleanup",
     ]);
     const { items } = await this.auditLog.list({ entityId: userId, pageSize: 25 });
-    const mostRecent = items.find((record) => LEGACY_ADMIN_ACTIONS.has(record.action));
+    const mostRecent = items.find(
+      (record) => LEGACY_ROLE_ACTIONS.has(record.action) && record.payload.role === legacyRole,
+    );
     return mostRecent?.action === "role.assigned_via_rbac_sync";
   }
 
