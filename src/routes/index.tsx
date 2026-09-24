@@ -10,7 +10,6 @@ import { useTranslation } from "@/i18n/LanguageProvider";
 import { DEFAULT_LANGUAGE } from "@/i18n/languages";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
 import { SubcategoryGrid } from "@/components/home/SubcategoryGrid";
-import { WelcomeGate } from "@/components/WelcomeGate";
 import { useCategoryStore } from "@/stores/categoryStore";
 
 export const Route = createFileRoute("/")({
@@ -151,7 +150,8 @@ function Home() {
     // предыдущих задач этой сессии) — заполнять оставшуюся высоту больше
     // нечем и не нужно.
     <div className="flex flex-col">
-      <WelcomeGate />
+      {/* Задача №309 — WelcomeGate moved to __root.tsx so it covers every
+          customer route, not just "/". */}
       {/* Задача №175 — no "← Назад" here: the home page is the root of
           navigation, so there is nothing to go back to. */}
       {/* Задача №258 — showSignInFallback dropped here: AccountMenu now

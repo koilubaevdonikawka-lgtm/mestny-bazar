@@ -20,6 +20,7 @@ import { usePlatformNavigationGate } from "@/hooks/usePlatformNavigationGate";
 import { useServiceWorkerRegistration } from "@/hooks/useServiceWorkerRegistration";
 import { isNativePlatform } from "@/lib/capabilities/platform";
 import { BottomTabBar, BOTTOM_TAB_BAR_HEIGHT_REM } from "@/components/BottomTabBar";
+import { WelcomeGate } from "@/components/WelcomeGate";
 import { LanguageProvider, useTranslation } from "@/i18n/LanguageProvider";
 
 /**
@@ -267,6 +268,12 @@ function RootComponent() {
         </div>
         {showBottomTabBar && <BottomTabBar />}
         <Toaster richColors position="top-center" />
+        {/* Задача №309 — mounted once here (not per-route) so the mandatory
+            sign-in gate covers every customer route, not just "/". A fixed
+            overlay, so its position in this tree doesn't affect layout;
+            WelcomeGate itself excludes the staff/system route prefixes and
+            renders nothing there. */}
+        <WelcomeGate />
       </LanguageProvider>
     </QueryClientProvider>
   );
