@@ -689,7 +689,6 @@ export const ky = {
   },
   welcome: {
     signUpButton: "Катталуу",
-    continueAsGuestButton: "Катталбастан улантуу",
   },
   privacy: {
     linkLabel: "Купуялык саясаты",

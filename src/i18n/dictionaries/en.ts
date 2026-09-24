@@ -685,7 +685,6 @@ export const en = {
   },
   welcome: {
     signUpButton: "Sign up",
-    continueAsGuestButton: "Continue without an account",
   },
   privacy: {
     linkLabel: "Privacy Policy",

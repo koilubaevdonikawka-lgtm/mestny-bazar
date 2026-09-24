@@ -666,7 +666,6 @@ export const zh = {
   },
   welcome: {
     signUpButton: "注册",
-    continueAsGuestButton: "以访客身份继续",
   },
   privacy: {
     linkLabel: "隐私政策",

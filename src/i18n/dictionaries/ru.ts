@@ -720,7 +720,6 @@ export const ru = {
   },
   welcome: {
     signUpButton: "Зарегистрироваться",
-    continueAsGuestButton: "Продолжить без регистрации",
   },
   privacy: {
     linkLabel: "Политика конфиденциальности",

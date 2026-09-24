@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
@@ -10,11 +10,22 @@ import { CUSTOMER_VISIBLE_LANGUAGES, LANGUAGE_LABELS } from "@/i18n/languages";
 export const WELCOME_SEEN_KEY = "mestny-bazar-welcome-seen";
 
 /**
- * Единый экран входа/регистрации/выбора языка при первом визите — заменяет
- * прежние отдельные кнопки "Войти"/"Смена языка" во всегда видимом header
- * (убраны из SiteHeader/AccountMenu, см. их showAccountMenu/hideSignInButton
- * пропы). Показывается один раз на браузер/устройство (localStorage-флаг),
- * дальше не мешает — гость может продолжать без регистрации сколько угодно.
+ * Единый экран входа/регистрации/выбора языка — заменяет прежние отдельные
+ * кнопки "Войти"/"Смена языка" во всегда видимом header (убраны из
+ * SiteHeader/AccountMenu, см. их showAccountMenu/hideSignInButton пропы).
+ *
+ * Задача №308 — вход обязателен: "Продолжить без регистрации" убрана
+ * совсем, и экран больше не закрывается по одному лишь клику "Войти"/
+ * "Зарегистрироваться" — единственный способ его закрыть теперь
+ * подтверждённая сессия (isAuthenticated становится true). До этой задачи
+ * WELCOME_SEEN_KEY отмечался сразу по клику (до того, как OAuth/Telegram
+ * реально завершались) — тогда это было осознанно (гость мог продолжить
+ * и так, поэтому не имело значения, довёл ли он вход до конца). Теперь
+ * это было бы дырой: отменённый/неудавшийся Google-вход или Telegram-
+ * попытка молча "засчитывались" бы как «уже видел» и пропускали бы
+ * человека без входа при следующем визите. Флаг теперь выставляется
+ * только в одном месте — реактивно, когда isAuthenticated действительно
+ * стал true.
  *
  * Задача №305 — "Войти" и "Зарегистрироваться" both expand, in place of
  * themselves, into SignInMethodsList (src/components/auth/SignInMethodsList.tsx)
@@ -37,43 +48,20 @@ export function WelcomeGate() {
     }
   }, []);
 
-  const dismiss = useCallback(() => {
-    window.localStorage.setItem(WELCOME_SEEN_KEY, "1");
-    setOpen(false);
-  }, []);
-
-  // Fallback for a user who's already authenticated on mount (session
-  // restored from a previous visit) without ever clicking through this
-  // instance of the gate.
+  // Задача №308 — the one and only place this closes the gate: a real,
+  // confirmed Supabase session. Covers both a user already authenticated
+  // on mount (session restored from a previous visit, never clicked
+  // through this instance) and a fresh sign-in completing while the gate
+  // is open. A cancelled/failed Google redirect or a failed Telegram
+  // attempt leaves isAuthenticated false, so the gate simply stays open —
+  // exactly the point of making sign-in mandatory.
   useEffect(() => {
-    if (isAuthenticated) dismiss();
-  }, [isAuthenticated, dismiss]);
+    if (isAuthenticated) {
+      window.localStorage.setItem(WELCOME_SEEN_KEY, "1");
+      setOpen(false);
+    }
+  }, [isAuthenticated]);
 
-  // Задача №305 — "seen" is still recorded synchronously on click (not
-  // reactively once isAuthenticated flips true — Google's OAuth redirect
-  // unmounts this component before it could ever observe that flip, same
-  // reasoning the previous handleAuthClick already relied on), but the
-  // overlay itself must NOT close yet: unlike the old single Google button,
-  // opening SignInMethodsList here still needs to stay on screen so the
-  // buyer can actually see and use the Telegram widget inside it. Only
-  // marks "seen" — visibility is separate now, see handleActionSelected
-  // and the Telegram widget's own natural full-page redirect on success
-  // below.
-  const handleOpenSignIn = useCallback(() => {
-    window.localStorage.setItem(WELCOME_SEEN_KEY, "1");
-    setShowSignInMethods(true);
-  }, []);
-
-  // Google's own SignInMethodsList entry redirects the whole page almost
-  // immediately (signInWithOAuth) — closing the overlay right away (not
-  // waiting for that navigation) matches the exact old handleAuthClick
-  // behavior. Telegram deliberately does NOT go through this: it's a
-  // "widget" list entry, not an "action" one, so SignInMethodsList never
-  // calls this for it — the overlay must stay open while the widget's own
-  // "Входим…" state and any retry-after-failure happens in place, closing
-  // only via a full-page redirect on real success (signInWithTelegram's
-  // own window.location.href) or the buyer choosing "Продолжить без
-  // регистрации" below.
   if (!open) return null;
 
   return (
@@ -99,25 +87,26 @@ export function WelcomeGate() {
 
         <div className="mt-8 grid gap-3">
           {showSignInMethods ? (
-            <SignInMethodsList onActionSelected={dismiss} />
+            <SignInMethodsList />
           ) : (
             <>
-              <Button size="lg" className="h-12 rounded-full" onClick={handleOpenSignIn}>
+              <Button
+                size="lg"
+                className="h-12 rounded-full"
+                onClick={() => setShowSignInMethods(true)}
+              >
                 {t("common.signIn")}
               </Button>
               <Button
                 size="lg"
                 variant="outline"
                 className="h-12 rounded-full"
-                onClick={handleOpenSignIn}
+                onClick={() => setShowSignInMethods(true)}
               >
                 {t("welcome.signUpButton")}
               </Button>
             </>
           )}
-          <Button size="lg" variant="ghost" className="h-12 rounded-full" onClick={dismiss}>
-            {t("welcome.continueAsGuestButton")}
-          </Button>
         </div>
       </div>
     </div>
