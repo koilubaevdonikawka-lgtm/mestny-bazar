@@ -163,7 +163,6 @@ export const zh = {
     missingPhoneError: "请在订单通知部分填写手机号码",
     cashRequiresAuthError: "货到付款仅对已登录用户开放",
     pleaseRegister: "请注册",
-    registerButton: "注册",
     checkoutFailedError: "下单失败",
     useMyLocationButton: "定位我的位置",
     locationCapturedToast: "已获取位置",
@@ -355,8 +354,8 @@ export const zh = {
   auth: {
     signInPrompt: "请登录以继续",
     signInWithGoogle: "使用 Google 登录",
-    orDivider: "或",
     signInWithTelegram: "使用 Telegram 登录",
+    chooseMethod: "登录方式",
   },
   errors: {
     notFoundTitle: "页面未找到",

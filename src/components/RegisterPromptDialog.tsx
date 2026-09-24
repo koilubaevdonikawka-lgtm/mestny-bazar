@@ -1,9 +1,7 @@
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useCloseOnBackButton } from "@/hooks/useCloseOnBackButton";
-import { signInWithGoogle } from "@/lib/auth";
-import { TelegramLoginButton } from "@/components/TelegramLoginButton";
+import { SignInMethodsList } from "@/components/auth/SignInMethodsList";
 
 interface RegisterPromptDialogProps {
   open: boolean;
@@ -21,16 +19,19 @@ interface RegisterPromptDialogProps {
  * (cart.missingAddressError / cart.cashRequiresAuthError were two separate,
  * longer, more technical strings). Guest checkout was removed entirely in
  * Задача №182 — there is no separate registration form anywhere in this
- * app, so the Google button reuses the exact same signInWithGoogle() every
- * other "Войти" entry point already calls (it creates the account on first
- * use, same as a sign-up).
+ * app, so every method in the list below signs a buyer in AND creates the
+ * account on first use — the same "Войти"/sign-up conflation every entry
+ * point in this app already relies on.
  *
- * Задача №302 — TelegramLoginButton added next to it, same choice: no
- * separate registration form, Telegram sign-in creates the account on first
- * use too (see server/adapters/supabase/telegram-identity.repository.ts).
- * No "Отмена" — Dialog's own built-in X close (top-right) plus
- * outside-click/Escape already let the buyer back out without a dedicated
- * Cancel button.
+ * Задача №303 — the two hand-rolled buttons (Google button + divider +
+ * TelegramLoginButton) this dialog used to render inline are now
+ * SignInMethodsList (src/components/auth/SignInMethodsList.tsx) — the one
+ * place the actual list of methods lives, shared with AccountMenu's header
+ * popover and addresses.tsx. No "Отмена": Dialog's own built-in X close
+ * (top-right) plus outside-click/Escape already let the buyer back out
+ * without a dedicated Cancel button — SignInMethodsList's own action
+ * methods don't need an onActionSelected here either, since Google's
+ * onSelect is a real page redirect that leaves this dialog behind anyway.
  *
  * A Dialog, not a toast: this app has no existing precedent for a toast
  * with an action button (checked — every toast site is plain
@@ -50,24 +51,7 @@ export function RegisterPromptDialog({ open, onOpenChange }: RegisterPromptDialo
             {t("cart.pleaseRegister")}
           </DialogTitle>
         </DialogHeader>
-        <Button
-          size="lg"
-          className="h-12 w-full rounded-full"
-          onClick={() => {
-            onOpenChange(false);
-            void signInWithGoogle();
-          }}
-        >
-          {t("cart.registerButton")}
-        </Button>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <div className="h-px flex-1 bg-border" />
-          {t("auth.orDivider")}
-          <div className="h-px flex-1 bg-border" />
-        </div>
-        <div className="flex justify-center">
-          <TelegramLoginButton />
-        </div>
+        <SignInMethodsList />
       </DialogContent>
     </Dialog>
   );

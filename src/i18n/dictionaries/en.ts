@@ -167,7 +167,6 @@ export const en = {
     missingPhoneError: "Enter a phone number in the order notifications section",
     cashRequiresAuthError: "Cash on delivery is only available to signed-in users",
     pleaseRegister: "Please sign up",
-    registerButton: "Sign up",
     checkoutFailedError: "Failed to place the order",
     useMyLocationButton: "Use my location",
     locationCapturedToast: "Location captured",
@@ -369,8 +368,8 @@ export const en = {
   auth: {
     signInPrompt: "Sign in to continue",
     signInWithGoogle: "Sign in with Google",
-    orDivider: "or",
     signInWithTelegram: "Sign in with Telegram",
+    chooseMethod: "Sign-in method",
   },
   errors: {
     notFoundTitle: "Page not found",

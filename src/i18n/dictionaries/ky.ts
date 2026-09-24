@@ -166,7 +166,6 @@ export const ky = {
     missingPhoneError: "Буйрутма билдирүүлөрү бөлүмүндө телефон номерин көрсөтүңүз",
     cashRequiresAuthError: "Накталай төлөм каттоодон өткөн колдонуучулар үчүн гана жеткиликтүү",
     pleaseRegister: "Сураныч, катталыңыз",
-    registerButton: "Катталуу",
     checkoutFailedError: "Буйрутманы тариздөө мүмкүн болбоду",
     useMyLocationButton: "Менин жайгашкан жеримди аныктоо",
     locationCapturedToast: "Жайгашкан жер аныкталды",
@@ -371,8 +370,8 @@ export const ky = {
   auth: {
     signInPrompt: "Улантуу үчүн кириңиз",
     signInWithGoogle: "Google аркылуу кирүү",
-    orDivider: "же",
     signInWithTelegram: "Telegram аркылуу кирүү",
+    chooseMethod: "Кирүү ыкмасы",
   },
   errors: {
     notFoundTitle: "Бет табылган жок",

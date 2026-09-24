@@ -176,7 +176,6 @@ export const ru = {
     missingPhoneError: "Укажите номер телефона в разделе уведомлений о заказе",
     cashRequiresAuthError: "Оплата наличными доступна только авторизованным пользователям",
     pleaseRegister: "Пожалуйста, зарегистрируйтесь",
-    registerButton: "Зарегистрироваться",
     checkoutFailedError: "Не удалось оформить заказ",
     useMyLocationButton: "Определить моё местоположение",
     locationCapturedToast: "Местоположение определено",
@@ -395,8 +394,8 @@ export const ru = {
   auth: {
     signInPrompt: "Войдите, чтобы продолжить",
     signInWithGoogle: "Войти через Google",
-    orDivider: "или",
     signInWithTelegram: "Войти через Telegram",
+    chooseMethod: "Способ входа",
   },
   errors: {
     notFoundTitle: "Страница не найдена",

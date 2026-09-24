@@ -1,9 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/SiteHeader";
-import { Button } from "@/components/ui/button";
 import { AddressesPanel } from "@/components/AddressesPanel";
-import { signInWithGoogle } from "@/lib/auth";
-import { TelegramLoginButton } from "@/components/TelegramLoginButton";
+import { SignInMethodsList } from "@/components/auth/SignInMethodsList";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { Loader2, LogIn } from "lucide-react";
 import { useTranslation } from "@/i18n/LanguageProvider";
@@ -15,10 +13,6 @@ export const Route = createFileRoute("/profile/addresses")({
 function ProfileAddressesPage() {
   const { t } = useTranslation();
   const { isAuthenticated } = useSupabaseSession();
-
-  const handleSignIn = async () => {
-    await signInWithGoogle();
-  };
 
   if (isAuthenticated === null) {
     return (
@@ -39,12 +33,11 @@ function ProfileAddressesPage() {
           </div>
           <h1 className="font-serif text-3xl tracking-tight">{t("addresses.title")}</h1>
           <p className="mt-3 text-muted-foreground">{t("addresses.signInPrompt")}</p>
-          <div className="mt-6 flex flex-col items-center gap-3">
-            <Button size="lg" className="h-12 rounded-full" onClick={() => void handleSignIn()}>
-              {t("common.signIn")}
-            </Button>
-            {/* Задача №302 — Telegram Login Widget, customer-only sign-in method next to Google's. */}
-            <TelegramLoginButton />
+          {/* Задача №303 — shared list of sign-in methods (Google action +
+              Telegram's real widget), see SignInMethodsList's own doc
+              comment for why these two entries can't be uniform buttons. */}
+          <div className="mt-6">
+            <SignInMethodsList className="mx-auto flex max-w-xs flex-col items-stretch gap-3" />
           </div>
         </div>
       </PageShell>

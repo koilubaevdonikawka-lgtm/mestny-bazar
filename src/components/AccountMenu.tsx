@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import {
@@ -7,9 +8,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SignInMethodsList } from "@/components/auth/SignInMethodsList";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
-import { signInWithGoogle } from "@/lib/auth";
-import { TelegramLoginButton } from "@/components/TelegramLoginButton";
 import { supabase } from "@/integrations/supabase/client";
 import { WELCOME_SEEN_KEY } from "@/components/WelcomeGate";
 import { LogOut, MapPin, Package, User } from "lucide-react";
@@ -30,10 +31,7 @@ interface AccountMenuProps {
 export function AccountMenu({ hideSignInCta = false }: AccountMenuProps = {}) {
   const { t } = useTranslation();
   const { isAuthenticated } = useSupabaseSession();
-
-  const handleSignIn = async () => {
-    await signInWithGoogle();
-  };
+  const [signInOpen, setSignInOpen] = useState(false);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -54,18 +52,27 @@ export function AccountMenu({ hideSignInCta = false }: AccountMenuProps = {}) {
 
   if (!isAuthenticated) {
     if (hideSignInCta) return null;
+    // Задача №303 — one "Войти" button opens a popover listing every
+    // sign-in method (SignInMethodsList — the single place that list
+    // lives, shared with RegisterPromptDialog and addresses.tsx), instead
+    // of a Google button and Telegram's widget sitting side by side in the
+    // header. `modal={false}` (Radix Popover's own default, set explicitly
+    // here) is what keeps this safe with Telegram's real iframe inside:
+    // a modal popover's focus trap can fight an iframe for focus the
+    // instant the buyer clicks into it — confirmed working live with this
+    // setting, not merely assumed.
     return (
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          className="h-11 rounded-full px-4"
-          onClick={() => void handleSignIn()}
-        >
-          {t("common.signIn")}
-        </Button>
-        {/* Задача №302 — Telegram Login Widget, customer-only sign-in method next to Google's. */}
-        <TelegramLoginButton />
-      </div>
+      <Popover open={signInOpen} onOpenChange={setSignInOpen} modal={false}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className="h-11 rounded-full px-4">
+            {t("common.signIn")}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-64">
+          <p className="mb-3 text-sm font-medium text-foreground">{t("auth.chooseMethod")}</p>
+          <SignInMethodsList onActionSelected={() => setSignInOpen(false)} />
+        </PopoverContent>
+      </Popover>
     );
   }
 
