@@ -10,9 +10,8 @@ vi.mock("@server/auth/resolve-user", () => ({ requireAdminFromRequest }));
 vi.mock("@server/auth/assert-marketing-access", () => ({ assertMarketingAccess }));
 vi.mock("@server/di/container", () => ({ getServices }));
 
-const { executeCreateCoupon, executeListCoupons, executeUpdateCoupon } = await import(
-  "@server/functions/marketing.executor"
-);
+const { executeCreateCoupon, executeListCoupons, executeUpdateCoupon } =
+  await import("@server/functions/marketing.executor");
 
 describe("marketing.executor (coupons)", () => {
   afterEach(() => {

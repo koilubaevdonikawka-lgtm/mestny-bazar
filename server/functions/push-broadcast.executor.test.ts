@@ -10,9 +10,8 @@ vi.mock("@server/auth/resolve-user", () => ({ requireAdminFromRequest }));
 vi.mock("@server/auth/assert-marketing-access", () => ({ assertMarketingAccess }));
 vi.mock("@server/di/container", () => ({ getServices }));
 
-const { executeGetBroadcastAudience, executeSendPushBroadcast } = await import(
-  "@server/functions/push-broadcast.executor"
-);
+const { executeGetBroadcastAudience, executeSendPushBroadcast } =
+  await import("@server/functions/push-broadcast.executor");
 
 describe("push-broadcast.executor", () => {
   afterEach(() => {

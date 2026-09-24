@@ -10,9 +10,8 @@ vi.mock("@server/auth/resolve-user", () => ({ requireAdminFromRequest }));
 vi.mock("@server/auth/assert-marketing-access", () => ({ assertMarketingAccess }));
 vi.mock("@server/di/container", () => ({ getServices }));
 
-const { executeCreateBanner, executeListBanners, executeUpdateBanner } = await import(
-  "@server/functions/banner.executor"
-);
+const { executeCreateBanner, executeListBanners, executeUpdateBanner } =
+  await import("@server/functions/banner.executor");
 
 describe("banner.executor", () => {
   afterEach(() => {
