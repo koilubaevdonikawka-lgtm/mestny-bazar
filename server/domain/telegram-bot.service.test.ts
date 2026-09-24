@@ -310,6 +310,7 @@ function makeService(
 ) {
   const repo: ITelegramBotRepository = {
     findAdmin: vi.fn().mockResolvedValue({ telegramUserId: 7718528454, name: "Данияр" }),
+    listAdminIds: vi.fn().mockResolvedValue([7718528454]),
     getSessionCategoryId: vi.fn().mockResolvedValue(null),
     setSessionCategoryId: vi.fn().mockResolvedValue(undefined),
     markUpdateProcessed: vi.fn().mockResolvedValue(true),

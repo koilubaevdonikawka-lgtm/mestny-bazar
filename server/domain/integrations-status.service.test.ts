@@ -28,6 +28,20 @@ describe("IntegrationsStatusService.getStatus", () => {
     expect(telegram?.secretConfigured).toBe(false);
   });
 
+  it("marks Telegram as ACTIVE when the bot token is present", () => {
+    const service = new IntegrationsStatusService({
+      finikApiKeyConfigured: false,
+      telegramBotTokenConfigured: true,
+      whatsappApiTokenConfigured: false,
+    });
+
+    const telegram = service
+      .getStatus()
+      .integrations.find((i) => i.adapter === "TelegramNotificationAdapter");
+    expect(telegram?.status).toBe("ACTIVE");
+    expect(telegram?.secretConfigured).toBe(true);
+  });
+
   it("never exposes a secretConfigured flag for integrations with no secret (storage)", () => {
     const service = new IntegrationsStatusService({
       finikApiKeyConfigured: false,

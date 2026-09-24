@@ -36,10 +36,10 @@ export class IntegrationsStatusService {
       },
       {
         name: "Уведомления (Telegram)",
-        port: "—",
+        port: "INotificationProvider",
         adapter: "TelegramNotificationAdapter",
         status: this.secrets.telegramBotTokenConfigured
-          ? IntegrationStatus.STUB
+          ? IntegrationStatus.ACTIVE
           : IntegrationStatus.NOT_CONFIGURED,
         secretConfigured: this.secrets.telegramBotTokenConfigured,
       },

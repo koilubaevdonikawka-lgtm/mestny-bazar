@@ -3,6 +3,13 @@ export interface ITelegramBotRepository {
   /** Null if this Telegram user isn't in the allow-list. */
   findAdmin(telegramUserId: number): Promise<{ telegramUserId: number; name: string } | null>;
 
+  /**
+   * Every allow-listed admin's Telegram user id — the recipients of new-order
+   * notifications (TelegramNotificationAdapter). For a private chat the chat
+   * id equals the user id, so these are passed to sendMessage as-is.
+   */
+  listAdminIds(): Promise<number[]>;
+
   /** Null if this chat hasn't picked a category yet (or it was cleared). */
   getSessionCategoryId(telegramChatId: number): Promise<string | null>;
 

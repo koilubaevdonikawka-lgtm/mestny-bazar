@@ -97,7 +97,8 @@ import type { IBannerRepository } from "@server/ports/banner.repository";
 import type { ICommissionPolicy } from "@server/ports/commission-policy.port";
 import type { IDiscountPolicy } from "@server/ports/discount-policy.port";
 import { StubNotificationAdapter } from "@server/adapters/notifications/stub-notification.adapter";
-import { StubOrderEventNotifier } from "@server/adapters/notifications/stub-order-event.notifier";
+import { OrderEventNotifier } from "@server/adapters/notifications/order-event.notifier";
+import { TelegramNotificationAdapter } from "@server/adapters/notifications/telegram.adapter";
 import { CheckoutPaymentHandler } from "@server/adapters/payment/checkout-payment.handler";
 import { createPaymentProvider } from "@server/adapters/payment/payment-provider.factory";
 import { SupabasePaymentRepository } from "@server/adapters/supabase/payment.repository";
@@ -443,7 +444,18 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const payments = createPaymentProvider(env);
   const paymentRepository: IPaymentRepository = new SupabasePaymentRepository();
   const notifications = new StubNotificationAdapter();
-  const orderEvents = new StubOrderEventNotifier(notifications);
+  // Задача №264 — the product bot's repo/API, also reused below for admin
+  // new-order notifications. Always constructible even with no bot token
+  // configured (TelegramBotApiAdapter just fails at call time then, same as
+  // every other optional-credential adapter here).
+  const telegramBotRepository: ITelegramBotRepository = new SupabaseTelegramBotRepository();
+  const telegramBotApi = new TelegramBotApiAdapter({ botToken: env.TELEGRAM_BOT_TOKEN ?? "" });
+  // Admin new-order notifications go to Telegram (every telegram_bot_admins
+  // row) only when the bot token is configured, else the logging stub.
+  const adminNotifications: INotificationProvider = env.TELEGRAM_BOT_TOKEN
+    ? new TelegramNotificationAdapter(telegramBotRepository, telegramBotApi)
+    : notifications;
+  const orderEvents = new OrderEventNotifier(adminNotifications, notifications);
   // checkoutPayment/paymentService are constructed further below, once
   // orderService exists (PaymentService needs it to confirm payment on a
   // webhook-verified order).
@@ -760,11 +772,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
   // Задача №264 — Telegram bot for admin-driven draft product creation.
   // Reuses mediaUploadService/sellerProductService/adminCategories/aiProvider
   // as-is (same PRODUCT-context upload pipeline, same product lifecycle,
-  // same AI provider gate) — no parallel mechanism. Always constructible
-  // even with no bot token configured (TelegramBotApiAdapter just fails at
-  // call time then, same as every other optional-credential adapter here).
-  const telegramBotRepository: ITelegramBotRepository = new SupabaseTelegramBotRepository();
-  const telegramBotApi = new TelegramBotApiAdapter({ botToken: env.TELEGRAM_BOT_TOKEN ?? "" });
+  // same AI provider gate) — no parallel mechanism.
   const telegramBotService = new TelegramBotService(
     telegramBotRepository,
     telegramBotApi,

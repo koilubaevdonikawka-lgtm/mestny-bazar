@@ -76,13 +76,20 @@ export function formatPaymentStatus(status: PaymentStatus): string {
   return PAYMENT_STATUS_LABELS[status] ?? status;
 }
 
-export function formatOrderDate(iso: string): string {
+/**
+ * `timeZone` is optional: the browser's own zone is right for UI, but on the
+ * server (Cloudflare Workers run in UTC) a caller rendering for people in
+ * Kyrgyzstan passes "Asia/Bishkek" explicitly — e.g. the Telegram order
+ * notification.
+ */
+export function formatOrderDate(iso: string, timeZone?: string): string {
   return new Date(iso).toLocaleString("ru-RU", {
     day: "numeric",
     month: "long",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone,
   });
 }
 

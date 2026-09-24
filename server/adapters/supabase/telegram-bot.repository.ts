@@ -15,6 +15,15 @@ export class SupabaseTelegramBotRepository implements ITelegramBotRepository {
     return data ? { telegramUserId: data.telegram_user_id, name: data.name } : null;
   }
 
+  async listAdminIds(): Promise<number[]> {
+    const { data, error } = await supabaseAdmin
+      .from("telegram_bot_admins")
+      .select("telegram_user_id");
+
+    if (error) throw new Error(`Failed to list Telegram bot admins: ${error.message}`);
+    return (data ?? []).map((row) => row.telegram_user_id);
+  }
+
   async getSessionCategoryId(telegramChatId: number): Promise<string | null> {
     const { data, error } = await supabaseAdmin
       .from("telegram_bot_sessions")
