@@ -33,6 +33,12 @@ export interface OrderLifecycleContext {
    */
   paymentMethod?: PaymentMethod;
   paymentStatus?: PaymentStatus;
+  /**
+   * orders.user_id (DB) — null for a guest order. Lets CustomerCancelOrderRule
+   * accept a guest (no actor.id) cancelling a guest order by its UUID, while
+   * refusing to let anyone without a session cancel an account's order.
+   */
+  orderUserId?: string | null;
 }
 
 export interface OrderLifecycleResult {

@@ -1,6 +1,6 @@
 import type { OrderDTO } from "@shared/contracts/order";
 import type { RetryPaymentResponse } from "@shared/contracts/payment";
-import { requireUserIdFromRequest } from "@server/auth/resolve-user";
+import { requireUserIdFromRequest, resolveUserIdFromRequest } from "@server/auth/resolve-user";
 import { getServices } from "@server/di/container";
 import { OrderNotFoundError, UnauthorizedError } from "@server/domain/orders.errors";
 import { PaymentRetryNotAllowedError } from "@server/domain/payment.errors";
@@ -37,8 +37,13 @@ export async function executeGetOrderStatus(orderId: string): Promise<OrderDTO> 
   return order;
 }
 
+/**
+ * No session required: a guest cancels their own guest order by its UUID
+ * (CustomerCancelOrderRule decides — a signed-in caller's read stays scoped
+ * to their own orders, and a guest can never cancel an account's order).
+ */
 export async function executeCancelOrder(orderId: string): Promise<OrderDTO> {
-  const userId = await requireUserIdFromRequest();
+  const userId = await resolveUserIdFromRequest();
   return getServices().orderService.cancelOrder(orderId, userId);
 }
 

@@ -18,7 +18,9 @@ const CUSTOMER_CANCELLABLE_STATUSES: OrderStatus[] = [OrderStatus.CREATED, Order
 
 /**
  * Customer cancels their own order, within a short window after creation and
- * before an admin has accepted it.
+ * before an admin has accepted it. A signed-in customer cancels an order of
+ * their own account; a guest cancels a guest order (orders.user_id NULL) by
+ * knowing its UUID.
  *
  * Задача №133 — gated by `FEATURE_CUSTOMER_CANCELLATION` (Composition Root
  * only, server/di/container.ts — this class itself never reads env, per
@@ -45,7 +47,14 @@ export class CustomerCancelOrderRule implements OrderLifecycleRule {
       };
     }
 
-    if (!context.actor.id) {
+    // Guest (no session): the order's UUID is the access key — the same
+    // trade-off getOrderStatusFn/order-success already make for guest
+    // orders. Only ever for a guest order, though: an order that belongs to
+    // an account can be cancelled only by that account, signed in (the
+    // caller already scoped its read to actor.id), never by UUID alone.
+    // `!== null` (not a falsy check) so a caller that forgot to pass
+    // orderUserId is refused rather than let through.
+    if (!context.actor.id && context.orderUserId !== null) {
       return {
         allowed: false,
         denialCode: "AUTHENTICATION_REQUIRED",

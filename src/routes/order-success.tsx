@@ -15,11 +15,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { RetryPaymentButton } from "@/components/RetryPaymentButton";
 import { CancelUnpaidOnlineOrderButton } from "@/components/CancelUnpaidOnlineOrderButton";
+import { CancelOrderButton } from "@/components/CancelOrderButton";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { checkPaymentStatus } from "@/api/payment";
-import { cancelUnpaidOnlineOrder, getOrderStatus, retryPayment } from "@/api/orders";
+import { cancelOrder, cancelUnpaidOnlineOrder, getOrderStatus, retryPayment } from "@/api/orders";
+import { formatCancelError } from "@/lib/order-cancel-error";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { signInWithGoogle } from "@/lib/auth";
 import { useTranslation } from "@/i18n/LanguageProvider";
@@ -112,14 +114,16 @@ function OrderSuccessPage() {
 
   const { isAuthenticated } = useSupabaseSession();
 
-  // RetryPaymentButton needs the full OrderDTO (checkPaymentStatus above only
-  // returns a lightweight status subset) — getOrderStatus is the same no-auth,
-  // orderId-is-sufficient read CartDrawer already uses, reused here rather
-  // than adding a new endpoint. Only fetched once actually needed.
+  // RetryPaymentButton and CancelOrderButton need the full OrderDTO
+  // (checkPaymentStatus above only returns a lightweight status subset) —
+  // getOrderStatus is the same no-auth, orderId-is-sufficient read CartDrawer
+  // already uses, reused here rather than adding a new endpoint. Fetched for
+  // every order now, not only on the retry screen: the 2-minute
+  // self-cancellation button below needs it too, for guests as well.
   const { data: order } = useQuery({
     queryKey: ["orders", "status", orderId],
     queryFn: () => getOrderStatus(orderId as string),
-    enabled: !!orderId && showRetry,
+    enabled: !!orderId,
     retry: false,
   });
 
@@ -149,6 +153,18 @@ function OrderSuccessPage() {
       void navigate({ to: "/" });
     },
     onError: () => toast.error(t("orderSuccess.cancelError")),
+  });
+
+  // 2-minute self-cancellation (CustomerCancelOrderRule) — same action as
+  // the order detail page, but available right here to a guest too: the
+  // order's UUID is the access key for a guest order, same as getOrderStatus.
+  const windowCancelMutation = useMutation({
+    mutationFn: () => cancelOrder(orderId as string),
+    onSuccess: () => {
+      toast.success(t("orderSuccess.cancelledToast"));
+      void navigate({ to: "/" });
+    },
+    onError: (e) => toast.error(formatCancelError(e, t)),
   });
 
   // Задача №172 — best-effort: makes leaving this screen by any in-app
@@ -237,6 +253,15 @@ function OrderSuccessPage() {
               <Button variant="outline" onClick={() => void handleSignIn()}>
                 {t("common.signIn")}
               </Button>
+            </div>
+          )}
+          {!showRetry && order && (
+            <div className="mt-6 flex justify-center">
+              <CancelOrderButton
+                order={order}
+                isPending={windowCancelMutation.isPending}
+                onConfirm={() => windowCancelMutation.mutate()}
+              />
             </div>
           )}
           {/* Задача №172 — this is a real escape hatch out of the page, so it

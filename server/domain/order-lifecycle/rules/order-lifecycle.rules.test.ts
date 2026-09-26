@@ -255,9 +255,33 @@ describe("CustomerCancelOrderRule", () => {
     );
   });
 
-  it("requires an authenticated actor", () => {
+  it("lets a guest (no actor) cancel a guest order (orders.user_id NULL) by its UUID", () => {
+    const result = rule.evaluate(ctx({ ...applyCtx, actor: { id: null }, orderUserId: null }));
+    expect(result).toEqual({ allowed: true });
+  });
+
+  it("never lets a guest cancel an order that belongs to an account", () => {
+    const result = rule.evaluate(
+      ctx({ ...applyCtx, actor: { id: null }, orderUserId: "someone-else" }),
+    );
+    expect(result).toMatchObject({ allowed: false, denialCode: "AUTHENTICATION_REQUIRED" });
+  });
+
+  it("refuses a guest when the caller did not say whose order it is (orderUserId omitted)", () => {
     const result = rule.evaluate(ctx({ ...applyCtx, actor: { id: null } }));
     expect(result).toMatchObject({ allowed: false, denialCode: "AUTHENTICATION_REQUIRED" });
+  });
+
+  it("still enforces the 2-minute window for a guest", () => {
+    const result = rule.evaluate(
+      ctx({
+        ...applyCtx,
+        actor: { id: null },
+        orderUserId: null,
+        orderCreatedAt: new Date(FROZEN_NOW - 3 * 60_000).toISOString(),
+      }),
+    );
+    expect(result).toMatchObject({ allowed: false, denialCode: "CANCELLATION_WINDOW_EXPIRED" });
   });
 
   it("Задача №133 — denies with CANCELLATION_DISABLED when the feature flag is off, before any other check", () => {

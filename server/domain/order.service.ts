@@ -35,8 +35,9 @@ export class OrderService {
     return this.orders.listByUser(userId);
   }
 
-  async cancelOrder(orderId: string, userId: string): Promise<OrderDTO> {
-    const order = await this.orders.getById(orderId, userId);
+  /** userId null = guest: the read is unscoped and CustomerCancelOrderRule only lets it through for a guest order (orders.user_id NULL). */
+  async cancelOrder(orderId: string, userId: string | null): Promise<OrderDTO> {
+    const order = await this.orders.getById(orderId, userId ?? undefined);
     if (!order) throw new OrderNotFoundError();
 
     this.orderLifecycle.assertCanTransition({
@@ -46,6 +47,7 @@ export class OrderService {
       actor: { id: userId },
       reason: "customer_cancel",
       orderCreatedAt: order.createdAt,
+      orderUserId: order.userId,
     });
 
     return this.finalizeCancellation(orderId, order.status, "customer_cancel");

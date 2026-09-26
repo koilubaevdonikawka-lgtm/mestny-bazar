@@ -19,25 +19,11 @@ import { ArrowLeft, Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
-import type { TranslationKey } from "@/i18n/t";
+import { formatCancelError } from "@/lib/order-cancel-error";
 
 export const Route = createFileRoute("/orders/$id")({
   component: OrderDetailPage,
 });
-
-const CANCEL_ERROR_KEYS: Record<string, TranslationKey> = {
-  CANCELLATION_WINDOW_EXPIRED: "orders.cancelWindowExpired",
-  ORDER_ALREADY_IN_PROGRESS: "orders.cancelAlreadyInProgress",
-};
-
-function formatCancelError(error: unknown, t: (key: TranslationKey) => string): string {
-  if (error instanceof Error) {
-    for (const [code, key] of Object.entries(CANCEL_ERROR_KEYS)) {
-      if (error.message.includes(code)) return t(key);
-    }
-  }
-  return t("orders.cancelGenericError");
-}
 
 function OrderDetailPage() {
   const { id } = Route.useParams();

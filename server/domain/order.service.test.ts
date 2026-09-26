@@ -307,6 +307,31 @@ describe("OrderService", () => {
 
       await expect(service.cancelOrder("order-1", userId)).resolves.toEqual(cancelled);
     });
+    it("scopes the read to the signed-in user and passes the order owner to the rule", async () => {
+      const { service, repo, lifecycle } = buildService({
+        repo: fakeRepo({ getById: vi.fn(async () => makeOrder({ userId })) }),
+      });
+
+      await service.cancelOrder("order-1", userId);
+
+      expect(repo.getById).toHaveBeenCalledWith("order-1", userId);
+      expect(lifecycle.assertCanTransition).toHaveBeenCalledWith(
+        expect.objectContaining({ actor: { id: userId }, orderUserId: userId }),
+      );
+    });
+
+    it("guest (null userId): unscoped read, the rule decides with orderUserId", async () => {
+      const { service, repo, lifecycle } = buildService({
+        repo: fakeRepo({ getById: vi.fn(async () => makeOrder({ userId: null })) }),
+      });
+
+      await service.cancelOrder("order-1", null);
+
+      expect(repo.getById).toHaveBeenCalledWith("order-1", undefined);
+      expect(lifecycle.assertCanTransition).toHaveBeenCalledWith(
+        expect.objectContaining({ actor: { id: null }, orderUserId: null }),
+      );
+    });
   });
 
   describe("cancelUnpaidOnlineOrder (Задача №172)", () => {
