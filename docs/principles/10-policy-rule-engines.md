@@ -31,7 +31,7 @@ server/
 
 | Policy | Примеры правил |
 |--------|----------------|
-| Payment | `OnlineAllowedRule` (`CashRequiresAuthenticationRule` удалено в Задаче №314 — гости могут платить наличными) |
+| Payment | `CashAllowedRule`, `OnlineAllowedRule` (`CashRequiresAuthenticationRule` заменено на `CashAllowedRule` в Задаче №314 — гости могут платить наличными) |
 | Order Lifecycle | цепочка в container (пока `[]`) |
 
 ## Ссылки

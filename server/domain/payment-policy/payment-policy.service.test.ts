@@ -3,6 +3,9 @@ import { PaymentPolicyService } from "@server/domain/payment-policy/payment-poli
 import { PaymentPolicyDeniedError } from "@server/domain/payment-policy.errors";
 import type { PaymentPolicyContext, PaymentPolicyResult } from "@server/ports/payment-policy.port";
 import type { PaymentPolicyRule } from "@server/domain/payment-policy/payment-policy.rule";
+import { BlockedUserRule } from "@server/domain/payment-policy/rules/blocked-user.rule";
+import { CashAllowedRule } from "@server/domain/payment-policy/rules/cash-allowed.rule";
+import { OnlineAllowedRule } from "@server/domain/payment-policy/rules/online-allowed.rule";
 
 function fakeRule(partial: Partial<PaymentPolicyRule> & { order: number }): PaymentPolicyRule {
   return {
@@ -121,4 +124,28 @@ describe("PaymentPolicyService (rule engine)", () => {
 
     expect(() => service.assertCanUsePaymentMethod(baseContext())).not.toThrow();
   });
+});
+
+/**
+ * Same rules, same composition as server/di/container.ts. Guards the
+ * engine's "no rule applies -> UNKNOWN_PAYMENT_METHOD" fallback: every real
+ * payment method must be covered, for guests and signed-in users alike.
+ */
+describe("PaymentPolicyService — production rule chain", () => {
+  const service = new PaymentPolicyService([
+    new BlockedUserRule(),
+    new CashAllowedRule(),
+    new OnlineAllowedRule(),
+  ]);
+
+  for (const paymentMethod of ["CASH", "ONLINE"] as const) {
+    it(`allows ${paymentMethod} for a guest and for a signed-in user`, () => {
+      expect(service.canUsePaymentMethod(baseContext({ paymentMethod })).allowed).toBe(true);
+      expect(
+        service.canUsePaymentMethod(
+          baseContext({ paymentMethod, user: { id: "u1", roles: ["customer"] } }),
+        ).allowed,
+      ).toBe(true);
+    });
+  }
 });

@@ -22,6 +22,7 @@
 
 ```typescript
 const paymentPolicy = new PaymentPolicyService([
+  new CashAllowedRule(),
   new OnlineAllowedRule(),
 ]);
 ```
