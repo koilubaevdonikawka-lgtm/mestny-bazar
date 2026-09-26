@@ -158,6 +158,7 @@ export const zh = {
     outOfStockWarning: "该商品已缺货",
     notAvailableWarning: "该商品已下架",
     defaultCustomerName: "顾客",
+    guestSignInHint: "已有账户？登录后地址和电话将自动填写，也可以不登录直接下单。",
     missingAddressError: "请在「配送、付款与状态」中填写配送地址",
     missingPaymentMethodError: "请在「配送、付款与状态」中选择付款方式",
     missingPhoneError: "请在订单通知部分填写手机号码",

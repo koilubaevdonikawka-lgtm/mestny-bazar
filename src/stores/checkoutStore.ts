@@ -15,6 +15,12 @@ import type { PaymentMethod } from "@shared/contracts/order";
  * карте" in the cart) — never written to the saved profile Address (that's
  * what the same button inside the profile's own edit form does instead),
  * and cleared once an order actually gets created from it.
+ *
+ * Задача №314 — guest checkout is back: guestPhone/guestAddress/guestZoneId
+ * are what a signed-out buyer types into the cart (they have no Profile for
+ * CheckoutService to resolve these from). Persisted, and deliberately kept
+ * across reset(), so a returning guest doesn't retype them for every order;
+ * unused (ignored) once signed in, where the profile is the source.
  */
 interface CheckoutStore {
   paymentMethod: PaymentMethod | null;
@@ -38,6 +44,13 @@ interface CheckoutStore {
   overrideZoneId: string | null;
   /** Задача №274 — free-text order comment, entered in the cart before checkout. Persisted (a partially-typed comment should survive a reload) and cleared by reset() once an order is actually placed, same lifecycle as paymentMethod/override*. */
   notes: string;
+  guestPhone: string;
+  guestAddress: string;
+  /** Optional — only drives the delivery fee; no zone means no delivery fee is quoted/charged, same as before Задача №182. */
+  guestZoneId: string | null;
+  setGuestContact: (
+    contact: Partial<{ phone: string; address: string; zoneId: string | null }>,
+  ) => void;
   setPaymentMethod: (method: PaymentMethod) => void;
   /** Returns the current attempt's key, minting one on first call so every retry of the same attempt (network failure, re-click) reuses it instead of getting a fresh one. */
   getOrCreateIdempotencyKey: () => string;
@@ -65,10 +78,23 @@ const initialState = {
   notes: "",
 };
 
+const initialGuestContact = {
+  guestPhone: "",
+  guestAddress: "",
+  guestZoneId: null as string | null,
+};
+
 export const useCheckoutStore = create<CheckoutStore>()(
   persist(
     (set, get) => ({
       ...initialState,
+      ...initialGuestContact,
+      setGuestContact: ({ phone, address, zoneId }) =>
+        set({
+          ...(phone !== undefined ? { guestPhone: phone } : {}),
+          ...(address !== undefined ? { guestAddress: address } : {}),
+          ...(zoneId !== undefined ? { guestZoneId: zoneId } : {}),
+        }),
       setPaymentMethod: (paymentMethod) => set({ paymentMethod }),
       getOrCreateIdempotencyKey: () => {
         const existing = get().idempotencyKey;
@@ -105,6 +131,9 @@ export const useCheckoutStore = create<CheckoutStore>()(
         overrideLongitude: state.overrideLongitude,
         overrideZoneId: state.overrideZoneId,
         notes: state.notes,
+        guestPhone: state.guestPhone,
+        guestAddress: state.guestAddress,
+        guestZoneId: state.guestZoneId,
       }),
     },
   ),

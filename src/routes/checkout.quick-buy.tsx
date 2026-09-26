@@ -11,7 +11,7 @@ import { listDeliveryZones } from "@/api/delivery-zone";
 import { useCheckoutStore } from "@/stores/checkoutStore";
 import { useCreateOrder } from "@/hooks/useCreateOrder";
 import { useCheckoutReadiness } from "@/hooks/useCheckoutReadiness";
-import { signInWithGoogle } from "@/lib/auth";
+import { GuestCheckoutFields } from "@/components/checkout/GuestCheckoutFields";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
 import { BRAND } from "@/config/brand";
@@ -95,15 +95,13 @@ function QuickBuyPage() {
 
   const handlePay = async (method: PaymentMethod) => {
     if (!product) return;
-    // Задача №182 — guest checkout removed entirely, and this page no
-    // longer collects address/phone/name itself; both gates redirect to
-    // where the missing piece actually gets filled in.
-    if (readiness.isAuthenticated !== true) {
-      await signInWithGoogle();
-      return;
-    }
-    if (readiness.isReady === null) return;
-    if (!readiness.isReady) {
+    // Задача №314 — same as CartPanel: a guest checks out with the phone/
+    // address from GuestCheckoutFields; a signed-in buyer from their
+    // profile, sent there first if it's incomplete (Задача №182).
+    if (readiness.isAuthenticated === null) return;
+    const isGuest = readiness.isAuthenticated === false;
+    if (!isGuest && readiness.isReady === null) return;
+    if (!isGuest && !readiness.isReady) {
       toast.error(t("profile.completeProfileToOrderDescription"));
       await navigate({ to: "/profile" });
       return;
@@ -113,18 +111,23 @@ function QuickBuyPage() {
     // это значение, а не устаревшее из предыдущего рендера.
     useCheckoutStore.getState().setPaymentMethod(method);
     setSubmittingMethod(method);
-    await submitOrder([
-      {
-        productSlug: product.handle,
-        quantity,
-        snapshot: {
-          name: product.title,
-          price: parseFloat(product.priceRange.minVariantPrice.amount),
-          currency: product.priceRange.minVariantPrice.currencyCode,
-          imageUrl: product.images.edges[0]?.node.url ?? null,
+    const { guestPhone, guestAddress, guestZoneId } = useCheckoutStore.getState();
+    await submitOrder(
+      [
+        {
+          productSlug: product.handle,
+          quantity,
+          snapshot: {
+            name: product.title,
+            price: parseFloat(product.priceRange.minVariantPrice.amount),
+            currency: product.priceRange.minVariantPrice.currencyCode,
+            imageUrl: product.images.edges[0]?.node.url ?? null,
+          },
         },
-      },
-    ]);
+      ],
+      undefined,
+      isGuest ? { guest: { phone: guestPhone, address: guestAddress, zoneId: guestZoneId } } : {},
+    );
     setSubmittingMethod(null);
   };
 
@@ -199,24 +202,11 @@ function QuickBuyPage() {
           </div>
         </div>
 
-        {/* Задача №182 — deliver-to summary, read-only: address/zone/phone/
-            name now live on the profile and are resolved server-side from
-            there at checkout time. See CartPanel.tsx for the identical
-            pattern. */}
+        {/* Signed in: read-only deliver-to summary from the profile (Задача
+            №182). Guest: GuestCheckoutFields (Задача №314). Same as CartPanel. */}
         <section className="mt-6 space-y-2">
-          {readiness.isAuthenticated !== true ? (
-            <div className="rounded-xl border border-border/60 bg-card p-4 text-sm space-y-2">
-              <p className="text-muted-foreground">{t("profile.signInToOrderDescription")}</p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="rounded-xl"
-                onClick={() => void signInWithGoogle()}
-              >
-                {t("common.signIn")}
-              </Button>
-            </div>
+          {readiness.isAuthenticated === null ? null : readiness.isAuthenticated === false ? (
+            <GuestCheckoutFields />
           ) : readiness.isReady === null ? (
             <div className="flex justify-center py-3">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />

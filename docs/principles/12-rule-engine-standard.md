@@ -52,7 +52,6 @@ interface IPolicy<TContext, TResult> {
 // payment-policy-order.ts
 export const PaymentPolicyOrder = {
   GLOBAL_GUARD: 10,
-  CASH_AUTH: 80,
   ONLINE: 90,
 } as const;
 ```

@@ -13,13 +13,24 @@ import type { CreateOrderItemRequest, CreateOrderResponse } from "@shared/contra
  * payment-redirect-or-success-page outcome either way. Only the `items`
  * list differs (the whole cart vs. a single product).
  *
- * Задача №182 — address/zone/phone/name are no longer collected here at
- * all: authentication and profile-completeness are gated by the caller
- * (useCheckoutReadiness, checked before this is ever invoked), and
- * CheckoutService resolves all four from the caller's saved Profile/default
- * Address server-side (CD-01 — never trust a client-echoed value for
- * something the account already has on file).
+ * Signed in: address/zone/phone/name are not sent — CheckoutService
+ * resolves all four from the saved Profile/default Address server-side
+ * (Задача №182, CD-01), after the caller checked useCheckoutReadiness.
+ *
+ * Задача №314 — guest (`options.guest`): no Profile to resolve from, so the
+ * phone and address the buyer typed into the cart are sent explicitly,
+ * both required, plus the optional zone. The name isn't asked for — it
+ * falls back to cart.defaultCustomerName, exactly as guest checkout did
+ * before №182 (the server needs some name; the phone is what staff use).
  */
+export interface GuestCheckoutContact {
+  phone: string;
+  address: string;
+  zoneId: string | null;
+}
+
+const MIN_GUEST_ADDRESS_LENGTH = 5;
+const MIN_PHONE_DIGITS = 9;
 export function useCreateOrder() {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -35,17 +46,7 @@ export function useCreateOrder() {
   const submitOrder = async (
     items: CreateOrderItemRequest[],
     onCreated?: (response: CreateOrderResponse) => void | Promise<void>,
-    /**
-     * Задача №300 — called instead of the old cart.cashRequiresAuthError
-     * toast when the server rejects a CASH order for lacking a session
-     * (RegisterPromptDialog, the same short message CartPanel's own
-     * client-side auth gate already shows before ever reaching this point —
-     * this server-side rejection should now be effectively unreachable in
-     * practice, kept as defense in depth). Optional and falls back to the
-     * old toast when omitted, so checkout.quick-buy.tsx (out of this
-     * task's scope) keeps its exact current behavior unchanged.
-     */
-    onAuthRequired?: () => void,
+    options: { guest?: GuestCheckoutContact } = {},
   ): Promise<boolean> => {
     // Reads via useCheckoutStore.getState() rather than the reactive hook,
     // so a caller that does useCheckoutStore.getState().setPaymentMethod(...)
@@ -65,6 +66,17 @@ export function useCreateOrder() {
       toast.error(t("cart.missingPaymentMethodError"));
       return false;
     }
+    const guest = options.guest;
+    if (guest) {
+      if (guest.address.trim().length < MIN_GUEST_ADDRESS_LENGTH) {
+        toast.error(t("home.enterFullAddressError"));
+        return false;
+      }
+      if (guest.phone.replace(/\D/g, "").length < MIN_PHONE_DIGITS) {
+        toast.error(t("home.invalidPhoneError"));
+        return false;
+      }
+    }
 
     setIsSubmitting(true);
     try {
@@ -77,12 +89,20 @@ export function useCreateOrder() {
         // CheckoutService) — omitted entirely when blank, same convention
         // as every other optional field here.
         ...(notes.trim() ? { notes: notes.trim() } : {}),
+        ...(guest
+          ? {
+              addressSnapshot: guest.address.trim(),
+              customerPhone: guest.phone.trim(),
+              customerName: t("cart.defaultCustomerName"),
+              ...(guest.zoneId ? { zoneId: guest.zoneId } : {}),
+            }
+          : {}),
         // Задача №195 — "Отметить на карте" in the cart: a one-off address
         // for THIS order only, explicitly overriding the profile's saved
         // default address CheckoutService would otherwise resolve (never
         // written back to that saved Address). Omitted entirely when unset,
         // same as every checkout before this task.
-        ...(overrideAddress
+        ...(!guest && overrideAddress
           ? {
               addressSnapshot: overrideAddress,
               ...(overrideLatitude != null && overrideLongitude != null
@@ -116,19 +136,6 @@ export function useCreateOrder() {
       });
       return true;
     } catch (error) {
-      if (
-        error instanceof Error &&
-        (error.name === "CashPaymentRequiresAuthentication" ||
-          error.message.includes("Cash payment requires authentication") ||
-          error.message.includes("Оплата наличными"))
-      ) {
-        if (onAuthRequired) {
-          onAuthRequired();
-        } else {
-          toast.error(t("cart.cashRequiresAuthError"));
-        }
-        return false;
-      }
       const message = error instanceof Error ? error.message : t("cart.checkoutFailedError");
       toast.error(message);
       return false;

@@ -12,16 +12,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { SignInMethodsList } from "@/components/auth/SignInMethodsList";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { supabase } from "@/integrations/supabase/client";
-import { WELCOME_SEEN_KEY } from "@/components/WelcomeGate";
 import { LogOut, MapPin, Package, User } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "@/i18n/LanguageProvider";
 
 interface AccountMenuProps {
   /**
-   * Скрывает кнопку "Войти" в header для неавторизованных гостей — вход
-   * теперь предлагается один раз через WelcomeGate при первом визите, а не
-   * постоянной кнопкой в шапке (Часть 2 задачи о пользовательской панели).
+   * Скрывает кнопку "Войти" в header для неавторизованных гостей (Часть 2
+   * задачи о пользовательской панели). Экрана приветствия больше нет
+   * (Задача №314) — вход по желанию, через эту кнопку.
    * По умолчанию false — админ/сервисные страницы, использующие тот же
    * SiteHeader, сохраняют прежнее поведение без изменений.
    */
@@ -35,10 +34,6 @@ export function AccountMenu({ hideSignInCta = false }: AccountMenuProps = {}) {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    // Shared-device case: the next person on this browser should see
-    // WelcomeGate again, not silently inherit "already seen" from whoever
-    // signed out.
-    window.localStorage.removeItem(WELCOME_SEEN_KEY);
     toast.success(t("account.signedOutToast"));
   };
 

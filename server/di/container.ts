@@ -188,7 +188,6 @@ import type { IOrderLifecyclePolicy } from "@server/ports/order-lifecycle.port";
 import { PaymentPolicyService } from "@server/domain/payment-policy/payment-policy.service";
 import { OrderLifecycleService } from "@server/domain/order-lifecycle/order-lifecycle.service";
 import { BlockedUserRule } from "@server/domain/payment-policy/rules/blocked-user.rule";
-import { CashRequiresAuthenticationRule } from "@server/domain/payment-policy/rules/cash-requires-auth.rule";
 import { OnlineAllowedRule } from "@server/domain/payment-policy/rules/online-allowed.rule";
 import { BootstrapCreatedRule } from "@server/domain/order-lifecycle/rules/bootstrap-created.rule";
 import { PaymentConfirmedRule } from "@server/domain/order-lifecycle/rules/payment-confirmed.rule";
@@ -463,11 +462,10 @@ export function createServices(env: ServerEnv): ServiceContainer {
   //   10    — GLOBAL_GUARD (reserved)
   //   20    — BlockedUserRule (users.md)
   //   30–70 — future global guards (Corporate, city, …)
-  //   80    — CashRequiresAuthenticationRule
+  //   80    — (free — CashRequiresAuthenticationRule removed, Задача №314: guests may pay CASH)
   //   90    — OnlineAllowedRule
   const paymentPolicy: IPaymentPolicy = new PaymentPolicyService([
     new BlockedUserRule(),
-    new CashRequiresAuthenticationRule(),
     new OnlineAllowedRule(),
   ]);
 

@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { PaymentPolicyService } from "@server/domain/payment-policy/payment-policy.service";
-import {
-  CashPaymentRequiresAuthentication,
-  PaymentPolicyDeniedError,
-} from "@server/domain/payment-policy.errors";
+import { PaymentPolicyDeniedError } from "@server/domain/payment-policy.errors";
 import type { PaymentPolicyContext, PaymentPolicyResult } from "@server/ports/payment-policy.port";
 import type { PaymentPolicyRule } from "@server/domain/payment-policy/payment-policy.rule";
 
@@ -102,19 +99,6 @@ describe("PaymentPolicyService (rule engine)", () => {
     const service = new PaymentPolicyService([]);
     expect(service.getInitialPaymentStatus("ONLINE")).toBe("awaiting");
     expect(service.getInitialPaymentStatus("CASH")).toBe("unpaid");
-  });
-
-  it("assertCanUsePaymentMethod throws CashPaymentRequiresAuthentication for that specific denial code", () => {
-    const service = new PaymentPolicyService([
-      fakeRule({
-        order: 10,
-        evaluate: () => ({ allowed: false, denialCode: "CASH_REQUIRES_AUTHENTICATION" }),
-      }),
-    ]);
-
-    expect(() => service.assertCanUsePaymentMethod(baseContext())).toThrow(
-      CashPaymentRequiresAuthentication,
-    );
   });
 
   it("assertCanUsePaymentMethod throws the generic PaymentPolicyDeniedError otherwise", () => {

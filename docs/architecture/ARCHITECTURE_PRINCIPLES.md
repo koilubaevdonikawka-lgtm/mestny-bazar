@@ -591,6 +591,8 @@ Every entry in this section is marked **PARTIALLY RECOVERED**: each is reconstru
 
 **Affected modules:** `server/domain/checkout.service.ts`, `server/domain/cart.service.ts`, `server/auth/resolve-user.ts`, `supabase/migrations/20260716100000_guest_checkout_nullable_user.sql`.
 
+**Status (Задача №314, 2026-09-26):** guest checkout restored after Задача №182 had removed it — `checkout.executor.ts` uses `resolveUserIdFromRequest()` again (no session required, ONLINE and CASH), `CashRequiresAuthenticationRule` is deleted (owner accepted the fake-cash-order risk), guests type phone + address (both required) and an optional delivery zone in the cart (`GuestCheckoutFields`). The mandatory `WelcomeGate` is gone; sign-in is optional via the header. A guest may also self-cancel their own guest order within 2 minutes by its UUID (`CustomerCancelOrderRule`).
+
 **Source:** reconstructed from migration comment + `resolveUserIdFromRequest` doc comment; no dedicated document found.
 
 ---

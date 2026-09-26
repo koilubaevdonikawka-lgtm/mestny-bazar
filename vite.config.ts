@@ -7,12 +7,30 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { nitro } from "nitro/vite";
 import { RATE_LIMIT_BINDINGS } from "./shared/security/rate-limit-bindings";
 
+/**
+ * Non-secret feature flags, committed here rather than in the machine-local
+ * (gitignored) .env, so every build/deploy gets the same values. Each one
+ * feeds BOTH the Worker's runtime env (wrangler `vars`, read server-side via
+ * getServerEnv()) and its client mirror `import.meta.env.VITE_<name>`, so
+ * the server gate and the UI can't drift apart — same single-source idea as
+ * RATE_LIMIT_BINDINGS below. Secrets never go here (wrangler secret put).
+ *
+ * FEATURE_CUSTOMER_CANCELLATION — 2-minute self-service order cancellation
+ * (Задача №133's flag), enabled by the owner in Задача №314.
+ */
+const PUBLIC_FEATURE_FLAGS = {
+  FEATURE_CUSTOMER_CANCELLATION: "true",
+} as const;
+
 export default defineConfig(({ mode, command }) => {
   // VITE_* vars need to land in import.meta.env for both dev and build (Vite
   // only does this automatically for client code, not the SSR/server bundle).
   const env = loadEnv(mode, process.cwd(), "VITE_");
   const envDefine = Object.fromEntries(
-    Object.entries(env).map(([key, value]) => [`import.meta.env.${key}`, JSON.stringify(value)]),
+    [
+      ...Object.entries(env),
+      ...Object.entries(PUBLIC_FEATURE_FLAGS).map(([key, value]) => [`VITE_${key}`, value]),
+    ].map(([key, value]) => [`import.meta.env.${key}`, JSON.stringify(value)]),
   );
 
   // Fail the build loudly, not the deployed client silently. Without this,
@@ -135,6 +153,7 @@ export default defineConfig(({ mode, command }) => {
                 // same constant the runtime adapter reads, so build and
                 // runtime can't drift; no Supabase involvement.
                 wrangler: {
+                  vars: { ...PUBLIC_FEATURE_FLAGS },
                   ratelimits: Object.values(RATE_LIMIT_BINDINGS).map((binding) => ({
                     name: binding.name,
                     namespace_id: binding.namespaceId,

@@ -171,6 +171,8 @@ export const ru = {
     outOfStockWarning: "Товара больше нет в наличии",
     notAvailableWarning: "Товар больше не доступен",
     defaultCustomerName: "Покупатель",
+    guestSignInHint:
+      "Есть аккаунт? Войдите — адрес и телефон подставятся сами. Или оформите без входа.",
     missingAddressError: "Укажите адрес доставки в разделе «Доставка оплата и статус»",
     missingPaymentMethodError: "Выберите способ оплаты в разделе «Доставка оплата и статус»",
     missingPhoneError: "Укажите номер телефона в разделе уведомлений о заказе",

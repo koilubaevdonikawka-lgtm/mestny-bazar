@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RateLimitedError } from "@server/domain/rate-limit.errors";
 
-const { requireUserIdFromRequest, getServices, enforceRateLimit } = vi.hoisted(() => ({
-  requireUserIdFromRequest: vi.fn(),
+const { resolveUserIdFromRequest, getServices, enforceRateLimit } = vi.hoisted(() => ({
+  resolveUserIdFromRequest: vi.fn(),
   getServices: vi.fn(),
   enforceRateLimit: vi.fn(async (..._args: unknown[]) => {}),
 }));
 
-vi.mock("@server/auth/resolve-user", () => ({ requireUserIdFromRequest }));
+vi.mock("@server/auth/resolve-user", () => ({ resolveUserIdFromRequest }));
 vi.mock("@server/di/container", () => ({ getServices }));
 vi.mock("@server/functions/rate-limit.guard", () => ({ enforceRateLimit }));
 
@@ -26,7 +26,7 @@ describe("checkout.executor rate limit (Задача №288)", () => {
       const [policy, options] = args as [string, { countIp?: boolean } | undefined];
       order.push(`${policy}${options?.countIp === false ? ":user" : ":ip"}`);
     });
-    requireUserIdFromRequest.mockImplementation(async () => {
+    resolveUserIdFromRequest.mockImplementation(async () => {
       order.push("auth");
       return "user-1";
     });
@@ -51,17 +51,29 @@ describe("checkout.executor rate limit (Задача №288)", () => {
     getServices.mockReturnValue({ checkout: { checkout } });
 
     await expect(executeCreateOrder(request)).rejects.toBeInstanceOf(RateLimitedError);
-    expect(requireUserIdFromRequest).not.toHaveBeenCalled();
+    expect(resolveUserIdFromRequest).not.toHaveBeenCalled();
     expect(checkout).not.toHaveBeenCalled();
   });
 
   it("a rejected per-account counter (many IPs, one account) never reaches checkout", async () => {
     enforceRateLimit.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new RateLimitedError());
-    requireUserIdFromRequest.mockResolvedValue("user-1");
+    resolveUserIdFromRequest.mockResolvedValue("user-1");
     const checkout = vi.fn();
     getServices.mockReturnValue({ checkout: { checkout } });
 
     await expect(executeCreateOrder(request)).rejects.toBeInstanceOf(RateLimitedError);
     expect(checkout).not.toHaveBeenCalled();
+  });
+
+  it("guest (no session): only the IP counter, then checks out with a null userId", async () => {
+    resolveUserIdFromRequest.mockResolvedValue(null);
+    const checkout = vi.fn(async () => ({ order: {} }));
+    getServices.mockReturnValue({ checkout: { checkout } });
+
+    await executeCreateOrder(request);
+
+    expect(enforceRateLimit).toHaveBeenCalledTimes(1);
+    expect(enforceRateLimit).toHaveBeenCalledWith("CHECKOUT");
+    expect(checkout).toHaveBeenCalledWith(null, request);
   });
 });

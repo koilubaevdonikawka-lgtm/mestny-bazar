@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { AddressesPanel } from "@/components/AddressesPanel";
 import { signInWithGoogle } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { WELCOME_SEEN_KEY } from "@/components/WelcomeGate";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { getMyProfile, updateMyProfile } from "@/api/profile";
 import { createAddress, deleteAddress, listAddresses, updateAddress } from "@/api/addresses";
@@ -53,7 +52,6 @@ function ProfilePage() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    window.localStorage.removeItem(WELCOME_SEEN_KEY);
     toast.success(t("account.signedOutToast"));
   };
 

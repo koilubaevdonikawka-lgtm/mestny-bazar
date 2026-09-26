@@ -5,10 +5,7 @@ import type {
   PaymentPolicyResult,
 } from "@server/ports/payment-policy.port";
 import type { PaymentPolicyRule } from "@server/domain/payment-policy/payment-policy.rule";
-import {
-  CashPaymentRequiresAuthentication,
-  PaymentPolicyDeniedError,
-} from "@server/domain/payment-policy.errors";
+import { PaymentPolicyDeniedError } from "@server/domain/payment-policy.errors";
 
 const INITIAL_PAYMENT_STATUS: Record<PaymentMethod, PaymentStatus> = {
   ONLINE: "awaiting",
@@ -51,10 +48,6 @@ export class PaymentPolicyService implements IPaymentPolicy {
   assertCanUsePaymentMethod(context: PaymentPolicyContext): void {
     const result = this.canUsePaymentMethod(context);
     if (result.allowed) return;
-
-    if (result.denialCode === "CASH_REQUIRES_AUTHENTICATION") {
-      throw new CashPaymentRequiresAuthentication(result.message);
-    }
 
     throw new PaymentPolicyDeniedError(
       result.denialCode ?? "PAYMENT_POLICY_DENIED",

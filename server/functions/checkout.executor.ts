@@ -1,5 +1,5 @@
 import type { CreateOrderRequest, CreateOrderResponse } from "@shared/contracts/order";
-import { requireUserIdFromRequest } from "@server/auth/resolve-user";
+import { resolveUserIdFromRequest } from "@server/auth/resolve-user";
 import { getServices } from "@server/di/container";
 import { RateLimitPolicy } from "@server/domain/rate-limit.service";
 import { enforceRateLimit } from "@server/functions/rate-limit.guard";
@@ -9,18 +9,22 @@ import {
   InsufficientVariantStockError,
   ProductNotSynchronized,
 } from "@server/domain/checkout.errors";
-import { CashPaymentRequiresAuthentication } from "@server/domain/payment-policy.errors";
 
 export async function executeCreateOrder(
   request: CreateOrderRequest,
 ): Promise<CreateOrderResponse> {
-  // Задача №182 — guest checkout removed entirely; order creation (including
-  // ONLINE payment, previously guest-accessible) now requires an account.
+  // Guest checkout is back (Задача №314, reverting №182's sign-in
+  // requirement): no session needed for either ONLINE or CASH. A guest
+  // supplies phone/address in the request (CheckoutService validates them);
+  // a signed-in customer's are still resolved from their profile.
   // Задача №288 — IP counter first, before any Supabase auth call, so a
-  // flood is rejected at the edge; per-account counter once the caller is known.
+  // flood is rejected at the edge; per-account counter once the caller is
+  // known — a guest has no account, so only the IP counter applies to them.
   await enforceRateLimit(RateLimitPolicy.CHECKOUT);
-  const userId = await requireUserIdFromRequest();
-  await enforceRateLimit(RateLimitPolicy.CHECKOUT, { userId, countIp: false });
+  const userId = await resolveUserIdFromRequest();
+  if (userId) {
+    await enforceRateLimit(RateLimitPolicy.CHECKOUT, { userId, countIp: false });
+  }
   try {
     return await getServices().checkout.checkout(userId, request);
   } catch (error) {
@@ -30,9 +34,6 @@ export async function executeCreateOrder(
           .map(([k, v]) => `${k}: ${v.join(", ")}`)
           .join("; ")}`,
       );
-    }
-    if (error instanceof CashPaymentRequiresAuthentication) {
-      throw error;
     }
     if (error instanceof ProductNotSynchronized) {
       throw error;

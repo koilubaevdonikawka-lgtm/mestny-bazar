@@ -25,7 +25,7 @@ import { listDeliveryZones } from "@/api/delivery-zone";
 import { cancelUnpaidOnlineOrder, getOrderStatus, retryPayment } from "@/api/orders";
 import { CartQuantityControl } from "@/components/CartQuantityControl";
 import { LocationPickerDialog } from "@/components/checkout/LocationPickerDialog";
-import { RegisterPromptDialog } from "@/components/RegisterPromptDialog";
+import { GuestCheckoutFields } from "@/components/checkout/GuestCheckoutFields";
 import { RetryPaymentButton } from "@/components/RetryPaymentButton";
 import { CancelUnpaidOnlineOrderButton } from "@/components/CancelUnpaidOnlineOrderButton";
 import { useTranslation } from "@/i18n/LanguageProvider";
@@ -122,21 +122,22 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
     clearAddressOverride,
     notes,
     setNotes,
+    guestZoneId,
   } = useCheckoutStore();
   const [mapDialogOpen, setMapDialogOpen] = useState(false);
-  // Задача №300 — one flag for both auth-wall triggers below (the
-  // client-side gate in handleCheckout and useCreateOrder's own
-  // onAuthRequired callback), so an unauthenticated checkout attempt always
-  // shows the exact same short RegisterPromptDialog, never two different
-  // messages depending on which one happened to fire.
-  const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
   // Задача №182 — the default saved Address (with its zone) is the single
   // source of truth for delivery now; nothing here is collected inline
   // anymore, only displayed (see the read-only "deliver to" summary below).
   // Задача №195 — a one-off "Отметить на карте" override (this order only)
   // carries its own frozen-at-pick-time zoneId, preferred here so the
   // preview matches exactly what submitOrder will actually send.
-  const zoneId = overrideAddress ? overrideZoneId : (readiness.defaultAddress?.zoneId ?? null);
+  // Задача №314 — a guest's zone is whatever they picked in GuestCheckoutFields.
+  const isGuest = readiness.isAuthenticated === false;
+  const zoneId = isGuest
+    ? guestZoneId
+    : overrideAddress
+      ? overrideZoneId
+      : (readiness.defaultAddress?.zoneId ?? null);
   const totalItems = items.reduce((s, i) => s + i.quantity, 0);
   const totalPrice = items.reduce((s, i) => s + parseFloat(i.price.amount) * i.quantity, 0);
   const itemTranslations = useTranslatedTexts(
@@ -274,22 +275,13 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
   const { submitOrder, isSubmitting } = useCreateOrder();
 
   const handleCheckout = async () => {
-    // Задача №182 — guest checkout removed entirely, and the cart no longer
-    // collects address/phone/name itself; both gates redirect to where the
-    // missing piece actually gets filled in, instead of failing at the API.
-    //
-    // Задача №300 — used to call handleSignIn() straight away here, silently
-    // launching the Google sign-in redirect with zero explanation the
-    // instant a signed-out visitor tapped "Оформить заказ". Now shows the
-    // short RegisterPromptDialog first — the buyer chooses to continue (its
-    // one button calls the same signInWithGoogle()) instead of being sent
-    // into an OAuth screen they didn't ask to open.
-    if (readiness.isAuthenticated !== true) {
-      setShowRegisterPrompt(true);
-      return;
-    }
-    if (readiness.isReady === null) return;
-    if (!readiness.isReady) {
+    // Задача №314 — signing in is optional again: a guest checks out with
+    // the phone/address typed into GuestCheckoutFields (useCreateOrder
+    // validates them). A signed-in buyer still checks out from their
+    // profile, and is sent there first if it's incomplete (Задача №182).
+    if (readiness.isAuthenticated === null) return;
+    if (readiness.isAuthenticated === true && readiness.isReady === null) return;
+    if (readiness.isAuthenticated === true && !readiness.isReady) {
       toast.error(t("profile.completeProfileToOrderDescription"));
       onNavigate?.();
       await navigate({ to: "/profile" });
@@ -316,7 +308,15 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
         useCheckoutStore.getState().reset();
         onOrderPlaced?.();
       },
-      () => setShowRegisterPrompt(true),
+      isGuest
+        ? {
+            guest: {
+              phone: useCheckoutStore.getState().guestPhone,
+              address: useCheckoutStore.getState().guestAddress,
+              zoneId: useCheckoutStore.getState().guestZoneId,
+            },
+          }
+        : {},
     );
   };
 
@@ -559,22 +559,8 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                 second, passive "please complete your profile" card while
                 just browsing the cart was redundant — this section simply
                 renders nothing until there's something real to show. */}
-            {readiness.isAuthenticated !== true ? (
-              <section className="mt-3 space-y-1.5">
-                <Label className="text-sm font-medium">{t("checkout.address")}</Label>
-                <div className="rounded-xl border border-border/60 bg-card p-3 text-sm space-y-2">
-                  <p className="text-muted-foreground">{t("profile.signInToOrderDescription")}</p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl"
-                    onClick={() => void handleSignIn()}
-                  >
-                    {t("common.signIn")}
-                  </Button>
-                </div>
-              </section>
+            {readiness.isAuthenticated === null ? null : readiness.isAuthenticated === false ? (
+              <GuestCheckoutFields />
             ) : readiness.isReady === null ? (
               <section className="mt-3 space-y-1.5">
                 <Label className="text-sm font-medium">{t("checkout.address")}</Label>
@@ -802,7 +788,6 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
           })
         }
       />
-      <RegisterPromptDialog open={showRegisterPrompt} onOpenChange={setShowRegisterPrompt} />
     </div>
   );
 }

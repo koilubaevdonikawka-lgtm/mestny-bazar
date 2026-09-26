@@ -22,7 +22,6 @@
 
 ```typescript
 const paymentPolicy = new PaymentPolicyService([
-  new CashRequiresAuthenticationRule(),
   new OnlineAllowedRule(),
 ]);
 ```

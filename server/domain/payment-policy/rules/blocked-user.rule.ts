@@ -5,7 +5,7 @@ import { PaymentPolicyOrder } from "@server/domain/payment-policy/payment-policy
 /**
  * Global guard (users.md): a blocked customer cannot place any order, regardless of
  * payment method. terminal: false so an unblocked user falls through to the
- * method-specific rules (CashRequiresAuthenticationRule/OnlineAllowedRule) — the engine
+ * method-specific rules (OnlineAllowedRule) — the engine
  * denies immediately on any !allowed result regardless of the terminal flag, so this
  * only matters for the allowed case.
  */

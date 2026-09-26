@@ -11,7 +11,6 @@ import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { isNativePlatform, getPushNotificationCapability } from "@/lib/capabilities";
 import { signInWithGoogle } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { WELCOME_SEEN_KEY } from "@/components/WelcomeGate";
 import { BRAND } from "@/config/brand";
 import { CONTACT } from "@/config/contact";
 import { listPublicDeliveryTariffs } from "@/api/delivery-tariff";
@@ -50,7 +49,6 @@ function InfoPage() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    window.localStorage.removeItem(WELCOME_SEEN_KEY);
     toast.success(t("account.signedOutToast"));
   };
   // Native-only: getPushNotificationCapability() resolves to the unsupported

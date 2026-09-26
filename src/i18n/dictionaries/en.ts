@@ -161,6 +161,8 @@ export const en = {
     outOfStockWarning: "This item is out of stock",
     notAvailableWarning: "This item is no longer available",
     defaultCustomerName: "Customer",
+    guestSignInHint:
+      "Have an account? Sign in and your address and phone fill in automatically — or check out as a guest.",
     missingAddressError: "Enter a delivery address in the “Delivery, payment & status” section",
     missingPaymentMethodError:
       "Choose a payment method in the “Delivery, payment & status” section",

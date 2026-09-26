@@ -4,6 +4,5 @@ export const PaymentPolicyOrder = {
   BLOCKED_USER: 20,
   CORPORATE: 30,
   CITY_RULE: 40,
-  CASH_AUTH: 80,
   ONLINE: 90,
 } as const;
