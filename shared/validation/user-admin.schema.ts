@@ -27,3 +27,8 @@ export const setCustomerBlockedRequestSchema = z.object({
   userId: z.string().uuid(),
   isBlocked: z.boolean(),
 });
+
+export const listGuestCustomersRequestSchema = z.object({
+  offset: z.number().int().min(0),
+  limit: z.number().int().min(1).max(100),
+});

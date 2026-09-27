@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { AdminUserDTO } from "@shared/contracts/user-admin";
+import type { AdminUserDTO, GuestCustomerPageDTO } from "@shared/contracts/user-admin";
 import {
   assignAdminScopeRequestSchema,
   assignRoleRequestSchema,
+  listGuestCustomersRequestSchema,
   revokeAdminScopeRequestSchema,
   revokeRoleRequestSchema,
   setCustomerBlockedRequestSchema,
@@ -48,4 +49,11 @@ export const setCustomerBlockedFn = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<void> => {
     const { executeSetCustomerBlocked } = await import("@server/functions/user-admin.executor");
     return executeSetCustomerBlocked(data);
+  });
+
+export const listGuestCustomersFn = createServerFn({ method: "GET" })
+  .validator((data: unknown) => listGuestCustomersRequestSchema.parse(data))
+  .handler(async ({ data }): Promise<GuestCustomerPageDTO> => {
+    const { executeListGuestCustomers } = await import("@server/functions/user-admin.executor");
+    return executeListGuestCustomers(data);
   });

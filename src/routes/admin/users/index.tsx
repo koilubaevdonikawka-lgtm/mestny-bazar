@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { GuestCustomersList } from "@/components/admin/GuestCustomersList";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -217,7 +218,12 @@ function AdminUsersPage() {
                 <li key={user.id} className="rounded-xl border border-border/60 bg-card px-4 py-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="font-medium truncate">{user.fullName ?? user.id}</p>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className="font-medium truncate">{user.fullName ?? user.id}</p>
+                        <Badge variant="secondary" className="shrink-0">
+                          Аккаунт
+                        </Badge>
+                      </div>
                       <p className="text-xs text-muted-foreground truncate">{user.phone ?? "—"}</p>
                     </div>
                     {user.isBlocked ? (
@@ -294,6 +300,13 @@ function AdminUsersPage() {
               ))}
             </ul>
           )}
+
+          <h2 className="mt-8 mb-1 font-medium">Гости без аккаунта</h2>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Оформляли заказ без входа — опознаны только по номеру телефона. Роли и блокировка к ним
+            не применяются.
+          </p>
+          <GuestCustomersList />
         </section>
       </div>
 

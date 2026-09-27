@@ -1,5 +1,7 @@
 import type {
   AdminUserDTO,
+  GuestCustomerPageDTO,
+  ListGuestCustomersRequest,
   AssignAdminScopeRequest,
   AssignRoleRequest,
   RevokeAdminScopeRequest,
@@ -63,4 +65,12 @@ export async function executeSetCustomerBlocked(data: SetCustomerBlockedRequest)
   } else {
     await getServices().userAdminService.unblockCustomer(data.userId);
   }
+}
+
+export async function executeListGuestCustomers(
+  data: ListGuestCustomersRequest,
+): Promise<GuestCustomerPageDTO> {
+  const { userId, roles } = await requireAdminFromRequest();
+  await assertUsersAccess(userId, roles);
+  return getServices().guestCustomerService.listGuestCustomers(data);
 }

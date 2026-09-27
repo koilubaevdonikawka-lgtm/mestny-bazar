@@ -58,6 +58,7 @@ import { LowStockThresholdRule } from "@server/domain/stock-policy/rules/low-sto
 import { SupplierService } from "@server/domain/supplier.service";
 import { SupplyService } from "@server/domain/supply.service";
 import { UserAdminService } from "@server/domain/user-admin.service";
+import { GuestCustomerService } from "@server/domain/guest-customer.service";
 import { MediaUploadService } from "@server/domain/media-upload.service";
 import { TelegramBotService } from "@server/domain/telegram-bot.service";
 import type { ITelegramBotRepository } from "@server/ports/telegram-bot.repository";
@@ -140,6 +141,7 @@ import { SupabaseStockRepository } from "@server/adapters/supabase/stock.reposit
 import { SupabaseSupplierRepository } from "@server/adapters/supabase/supplier.repository";
 import { SupabaseSupplyRepository } from "@server/adapters/supabase/supply.repository";
 import { SupabaseUserAdminRepository } from "@server/adapters/supabase/user-admin.repository";
+import { SupabaseGuestCustomerRepository } from "@server/adapters/supabase/guest-customer.repository";
 import { SupabasePlatformOwnershipRepository } from "@server/adapters/supabase/platform-ownership.repository";
 import { SupabaseBootstrapRepository } from "@server/adapters/supabase/bootstrap.repository";
 import { SupabaseStorageAdapter } from "@server/adapters/supabase/storage.service";
@@ -175,6 +177,7 @@ import type { IStockPolicy } from "@server/ports/stock-policy.port";
 import type { ISupplierRepository } from "@server/ports/supplier.repository";
 import type { ISupplyRepository } from "@server/ports/supply.repository";
 import type { IUserAdminRepository } from "@server/ports/user-admin.repository";
+import type { IGuestCustomerRepository } from "@server/ports/guest-customer.repository";
 import type { IPlatformOwnershipRepository } from "@server/ports/platform-ownership.repository";
 import type { IBootstrapRepository } from "@server/ports/bootstrap.repository";
 import type { IStorageService } from "@server/ports/storage.service";
@@ -292,6 +295,7 @@ export interface ServiceContainer {
   supplyService: SupplyService;
   userAdmin: IUserAdminRepository;
   userAdminService: UserAdminService;
+  guestCustomerService: GuestCustomerService;
   platformOwnership: IPlatformOwnershipRepository;
   platformOwnershipService: PlatformOwnershipService;
   bootstrapRepo: IBootstrapRepository;
@@ -398,6 +402,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const courierProfiles: ICourierProfileRepository = new SupabaseCourierProfileRepository();
   const customerStatus: ICustomerStatusRepository = new SupabaseCustomerStatusRepository();
   const userAdmin: IUserAdminRepository = new SupabaseUserAdminRepository();
+  const guestCustomers: IGuestCustomerRepository = new SupabaseGuestCustomerRepository();
   const rbacRepository: IRbacRepository = new SupabaseRbacRepository();
   // Unified image upload (Промпт №068) — category-images bucket stays as-is
   // (categories keep writing there); everything else (products, banners,
@@ -696,6 +701,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const supplierService = new SupplierService(suppliers);
   const supplyService = new SupplyService(supplies, suppliers, inventory, marketplaceEvents);
   const userAdminService = new UserAdminService(userAdmin, marketplaceEvents);
+  const guestCustomerService = new GuestCustomerService(guestCustomers);
   const platformOwnershipService = new PlatformOwnershipService(platformOwnership);
   const bootstrapService = new BootstrapService(platformOwnershipService, bootstrapRepo);
   const ownershipTransferService = new OwnershipTransferService(
@@ -824,6 +830,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     supplyService,
     userAdmin,
     userAdminService,
+    guestCustomerService,
     platformOwnership,
     platformOwnershipService,
     bootstrapRepo,

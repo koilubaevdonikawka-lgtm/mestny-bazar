@@ -42,3 +42,30 @@ export interface SetCustomerBlockedRequest {
   userId: string;
   isBlocked: boolean;
 }
+
+/**
+ * A guest (never signed in) identified only by the phone typed at checkout —
+ * aggregated from orders with user_id = NULL. Deliberately NOT an AdminUserDTO:
+ * there is no profiles row behind it, so roles/scopes/is_blocked don't apply.
+ */
+export interface GuestCustomerDTO {
+  phone: string;
+  firstOrderAt: string;
+  lastOrderAt: string;
+  ordersCount: number;
+}
+
+export interface ListGuestCustomersRequest {
+  offset: number;
+  limit: number;
+}
+
+export interface GuestCustomerPageDTO {
+  items: GuestCustomerDTO[];
+  /** Unique guest phones found within the scanned window. */
+  total: number;
+  hasMore: boolean;
+  /** True when the scan hit its cap — older guest orders beyond it aren't counted. */
+  truncated: boolean;
+  scanLimit: number;
+}

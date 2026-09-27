@@ -2,6 +2,8 @@ import type {
   AssignAdminScopeRequest,
   AssignRoleRequest,
   AdminUserDTO,
+  GuestCustomerPageDTO,
+  ListGuestCustomersRequest,
   RevokeAdminScopeRequest,
   RevokeRoleRequest,
   SetCustomerBlockedRequest,
@@ -9,6 +11,7 @@ import type {
 import {
   assignAdminScopeFn,
   assignRoleFn,
+  listGuestCustomersFn,
   listUsersFn,
   revokeAdminScopeFn,
   revokeRoleFn,
@@ -37,4 +40,10 @@ export async function revokeAdminScope(request: RevokeAdminScopeRequest): Promis
 
 export async function setCustomerBlocked(request: SetCustomerBlockedRequest): Promise<void> {
   return setCustomerBlockedFn({ data: request });
+}
+
+export async function listGuestCustomers(
+  request: ListGuestCustomersRequest,
+): Promise<GuestCustomerPageDTO> {
+  return listGuestCustomersFn({ data: request });
 }
