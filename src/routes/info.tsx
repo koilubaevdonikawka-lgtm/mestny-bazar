@@ -3,8 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Button } from "@/components/ui/button";
-import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
-import { Bell, LogIn, LogOut, MessageCircle, Send, Store } from "lucide-react";
+import { Bell, LogIn, LogOut, MessageCircle, Send } from "lucide-react";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
@@ -119,30 +118,22 @@ function InfoPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <SiteHeader safeAreaTop showAccountMenu={false} showCart={false} />
-      <main className="flex-1 mx-auto max-w-2xl w-full px-4 py-8 sm:px-6">
-        <div className="flex items-center gap-3">
-          <span className="h-12 w-12 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-            <Store className="h-6 w-6" />
+      {/* No search on this page — the brand name sits in the search bar's
+          slot instead, replacing the old logo + heading + tagline block.
+          Language switching lives in the home page header. */}
+      <SiteHeader
+        safeAreaTop
+        showAccountMenu={false}
+        showCart={false}
+        showSearch={false}
+        leftSlot={
+          <span className="min-w-0 truncate font-serif text-xl tracking-tight">
+            {displayBrandName}
           </span>
-          <div>
-            <h1 className="font-serif text-3xl tracking-tight">{displayBrandName}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{t("footer.tagline")}</p>
-          </div>
-        </div>
-
-        {/* Задача №222 — WelcomeGate's language picker only shows once per
-            device (localStorage-gated); after that a signed-in or already-
-            dismissed guest had no way to change language anywhere on the
-            customer site, desktop or mobile. /info is the established
-            reachable-on-mobile overflow surface (same fix pattern as
-            showSignInFallback/showWebSignInFallback for "Войти"). */}
-        <div className="mt-6 flex items-center justify-between rounded-2xl border border-border/60 bg-card px-4 py-3">
-          <span className="text-sm text-foreground">{t("common.language")}</span>
-          <LanguageSwitcher />
-        </div>
-
-        <ul className="mt-6 space-y-3 rounded-2xl border border-border/60 bg-card p-6 text-sm text-muted-foreground">
+        }
+      />
+      <main className="flex-1 mx-auto max-w-2xl w-full px-4 py-6 sm:px-6">
+        <ul className="space-y-3 rounded-2xl border border-border/60 bg-card p-6 text-sm text-muted-foreground">
           <li>{t("footer.paymentInfo")}</li>
           {(tariffs.length > 0 || deliveryDescription) && (
             <li>
