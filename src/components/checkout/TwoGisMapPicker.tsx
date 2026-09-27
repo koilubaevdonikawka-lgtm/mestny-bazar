@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import { loadExternalScript } from "@/lib/loadExternalScript";
 import { reverseGeocode } from "@/lib/reverseGeocode";
 import { DEFAULT_MAP_CENTER } from "@/lib/mapDefaults";
@@ -55,8 +54,8 @@ type LoadStatus = "loading" | "ready" | "error";
  * Задача №163 — the only map provider offered now (architect's call, based
  * on Задача №159's measurements showing 2GIS loads noticeably slower than
  * Yandex — accepted anyway). On mount, tries the customer's real GPS
- * position (webGeolocation, the same capability the plain "Определить моё
- * местоположение" button uses) instead of leaving them at
+ * position (getGeolocationCapability() — the native plugin in the app, the
+ * browser API on web; there is no separate GPS button) instead of leaving them at
  * DEFAULT_MAP_CENTER's generic Bishkek point: success re-centers the map and
  * drops the marker there immediately, as if they'd already clicked. Denied/
  * unavailable/timed-out geolocation is silent — falls back to the default
@@ -120,49 +119,20 @@ export function TwoGisMapPicker({ onPick }: MapPickerProps) {
 
         setStatus("ready");
 
-        // Задача №164 — TEMPORARY diagnostic logging (toast, visible without
-        // devtools on a real phone) to find out exactly why auto-geolocation
-        // wasn't recentering the map on the architect's device. Remove once
-        // the real cause is found and (if it's a bug) fixed.
+        // Denied/unavailable/timed-out geolocation is silent by design (see
+        // the doc comment above) — the map stays at DEFAULT_MAP_CENTER and
+        // fully usable by manual click.
         const geolocation = getGeolocationCapability();
-        const isSupported = geolocation.isSupported();
-        toast.info(`[ДИАГ] isSupported() = ${isSupported}`);
-        if (isSupported) {
-          toast.info("[ДИАГ] запрашиваю getCurrentPosition()...");
+        if (geolocation.isSupported()) {
           geolocation
             .getCurrentPosition()
             .then((position) => {
-              toast.success(
-                `[ДИАГ] координаты получены: ${position.latitude.toFixed(5)}, ${position.longitude.toFixed(5)} (точность ${position.accuracyMeters ?? "?"}м)`,
-              );
-              if (cancelled) {
-                toast.info("[ДИАГ] компонент уже размонтирован, пропускаю recenter");
-                return;
-              }
-              try {
-                map.setCenter([position.longitude, position.latitude]);
-                placeMarker(mapgl, map, position.longitude, position.latitude);
-                resolvePoint(position.longitude, position.latitude);
-                toast.success("[ДИАГ] карта перецентрирована, маркер поставлен");
-              } catch (err) {
-                toast.error(
-                  `[ДИАГ] setCenter/placeMarker выбросили ошибку: ${err instanceof Error ? err.message : String(err)}`,
-                );
-              }
+              if (cancelled) return;
+              map.setCenter([position.longitude, position.latitude]);
+              placeMarker(mapgl, map, position.longitude, position.latitude);
+              resolvePoint(position.longitude, position.latitude);
             })
-            .catch((error: unknown) => {
-              const code =
-                error && typeof error === "object" && "code" in error
-                  ? (error as { code: number }).code
-                  : "?";
-              const message =
-                error && typeof error === "object" && "message" in error
-                  ? (error as { message: string }).message
-                  : String(error);
-              toast.error(`[ДИАГ] getCurrentPosition() отклонён: code=${code} message=${message}`);
-            });
-        } else {
-          toast.info("[ДИАГ] geolocation.isSupported() = false, запрос не отправлен");
+            .catch(() => {});
         }
       })
       .catch(() => {

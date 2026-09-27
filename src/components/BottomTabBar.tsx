@@ -16,8 +16,13 @@ interface RouteTab {
   Icon: typeof Home;
 }
 
-const TAB_ITEM_CLASS = "relative flex flex-1 flex-col items-center justify-center gap-0.5";
-const TAB_LABEL_CLASS = "text-[11px] font-medium leading-none";
+// min-w-0 + truncate: with a large Android system font or a narrow viewport
+// (Display size) the four tabs' min-content width exceeded the screen and the
+// last one ("Профиль") was pushed past the right edge of the fixed bar —
+// labels now shrink with an ellipsis instead. leading-tight (not -none) so
+// truncate's overflow:hidden doesn't clip descenders like "ф".
+const TAB_ITEM_CLASS = "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5";
+const TAB_LABEL_CLASS = "max-w-full truncate text-[11px] font-medium leading-tight";
 
 /**
  * Native-only persistent bottom navigation (Главная/Информация/Корзина/
@@ -57,7 +62,7 @@ export function BottomTabBar() {
             активной кнопкой-пилюлей категории на главной странице
             (rounded-full bg-primary text-primary-foreground). */}
         <span
-          className={`flex flex-col items-center gap-0.5 rounded-full px-4 py-1.5 transition-colors ${
+          className={`flex max-w-full min-w-0 flex-col items-center gap-0.5 rounded-full px-2.5 py-1.5 transition-colors ${
             isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground"
           }`}
         >

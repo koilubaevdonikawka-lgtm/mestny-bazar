@@ -369,7 +369,7 @@ function ProfileAndDefaultAddressCard() {
           </div>
         </div>
       )}
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <Button type="submit" disabled={saveMutation.isPending}>
           {saveMutation.isPending ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -380,7 +380,12 @@ function ProfileAndDefaultAddressCard() {
           )}
         </Button>
         {isEditing && (
-          <Button type="button" variant="outline" onClick={() => setMapDialogOpen(true)}>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-auto min-h-9 whitespace-normal"
+            onClick={() => setMapDialogOpen(true)}
+          >
             <MapPin className="h-4 w-4 mr-2" />
             {t("cart.markOnMapButton")}
           </Button>
