@@ -44,14 +44,19 @@ function CartPage() {
         showSignInFallback={totalItems === 0}
       />
       <main className="flex-1 mx-auto max-w-lg w-full px-4 py-6 sm:px-6 flex flex-col">
-        <h1 className="font-serif text-2xl tracking-tight">{t("cart.yourCartTitle")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {totalItems === 0
-            ? t("cart.emptyDescription")
-            : t(totalItems === 1 ? "cart.itemsInCartOne" : "cart.itemsInCartMany", {
+        {/* Empty cart: no page heading — CartPanel's own empty state (icon,
+            "Корзина пуста", description, catalog CTA) already says it all,
+            and a heading above it just repeated the same description. */}
+        {totalItems > 0 && (
+          <>
+            <h1 className="font-serif text-2xl tracking-tight">{t("cart.yourCartTitle")}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t(totalItems === 1 ? "cart.itemsInCartOne" : "cart.itemsInCartMany", {
                 count: totalItems,
               })}
-        </p>
+            </p>
+          </>
+        )}
         <CartPanel active />
       </main>
     </div>
