@@ -24,6 +24,7 @@ export default defineConfig({
       "shared/**/*.test.ts",
       "src/hooks/**/*.test.ts",
       "src/lib/**/*.test.ts",
+      "src/stores/**/*.test.ts",
     ],
   },
 });

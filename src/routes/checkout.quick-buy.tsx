@@ -111,7 +111,7 @@ function QuickBuyPage() {
     // это значение, а не устаревшее из предыдущего рендера.
     useCheckoutStore.getState().setPaymentMethod(method);
     setSubmittingMethod(method);
-    const { guestPhone, guestAddress, guestZoneId } = useCheckoutStore.getState();
+    const { guestName, guestPhone, guestAddress, guestZoneId } = useCheckoutStore.getState();
     await submitOrder(
       [
         {
@@ -126,7 +126,16 @@ function QuickBuyPage() {
         },
       ],
       undefined,
-      isGuest ? { guest: { phone: guestPhone, address: guestAddress, zoneId: guestZoneId } } : {},
+      isGuest
+        ? {
+            guest: {
+              name: guestName,
+              phone: guestPhone,
+              address: guestAddress,
+              zoneId: guestZoneId,
+            },
+          }
+        : {},
     );
     setSubmittingMethod(null);
   };

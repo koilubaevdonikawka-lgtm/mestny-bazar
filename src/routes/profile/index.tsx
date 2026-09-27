@@ -6,14 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AddressesPanel } from "@/components/AddressesPanel";
-import { signInWithGoogle } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useSupabaseSession } from "@/hooks/useSupabaseSession";
 import { getMyProfile, updateMyProfile } from "@/api/profile";
 import { createAddress, deleteAddress, listAddresses, updateAddress } from "@/api/addresses";
 import { listDeliveryZones } from "@/api/delivery-zone";
 import { LocationPickerDialog } from "@/components/checkout/LocationPickerDialog";
-import { Loader2, LogIn, LogOut, MapPin, Trash2 } from "lucide-react";
+import { AccountMenu } from "@/components/AccountMenu";
+import { GuestProfileCard } from "@/components/GuestProfileCard";
+import { useCheckoutStore } from "@/stores/checkoutStore";
+import { Loader2, LogOut, MapPin, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { BRAND } from "@/config/brand";
@@ -34,6 +36,10 @@ import { BRAND } from "@/config/brand";
  * mechanism. /profile/addresses stays reachable too — an additional
  * entry point, same as /cart/ /catalog coexisting with their older
  * counterparts.
+ *
+ * Signed out, the page shows GuestProfileCard instead of a sign-in wall:
+ * name/phone/address kept in this device's localStorage only (the same
+ * useCheckoutStore guest fields the cart prefills from), never the server.
  */
 export const Route = createFileRoute("/profile/")({
   component: ProfilePage,
@@ -45,10 +51,6 @@ export const Route = createFileRoute("/profile/")({
 function ProfilePage() {
   const { t } = useTranslation();
   const { isAuthenticated } = useSupabaseSession();
-
-  const handleSignIn = async () => {
-    await signInWithGoogle();
-  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -65,18 +67,23 @@ function ProfilePage() {
     );
   }
 
+  // Guest: a device-local profile (GuestProfileCard, localStorage) instead of
+  // a sign-in wall — signing in stays one tap away via AccountMenu's own
+  // Google/Telegram list, same as the cart's guest form.
   if (!isAuthenticated) {
     return (
       <PageShell>
-        <div className="max-w-md mx-auto text-center py-24">
-          <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center mb-4">
-            <LogIn className="h-6 w-6 text-primary" />
+        <div className="mx-auto max-w-3xl px-6 py-12">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <h1 className="font-serif text-4xl tracking-tight">{t("nav.profile")}</h1>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">{t("profile.guestSignInHint")}</span>
+              <AccountMenu />
+            </div>
           </div>
-          <h1 className="font-serif text-3xl tracking-tight">{t("nav.profile")}</h1>
-          <p className="mt-3 text-muted-foreground">{t("addresses.signInPrompt")}</p>
-          <Button size="lg" className="mt-6 h-12 rounded-full" onClick={() => void handleSignIn()}>
-            {t("common.signIn")}
-          </Button>
+          <div className="mt-10">
+            <GuestProfileCard />
+          </div>
         </div>
       </PageShell>
     );
@@ -240,6 +247,16 @@ function ProfileAndDefaultAddressCard() {
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!isEditing) {
+      // Details saved locally while browsing as a guest pre-fill only the
+      // fields the account doesn't have yet — nothing is written to the
+      // server until the customer reviews them and presses Сохранить.
+      const guest = useCheckoutStore.getState();
+      if (!fullName) setFullName(guest.guestName);
+      if (!phone) setPhone(guest.guestPhone);
+      if (!defaultAddress) {
+        if (!fullAddress) setFullAddress(guest.guestAddress);
+        if (!zoneId) setZoneId(guest.guestZoneId ?? "");
+      }
       setIsEditing(true);
       return;
     }

@@ -21,6 +21,11 @@ import type { PaymentMethod } from "@shared/contracts/order";
  * CheckoutService to resolve these from). Persisted, and deliberately kept
  * across reset(), so a returning guest doesn't retype them for every order;
  * unused (ignored) once signed in, where the profile is the source.
+ *
+ * guestName (optional) joins them as the signed-out buyer's local "profile":
+ * /profile edits these same four fields for a guest, so the cart's guest
+ * form is prefilled from them — one localStorage-backed source, no copy.
+ * Device-local by design: never synced to the server or across devices.
  */
 interface CheckoutStore {
   paymentMethod: PaymentMethod | null;
@@ -44,12 +49,13 @@ interface CheckoutStore {
   overrideZoneId: string | null;
   /** Задача №274 — free-text order comment, entered in the cart before checkout. Persisted (a partially-typed comment should survive a reload) and cleared by reset() once an order is actually placed, same lifecycle as paymentMethod/override*. */
   notes: string;
+  guestName: string;
   guestPhone: string;
   guestAddress: string;
   /** Optional — only drives the delivery fee; no zone means no delivery fee is quoted/charged, same as before Задача №182. */
   guestZoneId: string | null;
   setGuestContact: (
-    contact: Partial<{ phone: string; address: string; zoneId: string | null }>,
+    contact: Partial<{ name: string; phone: string; address: string; zoneId: string | null }>,
   ) => void;
   setPaymentMethod: (method: PaymentMethod) => void;
   /** Returns the current attempt's key, minting one on first call so every retry of the same attempt (network failure, re-click) reuses it instead of getting a fresh one. */
@@ -79,6 +85,7 @@ const initialState = {
 };
 
 const initialGuestContact = {
+  guestName: "",
   guestPhone: "",
   guestAddress: "",
   guestZoneId: null as string | null,
@@ -89,8 +96,9 @@ export const useCheckoutStore = create<CheckoutStore>()(
     (set, get) => ({
       ...initialState,
       ...initialGuestContact,
-      setGuestContact: ({ phone, address, zoneId }) =>
+      setGuestContact: ({ name, phone, address, zoneId }) =>
         set({
+          ...(name !== undefined ? { guestName: name } : {}),
           ...(phone !== undefined ? { guestPhone: phone } : {}),
           ...(address !== undefined ? { guestAddress: address } : {}),
           ...(zoneId !== undefined ? { guestZoneId: zoneId } : {}),
@@ -131,6 +139,7 @@ export const useCheckoutStore = create<CheckoutStore>()(
         overrideLongitude: state.overrideLongitude,
         overrideZoneId: state.overrideZoneId,
         notes: state.notes,
+        guestName: state.guestName,
         guestPhone: state.guestPhone,
         guestAddress: state.guestAddress,
         guestZoneId: state.guestZoneId,

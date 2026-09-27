@@ -19,11 +19,13 @@ import type { CreateOrderItemRequest, CreateOrderResponse } from "@shared/contra
  *
  * Задача №314 — guest (`options.guest`): no Profile to resolve from, so the
  * phone and address the buyer typed into the cart are sent explicitly,
- * both required, plus the optional zone. The name isn't asked for — it
+ * both required, plus the optional zone. The name isn't asked for in the cart —
+ * the optional name from the guest's local /profile is sent when set, else it
  * falls back to cart.defaultCustomerName, exactly as guest checkout did
  * before №182 (the server needs some name; the phone is what staff use).
  */
 export interface GuestCheckoutContact {
+  name?: string;
   phone: string;
   address: string;
   zoneId: string | null;
@@ -93,7 +95,7 @@ export function useCreateOrder() {
           ? {
               addressSnapshot: guest.address.trim(),
               customerPhone: guest.phone.trim(),
-              customerName: t("cart.defaultCustomerName"),
+              customerName: guest.name?.trim() || t("cart.defaultCustomerName"),
               ...(guest.zoneId ? { zoneId: guest.zoneId } : {}),
             }
           : {}),

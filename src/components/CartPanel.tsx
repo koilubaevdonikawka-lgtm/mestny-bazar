@@ -311,6 +311,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
       isGuest
         ? {
             guest: {
+              name: useCheckoutStore.getState().guestName,
               phone: useCheckoutStore.getState().guestPhone,
               address: useCheckoutStore.getState().guestAddress,
               zoneId: useCheckoutStore.getState().guestZoneId,
