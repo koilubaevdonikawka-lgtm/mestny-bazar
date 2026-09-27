@@ -103,7 +103,7 @@ export function GuestProfileCard() {
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="guestProfileAddress">{t("addresses.fullAddressField")} *</Label>
+            <Label htmlFor="guestProfileAddress">{t("addresses.fullAddressField")}</Label>
             <Input
               id="guestProfileAddress"
               autoComplete="street-address"
