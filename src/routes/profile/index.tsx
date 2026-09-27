@@ -76,10 +76,7 @@ function ProfilePage() {
         <div className="mx-auto max-w-3xl px-6 py-12">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <h1 className="font-serif text-4xl tracking-tight">{t("nav.profile")}</h1>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">{t("profile.guestSignInHint")}</span>
-              <AccountMenu />
-            </div>
+            <AccountMenu />
           </div>
           <div className="mt-10">
             <GuestProfileCard />

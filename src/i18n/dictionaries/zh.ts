@@ -299,10 +299,6 @@ export const zh = {
     signInToOrderTitle: "登录后即可下单",
     signInToOrderDescription: "下单需要先登录账户。",
     orderHistoryLink: "历史订单",
-    guestLocalNotice: "您尚未登录。这些信息仅保存在本设备上，并会在下单时自动填写。",
-    guestSignInHint: "登录后可将信息保存在账户中：",
-    guestSavedToast: "已保存在本设备",
-    optionalNameField: "姓名（可选）",
   },
   orderSuccess: {
     paymentFailedTitle: "支付失败",

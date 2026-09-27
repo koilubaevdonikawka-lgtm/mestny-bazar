@@ -334,12 +334,6 @@ export const ru = {
     signInToOrderDescription: "Оформление заказа доступно только авторизованным пользователям.",
     /** Задача №188 — lightweight top-of-page link to order history, replacing the old full-card "Заказы" link. */
     orderHistoryLink: "История",
-    /** Guest (not signed in) profile — stored only in this browser/app (localStorage), never on the server. */
-    guestLocalNotice:
-      "Вы не вошли в аккаунт. Эти данные хранятся только на этом устройстве и подставляются при оформлении заказа.",
-    guestSignInHint: "Войдите, чтобы хранить данные в аккаунте:",
-    guestSavedToast: "Сохранено на этом устройстве",
-    optionalNameField: "Имя (необязательно)",
   },
   orderSuccess: {
     paymentFailedTitle: "Оплата не прошла",

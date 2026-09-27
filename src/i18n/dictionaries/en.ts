@@ -308,11 +308,6 @@ export const en = {
     signInToOrderTitle: "Sign in to place an order",
     signInToOrderDescription: "Placing an order requires an account.",
     orderHistoryLink: "History",
-    guestLocalNotice:
-      "You are not signed in. This information is stored only on this device and is filled in automatically at checkout.",
-    guestSignInHint: "Sign in to keep this data in your account:",
-    guestSavedToast: "Saved on this device",
-    optionalNameField: "Name (optional)",
   },
   orderSuccess: {
     paymentFailedTitle: "Payment failed",

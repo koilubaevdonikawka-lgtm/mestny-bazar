@@ -309,11 +309,6 @@ export const ky = {
     signInToOrderTitle: "Буйрутма тариздөө үчүн кириңиз",
     signInToOrderDescription: "Буйрутма тариздөө үчүн аккаунт керек.",
     orderHistoryLink: "Тарых",
-    guestLocalNotice:
-      "Сиз аккаунтка кирген жоксуз. Бул маалыматтар ушул түзмөктө гана сакталат жана буйрутма бергенде өзү толтурулат.",
-    guestSignInHint: "Маалыматты аккаунтта сактоо үчүн кириңиз:",
-    guestSavedToast: "Ушул түзмөктө сакталды",
-    optionalNameField: "Аты (милдеттүү эмес)",
   },
   orderSuccess: {
     paymentFailedTitle: "Төлөм өтпөй калды",
