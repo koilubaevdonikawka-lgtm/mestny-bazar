@@ -80,9 +80,9 @@ export function MultiImageUploadField({
       throw new Error("Поддерживаются только изображения PNG, JPEG, WEBP, AVIF, HEIC или HEIF");
     }
 
-    // Задача №239 — resizes/re-encodes down toward the server limit before
-    // it ever leaves the browser; a no-op for a file already comfortably
-    // under it (see compressImageForUpload's own skip threshold). Задача
+    // Задача №239 — caps the photo at 1200px / ~80% quality (WebP, JPEG
+    // fallback) before it ever leaves the browser; an already web-sized
+    // file is sent as-is (see compressImageForUpload). Задача
     // №261 — HEIC/HEIF first converts to JPEG (heic2any) so the rest of
     // the pipeline (EXIF fallback, compression, upload) only ever sees a
     // normal JPEG.

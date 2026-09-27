@@ -10,13 +10,21 @@ import { supabaseAdmin } from "@server/adapters/supabase/client";
  * On Cloudflare Workers there is no Node Buffer — callers always pass a Blob
  * (the File object straight from FormData), never convert to Buffer.
  */
+/**
+ * Every caller uploads to a fresh random (UUID) path with upsert: false, so a
+ * stored object never changes under its URL — safe to let browsers cache it
+ * for a year instead of Supabase's 1-hour default (repeat visits no longer
+ * re-download every photo).
+ */
+const IMMUTABLE_CACHE_SECONDS = "31536000";
+
 export class SupabaseStorageAdapter implements IStorageService {
   constructor(private readonly bucket: string) {}
 
   async upload(path: string, file: Blob | Buffer, contentType: string): Promise<UploadResult> {
     const { error } = await supabaseAdmin.storage
       .from(this.bucket)
-      .upload(path, file, { contentType, upsert: false });
+      .upload(path, file, { contentType, upsert: false, cacheControl: IMMUTABLE_CACHE_SECONDS });
     if (error) {
       throw new Error(`Failed to upload file: ${error.message}`);
     }

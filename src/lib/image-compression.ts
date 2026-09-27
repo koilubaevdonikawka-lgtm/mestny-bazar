@@ -3,27 +3,35 @@
  * new dependency: `createImageBitmap` + `<canvas>.toBlob()` cover exactly
  * what a compression library would do — decode, downscale, re-encode —
  * and are supported in every engine this app already targets, including
- * Capacitor's Android/iOS WebView). Keeps MEDIA_UPLOAD_MAX_BYTES (5 MB,
- * shared/contracts/media-upload.ts) as the server's real, untouched limit;
- * this only makes it rare for a real phone photo to ever hit that limit.
+ * Capacitor's Android/iOS WebView). MEDIA_UPLOAD_MAX_BYTES (5 MB,
+ * shared/contracts/media-upload.ts) stays the server's real limit.
+ *
+ * Originally this only kicked in above 4 MB, purely to fit that limit — so
+ * a 2–4 MB camera photo was stored and served to every shopper as-is
+ * (measured on the live storefront: category images of 2.5–5 MB shown in
+ * ~180px tiles). Now every upload is capped to a web-appropriate size: the
+ * stored file IS what customers download (public Supabase URL, no resizer
+ * in between), so this is the only place it can be made small.
  */
 
-/** Files at or under this are sent as-is — compressing an already-small
- * file just burns time/quality for nothing. Comfortably under the 5 MB
- * server limit on its own. */
-const SKIP_COMPRESSION_AT_OR_BELOW_BYTES = 4 * 1024 * 1024;
+/** Longer-side cap in pixels — enough for the product page's full-width
+ * photo on a phone at DPR 2–3, far more than any card/tile needs. */
+export const MAX_DIMENSION_PX = 1200;
 
-/** Target ceiling for a compressed result — a margin under the real 5 MB
+/** Encoder quality for the re-encode — visually indistinguishable from the
+ * original for product photos, a fraction of the bytes. */
+const QUALITY = 0.8;
+
+/** Fallback steps if (unusually) the first encode is still over target. */
+const FALLBACK_QUALITY_STEPS = [0.65, 0.5];
+
+/** Files already within MAX_DIMENSION_PX and at/under this are left as-is —
+ * re-encoding an already web-sized image only costs quality. */
+const ALREADY_OPTIMIZED_MAX_BYTES = 300 * 1024;
+
+/** Hard ceiling for a compressed result — a margin under the real 5 MB
  * server limit (MEDIA_UPLOAD_MAX_BYTES), not flush against it. */
 const TARGET_MAX_BYTES = 4.5 * 1024 * 1024;
-
-/** Longer-side cap in pixels — plenty for a product/category/banner photo;
- * tried first, then once more at a smaller size only if still over target. */
-const DIMENSION_TIERS_PX = [1600, 1200];
-
-/** Re-encoded as JPEG (see toJpegFile below); tried largest-quality-first
- * so the result stays as close to the original as the size budget allows. */
-const JPEG_QUALITY_STEPS = [0.85, 0.75, 0.65, 0.55, 0.45, 0.35];
 
 export class ImageCompressionError extends Error {}
 
@@ -74,60 +82,110 @@ export async function normalizeExifOrientation(file: File): Promise<File> {
   }
 }
 
+export interface CompressionPlan {
+  /** false → upload the original file untouched. */
+  reencode: boolean;
+  width: number;
+  height: number;
+}
+
+/**
+ * Pure sizing decision (no Canvas — unit-testable in Node): scale the longer
+ * side down to MAX_DIMENSION_PX, never up, and skip the re-encode entirely
+ * for an image that's already both small in pixels and in bytes.
+ */
+export function planCompression(width: number, height: number, bytes: number): CompressionPlan {
+  const scale = Math.min(1, MAX_DIMENSION_PX / Math.max(width, height));
+  const alreadyOptimized = scale === 1 && bytes <= ALREADY_OPTIMIZED_MAX_BYTES;
+  return {
+    reencode: !alreadyOptimized,
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+}
+
 function toJpegFileName(originalName: string): string {
+  return withExtension(originalName, "jpg");
+}
+
+function withExtension(originalName: string, ext: string): string {
   const base = originalName.replace(/\.[^./\\]+$/, "");
-  return `${base || "photo"}.jpg`;
+  return `${base || "photo"}.${ext}`;
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob | null> {
   return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
 }
 
+function canvasToWebp(canvas: HTMLCanvasElement, quality: number): Promise<Blob | null> {
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/webp", quality));
+}
+
 /**
- * Resizes/re-encodes `file` down toward TARGET_MAX_BYTES if (and only if)
- * it's already above SKIP_COMPRESSION_AT_OR_BELOW_BYTES. Always re-encodes
- * to JPEG (source PNG/WebP/AVIF included) — JPEG is what actually shrinks a
- * real photo; a lossless format re-encoded losslessly wouldn't help.
+ * Downscales `file` to at most MAX_DIMENSION_PX on its longer side and
+ * re-encodes it at QUALITY — WebP where the engine can encode it (smaller
+ * than JPEG, and keeps a PNG's transparency), otherwise JPEG drawn over a
+ * white background (JPEG has no alpha; transparent pixels would turn
+ * black). An engine without WebP encoding silently hands back PNG from
+ * toBlob, so the returned blob's type is checked rather than assumed.
  *
- * Decode failure (e.g. a format createImageBitmap can't handle in a given
+ * Runs BEFORE the upload, so for PRODUCT photos it also precedes the
+ * server's AI background-removal step (Gemini gets the smaller input); that
+ * step itself is untouched.
+ *
+ * Decode failure (a format createImageBitmap can't handle in a given
  * engine) degrades to returning the original file unchanged rather than
- * blocking the upload — the existing server-side size/type checks still
- * apply either way, so this is never a silent bypass, just a best-effort
- * optimization that can decline to run.
+ * blocking the upload — the server-side size/type checks still apply.
  */
 export async function compressImageForUpload(file: File): Promise<File> {
-  if (file.size <= SKIP_COMPRESSION_AT_OR_BELOW_BYTES) return file;
-
   let bitmap: ImageBitmap;
   try {
-    bitmap = await createImageBitmap(file);
+    bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
   } catch {
     return file;
   }
 
   try {
+    const plan = planCompression(bitmap.width, bitmap.height, file.size);
+    if (!plan.reencode) return file;
+
     const canvas = document.createElement("canvas");
+    canvas.width = plan.width;
+    canvas.height = plan.height;
     const ctx = canvas.getContext("2d");
     if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, plan.width, plan.height);
 
-    for (const maxDimensionPx of DIMENSION_TIERS_PX) {
-      const scale = Math.min(1, maxDimensionPx / Math.max(bitmap.width, bitmap.height));
-      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const webp = await canvasToWebp(canvas, QUALITY);
+    let result: File | null =
+      webp && webp.type === "image/webp"
+        ? new File([webp], withExtension(file.name, "webp"), { type: "image/webp" })
+        : null;
 
-      for (const quality of JPEG_QUALITY_STEPS) {
-        const blob = await canvasToBlob(canvas, quality);
-        if (blob && blob.size <= TARGET_MAX_BYTES) {
-          return new File([blob], toJpegFileName(file.name), { type: "image/jpeg" });
+    if (!result || result.size > TARGET_MAX_BYTES) {
+      ctx.globalCompositeOperation = "destination-over";
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, plan.width, plan.height);
+      ctx.globalCompositeOperation = "source-over";
+      result = null;
+      for (const quality of [QUALITY, ...FALLBACK_QUALITY_STEPS]) {
+        const jpeg = await canvasToBlob(canvas, quality);
+        if (jpeg && jpeg.size <= TARGET_MAX_BYTES) {
+          result = new File([jpeg], toJpegFileName(file.name), { type: "image/jpeg" });
+          break;
         }
       }
     }
 
-    throw new ImageCompressionError(
-      "Не удалось сжать фото до нужного размера, попробуйте другое изображение",
-    );
+    if (!result) {
+      throw new ImageCompressionError(
+        "Не удалось сжать фото до нужного размера, попробуйте другое изображение",
+      );
+    }
+    // Never make a file bigger just for the sake of re-encoding it (only
+    // possible when no downscale was needed).
+    const downscaled = plan.width !== bitmap.width || plan.height !== bitmap.height;
+    return !downscaled && result.size >= file.size ? file : result;
   } finally {
     bitmap.close();
   }

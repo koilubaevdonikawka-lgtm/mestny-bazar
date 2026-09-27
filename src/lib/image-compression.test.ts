@@ -1,26 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { compressImageForUpload } from "./image-compression";
+import { MAX_DIMENSION_PX, compressImageForUpload, planCompression } from "./image-compression";
 
-// Node has no Canvas/createImageBitmap implementation, so only the
-// size-based skip branch (runs before any Canvas call) is covered here —
-// see vitest.config.ts's comment and Задача №239's report for how the
-// actual resize/re-encode path was verified instead (a real browser).
-describe("compressImageForUpload — skip branch (Задача №239)", () => {
-  it("returns the same File unchanged when already at or under the skip threshold", async () => {
-    const file = new File([new Uint8Array(1024)], "small.jpg", { type: "image/jpeg" });
-
-    const result = await compressImageForUpload(file);
-
-    expect(result).toBe(file);
+// Node has no Canvas/createImageBitmap implementation, so the pure sizing
+// decision (planCompression) and the decode-failure passthrough are covered
+// here; the actual Canvas resize/re-encode path is verified in a real browser.
+describe("planCompression", () => {
+  it("caps the longer side at MAX_DIMENSION_PX, keeping the aspect ratio", () => {
+    expect(planCompression(3000, 4000, 3 * 1024 * 1024)).toEqual({
+      reencode: true,
+      width: 900,
+      height: MAX_DIMENSION_PX,
+    });
+    expect(planCompression(4032, 3024, 2 * 1024 * 1024)).toEqual({
+      reencode: true,
+      width: MAX_DIMENSION_PX,
+      height: 900,
+    });
   });
 
-  it("returns a 4 MB file unchanged (still at/under the 4 MB skip threshold)", async () => {
-    const file = new File([new Uint8Array(4 * 1024 * 1024)], "four-mb.jpg", {
-      type: "image/jpeg",
+  it("re-encodes a within-size but heavy file without upscaling it", () => {
+    expect(planCompression(864, 1184, 2.5 * 1024 * 1024)).toEqual({
+      reencode: true,
+      width: 864,
+      height: 1184,
     });
+  });
 
-    const result = await compressImageForUpload(file);
+  it("leaves an already web-sized image alone", () => {
+    expect(planCompression(800, 600, 120 * 1024).reencode).toBe(false);
+  });
+});
 
-    expect(result).toBe(file);
+describe("compressImageForUpload", () => {
+  it("returns the original file when the image can't be decoded", async () => {
+    const file = new File([new Uint8Array(1024)], "photo.jpg", { type: "image/jpeg" });
+
+    expect(await compressImageForUpload(file)).toBe(file);
   });
 });
