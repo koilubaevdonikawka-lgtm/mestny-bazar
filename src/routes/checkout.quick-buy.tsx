@@ -12,6 +12,8 @@ import { useCheckoutStore } from "@/stores/checkoutStore";
 import { useCreateOrder } from "@/hooks/useCreateOrder";
 import { useCheckoutReadiness } from "@/hooks/useCheckoutReadiness";
 import { GuestCheckoutFields } from "@/components/checkout/GuestCheckoutFields";
+import { GuestSignInLink } from "@/components/auth/GuestSignInLink";
+import { guestContactReadyOrFocus } from "@/lib/guest-contact-validation";
 import { useTranslation } from "@/i18n/LanguageProvider";
 import { useTranslatedTexts } from "@/hooks/useTranslatedTexts";
 import { BRAND } from "@/config/brand";
@@ -68,6 +70,9 @@ function QuickBuyPage() {
   });
   const { submitOrder, isSubmitting } = useCreateOrder();
   const [submittingMethod, setSubmittingMethod] = useState<PaymentMethod | null>(null);
+  // Same as CartPanel: once a guest pressed pay with a required field missing,
+  // GuestCheckoutFields highlights it.
+  const [guestErrorsShown, setGuestErrorsShown] = useState(false);
 
   const translations = useTranslatedTexts([product?.title ?? ""], language);
   const displayTitle = product ? (translations[product.title] ?? product.title) : "";
@@ -100,6 +105,10 @@ function QuickBuyPage() {
     // profile, sent there first if it's incomplete (Задача №182).
     if (readiness.isAuthenticated === null) return;
     const isGuest = readiness.isAuthenticated === false;
+    if (isGuest && !guestContactReadyOrFocus()) {
+      setGuestErrorsShown(true);
+      return;
+    }
     if (!isGuest && readiness.isReady === null) return;
     if (!isGuest && !readiness.isReady) {
       toast.error(t("profile.completeProfileToOrderDescription"));
@@ -215,7 +224,7 @@ function QuickBuyPage() {
             №182). Guest: GuestCheckoutFields (Задача №314). Same as CartPanel. */}
         <section className="mt-6 space-y-2">
           {readiness.isAuthenticated === null ? null : readiness.isAuthenticated === false ? (
-            <GuestCheckoutFields />
+            <GuestCheckoutFields showErrors={guestErrorsShown} />
           ) : readiness.isReady === null ? (
             <div className="flex justify-center py-3">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -250,9 +259,26 @@ function QuickBuyPage() {
           )}
         </section>
 
+        {/* Cash on delivery is the default and the primary action (filled,
+            first); online payment stays one tap away as the secondary one. */}
         <div className="mt-6 grid gap-3">
           <Button
             size="lg"
+            className="h-14 rounded-full text-base"
+            disabled={
+              isSubmitting || (readiness.isAuthenticated === true && readiness.isReady === null)
+            }
+            onClick={() => void handlePay("CASH")}
+          >
+            {submittingMethod === "CASH" ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              t("checkout.payCashButton")
+            )}
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
             className="h-14 rounded-full text-base"
             disabled={
               isSubmitting || (readiness.isAuthenticated === true && readiness.isReady === null)
@@ -267,22 +293,8 @@ function QuickBuyPage() {
               </>
             )}
           </Button>
-          <Button
-            size="lg"
-            variant="outline"
-            className="h-14 rounded-full text-base"
-            disabled={
-              isSubmitting || (readiness.isAuthenticated === true && readiness.isReady === null)
-            }
-            onClick={() => void handlePay("CASH")}
-          >
-            {submittingMethod === "CASH" ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              t("checkout.payCashButton")
-            )}
-          </Button>
         </div>
+        {readiness.isAuthenticated === false && <GuestSignInLink />}
       </main>
     </div>
   );

@@ -225,11 +225,14 @@ function OrderSuccessPage() {
           <p className="mt-2 text-sm text-muted-foreground">
             {paymentState === "checking"
               ? t("orderSuccess.checkingPayment")
-              : showRetry
-                ? t("orderSuccess.paymentIncompleteDescription")
-                : paymentState === "pending"
-                  ? t("orderSuccess.paymentPendingDescription")
-                  : t("orderSuccess.deliveryConfirmationDescription")}
+              : paymentMethod === "CASH"
+                ? // Cash is paid to the courier — there is no payment to wait for.
+                  t("orderSuccess.cashOrderAcceptedDescription")
+                : showRetry
+                  ? t("orderSuccess.paymentIncompleteDescription")
+                  : paymentState === "pending"
+                    ? t("orderSuccess.paymentPendingDescription")
+                    : t("orderSuccess.deliveryConfirmationDescription")}
           </p>
           {showRetry && order && isAuthenticated === true && (
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">

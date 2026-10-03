@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AccountMenu } from "@/components/AccountMenu";
 import { listDeliveryZones } from "@/api/delivery-zone";
 import { useCheckoutStore } from "@/stores/checkoutStore";
 import { useTranslation } from "@/i18n/LanguageProvider";
+import { validateGuestContact } from "@/lib/guest-contact-validation";
 
 /**
  * Задача №314 — what a signed-out buyer fills in to check out as a guest
@@ -15,12 +15,21 @@ import { useTranslation } from "@/i18n/LanguageProvider";
  * Задача №182. Values live in useCheckoutStore (guestPhone/guestAddress/
  * guestZoneId) so the caller's submit handler reads the same draft.
  *
- * Signing in stays available but optional: AccountMenu's own "Войти"
- * popover (the same Google/Telegram SignInMethodsList as the header).
+ * Titled "Оформление без регистрации" so a guest sees at once that no account
+ * is needed; the optional sign-in is a quiet link under the order button
+ * (GuestSignInLink), not a button up here. `showErrors` — set by the caller
+ * once the guest tried to submit — highlights the missing/invalid required
+ * fields instead of the order button being hidden.
  */
-export function GuestCheckoutFields() {
+export function GuestCheckoutFields({ showErrors = false }: { showErrors?: boolean }) {
   const { t } = useTranslation();
   const { guestPhone, guestAddress, guestZoneId, setGuestContact } = useCheckoutStore();
+  const { addressValid, phoneValid } = validateGuestContact({
+    address: guestAddress,
+    phone: guestPhone,
+  });
+  const addressError = showErrors && !addressValid;
+  const phoneError = showErrors && !phoneValid;
 
   const { data: deliveryZones } = useQuery({
     queryKey: ["delivery", "zones"],
@@ -30,10 +39,7 @@ export function GuestCheckoutFields() {
 
   return (
     <section className="mt-3 space-y-3" data-testid="guest-checkout-fields">
-      <div className="flex items-center justify-between gap-2 text-sm">
-        <span className="text-muted-foreground">{t("cart.guestSignInHint")}</span>
-        <AccountMenu />
-      </div>
+      <h2 className="font-serif text-lg tracking-tight">{t("cart.guestCheckoutTitle")}</h2>
 
       <div className="space-y-1.5">
         <Label htmlFor="guest-address" className="text-sm font-medium">
@@ -46,9 +52,17 @@ export function GuestCheckoutFields() {
           placeholder={t("home.addressPlaceholder")}
           value={guestAddress}
           onChange={(e) => setGuestContact({ address: e.target.value })}
-          className="rounded-xl"
+          aria-invalid={addressError}
+          aria-describedby={addressError ? "guest-address-error" : undefined}
+          className={`rounded-xl ${addressError ? "border-destructive ring-1 ring-destructive" : ""}`}
         />
-        <p className="text-xs text-muted-foreground">{t("home.addressHint")}</p>
+        {addressError ? (
+          <p id="guest-address-error" className="text-xs font-medium text-destructive">
+            {t("home.enterFullAddressError")}
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">{t("home.addressHint")}</p>
+        )}
       </div>
 
       <div className="space-y-1.5">
@@ -64,8 +78,15 @@ export function GuestCheckoutFields() {
           placeholder={t("home.phonePlaceholder")}
           value={guestPhone}
           onChange={(e) => setGuestContact({ phone: e.target.value })}
-          className="rounded-xl"
+          aria-invalid={phoneError}
+          aria-describedby={phoneError ? "guest-phone-error" : undefined}
+          className={`rounded-xl ${phoneError ? "border-destructive ring-1 ring-destructive" : ""}`}
         />
+        {phoneError && (
+          <p id="guest-phone-error" className="text-xs font-medium text-destructive">
+            {t("home.invalidPhoneError")}
+          </p>
+        )}
       </div>
 
       <div className="space-y-1.5">

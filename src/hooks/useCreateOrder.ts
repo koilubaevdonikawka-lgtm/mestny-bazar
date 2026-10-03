@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useCheckoutStore } from "@/stores/checkoutStore";
 import { createOrder } from "@/api/orders";
 import { useTranslation } from "@/i18n/LanguageProvider";
+import { validateGuestContact } from "@/lib/guest-contact-validation";
 import type { CreateOrderItemRequest, CreateOrderResponse } from "@shared/contracts/order";
 
 /**
@@ -31,8 +32,6 @@ export interface GuestCheckoutContact {
   zoneId: string | null;
 }
 
-const MIN_GUEST_ADDRESS_LENGTH = 5;
-const MIN_PHONE_DIGITS = 9;
 export function useCreateOrder() {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -70,11 +69,12 @@ export function useCreateOrder() {
     }
     const guest = options.guest;
     if (guest) {
-      if (guest.address.trim().length < MIN_GUEST_ADDRESS_LENGTH) {
+      const { addressValid, phoneValid } = validateGuestContact(guest);
+      if (!addressValid) {
         toast.error(t("home.enterFullAddressError"));
         return false;
       }
-      if (guest.phone.replace(/\D/g, "").length < MIN_PHONE_DIGITS) {
+      if (!phoneValid) {
         toast.error(t("home.invalidPhoneError"));
         return false;
       }

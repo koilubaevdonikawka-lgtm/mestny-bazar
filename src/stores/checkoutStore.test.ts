@@ -14,6 +14,43 @@ beforeAll(() => {
   } as Storage;
 });
 
+describe("useCheckoutStore payment method default", () => {
+  it("preselects cash, and reset() after an order brings cash back", async () => {
+    const { useCheckoutStore } = await import("@/stores/checkoutStore");
+
+    expect(useCheckoutStore.getState().paymentMethod).toBe("CASH");
+    useCheckoutStore.getState().setPaymentMethod("ONLINE");
+    expect(useCheckoutStore.getState().paymentMethod).toBe("ONLINE");
+    useCheckoutStore.getState().reset();
+    expect(useCheckoutStore.getState().paymentMethod).toBe("CASH");
+  });
+
+  it("turns a draft saved before cash was the default (paymentMethod null) into cash", async () => {
+    const { useCheckoutStore } = await import("@/stores/checkoutStore");
+    memory.set(
+      "platform-checkout",
+      JSON.stringify({ state: { paymentMethod: null, guestPhone: "996700000000" }, version: 0 }),
+    );
+
+    await useCheckoutStore.persist.rehydrate();
+
+    expect(useCheckoutStore.getState().paymentMethod).toBe("CASH");
+    expect(useCheckoutStore.getState().guestPhone).toBe("996700000000");
+  });
+
+  it("keeps a saved online choice", async () => {
+    const { useCheckoutStore } = await import("@/stores/checkoutStore");
+    memory.set(
+      "platform-checkout",
+      JSON.stringify({ state: { paymentMethod: "ONLINE" }, version: 0 }),
+    );
+
+    await useCheckoutStore.persist.rehydrate();
+
+    expect(useCheckoutStore.getState().paymentMethod).toBe("ONLINE");
+  });
+});
+
 describe("useCheckoutStore guest contact (device-local guest profile)", () => {
   it("persists name/phone/address/zone to localStorage and keeps them across reset()", async () => {
     const { useCheckoutStore } = await import("@/stores/checkoutStore");

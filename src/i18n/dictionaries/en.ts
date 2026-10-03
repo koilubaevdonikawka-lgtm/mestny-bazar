@@ -161,8 +161,9 @@ export const en = {
     outOfStockWarning: "This item is out of stock",
     notAvailableWarning: "This item is no longer available",
     defaultCustomerName: "Customer",
-    guestSignInHint:
-      "Have an account? Sign in and your address and phone fill in automatically — or check out as a guest.",
+    guestCheckoutTitle: "Checkout without registration",
+    guestHaveAccount: "Already have an account?",
+    guestSignInLink: "Sign in",
     missingAddressError: "Enter a delivery address in the “Delivery, payment & status” section",
     missingPaymentMethodError:
       "Choose a payment method in the “Delivery, payment & status” section",
@@ -318,6 +319,7 @@ export const en = {
     paymentFailedDescription: "Try paying again or contact us.",
     paymentPendingDescription:
       "Waiting for payment confirmation — this can take a couple of minutes.",
+    cashOrderAcceptedDescription: "Order received. Pay in cash on delivery.",
     deliveryConfirmationDescription: "We'll contact you to confirm delivery.",
     backToShop: "Back to the shop",
     retryPaymentSignInPrompt: "Sign in to your account to retry payment or cancel the order",

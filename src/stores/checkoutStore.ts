@@ -75,7 +75,9 @@ interface CheckoutStore {
 }
 
 const initialState = {
-  paymentMethod: null as PaymentMethod | null,
+  // Cash on delivery preselected, so the confirm button is there from the first
+  // look (a guest otherwise saw only "Войти"); ONLINE is one tap away as before.
+  paymentMethod: "CASH" as PaymentMethod | null,
   idempotencyKey: null as string | null,
   overrideAddress: null as string | null,
   overrideLatitude: null as number | null,
@@ -132,6 +134,11 @@ export const useCheckoutStore = create<CheckoutStore>()(
     {
       name: "platform-checkout",
       storage: createJSONStorage(() => localStorage),
+      // A draft persisted before cash became the default may hold null.
+      merge: (persisted, current) => {
+        const restored = { ...current, ...(persisted as Partial<CheckoutStore>) };
+        return { ...restored, paymentMethod: restored.paymentMethod ?? "CASH" };
+      },
       partialize: (state) => ({
         paymentMethod: state.paymentMethod,
         overrideAddress: state.overrideAddress,

@@ -146,7 +146,7 @@ export const ky = {
     orderNotesLabel: "Буйрутмага комментарий",
     orderNotesPlaceholder: "Каалоолор, буйрутма боюнча тактоолор...",
     confirmPayOnline: "Төлөө",
-    confirmPayCash: "Тапшыруу",
+    confirmPayCash: "Буйрутма берүү",
     remove: "Алып салуу",
     removeItemAriaLabel: "Товарды алып салуу",
     decreaseQuantityAriaLabel: "Санын азайтуу",
@@ -161,8 +161,9 @@ export const ky = {
     outOfStockWarning: "Товар сатууда жок калды",
     notAvailableWarning: "Товар мындан ары жеткиликсиз",
     defaultCustomerName: "Сатып алуучу",
-    guestSignInHint:
-      "Аккаунтуңуз барбы? Кирсеңиз, дарек жана телефон өзү толтурулат. Же катталбай эле буйрутма бериңиз.",
+    guestCheckoutTitle: "Каттоосуз буйрутма берүү",
+    guestHaveAccount: "Аккаунтуңуз барбы?",
+    guestSignInLink: "Кирүү",
     missingAddressError: "«Жеткирүү, төлөм жана статус» бөлүмүндө жеткирүү дарегин көрсөтүңүз",
     missingPaymentMethodError: "«Жеткирүү, төлөм жана статус» бөлүмүндө төлөм ыкмасын тандаңыз",
     missingPhoneError: "Буйрутма билдирүүлөрү бөлүмүндө телефон номерин көрсөтүңүз",
@@ -319,6 +320,7 @@ export const ky = {
     paymentFailedDescription: "Кайра төлөп көрүңүз же биз менен байланышыңыз.",
     paymentPendingDescription:
       "Төлөмдүн ырасталышын күтүүдөбүз — бул бир нече мүнөткө созулушу мүмкүн.",
+    cashOrderAcceptedDescription: "Буйрутма кабыл алынды. Акысын алганыңызда накталай төлөйсүз.",
     deliveryConfirmationDescription: "Жеткирүүнү ырастоо үчүн сиз менен байланышабыз.",
     backToShop: "Дүкөнгө кайтуу",
     retryPaymentSignInPrompt:

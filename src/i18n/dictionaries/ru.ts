@@ -156,7 +156,7 @@ export const ru = {
     orderNotesPlaceholder: "Пожелания, уточнения по заказу...",
     /** Задача №184 — confirm buttons that appear right under the payment-method choice, replacing a single always-visible "Оформить заказ" button. */
     confirmPayOnline: "Оплатить",
-    confirmPayCash: "Оформить",
+    confirmPayCash: "Оформить заказ",
     remove: "Убрать",
     removeItemAriaLabel: "Убрать товар",
     decreaseQuantityAriaLabel: "Уменьшить количество",
@@ -171,8 +171,9 @@ export const ru = {
     outOfStockWarning: "Товара больше нет в наличии",
     notAvailableWarning: "Товар больше не доступен",
     defaultCustomerName: "Покупатель",
-    guestSignInHint:
-      "Есть аккаунт? Войдите — адрес и телефон подставятся сами. Или оформите без входа.",
+    guestCheckoutTitle: "Оформление без регистрации",
+    guestHaveAccount: "Уже есть аккаунт?",
+    guestSignInLink: "Войти",
     missingAddressError: "Укажите адрес доставки в разделе «Доставка оплата и статус»",
     missingPaymentMethodError: "Выберите способ оплаты в разделе «Доставка оплата и статус»",
     missingPhoneError: "Укажите номер телефона в разделе уведомлений о заказе",
@@ -343,6 +344,7 @@ export const ru = {
     checkingPayment: "Проверяем статус оплаты…",
     paymentFailedDescription: "Попробуйте оплатить ещё раз или свяжитесь с нами.",
     paymentPendingDescription: "Ожидаем подтверждение оплаты — это может занять пару минут.",
+    cashOrderAcceptedDescription: "Заказ принят. Оплата наличными при получении.",
     deliveryConfirmationDescription: "Мы свяжемся с вами для подтверждения доставки.",
     backToShop: "Вернуться в магазин",
     retryPaymentSignInPrompt: "Войдите в аккаунт, чтобы повторить оплату или отменить заказ",

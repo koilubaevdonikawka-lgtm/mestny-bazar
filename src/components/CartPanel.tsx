@@ -26,6 +26,8 @@ import { cancelUnpaidOnlineOrder, getOrderStatus, retryPayment } from "@/api/ord
 import { CartQuantityControl } from "@/components/CartQuantityControl";
 import { LocationPickerDialog } from "@/components/checkout/LocationPickerDialog";
 import { GuestCheckoutFields } from "@/components/checkout/GuestCheckoutFields";
+import { GuestSignInLink } from "@/components/auth/GuestSignInLink";
+import { guestContactReadyOrFocus } from "@/lib/guest-contact-validation";
 import { RetryPaymentButton } from "@/components/RetryPaymentButton";
 import { CancelUnpaidOnlineOrderButton } from "@/components/CancelUnpaidOnlineOrderButton";
 import { useTranslation } from "@/i18n/LanguageProvider";
@@ -125,6 +127,9 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
     guestZoneId,
   } = useCheckoutStore();
   const [mapDialogOpen, setMapDialogOpen] = useState(false);
+  // Set once a guest pressed the order button with a required field missing —
+  // from then on GuestCheckoutFields highlights what's still missing.
+  const [guestErrorsShown, setGuestErrorsShown] = useState(false);
   // Задача №182 — the default saved Address (with its zone) is the single
   // source of truth for delivery now; nothing here is collected inline
   // anymore, only displayed (see the read-only "deliver to" summary below).
@@ -280,6 +285,10 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
     // validates them). A signed-in buyer still checks out from their
     // profile, and is sent there first if it's incomplete (Задача №182).
     if (readiness.isAuthenticated === null) return;
+    if (isGuest && !guestContactReadyOrFocus()) {
+      setGuestErrorsShown(true);
+      return;
+    }
     if (readiness.isAuthenticated === true && readiness.isReady === null) return;
     if (readiness.isAuthenticated === true && !readiness.isReady) {
       toast.error(t("profile.completeProfileToOrderDescription"));
@@ -561,7 +570,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                 just browsing the cart was redundant — this section simply
                 renders nothing until there's something real to show. */}
             {readiness.isAuthenticated === null ? null : readiness.isAuthenticated === false ? (
-              <GuestCheckoutFields />
+              <GuestCheckoutFields showErrors={guestErrorsShown} />
             ) : readiness.isReady === null ? (
               <section className="mt-3 space-y-1.5">
                 <Label className="text-sm font-medium">{t("checkout.address")}</Label>
@@ -713,20 +722,18 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
               />
             </section>
 
-            {/* Задача №184 — choosing a method is now step 1 of checkout
-                itself, not an independent preference: picking one reveals
-                the actual confirm button below (payOnline/payCash — the
-                button reused as-is per that same choice, see handleCheckout
-                above), replacing the old always-visible, method-agnostic
-                "Оформить заказ" button. No more selection toast either —
-                the confirm button appearing right underneath already is
-                the feedback that the click registered. */}
+            {/* Задача №184 — the method picks the confirm button's label
+                below (payOnline/payCash). Cash is preselected
+                (checkoutStore), so the confirm button is always there — it
+                used to appear only after a pick, leaving a guest with
+                "Войти" as the only visible button. */}
             <section className="mt-3 space-y-1.5">
               <Label className="text-sm font-medium">{t("checkout.paymentMethod")}</Label>
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   type="button"
                   variant={paymentMethod === "CASH" ? "default" : "outline"}
+                  aria-pressed={paymentMethod === "CASH"}
                   className="h-11 rounded-xl text-sm"
                   onClick={() => setPaymentMethod("CASH")}
                 >
@@ -735,6 +742,7 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
                 <Button
                   type="button"
                   variant={paymentMethod === "ONLINE" ? "default" : "outline"}
+                  aria-pressed={paymentMethod === "ONLINE"}
                   className="h-11 rounded-xl text-sm"
                   onClick={() => setPaymentMethod("ONLINE")}
                 >
@@ -745,36 +753,36 @@ export function CartPanel({ active, onNavigate, onOrderPlaced }: CartPanelProps)
           </div>
           {/* Pinned bottom panel (inside a bounded-height ancestor, e.g.
               CartDrawer's SheetContent) — the confirm button always stays in
-              reach without scrolling. Inside an unbounded ancestor (a plain
-              page), this degrades gracefully to normal in-flow layout. Empty
-              (renders nothing) until a payment method is actually chosen. */}
-          {paymentMethod && (
-            <div className="flex-shrink-0 pt-3 pb-safe border-t bg-background">
-              {/* The single most visually prominent control in the whole
+              reach without scrolling. On the plain /cart page `sticky bottom-0`
+              keeps it at the bottom of the screen too, so a guest sees the
+              order button on the first screen, not a lone "Войти". Always
+              rendered: cash is the default method (checkoutStore). */}
+          <div className="sticky bottom-0 z-10 flex-shrink-0 pt-3 pb-safe border-t bg-background">
+            {/* The single most visually prominent control in the whole
                   panel: tallest, boldest text, shadow — so this unmistakably
                   reads as the primary, final action. */}
-              <Button
-                onClick={handleCheckout}
-                className="w-full h-14 rounded-full text-lg font-semibold shadow-lg"
-                disabled={
-                  items.length === 0 ||
-                  checkoutBusy ||
-                  (readiness.isAuthenticated === true && readiness.isReady === null)
-                }
-              >
-                {checkoutBusy ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <>
-                    <ShoppingCart className="w-5 h-5 mr-2" />
-                    {paymentMethod === "ONLINE"
-                      ? t("cart.confirmPayOnline")
-                      : t("cart.confirmPayCash")}
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
+            <Button
+              onClick={handleCheckout}
+              className="w-full h-14 rounded-full text-lg font-semibold shadow-lg"
+              disabled={
+                items.length === 0 ||
+                checkoutBusy ||
+                (readiness.isAuthenticated === true && readiness.isReady === null)
+              }
+            >
+              {checkoutBusy ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <ShoppingCart className="w-5 h-5 mr-2" />
+                  {paymentMethod === "ONLINE"
+                    ? t("cart.confirmPayOnline")
+                    : t("cart.confirmPayCash")}
+                </>
+              )}
+            </Button>
+            {isGuest && <GuestSignInLink />}
+          </div>
         </>
       )}
       <LocationPickerDialog
