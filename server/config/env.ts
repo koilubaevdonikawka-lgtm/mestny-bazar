@@ -3,7 +3,7 @@ import { z } from "zod";
 export const serverEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).optional(),
 
-  APP_NAME: z.string().default("Местный Базар"),
+  APP_NAME: z.string().default("AIKUR"),
   APP_URL: z.string().url().optional(),
 
   SUPABASE_URL: z.string().url(),

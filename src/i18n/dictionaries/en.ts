@@ -47,7 +47,7 @@ export const en = {
     loadErrorTitle: "Failed to load products",
   },
   home: {
-    title: "Mestny Bazar",
+    title: "AIKUR",
     tagline: "online grocery market with delivery",
     categoriesHeading: "Categories",
     productsHeading: "Products",
@@ -209,7 +209,7 @@ export const en = {
     emptyDescription: "Place your first order from the catalog.",
     goToCatalog: "Go to catalog",
     orderNumber: "Order #{{number}}",
-    subtitle: "Only your orders at Mestny Bazar.",
+    subtitle: "Only your orders at AIKUR.",
     signInToViewHistory: "Sign in to see your order history.",
     loadError: "Failed to load orders",
     itemCountOne: "{{count}} item",
@@ -392,7 +392,7 @@ export const en = {
     hub: {
       title: "Admin Platform",
       subtitlePrefix:
-        "Mestny Bazar — a single control center. Modules without a link are not yet implemented, see",
+        "AIKUR — a single control center. Modules without a link are not yet implemented, see",
       comingSoon: "Coming soon",
       navDashboard: "Dashboard",
       navOrders: "Orders",
@@ -446,7 +446,7 @@ export const en = {
       categoryLabel: "Category",
       categoryPlaceholder: "e.g.: general",
       valueLabel: "Value (JSON)",
-      valuePlaceholder: '"Mestny Bazar" or 123 or true or {"a":1}',
+      valuePlaceholder: '"AIKUR" or 123 or true or {"a":1}',
       contactPhoneHeading: "Admin contact phone",
       contactPhoneDescription:
         "Shown to customers on the Info page. You can list several numbers, one per line. Leave empty to hide this block.",

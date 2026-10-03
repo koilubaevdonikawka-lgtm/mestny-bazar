@@ -67,8 +67,8 @@ function BootstrapPage() {
           <>
             <h1 className="font-serif text-3xl tracking-tight">Инициализация платформы</h1>
             <p className="mt-3 text-muted-foreground">
-              У платформы «Местный Базар» ещё нет владельца. Первый вошедший пользователь может
-              стать Root Owner — это происходит только один раз.
+              У платформы AIKUR ещё нет владельца. Первый вошедший пользователь может стать Root
+              Owner — это происходит только один раз.
             </p>
             <div className="mt-6">
               {isAuthenticated === null ? (
@@ -97,7 +97,7 @@ function BootstrapPage() {
           <>
             <h1 className="font-serif text-3xl tracking-tight">Готово</h1>
             <p className="mt-3 text-muted-foreground">
-              Вы стали первым Root Owner платформы «Местный Базар».
+              Вы стали первым Root Owner платформы AIKUR.
             </p>
             <div className="mt-6">
               <Link
@@ -114,8 +114,7 @@ function BootstrapPage() {
           <>
             <h1 className="font-serif text-3xl tracking-tight">Bootstrap уже завершён</h1>
             <p className="mt-3 text-muted-foreground">
-              У платформы «Местный Базар» уже есть владелец. Инициализация выполняется только один
-              раз.
+              У платформы AIKUR уже есть владелец. Инициализация выполняется только один раз.
             </p>
             <div className="mt-6">
               <Link

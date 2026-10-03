@@ -50,7 +50,7 @@ export const ru = {
     loadErrorTitle: "Не удалось загрузить товары",
   },
   home: {
-    title: "Местный Базар",
+    title: "AIKUR",
     tagline: "онлайн-базар продуктов с доставкой",
     categoriesHeading: "Категории",
     productsHeading: "Товары",
@@ -225,7 +225,7 @@ export const ru = {
     emptyDescription: "Оформите первый заказ в каталоге.",
     goToCatalog: "Перейти в каталог",
     orderNumber: "Заказ №{{number}}",
-    subtitle: "Только ваши заказы в «Местном Базаре».",
+    subtitle: "Только ваши заказы в AIKUR.",
     signInToViewHistory: "Войдите, чтобы видеть историю ваших заказов.",
     loadError: "Не удалось загрузить заказы",
     itemCountOne: "{{count}} товар",
@@ -418,8 +418,7 @@ export const ru = {
     },
     hub: {
       title: "Административная платформа",
-      subtitlePrefix:
-        "«Местный Базар» — единая точка управления. Модули без ссылки ещё не реализованы, см.",
+      subtitlePrefix: "AIKUR — единая точка управления. Модули без ссылки ещё не реализованы, см.",
       comingSoon: "Скоро",
       navDashboard: "Dashboard",
       navOrders: "Заказы",
@@ -474,7 +473,7 @@ export const ru = {
       categoryLabel: "Категория",
       categoryPlaceholder: "например: general",
       valueLabel: "Значение (JSON)",
-      valuePlaceholder: '"Местный Базар" или 123 или true или {"a":1}',
+      valuePlaceholder: '"AIKUR" или 123 или true или {"a":1}',
       contactPhoneHeading: "Телефон администратора",
       contactPhoneDescription:
         "Показывается покупателям на странице «Информация». Можно указать несколько номеров — каждый на отдельной строке. Оставьте пустым, чтобы не показывать этот блок.",

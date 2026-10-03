@@ -47,7 +47,7 @@ export const zh = {
     loadErrorTitle: "无法加载商品",
   },
   home: {
-    title: "本地市场",
+    title: "AIKUR",
     tagline: "在线生鲜市场，送货上门",
     categoriesHeading: "分类",
     productsHeading: "商品",
@@ -202,7 +202,7 @@ export const zh = {
     emptyDescription: "去商品目录下第一笔订单吧。",
     goToCatalog: "前往商品目录",
     orderNumber: "订单 №{{number}}",
-    subtitle: "仅显示您在「本地市场」的订单。",
+    subtitle: "仅显示您在 AIKUR 的订单。",
     signInToViewHistory: "请登录以查看您的订单历史。",
     loadError: "无法加载订单",
     itemCountOne: "{{count}} 件商品",
@@ -376,7 +376,7 @@ export const zh = {
     },
     hub: {
       title: "管理平台",
-      subtitlePrefix: "「本地市场」— 统一管理中心。没有链接的模块尚未实现，详见",
+      subtitlePrefix: "AIKUR — 统一管理中心。没有链接的模块尚未实现，详见",
       comingSoon: "即将上线",
       navDashboard: "仪表盘",
       navOrders: "订单",
@@ -429,7 +429,7 @@ export const zh = {
       categoryLabel: "分类",
       categoryPlaceholder: "例如：general",
       valueLabel: "值（JSON）",
-      valuePlaceholder: '"本地市场" 或 123 或 true 或 {"a":1}',
+      valuePlaceholder: '"AIKUR" 或 123 或 true 或 {"a":1}',
       contactPhoneHeading: "管理员联系电话",
       contactPhoneDescription:
         "会显示在顾客端的「信息」页面。可以填写多个号码，每行一个。留空则不显示该区块。",

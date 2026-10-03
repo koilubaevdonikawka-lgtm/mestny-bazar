@@ -47,7 +47,7 @@ export const ky = {
     loadErrorTitle: "Товарларды жүктөө мүмкүн болгон жок",
   },
   home: {
-    title: "Местный Базар",
+    title: "AIKUR",
     tagline: "жеткирүү менен онлайн азык-түлүк базары",
     categoriesHeading: "Категориялар",
     productsHeading: "Товарлар",
@@ -209,7 +209,7 @@ export const ky = {
     emptyDescription: "Каталогдон биринчи буйрутманы тариздеңиз.",
     goToCatalog: "Каталогго өтүү",
     orderNumber: "№{{number}} буйрутма",
-    subtitle: "«Местный Базардагы» сиздин буйрутмаларыңыз гана.",
+    subtitle: "AIKUR'дагы сиздин буйрутмаларыңыз гана.",
     signInToViewHistory: "Буйрутмаларыңыздын тарыхын көрүү үчүн кириңиз.",
     loadError: "Буйрутмаларды жүктөө мүмкүн болбоду",
     itemCountOne: "{{count}} товар",
@@ -395,7 +395,7 @@ export const ky = {
     hub: {
       title: "Административдик платформа",
       subtitlePrefix:
-        "«Местный Базар» — башкаруунун бирдиктүү борбору. Шилтемеси жок модулдар али ишке ашырылган жок, кара",
+        "AIKUR — башкаруунун бирдиктүү борбору. Шилтемеси жок модулдар али ишке ашырылган жок, кара",
       comingSoon: "Жакында",
       navDashboard: "Dashboard",
       navOrders: "Буйрутмалар",
@@ -449,7 +449,7 @@ export const ky = {
       categoryLabel: "Категория",
       categoryPlaceholder: "мисалы: general",
       valueLabel: "Мааниси (JSON)",
-      valuePlaceholder: '"Местный Базар" же 123 же true же {"a":1}',
+      valuePlaceholder: '"AIKUR" же 123 же true же {"a":1}',
       contactPhoneHeading: "Администратордун телефону",
       contactPhoneDescription:
         "Сатып алуучуларга «Маалымат» баракчасында көрсөтүлөт. Бир нече номерди көрсөтсө болот — ар бирин өзүнчө сапта. Бул блокту көрсөтпөө үчүн бош калтырыңыз.",

@@ -1,4 +1,4 @@
-// Minimal, deliberately conservative service worker for «Местный Базар».
+// Minimal, deliberately conservative service worker for AIKUR.
 //
 // This is a live-pricing/live-stock marketplace rendered per-request via
 // TanStack Start SSR on Cloudflare Workers — there is no static/offline
@@ -20,7 +20,7 @@
 // photo on every category visit. This is scoped to image bytes only, by
 // bucket path — it does not touch /rest/v1, /auth/v1, or any other Supabase
 // endpoint that might share the same *.supabase.co host.
-const CACHE_NAME = "mestny-bazar-static-v1";
+const CACHE_NAME = "mestny-bazar-static-v2";
 const IMAGE_CACHE_NAME = "mestny-bazar-images-v1";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [OFFLINE_URL];
