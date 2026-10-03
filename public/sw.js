@@ -20,7 +20,7 @@
 // photo on every category visit. This is scoped to image bytes only, by
 // bucket path — it does not touch /rest/v1, /auth/v1, or any other Supabase
 // endpoint that might share the same *.supabase.co host.
-const CACHE_NAME = "mestny-bazar-static-v2";
+const CACHE_NAME = "mestny-bazar-static-v3";
 const IMAGE_CACHE_NAME = "mestny-bazar-images-v1";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [OFFLINE_URL];
