@@ -73,6 +73,7 @@ export type MarketplaceEvent =
   | { type: "courier.status_changed"; courierId: string; isAvailable: boolean }
   | { type: "customer.blocked"; userId: string }
   | { type: "customer.unblocked"; userId: string }
+  | { type: "customer.account_deleted"; userId: string }
   | { type: "role.assigned"; userId: string; role: string }
   | { type: "role.revoked"; userId: string; role: string }
   | { type: "seller.registered"; userId: string }

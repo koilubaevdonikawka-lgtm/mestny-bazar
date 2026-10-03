@@ -219,6 +219,11 @@ function InfoPage() {
               {t("privacy.linkLabel")}
             </Link>
           </li>
+          <li>
+            <Link to="/account-deletion" className="hover:text-foreground">
+              {t("accountDeletion.linkLabel")}
+            </Link>
+          </li>
         </ul>
 
         {isAuthenticated === true && (

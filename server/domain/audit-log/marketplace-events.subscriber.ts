@@ -287,6 +287,20 @@ export function subscribeAuditLog(bus: IMarketplaceEventBus, auditLog: IAuditLog
     });
   });
 
+  // Self-service account deletion: the technical id and time only — no name,
+  // phone or address (the person is gone; the record only proves it happened).
+  bus.subscribe("customer.account_deleted", async (event) => {
+    await auditLog.append({
+      id: randomUUID(),
+      action: "customer.account_deleted",
+      occurredAt: new Date().toISOString(),
+      entityType: "customer",
+      entityId: event.userId,
+      actorId: event.userId,
+      payload: {},
+    });
+  });
+
   bus.subscribe("seller.registered", async (event) => {
     await auditLog.append({
       id: randomUUID(),

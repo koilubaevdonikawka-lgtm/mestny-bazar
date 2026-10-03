@@ -58,6 +58,16 @@ import { LowStockThresholdRule } from "@server/domain/stock-policy/rules/low-sto
 import { SupplierService } from "@server/domain/supplier.service";
 import { SupplyService } from "@server/domain/supply.service";
 import { UserAdminService } from "@server/domain/user-admin.service";
+import { AccountDeletionService } from "@server/domain/account-deletion.service";
+import { AccountDeletionPolicyService } from "@server/domain/account-deletion-policy/account-deletion-policy.service";
+import { PlatformOwnerGuardRule } from "@server/domain/account-deletion-policy/rules/platform-owner-guard.rule";
+import { StaffRoleGuardRule } from "@server/domain/account-deletion-policy/rules/staff-role-guard.rule";
+import { StaffFootprintGuardRule } from "@server/domain/account-deletion-policy/rules/staff-footprint-guard.rule";
+import { ActiveOrdersGuardRule } from "@server/domain/account-deletion-policy/rules/active-orders-guard.rule";
+import { CustomerAccountRule } from "@server/domain/account-deletion-policy/rules/customer-account.rule";
+import { SupabaseAccountDeletionRepository } from "@server/adapters/supabase/account-deletion.repository";
+import { StubExternalIdentityRevoker } from "@server/adapters/identity/stub-external-identity-revoker";
+import type { IAccountDeletionPolicy } from "@server/ports/account-deletion-policy.port";
 import { GuestCustomerService } from "@server/domain/guest-customer.service";
 import { MediaUploadService } from "@server/domain/media-upload.service";
 import { TelegramBotService } from "@server/domain/telegram-bot.service";
@@ -295,6 +305,7 @@ export interface ServiceContainer {
   supplyService: SupplyService;
   userAdmin: IUserAdminRepository;
   userAdminService: UserAdminService;
+  accountDeletionService: AccountDeletionService;
   guestCustomerService: GuestCustomerService;
   platformOwnership: IPlatformOwnershipRepository;
   platformOwnershipService: PlatformOwnershipService;
@@ -701,6 +712,19 @@ export function createServices(env: ServerEnv): ServiceContainer {
   const supplierService = new SupplierService(suppliers);
   const supplyService = new SupplyService(supplies, suppliers, inventory, marketplaceEvents);
   const userAdminService = new UserAdminService(userAdmin, marketplaceEvents);
+  const accountDeletionPolicy: IAccountDeletionPolicy = new AccountDeletionPolicyService([
+    new PlatformOwnerGuardRule(),
+    new StaffRoleGuardRule(),
+    new StaffFootprintGuardRule(),
+    new ActiveOrdersGuardRule(),
+    new CustomerAccountRule(),
+  ]);
+  const accountDeletionService = new AccountDeletionService(
+    new SupabaseAccountDeletionRepository(),
+    accountDeletionPolicy,
+    new StubExternalIdentityRevoker(),
+    marketplaceEvents,
+  );
   const guestCustomerService = new GuestCustomerService(guestCustomers);
   const platformOwnershipService = new PlatformOwnershipService(platformOwnership);
   const bootstrapService = new BootstrapService(platformOwnershipService, bootstrapRepo);
@@ -830,6 +854,7 @@ export function createServices(env: ServerEnv): ServiceContainer {
     supplyService,
     userAdmin,
     userAdminService,
+    accountDeletionService,
     guestCustomerService,
     platformOwnership,
     platformOwnershipService,

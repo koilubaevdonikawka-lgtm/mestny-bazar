@@ -22,10 +22,12 @@ import { Route as CatalogRouteImport } from './routes/catalog'
 import { Route as CartRouteImport } from './routes/cart'
 import { Route as BootstrapRouteImport } from './routes/bootstrap'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AccountDeletionRouteImport } from './routes/account-deletion'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProfileIndexRouteImport } from './routes/profile/index'
 import { Route as OrdersIndexRouteImport } from './routes/orders/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as ProfileDeleteAccountRouteImport } from './routes/profile/delete-account'
 import { Route as ProfileAddressesRouteImport } from './routes/profile/addresses'
 import { Route as ProductHandleRouteImport } from './routes/product.$handle'
 import { Route as OrdersIdRouteImport } from './routes/orders/$id'
@@ -130,6 +132,11 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountDeletionRoute = AccountDeletionRouteImport.update({
+  id: '/account-deletion',
+  path: '/account-deletion',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -149,6 +156,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRoute,
+} as any)
+const ProfileDeleteAccountRoute = ProfileDeleteAccountRouteImport.update({
+  id: '/profile/delete-account',
+  path: '/profile/delete-account',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileAddressesRoute = ProfileAddressesRouteImport.update({
   id: '/profile/addresses',
@@ -344,6 +356,7 @@ const CategoryCategorySlugSubcategorySubcategorySlugRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/account-deletion': typeof AccountDeletionRoute
   '/admin': typeof AdminRouteWithChildren
   '/bootstrap': typeof BootstrapRoute
   '/cart': typeof CartRoute
@@ -363,6 +376,7 @@ export interface FileRoutesByFullPath {
   '/orders/$id': typeof OrdersIdRoute
   '/product/$handle': typeof ProductHandleRoute
   '/profile/addresses': typeof ProfileAddressesRoute
+  '/profile/delete-account': typeof ProfileDeleteAccountRoute
   '/admin/': typeof AdminIndexRoute
   '/orders/': typeof OrdersIndexRoute
   '/profile/': typeof ProfileIndexRoute
@@ -401,6 +415,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/account-deletion': typeof AccountDeletionRoute
   '/bootstrap': typeof BootstrapRoute
   '/cart': typeof CartRoute
   '/catalog': typeof CatalogRoute
@@ -419,6 +434,7 @@ export interface FileRoutesByTo {
   '/orders/$id': typeof OrdersIdRoute
   '/product/$handle': typeof ProductHandleRoute
   '/profile/addresses': typeof ProfileAddressesRoute
+  '/profile/delete-account': typeof ProfileDeleteAccountRoute
   '/admin': typeof AdminIndexRoute
   '/orders': typeof OrdersIndexRoute
   '/profile': typeof ProfileIndexRoute
@@ -458,6 +474,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/account-deletion': typeof AccountDeletionRoute
   '/admin': typeof AdminRouteWithChildren
   '/bootstrap': typeof BootstrapRoute
   '/cart': typeof CartRoute
@@ -477,6 +494,7 @@ export interface FileRoutesById {
   '/orders/$id': typeof OrdersIdRoute
   '/product/$handle': typeof ProductHandleRoute
   '/profile/addresses': typeof ProfileAddressesRoute
+  '/profile/delete-account': typeof ProfileDeleteAccountRoute
   '/admin/': typeof AdminIndexRoute
   '/orders/': typeof OrdersIndexRoute
   '/profile/': typeof ProfileIndexRoute
@@ -517,6 +535,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/account-deletion'
     | '/admin'
     | '/bootstrap'
     | '/cart'
@@ -536,6 +555,7 @@ export interface FileRouteTypes {
     | '/orders/$id'
     | '/product/$handle'
     | '/profile/addresses'
+    | '/profile/delete-account'
     | '/admin/'
     | '/orders/'
     | '/profile/'
@@ -574,6 +594,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/account-deletion'
     | '/bootstrap'
     | '/cart'
     | '/catalog'
@@ -592,6 +613,7 @@ export interface FileRouteTypes {
     | '/orders/$id'
     | '/product/$handle'
     | '/profile/addresses'
+    | '/profile/delete-account'
     | '/admin'
     | '/orders'
     | '/profile'
@@ -630,6 +652,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/account-deletion'
     | '/admin'
     | '/bootstrap'
     | '/cart'
@@ -649,6 +672,7 @@ export interface FileRouteTypes {
     | '/orders/$id'
     | '/product/$handle'
     | '/profile/addresses'
+    | '/profile/delete-account'
     | '/admin/'
     | '/orders/'
     | '/profile/'
@@ -688,6 +712,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountDeletionRoute: typeof AccountDeletionRoute
   AdminRoute: typeof AdminRouteWithChildren
   BootstrapRoute: typeof BootstrapRoute
   CartRoute: typeof CartRoute
@@ -706,6 +731,7 @@ export interface RootRouteChildren {
   OrdersIdRoute: typeof OrdersIdRoute
   ProductHandleRoute: typeof ProductHandleRoute
   ProfileAddressesRoute: typeof ProfileAddressesRoute
+  ProfileDeleteAccountRoute: typeof ProfileDeleteAccountRoute
   OrdersIndexRoute: typeof OrdersIndexRoute
   ProfileIndexRoute: typeof ProfileIndexRoute
   CategoryCategorySlugSubcategorySubcategorySlugRoute: typeof CategoryCategorySlugSubcategorySubcategorySlugRoute
@@ -804,6 +830,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/account-deletion': {
+      id: '/account-deletion'
+      path: '/account-deletion'
+      fullPath: '/account-deletion'
+      preLoaderRoute: typeof AccountDeletionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -831,6 +864,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/profile/delete-account': {
+      id: '/profile/delete-account'
+      path: '/profile/delete-account'
+      fullPath: '/profile/delete-account'
+      preLoaderRoute: typeof ProfileDeleteAccountRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/profile/addresses': {
       id: '/profile/addresses'
@@ -1205,6 +1245,7 @@ const WarehouseRouteWithChildren = WarehouseRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountDeletionRoute: AccountDeletionRoute,
   AdminRoute: AdminRouteWithChildren,
   BootstrapRoute: BootstrapRoute,
   CartRoute: CartRoute,
@@ -1223,6 +1264,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrdersIdRoute: OrdersIdRoute,
   ProductHandleRoute: ProductHandleRoute,
   ProfileAddressesRoute: ProfileAddressesRoute,
+  ProfileDeleteAccountRoute: ProfileDeleteAccountRoute,
   OrdersIndexRoute: OrdersIndexRoute,
   ProfileIndexRoute: ProfileIndexRoute,
   CategoryCategorySlugSubcategorySubcategorySlugRoute:

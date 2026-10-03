@@ -23,6 +23,7 @@ export type AuditAction =
   | "courier.status_changed"
   | "customer.blocked"
   | "customer.unblocked"
+  | "customer.account_deleted"
   | "seller.registered"
   | "seller.verified"
   | "seller.rejected"

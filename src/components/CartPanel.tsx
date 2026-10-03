@@ -44,7 +44,7 @@ import { formatOrderStatus } from "@shared/lib/order-display";
  * wiped by reset() on every new checkout; this must survive that). Plain
  * localStorage rather than a new Zustand store field.
  */
-const LAST_ORDER_ID_STORAGE_KEY = "platform-last-order-id";
+export const LAST_ORDER_ID_STORAGE_KEY = "platform-last-order-id";
 
 const TERMINAL_ORDER_STATUSES: ReadonlySet<OrderStatus> = new Set([
   OrderStatus.DELIVERED,

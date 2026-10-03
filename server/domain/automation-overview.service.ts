@@ -74,6 +74,11 @@ const EVENT_CATALOG: AutomationEventSummary[] = [
     subscribers: ["AuditLog"],
   },
   {
+    eventType: "customer.account_deleted",
+    description: "Покупатель удалил свой аккаунт",
+    subscribers: ["AuditLog"],
+  },
+  {
     eventType: "role.assigned",
     description: "Роль назначена пользователю",
     subscribers: ["AuditLog"],

@@ -114,6 +114,14 @@ function ProfilePage() {
         <div className="mt-10">
           <AddressesPanel />
         </div>
+
+        <div className="mt-12 border-t border-border/60 pt-6">
+          <Button asChild variant="link" className="px-0 text-destructive">
+            <Link to="/profile/delete-account" data-testid="profile-delete-account-link">
+              {t("accountDeletion.profileLink")}
+            </Link>
+          </Button>
+        </div>
       </div>
     </PageShell>
   );

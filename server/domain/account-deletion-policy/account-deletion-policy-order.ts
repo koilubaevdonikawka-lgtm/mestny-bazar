@@ -1,0 +1,7 @@
+export const AccountDeletionPolicyOrder = {
+  PLATFORM_OWNER_GUARD: 10,
+  STAFF_ROLE_GUARD: 20,
+  STAFF_FOOTPRINT_GUARD: 30,
+  ACTIVE_ORDERS_GUARD: 40,
+  CUSTOMER_ACCOUNT: 100,
+} as const;

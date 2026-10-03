@@ -42,6 +42,7 @@ export type AuditActionCode =
   | "courier.unblocked"
   | "customer.blocked"
   | "customer.unblocked"
+  | "customer.account_deleted"
   | "seller.registered"
   | "seller.verified"
   | "seller.rejected"
@@ -136,6 +137,7 @@ const ACTION_LABELS_RU: Record<AuditActionCode, string> = {
   "courier.unblocked": "Курьер разблокирован",
   "customer.blocked": "Покупатель заблокирован",
   "customer.unblocked": "Покупатель разблокирован",
+  "customer.account_deleted": "Покупатель удалил свой аккаунт",
   "seller.registered": "Продавец зарегистрировался",
   "seller.verified": "Продавец подтверждён",
   "seller.rejected": "Продавцу отказано",
@@ -204,6 +206,7 @@ const ACTION_LABELS_EN: Record<AuditActionCode, string> = {
   "courier.unblocked": "Courier unblocked",
   "customer.blocked": "Customer blocked",
   "customer.unblocked": "Customer unblocked",
+  "customer.account_deleted": "Customer deleted their account",
   "seller.registered": "Seller registered",
   "seller.verified": "Seller verified",
   "seller.rejected": "Seller rejected",
@@ -272,6 +275,7 @@ const ACTION_LABELS_KY: Record<AuditActionCode, string> = {
   "courier.unblocked": "Курьер бөгөттөн чыгарылды",
   "customer.blocked": "Сатып алуучу бөгөттөлдү",
   "customer.unblocked": "Сатып алуучу бөгөттөн чыгарылды",
+  "customer.account_deleted": "Сатып алуучу өз аккаунтун өчүрдү",
   "seller.registered": "Сатуучу катталды",
   "seller.verified": "Сатуучу ырасталды",
   "seller.rejected": "Сатуучуга баш тартылды",

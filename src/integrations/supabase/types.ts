@@ -2146,6 +2146,8 @@ export type Database = {
         Args: { items: Json; order_data: Json };
         Returns: string;
       };
+      erase_customer_account_data: { Args: { p_user_id: string }; Returns: string };
+      get_account_deletion_context: { Args: { p_user_id: string }; Returns: Json };
       increment_coupon_uses: {
         Args: { p_coupon_id: string };
         Returns: undefined;

@@ -689,4 +689,53 @@ export const en = {
     linkLabel: "Privacy Policy",
     title: "Privacy Policy",
   },
+  accountDeletion: {
+    linkLabel: "Account deletion",
+    profileLink: "Delete account",
+    screenTitle: "Delete account",
+    screenIntro: "Your account will be deleted permanently. It cannot be restored.",
+    deletedHeading: "What will be deleted",
+    deletedProfile: "The name and phone number in your profile",
+    deletedAddresses: "Saved addresses and delivery points picked on the map",
+    deletedCart: "Items in your cart",
+    deletedDevices: "Push notification tokens of your devices",
+    deletedLogin: "The account itself and sign-in with Google or Telegram",
+    deletedLocal: "The cart and saved contact details on this device",
+    keptHeading: "What is kept in anonymized form",
+    keptOrders:
+      "Your order history — without your name, phone, address or comment. Items, amounts, statuses and payment records stay for accounting.",
+    keptAudit:
+      "A service record that the account was deleted — only a technical identifier and the time, no personal data.",
+    confirmLabel: "To confirm, type {{word}}",
+    confirmWord: "DELETE",
+    submit: "Delete account permanently",
+    cancel: "Cancel",
+    deletedToast: "Your account has been deleted",
+    blockedStaff: "Staff accounts are deleted by a platform administrator.",
+    blockedActiveOrders:
+      "You have orders that are not finished yet. Wait until they are completed or cancel the order, then try again.",
+    ordersLink: "My orders",
+    errorToast: "Could not delete the account. Please try again.",
+    signInRequired: "Sign in to the account you want to delete.",
+    pageTitle: "Deleting your account and data",
+    pageIntro:
+      "You can delete your AIKUR account yourself at any time. This page explains how and what happens to your data.",
+    howHeading: "How to delete your account in the app or on the website",
+    howStep1: "Sign in with Google or Telegram.",
+    howStep2: "Open “Profile” and tap “Delete account” at the bottom of the page.",
+    howStep3: "Read what will be deleted, type the confirmation word and confirm.",
+    howNote:
+      "The account is deleted immediately. If you have an unfinished order, wait for the delivery or cancel it first.",
+    whyHeading: "Why some data is kept",
+    whyText:
+      "Orders are needed for accounting and tax records and for handling payment disputes and refunds. They are therefore not deleted, but they are detached from you and cleared of anything that identifies you.",
+    guestHeading: "Orders placed without an account",
+    guestText:
+      "Orders placed without signing in are not linked to any account. To have the data in them deleted, write to us and give the phone number used in the order.",
+    contactHeading: "If you can't access your account",
+    contactText:
+      "Write to us with the details of the account you signed in with (Google email or Telegram name). We will review the request and reply with the result:",
+    staffNote:
+      "Staff accounts (administrators, warehouse, couriers, sellers) are deleted by a platform administrator.",
+  },
 } satisfies Dictionary;
