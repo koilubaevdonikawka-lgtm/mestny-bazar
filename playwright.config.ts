@@ -12,7 +12,13 @@ import { defineConfig, devices } from "@playwright/test";
  * automatically (reusing an already-running one locally, always fresh in
  * CI) so the suite exercises the same code + the same live Supabase catalog
  * data the deployed site uses, without touching the deployed Worker itself.
+ *
+ * E2E_BASE_URL (opt-in) points a run at an already-deployed site instead, for a
+ * post-deploy smoke check of specs that never write (e.g. guest-checkout.spec.ts
+ * aborts its order request); no local server is started then.
  */
+const externalBaseUrl = process.env.E2E_BASE_URL;
+
 export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
@@ -21,14 +27,16 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: "list",
   use: {
-    baseURL: "http://localhost:8080",
+    baseURL: externalBaseUrl ?? "http://localhost:8080",
     trace: "on-first-retry",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  webServer: {
-    command: "npm run dev",
-    url: "http://localhost:8080",
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-  },
+  webServer: externalBaseUrl
+    ? undefined
+    : {
+        command: "npm run dev",
+        url: "http://localhost:8080",
+        reuseExistingServer: !process.env.CI,
+        timeout: 60_000,
+      },
 });
