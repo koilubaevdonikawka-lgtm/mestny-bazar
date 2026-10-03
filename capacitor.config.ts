@@ -19,7 +19,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  */
 const config: CapacitorConfig = {
   appId: "com.mesnyibazar.app",
-  appName: "Местный Базар",
+  appName: "AIKUR",
   webDir: ".output/public",
   server: {
     url: "https://mesnyibazar.com",
