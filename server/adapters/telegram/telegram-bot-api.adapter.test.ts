@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TelegramBotApiAdapter } from "@server/adapters/telegram/telegram-bot-api.adapter";
+import { RetryableError } from "@shared/lib/with-retry";
 
 describe("TelegramBotApiAdapter", () => {
   const originalFetch = global.fetch;
@@ -93,6 +94,51 @@ describe("TelegramBotApiAdapter", () => {
       await expect(adapter.sendMessage(123, "hello")).rejects.toThrow(
         "Telegram sendMessage failed: HTTP 400",
       );
+    });
+
+    it("sends plain text — no parse_mode, so nothing in the text needs escaping", async () => {
+      const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+        expect(JSON.parse(init!.body as string)).not.toHaveProperty("parse_mode");
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      await new TelegramBotApiAdapter({ botToken: "t" }).sendMessage(1, "*_[]<b>&");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([429, 500, 502])("marks HTTP %i as retryable", async (status) => {
+      global.fetch = vi.fn(async () => new Response("", { status })) as unknown as typeof fetch;
+      await expect(
+        new TelegramBotApiAdapter({ botToken: "t" }).sendMessage(1, "x"),
+      ).rejects.toBeInstanceOf(RetryableError);
+    });
+
+    it.each([400, 403])("does not retry HTTP %i (blocked bot, bad chat)", async (status) => {
+      global.fetch = vi.fn(async () => new Response("", { status })) as unknown as typeof fetch;
+      const error = await new TelegramBotApiAdapter({ botToken: "t" })
+        .sendMessage(1, "x")
+        .catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(Error);
+      expect(error).not.toBeInstanceOf(RetryableError);
+    });
+
+    it("marks a network failure as retryable, but not a timeout", async () => {
+      global.fetch = vi.fn(async () => {
+        throw new TypeError("fetch failed");
+      }) as unknown as typeof fetch;
+      await expect(
+        new TelegramBotApiAdapter({ botToken: "t" }).sendMessage(1, "x"),
+      ).rejects.toBeInstanceOf(RetryableError);
+
+      global.fetch = vi.fn(async () => {
+        throw new DOMException("The operation timed out.", "TimeoutError");
+      }) as unknown as typeof fetch;
+      const error = await new TelegramBotApiAdapter({ botToken: "t" })
+        .sendMessage(1, "x")
+        .catch((e: unknown) => e);
+      expect(error).not.toBeInstanceOf(RetryableError);
+      expect(String(error)).toContain("timeout");
     });
   });
 });

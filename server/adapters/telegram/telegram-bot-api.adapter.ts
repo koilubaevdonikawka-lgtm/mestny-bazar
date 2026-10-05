@@ -1,4 +1,5 @@
 import type { ITelegramBotApi, TelegramDownloadedFile } from "@server/ports/telegram-bot-api.port";
+import { RetryableError } from "@shared/lib/with-retry";
 
 const FETCH_TIMEOUT_MS = 15_000;
 
@@ -20,17 +21,32 @@ export class TelegramBotApiAdapter implements ITelegramBotApi {
     this.fileBase = `https://api.telegram.org/file/bot${config.botToken}`;
   }
 
+  /**
+   * Failures that may succeed on a second try — HTTP 429 (flood limit), 5xx and
+   * a network error — are thrown as RetryableError for callers using withRetry;
+   * 4xx (blocked bot, bad chat id) and a timeout are plain errors, not retried.
+   */
   async sendMessage(chatId: number, text: string): Promise<void> {
-    const response = await fetch(`${this.apiBase}/sendMessage`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text }),
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${this.apiBase}/sendMessage`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, text }),
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
+    } catch (error) {
+      const timedOut = error instanceof Error && error.name === "TimeoutError";
+      const message = `Telegram sendMessage failed: ${timedOut ? "timeout" : "network error"}`;
+      throw timedOut ? new Error(message, { cause: error }) : new RetryableError(message, error);
+    }
 
     if (!response.ok) {
       const body = await response.text().catch(() => "");
-      throw new Error(`Telegram sendMessage failed: HTTP ${response.status} ${body}`.trim());
+      const message = `Telegram sendMessage failed: HTTP ${response.status} ${body}`.trim();
+      throw response.status === 429 || response.status >= 500
+        ? new RetryableError(message)
+        : new Error(message);
     }
   }
 
